@@ -1,0 +1,36 @@
+{
+  "id": "ej_0001",
+  "tipo": "ejemplo",
+  "titulo": "Sucesión alternante",
+  "caso": "Contraejemplo de convergencia",
+  "contenido_latex": "x_n = (-1)^n",
+  "explicacion": "La sucesión está acotada pero no converge. Tiene subsucesiones convergentes.",
+  "categoria": [
+    "Análisis Real"
+  ],
+  "tags": [
+    "sucesión",
+    "acotamiento",
+    "contraejemplo"
+  ],
+  "relacionado_con": [
+    "def_0003",
+    "teo_0001"
+  ],
+  "referencia": {
+    "autor": "Apostol",
+    "año": 1974,
+    "obra": "Mathematical Analysis",
+    "capitulo": 3,
+    "página": 89,
+    "bibkey": "apostol1974"
+  },
+  "bibtex_entry": "@book{apostol1974,\n  author = {Apostol, Tom M.},\n  title = {Mathematical Analysis},\n  year = {1974},\n  publisher = {Addison-Wesley}\n}",
+  
+  "enlaces_salida": ["teo_0001", "def_0003"],
+  "enlaces_entrada": [],
+  "comentario_personal": "Este ejemplo es muy útil para mostrar que el acotamiento no implica convergencia. Además permite discutir el concepto de convergencia por subsucesiones.",
+  "inspirado_en": ["def_0003"],
+  "creado_a_partir_de": "Ejercicio discutido en la clase de límites con alumnos de primer semestre"
+}
+

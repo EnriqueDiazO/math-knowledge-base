@@ -1,0 +1,7 @@
+streamlit
+pymongo
+latexify-py
+pyvis
+networkx
+tk
+streamlit

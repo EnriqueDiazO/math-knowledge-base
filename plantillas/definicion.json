@@ -1,0 +1,42 @@
+{
+  "id": "def_0001",
+  "tipo": "definicion",
+  "titulo": "Espacio métrico",
+  "contenido_latex": "Un \\textit{espacio métrico} es un par $(X, d)$, donde $X$ es un conjunto y $d$ es una función real definida sobre el producto cartesiano $X \\times X$ que satisface las siguientes condiciones:\n\n\\begin{enumerate}\n\\item $d(x, y) \\geq 0$ para todos $x, y \\in X$,\n\\item $d(x, y) = 0$ si y solo si $x = y$,\n\\item $d(x, y) = d(y, x)$, para todos $x, y \\in X$,\n\\item para todos $x, y, u \\in X$ se cumple que \n$$d(x, y) \\leq d(x, u) + d(u, y).$$\n\\end{enumerate}\n A la función $X$ la llamamos  la métrica del espacio $X$.",
+  "categoria": [
+    "Espacios Métricos",
+    "Topología",
+    "Análisis Real"
+  ],
+  "tags": [
+    "distancia",
+    "espacio",
+    "métrica"
+  ],
+  "referencia": {
+    "autor": "Wilkiewicz",
+    "año": 2019,
+    "obra": "Curso de análisis y 150 problemas resueltos",
+    "capitulo": 1,
+    "página": 7,
+    "bibkey": "Wilkiewicz2019"
+  },
+  "bibtex_entry": "@book{Wilkiewicz2019, author = {Wilkiewicz, Antoni Wawrzyñczyk}, title = {Curso de análisis y 150 problemas resueltos},  year = {2019},  publisher = {McGraw-Hill}}",
+  "condiciones_formales": [
+    "No negatividad",
+    "Simetría",
+    "Desigualdad triangular"
+  ],
+  "ejemplos_rapidos": [
+    {
+      "descripcion": "Espacio euclidiano",
+      "latex": "(\\mathbb{R}^n, d_2),\\text{ con } d_2(x, y) = \\sqrt{\\sum_{i=1}^{n} (x_i - y_i)^2}"
+    }
+  ],
+  "enlaces_salida": ["prop_0001", "prop_0002"],
+  "enlaces_entrada": [],
+  "comentario_personal": "Es el punto de partida fundamental para cualquier noción de topología basada en distancias. Siempre conviene revisar ejemplos para entender bien la desigualdad triangular.",
+  "inspirado_en": [],
+  "creado_a_partir_de": "Notas del curso de Análisis I impartido en 2024"
+}
+

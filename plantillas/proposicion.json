@@ -1,0 +1,43 @@
+{
+  "id": "pro_0001",
+  "tipo": "proposicion",
+  "titulo": "Proposición 1.2",
+  "contenido_latex": "\\textbf{Proposición 1.2.} \\text{ Para todos } x, y, u \\in X\\\\\n\\[ |d(x, y) - d(x, u)| \\leq d(u, y). \\]",
+  "comentario": "¿Otra fórmula para sobrecargar a la memoria? No, si nuevamente pensamos en el mismo triángulo de vértices \\(x, y, z\\).",
+  "demostracion": {
+    "pasos": [
+      {
+        "descripcion": "La desigualdad \\( d(x, y) \\leq d(x, u) + d(u, y) \\) implica \\( d(x, y) - d(x, u) \\leq d(u, y) \\)",
+        "referencias": [""]
+        
+      },
+      {
+        "descripcion": "Por la misma desigualdad tenemos \\( d(x, u) \\leq d(x, y) + d(u, y) \\), de donde \\( d(x, u) - d(x, y) \\leq d(u, y) \\)",
+        "referencias": [""]
+      },
+      {
+        "descripcion": "Ambos números \\( d(x, y) - d(x, u) \\) y \\( d(x, u) - d(x, y) \\) son menores que \\( d(u, y) \\), por lo que \\( |d(x, y) - d(x, u)| \\leq d(u, y) \\)",
+        "referencias": [""]
+      }
+    ]
+  },
+  "categoria": ["Topología", "Espacios métricos"],
+  "relacionado_con": ["def_0001"],
+  "tags": ["desigualdad triangular", "métrica", "espacio métrico"],
+  "referencia": {
+    "autor": "Wilkiewicz",
+    "año": 2019,
+    "capitulo": 1,
+    "obra": "Curso de análisis y 150 problemas resueltos",
+    "página": 8,
+    "bibkey": "Wilkiewicz2019"
+  },
+  "bibtex_entry": "@book{Wilkiewicz2019,\n  author = {Wilkiewicz, Antoni Wawrzyñczyk},\n  title = {Curso de análisis y 150 problemas resueltos},\n  year = {2019},\n  publisher = {McGraw-Hill}\n}",
+
+  "enlaces_salida": ["def_0001"],
+  "enlaces_entrada": [],
+  "comentario_personal": "Me gusta usar esta proposición para mostrar cómo una desigualdad puede interpretarse desde múltiples perspectivas geométricas. Suele confundir, pero es clave para demostrar otras propiedades de métricas.",
+  "inspirado_en": ["def_0001"],
+  "creado_a_partir_de": "Discusión sobre desigualdad triangular en clase de Espacios Métricos 2024"
+}
+

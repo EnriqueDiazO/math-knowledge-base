@@ -1,0 +1,44 @@
+{
+  "id": "cor_0001",
+  "tipo": "corolario",
+  "titulo": "Corolario de Bolzano-Weierstrass",
+  "contenido_latex": "Toda sucesión acotada e infinita en \\( \\mathbb{R} \\) tiene una subsucesión convergente.",
+  "categoria": [
+    "Análisis Real"
+  ],
+  "tags": [
+    "sucesión",
+    "subsucesión",
+    "convergencia",
+    "acotamiento"
+  ],
+  "referencia": {
+    "autor": "Apostol",
+    "año": 1974,
+    "obra": "Mathematical Analysis",
+    "capitulo": 3,
+    "página": 86,
+    "bibkey": "apostol1974"
+  },
+  "bibtex_entry": "@book{apostol1974,\n  author = {Apostol, Tom M.},\n  title = {Mathematical Analysis},\n  year = {1974},\n  publisher = {Addison-Wesley}\n}",
+  "dependencias": [
+    "teo_0001"
+  ],
+  "demostracion": {
+    "pasos": [
+      {
+        "descripcion": "Aplicamos el teorema de Bolzano-Weierstrass al caso particular de \\( \\mathbb{R} \\subset \\mathbb{R}^n \\)."
+      },
+      {
+        "descripcion": "Como \\( \\mathbb{R} \\) es un espacio métrico completo, el resultado se mantiene válido."
+      }
+    ],
+    "referencia_textual": "Consecuencia directa del Teorema de Bolzano-Weierstrass (Apostol, pág. 85)"
+  },
+  "enlaces_salida": ["teo_0001"],
+  "enlaces_entrada": [],
+  "comentario_personal": "Me gusta presentar este corolario antes de introducir compacidad, ya que permite visualizar cómo se comportan las sucesiones en espacios limitados.",
+  "inspirado_en": ["teo_0001"],
+  "creado_a_partir_de": "Discusión en clase al aplicar Bolzano-Weierstrass a ejemplos unidimensionales."
+}
+
