@@ -29,6 +29,27 @@
 \usepackage{graphicx}      % Por si se usan imágenes
 \usepackage{hyperref}      % Enlaces clicables
 \usepackage{babel}         % Soporte multilingüe si vas a usar español
+\usepackage{amsthm}  % Requerido para proof y nuevos teoremas
+% Estilo de teoremas personalizados
+\newtheoremstyle{miestilo}
+  {1em}      % Espacio arriba
+  {1em}      % Espacio abajo
+  {\itshape} % Fuente del cuerpo
+  {}         % Indentación
+  {\bfseries} % Fuente del título
+  {.}        % Puntuación al final
+  {0.5em}    % Espacio tras el título
+  {}         % Título personalizado (vacío usa por defecto)
+
+\theoremstyle{miestilo}
+
+% Definiciones de entornos con numeración opcional
+\newtheorem*{proposition}{Proposición}
+\newtheorem*{theorem}{Teorema}
+\newtheorem*{definition}{Definición}
+\newtheorem*{corollary}{Corolario}
+\newtheorem*{lemma}{Lema}
+\newtheorem*{example}{Ejemplo}
 
 % Interlineado
 \renewcommand{\baselinestretch}{1.2}

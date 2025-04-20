@@ -1,0 +1,32 @@
+---
+id: def:espacio-metrico
+tipo: definicion
+titulo: Espacio métrico
+categorias: [Espacios métricos, Espacios normados]
+tags: [métrica, distancia]
+referencia:
+    bibkey: rudin1991functional 
+    autor: Rudin
+    año: 1991
+    obra: Functional Analysis
+    edición: 1
+    capitulo: 1
+    pagina: 5   
+creado_a_partir_de: []
+inspirado_en: []
+enlaces_entrada: []
+enlaces_salida: []
+---
+
+\begin{definition}
+Un \textit{espacio métrico} es un par $(X, d)$, donde $X$ es un conjunto y $d$ es una función real definida sobre el producto cartesiano $X \times X$ que satisface las siguientes condiciones:
+
+\begin{itemize}
+  \item $d(x, y) \geq 0$ para todos $x, y \in X$.
+  \item $d(x, y) = 0$ si y solo si $x = y$.
+  \item $d(x, y) = d(y, x)$ para todos $x, y \in X$.
+  \item $d(x, y) \leq d(x, z) + d(z, y)$ para todos $x, y, z \in X$.
+\end{itemize}
+
+La función $d$ se llama métrica sobre $X$.
+\end{definition}

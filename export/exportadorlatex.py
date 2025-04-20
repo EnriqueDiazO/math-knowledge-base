@@ -1,53 +1,42 @@
-# exportador_latex.py
-# → Clase para exportar documentos desde MongoDB a LaTeX
-
 import os
 import subprocess
-from pymongo import MongoClient
-from db.mathmongo import MathMongoDB
+import json
 
 class ExportadorLatex:
-    def __init__(self, mathdb: MathMongoDB) -> None:
+    def __init__(self, plantilla_path: str = "export/templates/miestilo.sty") -> None:
         """
-        → Inicializa la conexión a MongoDB para exportar documentos.
+        Inicializa el exportador usando una plantilla LaTeX personalizada.
 
         Parámetros:
-        - mathdb (MathMongoDB): Instancia conectada de MathMongoDB
+        - plantilla_path (str): Ruta al archivo .sty a usar para formato.
         """
-        self.mathdb = mathdb
-        self.collection = mathdb.collection
-        print("✅ ExportadorLatex listo usando MathMongoDB")
+        self.plantilla_path = plantilla_path
+        print("✅ ExportadorLatex listo (sin MongoDB)")
 
-    def exportar_documento_latex(self, doc_id: str, salida: str = "./exportados") -> None:
+    def exportar_desde_dict(self, doc: dict, salida: str = "./exportados") -> None:
         """
-        → Exporta un documento de la base de datos a un archivo LaTeX compilado como PDF.
+        Exporta un documento (ya en dict) a LaTeX y PDF.
 
         Parámetros:
-        - doc_id (str): ID del documento.
-        - salida (str): Carpeta donde se guardará el .tex y el .pdf
+        - doc (dict): Documento en formato dict (con campos como 'titulo', 'contenido_latex', etc.)
+        - salida (str): Carpeta de salida
         """
-        doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
-        if not doc:
-            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
+        if not isinstance(doc, dict):
+            print("❌ Entrada no válida: se esperaba un diccionario.")
             return
 
-        os.makedirs(salida, exist_ok=True)
+        doc_id = doc.get("id", "documento_sin_id")
         safe_id = doc_id.replace(":", "__").replace("/", "__")
         tex_path = os.path.join(salida, f"{safe_id}.tex")
+        os.makedirs(salida, exist_ok=True)
 
-        plantilla_local = os.path.join(os.path.dirname(__file__), "templates", "miestilo.sty")
-        destino_local = os.path.join(salida, "miestilo.sty")
-        if not os.path.exists(destino_local):
-            try:
-                os.makedirs(salida, exist_ok=True)
-                with open(plantilla_local, "r", encoding="utf-8") as f_src:
-                     with open(destino_local, "w", encoding="utf-8") as f_dst:
-                         f_dst.write(f_src.read())
-                print(f"📄 Plantilla miestilo.sty copiada a {salida}")
-            except Exception as e:
-                print(f"⚠️ No se pudo copiar miestilo.sty: {e}")
-
-        #tex_path = os.path.join(salida, f"{doc_id}.tex")
+        # Copiar plantilla .sty si es necesario
+        destino_sty = os.path.join(salida, "miestilo.sty")
+        if not os.path.exists(destino_sty) and os.path.exists(self.plantilla_path):
+            with open(self.plantilla_path, "r", encoding="utf-8") as f_src, \
+                 open(destino_sty, "w", encoding="utf-8") as f_dst:
+                f_dst.write(f_src.read())
+            print(f"📄 Plantilla miestilo.sty copiada a {salida}")
 
         try:
             with open(tex_path, "w", encoding="utf-8") as f:
@@ -55,100 +44,59 @@ class ExportadorLatex:
                 f.write("\\usepackage{miestilo}\n")
                 f.write("\\begin{document}\n\n")
 
-                titulo = doc.get("titulo", "Sin título")
-                f.write("\\section*{" + titulo + "}\n\n")
+                f.write(f"\\section*{{{doc.get('titulo', 'Sin título')}}}\n\n")
+                f.write(doc.get("contenido_latex", "") + "\n\n")
 
-                contenido = doc.get("contenido_latex", "")
-                f.write(contenido + "\n\n")
+                for campo in ["caso", "explicacion", "contexto"]:
+                    if doc.get(campo):
+                        f.write(f"\\section*{{{campo.capitalize()}}}\n{doc[campo]}\n\n")
 
-                #explicacion = doc.get("explicacion", "")
-                #f.write(explicacion + "\n\n")
+                if doc.get("explicacion_latex"):
+                    f.write("\\section*{Explicación (LaTeX)}\n")
+                    f.write(f"\\[{doc['explicacion_latex']}\\]\n\n")
 
-                # Campos opcionales de ejemplos
-                if "caso" in doc and doc["caso"]:
-                     f.write("\\section*{Caso}\n")
-                     f.write(f"{doc['caso']}\n\n")
-
-                if "explicacion" in doc and doc["explicacion"]:
-                    f.write("\\section*{Explicación}\n")
-                    f.write(f"{doc['explicacion']}\n\n")
-
-                if "contexto" in doc and doc["contexto"]:
-                   f.write("\\section*{Contexto}\n")
-                   f.write(f"{doc['contexto']}\n\n")
-
-                if "explicacion_latex" in doc and doc["explicacion_latex"]:
-                   f.write("\\section*{Explicación (LaTeX)}\n")
-                   f.write(f"\\[{doc['explicacion_latex']}\\]\n\n")
-
-
-                if doc.get("demostracion", {}).get("pasos"): 
-                    f.write("\n \\section*{Demostración}\n \\begin{itemize}\n")
-                    for paso in doc["demostracion"].get("pasos", []):
-                        desc = paso["descripcion"].replace("\n", r"\\")
+                if doc.get("demostracion", {}).get("pasos"):
+                    f.write("\\section*{Demostración}\n\\begin{itemize}\n")
+                    for paso in doc["demostracion"]["pasos"]:
+                        desc = paso.get("descripcion", "").replace("\n", r"\\")
                         refs = ", ".join(paso.get("referencias", []))
                         if refs:
-                            f.write(f"\n  \\item {desc} \\textit{{[{refs}]}} \n")
+                            f.write(f"  \\item {desc} \\textit{{[{refs}]}}\n")
                         else:
-                            f.write(f"\n  \\item {desc} \n")
-                    f.write("\\end{itemize} \n $\\blacksquare$ \n ")#\\hfill
+                            f.write(f"  \\item {desc}\n")
+                    f.write("\\end{itemize}\n$\\blacksquare$\n\n")
 
-                if "ejemplos_rapidos" in doc and doc["ejemplos_rapidos"]:  
-                    f.write("\n \\section*{Ejemplos Rápidos}\n \\begin{itemize}\n")
-                    for ejemplo in doc["ejemplos_rapidos"]:
-                        descripcion = ejemplo.get("descripcion", "")
-                        latex = ejemplo.get("latex", "")
-                        f.write(f"  \\item \\textbf{{{descripcion}}}: $${latex}$$\n")
+                if doc.get("ejemplos_rapidos"):
+                    f.write("\\section*{Ejemplos Rápidos}\n\\begin{itemize}\n")
+                    for ej in doc["ejemplos_rapidos"]:
+                        f.write(f"  \\item \\textbf{{{ej.get('descripcion','')}}}: $${ej.get('latex','')}$$\n")
                     f.write("\\end{itemize}\n")
 
-                if "categoria" in doc:
-                    categorias = ", ".join(cat for cat in doc["categoria"])
-                    f.write("\\section*{Categorías}\n")
-                    f.write(f"{categorias}\n\n")
+                if doc.get("categoria"):
+                    f.write(f"\\section*{{Categorías}}\n{', '.join(doc['categoria'])}\n\n")
+                if doc.get("dependencias"):
+                    f.write(f"\\section*{{Dependencias}}\n{', '.join(doc['dependencias'])}\n\n")
+                if doc.get("relacionado_con"):
+                    f.write(f"\\section*{{Relacionado con}}\n{', '.join(doc['relacionado_con'])}\n\n")
 
-                if "dependencias" in doc:
-                    deps = ", ".join(doc["dependencias"])
-                    f.write("\\section*{Dependencias}\n")
-                    f.write(f"{deps}\n\n")
-
-                if "relacionado_con" in doc:
-                    relacionados = ", ".join(doc["relacionado_con"])
-                    f.write("\\section*{Relacionado con}\n")
-                    f.write(f"{relacionados}\n\n")
-
-                if "referencia" in doc:
+                if doc.get("referencia"):
                     ref = doc["referencia"]
-                    autor = ref.get("autor", "")
-                    anio = ref.get("año", "")
-                    obra = ref.get("obra", "")
-                    capitulo = ref.get("capitulo", "")
-                    pagina = ref.get("página", "")
                     f.write("\\section*{Referencia}\n")
-                    f.write(f"{autor}, {anio}, {obra}, Cap. {capitulo}, Pag. {pagina}\n\n")
+                    f.write(f"{ref.get('autor','')}, {ref.get('año','')}, {ref.get('obra','')}, Ed. {ref.get('edición','')} Cap. {ref.get('capitulo','')}, Pag. {ref.get('pagina','')} \n\n")
 
                 zettel = {
-                    "enlaces_salida": doc.get("enlaces_salida", []),
                     "enlaces_entrada": doc.get("enlaces_entrada", []),
+                    "enlaces_salida": doc.get("enlaces_salida", []),
                     "inspirado_en": doc.get("inspirado_en", []),
-                    "creado_a_partir_de": doc.get("creado_a_partir_de", ""),
-                    "comentario_personal": doc.get("comentario_personal", ""),
-                    "referencia_textual": doc.get("referencia_textual", "")
+                    "creado_a_partir_de": doc.get("creado_a_partir_de", "")
                 }
-
                 if any(zettel.values()):
                     f.write("\\section*{Notas Zettelkasten}\n\\begin{itemize}\n")
-                    if zettel["enlaces_entrada"]:
-                        f.write(f"\n  \\item \\textbf{{Enlaces de entrada}}: {', '.join(zettel['enlaces_entrada'])}\n")
-                    if zettel["enlaces_salida"]:
-                        f.write(f"\n  \\item \\textbf{{Enlaces de salida}}: {', '.join(zettel['enlaces_salida'])}\n")
-                    if zettel["inspirado_en"]:
-                        f.write(f"\n  \\item \\textbf{{Inspirado en}}: {', '.join(zettel['inspirado_en'])}\n")
-                    if zettel["creado_a_partir_de"]:
-                        f.write(f"\n  \\item \\textbf{{Creado a partir de}}: {zettel['creado_a_partir_de']}\n")
-                    if zettel["comentario_personal"]:
-                        f.write(f"\n  \\item \\textbf{{Comentario personal}}: {zettel['comentario_personal']}\n")
-                    if zettel["referencia_textual"]:
-                        f.write(f"\n  \\item \\textbf{{Referencia textual}}: {zettel['referencia_textual']}\n")
+                    for key, val in zettel.items():
+                        if isinstance(val, list) and val:
+                            f.write(f"  \\item \\textbf{{{key.replace('_',' ').title()}}}: {', '.join(val)}\n")
+                        elif isinstance(val, str) and val.strip():
+                            f.write(f"  \\item \\textbf{{{key.replace('_',' ').title()}}}: {val}\n")
                     f.write("\\end{itemize}\n")
 
                 f.write("\\end{document}")
@@ -159,7 +107,21 @@ class ExportadorLatex:
 
         try:
             subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory", salida, tex_path], check=True)
-            print(f"📄 PDF generado en: {salida}/{doc_id}.pdf")
+            print(f"📄 PDF generado en: {salida}/{safe_id}.pdf")
         except subprocess.CalledProcessError:
             print("❌ Error al compilar el archivo LaTeX.")
 
+    def exportar_desde_json(self, json_path: str, salida: str = "./exportados") -> None:
+        """
+        Carga un documento desde archivo JSON y lo exporta a LaTeX y PDF.
+
+        Parámetros:
+        - json_path (str): Ruta al archivo .json
+        - salida (str): Carpeta de salida
+        """
+        try:
+            with open(json_path, "r", encoding="utf-8") as f:
+                doc = json.load(f)
+            self.exportar_desde_dict(doc, salida)
+        except Exception as e:
+            print(f"❌ Error al leer archivo JSON: {e}")
