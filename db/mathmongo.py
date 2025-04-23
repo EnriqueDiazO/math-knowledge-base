@@ -78,6 +78,20 @@ class MathMongoDB:
             print(f"📝 Archivo .md generado: {md_path}")
         except Exception as e:
             print(f"❌ Error al exportar a .md: {e}")
+    
+    def editar_id(self, doc_id, nuevos_campos)-> None:
+        """
+        Edita un documento actualizando los campos indicados.
+
+        Parámetros:
+        - doc_id (str): ID del documento
+        - nuevos_campos (dict): Campos a modificar
+        """
+        resultado = self.collection.update_one({"id": doc_id}, {"$set": nuevos_campos})
+        if resultado.modified_count:
+            print(f"✏️ Documento '{doc_id}' actualizado.")
+        else:
+            print(f"⚠️ No se realizaron cambios en el documento '{doc_id}' o no se encontró.")
 
 
     def editar_documento(self, doc_id, ruta_archivo_md) -> None:

@@ -13,11 +13,11 @@ class GrafoConocimiento:
 
         # Colores para tipos de objetos (nodos)
         self.color_por_tipo = {
-            "definicion": "lightgreen",
-            "teorema": "lightblue",
+            "definicion": "green",
+            "teorema": "blue",
             "proposicion": "orange",
             "corolario": "violet",
-            "lema": "#FFB6C1",  # color pastel rosado más visible
+            "lema": "pink",  # color pastel rosado más visible
             "ejemplo": "khaki",
             "esquema": "gray",
             "otro": "white"
