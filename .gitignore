@@ -23,3 +23,18 @@ dist/
 *.sqlite
 *.bak
 .DS_Store
+
+# Archivos binarios y auxiliares
+*.aux
+*.pdf
+*.log
+*.toc
+*.out
+*.egg-info/
+__pycache__/
+*.zip
+
+# Exportaciones específicas
+test/exportados_pdf/
+db/*.json
+
