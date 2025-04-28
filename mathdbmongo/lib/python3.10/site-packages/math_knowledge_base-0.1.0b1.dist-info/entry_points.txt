@@ -1,0 +1,2 @@
+[console_scripts]
+mathdb = app.main:main

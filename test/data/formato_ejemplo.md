@@ -1,5 +1,5 @@
 ---
-id: exam:espacio-metrico
+id: exam:EDITABLE
 tipo: example
 titulo: Espacio métrico
 categorias: [Topología, Espacios métricos]

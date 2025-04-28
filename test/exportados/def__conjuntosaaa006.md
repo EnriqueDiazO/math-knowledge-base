@@ -26,7 +26,7 @@ inspirado_en:
 - --
 - '-'
 enlaces_entrada:
-- 'def:conjuntosaaa001'
+- def:conjuntosaaa001
 - '-'
 - '-'
 - '-'

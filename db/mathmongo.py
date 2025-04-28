@@ -207,7 +207,7 @@ class MathMongoDB:
         except subprocess.CalledProcessError as e:
             print("❌ Error al realizar el backup:", e)
 
-    def mostrar_campos_texto(self, limite=10) -> None:
+    def mostrar_campos_texto(self, limite=100) -> None:
         documentos = list(self.collection.find({}, {"_id": 0}))
         registros = []
 
