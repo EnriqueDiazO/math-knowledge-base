@@ -1,0 +1,25 @@
+# Entorno virtual
+mathdbmongo/
+
+# Cache de Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Carpetas de construcción
+build/
+dist/
+*.egg-info/
+
+# VSCode settings
+.vscode/
+
+# Archivos de Jupyter Notebook
+.ipynb_checkpoints/
+
+# Otros temporales
+*.log
+*.sqlite
+*.bak
+.DS_Store
