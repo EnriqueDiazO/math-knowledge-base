@@ -5,3 +5,4 @@ pyvis
 networkx
 tk
 streamlit
+pyyaml
