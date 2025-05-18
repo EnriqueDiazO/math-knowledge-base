@@ -13,11 +13,11 @@ class GrafoConocimiento:
 
         # Colores para tipos de objetos (nodos)
         self.color_por_tipo = {
-            "definicion": "lightgreen",
-            "teorema": "lightblue",
+            "definicion": "green",
+            "teorema": "blue",
             "proposicion": "orange",
             "corolario": "violet",
-            "lema": "lightpink",
+            "lema": "pink",  # color pastel rosado más visible
             "ejemplo": "khaki",
             "esquema": "gray",
             "otro": "white"
@@ -32,22 +32,14 @@ class GrafoConocimiento:
         }
 
     def filtrar(self, categorias: list[str] | None = None, tipos: list[str] | None = None) -> None:
-        """
-        → Filtra los documentos por categoría o tipo.
-
-        Parámetros:
-        - categorias (list[str] | None): Lista de categorías a incluir.
-        - tipos (list[str] | None): Lista de tipos de documento a incluir.
-        """
         def normalizar(texto: str | None) -> str:
             return texto.lower().strip() if isinstance(texto, str) else ""
-        
+
         docs = self.documentos_originales
 
         if categorias:
             categorias_norm = [normalizar(c) for c in categorias]
             docs = [d for d in docs if any(normalizar(cat) in categorias_norm for cat in d.get("categoria", []))]
-            #docs = [d for d in docs if any(c in d.get("categoria", []) for c in categorias)]
 
         if tipos:
             tipos_norm = [normalizar(t) for t in tipos]
@@ -56,18 +48,13 @@ class GrafoConocimiento:
                 if isinstance(tipo_doc, list):
                     return any(normalizar(t) in tipos_norm for t in tipo_doc)
                 return normalizar(tipo_doc) in tipos_norm
-            
+
             docs = [d for d in docs if tipo_match(d)]
-            #docs = [d for d in docs if d.get("tipo") in tipos or (isinstance(d.get("tipo"), list) and any(t in d["tipo"] for t in tipos))]
 
         self.documentos = docs
         print(f"🔍 Documentos después del filtro: {len(self.documentos)}")
 
-    def construir_grafo(self)-> None:
-        """
-        → Construye el grafo dirigido a partir de los documentos filtrados.
-        Agrega nodos (id, tipo, título) y aristas según enlaces, dependencias y relaciones.
-        """
+    def construir_grafo(self) -> None:
         self.G.clear()
 
         for doc in self.documentos:
@@ -93,16 +80,9 @@ class GrafoConocimiento:
 
         print(f"🧠 Nodos: {len(self.G.nodes)} | Aristas: {len(self.G.edges)}")
 
-    def exportar_html(self, salida="grafo.html")-> None:
-        """
-        → Exporta el grafo a un archivo HTML interactivo usando PyVis.
-
-        Parámetros:
-        - salida (str): Ruta del archivo HTML a generar
-        """
+    def exportar_html(self, salida="grafo.html") -> None:
         net = Network(height="750px", width="100%", directed=True)
 
-        # NODOS
         for n in self.G.nodes():
             tipo = self.G.nodes[n].get("tipo", "otro")
             label = self.G.nodes[n].get("label", n)
@@ -111,7 +91,6 @@ class GrafoConocimiento:
             color = self.color_por_tipo.get(tipo, "white")
             net.add_node(n, label=label, title=tipo, color=color)
 
-        # ARISTAS
         for u, v, d in self.G.edges(data=True):
             tipo_enlace = d.get("tipo", "")
             color = self.color_por_enlace.get(tipo_enlace, "black")
@@ -119,4 +98,3 @@ class GrafoConocimiento:
 
         net.write_html(salida)
         print(f"✅ Grafo exportado en: {salida}")
-

@@ -1,5 +1,6 @@
-# mathbongodb.py
-# Versión documentada: 2025-04-19
+# mathmongodb.py
+# Versión actualizada para incluir lectura desde archivos .md o .tex con YAML
+# Versión que permite exportar los documentos a dicionarios a traves de su id.
 
 import os
 import json
@@ -7,64 +8,79 @@ import subprocess
 from pymongo import MongoClient
 import re
 import pandas as pd
+import yaml
+from conversion.yaml_latex_parser import YamlLatexParser
 
 class MathMongoDB:
     """
     Clase para gestionar documentos matemáticos en una base de datos MongoDB.
     Permite insertar, editar, buscar y exportar documentos con contenido matemático.
     """
-    def __init__(self, db_name="matematicas", collection_name="objetos", uri="mongodb://localhost:27017/")-> None:
-        """
-        Inicializa la conexión con MongoDB.
-
-        Parámetros:
-        - db_name (str): Nombre de la base de datos.
-        - collection_name (str): Nombre de la colección.
-        - uri (str): URI de conexión.
-        """
+    def __init__(self, db_name="matematicas", collection_name="objetos", uri="mongodb://localhost:27017/") -> None:
         self.client = MongoClient(uri)
         self.db = self.client[db_name]
         self.collection = self.db[collection_name]
         print(f"✅ Conectado a la base de datos '{db_name}', colección '{collection_name}'")
 
-    def insertar_desde_directorio(self, ruta="./plantillas")-> None:
+    def insertar_desde_directorio(self, ruta="./plantillas") -> None:
         """
-        Inserta todos los archivos JSON de un directorio en la colección.
+        Inserta todos los archivos JSON y Markdown con YAML del directorio en la colección.
 
         Parámetros:
-        - ruta (str): Carpeta donde se encuentran los archivos .json
+        - ruta (str): Carpeta donde se encuentran los archivos
         """
         count = 0
         for archivo in os.listdir(ruta):
-            if archivo.endswith(".json"):
-                with open(os.path.join(ruta, archivo), encoding="utf-8") as f:
-                    data = json.load(f)
-                    if data.get("id") and data.get("titulo"):
-                        self.collection.insert_one(data)
-                        count += 1
-                    else:
-                        print(f"⚠️ Archivo ignorado por estar vacío o incompleto: {archivo}")
+            ruta_completa = os.path.join(ruta, archivo)
+
+            try:
+                if archivo.endswith(".json"):
+                    with open(ruta_completa, encoding="utf-8") as f:
+                        data = json.load(f)
+
+                elif archivo.endswith(".md") or archivo.endswith(".tex"):
+                    data = YamlLatexParser.extraer_yaml_y_contenido(ruta_completa)
+
+                else:
+                    continue
+
+                if data.get("id") and data.get("titulo"):
+                    self.collection.insert_one(data)
+                    count += 1
+                    print(f"✅ Insertado: {archivo}")
+                else:
+                    print(f"⚠️ Archivo ignorado por estar incompleto: {archivo}")
+            except Exception as e:
+                print(f"❌ Error al procesar {archivo}: {e}")
+
         print(f"📥 Insertados {count} documentos desde '{ruta}'")
 
     def mostrar_todos(self) -> list:
-        """
-        Devuelve una lista con todos los documentos (sin campo _id).
-        """
         return list(self.collection.find({}, {"_id": 0}))
 
-    def buscar_por_id(self, doc_id)-> dict:
-        """
-        Busca un documento por su campo "id".
-
-        Parámetros:
-        - doc_id (str): ID del documento
-
-        Devuelve:
-        - dict: Documento encontrado o None
-        """
+    def buscar_por_id(self, doc_id) -> dict:
         return self.collection.find_one({"id": doc_id}, {"_id": 0})
+       
+    def exportar_a_md(self, doc_id: str, salida="./exportados") -> None:
+        doc = self.buscar_por_id(doc_id)
+        if not doc:
+            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
+            return
+
+        os.makedirs(salida, exist_ok=True)
+        md_path = os.path.join(salida, f"{doc_id.replace(':', '__')}.md")
+
+        try:
+            with open(md_path, "w", encoding="utf-8") as f:
+                f.write("---\n")
+                f.write(yaml.dump({k: v for k, v in doc.items() if k != "contenido_latex"}, allow_unicode=True, sort_keys=False))
+                f.write("---\n\n")
+                f.write(doc.get("contenido_latex", ""))
+            print(f"📝 Archivo .md generado: {md_path}")
+        except Exception as e:
+            print(f"❌ Error al exportar a .md: {e}")
     
-    def editar_documento(self, doc_id, nuevos_campos)-> None:
+    def editar_id(self, doc_id, nuevos_campos)-> None:
         """
         Edita un documento actualizando los campos indicados.
 
@@ -77,8 +93,37 @@ class MathMongoDB:
             print(f"✏️ Documento '{doc_id}' actualizado.")
         else:
             print(f"⚠️ No se realizaron cambios en el documento '{doc_id}' o no se encontró.")
-    
-    def exportar_documento_html(self, doc_id, salida="./exportados")-> None:
+
+
+    def editar_documento(self, doc_id, ruta_archivo_md) -> None:
+        try:
+            nuevos_datos = YamlLatexParser.extraer_yaml_y_contenido(ruta_archivo_md)
+            doc_anterior = self.buscar_por_id(doc_id)
+            if not doc_anterior:
+                print(f"❌ Documento con ID '{doc_id}' no encontrado en la base de datos.")
+                return
+        
+            cambios = {}
+            for clave, valor_nuevo in nuevos_datos.items():
+                valor_actual = doc_anterior.get(clave)
+                if valor_actual != valor_nuevo:
+                    cambios[clave] = valor_nuevo
+        
+            if not cambios:
+                print("⚠️ No se detectaron cambios respecto al documento actual.")
+                return 
+        
+            resultado = self.collection.update_one({"id": doc_id}, {"$set": cambios})
+            if resultado.modified_count:
+                print(f"✏️ Documento '{doc_id}' actualizado con los siguientes cambios:")
+                df = pd.DataFrame([{"campo": k, "anterior": doc_anterior.get(k), "nuevo": v} for k, v in cambios.items()])
+                print(df.to_string(index=False))
+            else:
+                print(f"⚠️ No se realizaron cambios en el documento '{doc_id}' o no se encontró.")
+        except:
+            print(f"❌ Error al editar el documento: {e}")
+
+    def exportar_documento_html(self, doc_id, salida="./exportados") -> None:
         doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
         if not doc:
             print(f"❌ Documento con ID '{doc_id}' no encontrado.")
@@ -91,13 +136,13 @@ class MathMongoDB:
         try:
             with open(html_path, "w", encoding="utf-8") as f:
                 f.write("""<!DOCTYPE html>
-<html lang="es">
+<html lang=\"es\">
 <head>
-  <meta charset="UTF-8">
+  <meta charset=\"UTF-8\">
   <title>{titulo}</title>
-  <script src="https://polyfill.io/v3/polyfill.min.js?features=es6"></script>
-  <script type="text/javascript" id="MathJax-script" async
-    src="https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js"></script>
+  <script src=\"https://polyfill.io/v3/polyfill.min.js?features=es6\"></script>
+  <script type=\"text/javascript\" id=\"MathJax-script\" async
+    src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>
   <style>
     body {{ font-family: sans-serif; margin: 40px; }}
     h1 {{ color: darkblue; }}
@@ -110,12 +155,6 @@ class MathMongoDB:
                 f.write(f"<h1>{doc.get('titulo', 'Sin título')}</h1>\n")
 
                 if "contenido_latex" in doc:
-                    #f.write(f"<div class='seccion'>$$\n{doc['contenido_latex']}\n$$</div>\n")
-                    #f.write(f"<div class='seccion'>\n\n$$\n{doc['contenido_latex']}\n$$\n\n</div>\n")
-                    #f.write(f"<div class='seccion'><li>{doc['contenido_latex']}</li></div>\n")
-                    #f.write(f"<div class='seccion'><p>\\({doc['contenido_latex']}\\)</p></div>\n")
-                    #f.write(f"<div class='seccion'>\\[{doc['contenido_latex']}\\]</div>\n")
-                    #f.write(f"{doc['contenido_latex']}")
                     f.write(f"<div class='seccion'><p>{doc['contenido_latex']}</p></div>\n")
 
                 if "demostracion" in doc:
@@ -153,26 +192,14 @@ class MathMongoDB:
         except Exception as e:
             print(f"❌ Error al exportar HTML: {e}")
 
-    def borrar_documento(self, doc_id)-> None:
-        """
-        → Elimina un documento por su ID.
-
-        Parámetros:
-        - doc_id (str): ID del documento a eliminar
-        """
+    def borrar_documento(self, doc_id) -> None:
         resultado = self.collection.delete_one({"id": doc_id})
         if resultado.deleted_count:
             print(f"🗑️ Documento '{doc_id}' eliminado.")
         else:
             print(f"⚠️ Documento '{doc_id}' no encontrado.")
 
-    def hacer_backup(self, directorio="backup")-> None:
-        """
-        → Realiza un respaldo completo de la base de datos usando mongodump.
-
-        Parámetros:
-        - directorio (str): Carpeta donde se guardará el backup
-        """
+    def hacer_backup(self, directorio="backup") -> None:
         os.makedirs(directorio, exist_ok=True)
         comando = ["mongodump", "--db", self.db.name, "--out", directorio]
         try:
@@ -180,16 +207,8 @@ class MathMongoDB:
             print(f"💾 Backup creado en: {directorio}/{self.db.name}")
         except subprocess.CalledProcessError as e:
             print("❌ Error al realizar el backup:", e)
-    
-    
 
     def mostrar_campos_texto(self, limite=10) -> None:
-        """
-        Muestra un DataFrame con los campos tipo texto (str, list[str], dicts simples) de cada documento.
-
-        Parámetros:
-        - limite (int): Número de documentos a mostrar (default: 10)
-        """
         documentos = list(self.collection.find({}, {"_id": 0}))
         registros = []
 
@@ -201,14 +220,10 @@ class MathMongoDB:
                 elif isinstance(valor, list) and all(isinstance(x, str) for x in valor):
                     fila[clave] = ", ".join(valor)
                 elif isinstance(valor, dict):
-                    partes = []
-                    for k, v in valor.items():
-                        if isinstance(v, (str, int)):
-                            partes.append(f"{k}: {v}")                   
+                    partes = [f"{k}: {v}" for k, v in valor.items() if isinstance(v, (str, int))]
                     if partes:
                         fila[clave] = "; ".join(partes)
-            
-            if fila:  # asegura que tenga al menos un campo de texto
+            if fila:
                 registros.append(fila)
 
         df = pd.DataFrame(registros)
@@ -216,40 +231,38 @@ class MathMongoDB:
             print("⚠️ No hay campos de texto para mostrar.")
         else:
             print("📄 Campos tipo texto en los documentos:")
-        print(df.to_string(index=False))
-
-
+            print(df.to_string(index=False))
     
+    def obtener_dict_por_id(self, doc_id: str) -> dict:
+        """
+        Retorna un diccionario limpio con todos los campos del documento dado su ID.
+
+        Parámetros:
+        - doc_id (str): ID del documento en la base
+
+        Retorna:
+        - dict: Diccionario con todos los campos, excluyendo _id
+        """
+        doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
+        if doc:
+            return dict(doc)
+        else:
+            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
+            return {}
+
+
     def cerrar_conexion(self) -> None:
-        """
-        → Cierra la conexión con la base de datos MongoDB.
-        """
         self.client.close()
         print("🔌 Conexión con MongoDB cerrada correctamente.")
-    
-    
 
 
 def conectar_y_restaurar(db_name="matematica", collection_name="contenido", backup_dir="backup") -> MathMongoDB:
-    """
-    → Restaura una base de datos MongoDB desde backup y devuelve una instancia activa.
-
-    Parámetros:
-    - db_name (str): Nombre de la base de datos a restaurar
-    - collection_name (str): Nombre de la colección
-    - backup_dir (str): Carpeta donde se guardó el respaldo
-
-    Retorna:
-    - MathMongoDB: instancia conectada a la base restaurada o None si falla
-    """
     db_backup_path = os.path.join(backup_dir, db_name)
-
     if not os.path.exists(db_backup_path):
         print(f"❌ No se encontró el respaldo en: {db_backup_path}")
         return None
 
     comando = ["mongorestore", "--drop", "--db", db_name, db_backup_path]
-
     try:
         subprocess.run(comando, check=True)
         print(f"✅ Base de datos '{db_name}' restaurada exitosamente desde '{backup_dir}'")
@@ -258,5 +271,3 @@ def conectar_y_restaurar(db_name="matematica", collection_name="contenido", back
         return None
 
     return MathMongoDB(db_name=db_name, collection_name=collection_name)
-
-
