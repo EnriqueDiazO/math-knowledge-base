@@ -1,5 +1,6 @@
 # mathmongodb.py
 # Versión actualizada para incluir lectura desde archivos .md o .tex con YAML
+# Versión que permite exportar los documentos a dicionarios a traves de su id.
 
 import os
 import json
@@ -207,7 +208,7 @@ class MathMongoDB:
         except subprocess.CalledProcessError as e:
             print("❌ Error al realizar el backup:", e)
 
-    def mostrar_campos_texto(self, limite=100) -> None:
+    def mostrar_campos_texto(self, limite=10) -> None:
         documentos = list(self.collection.find({}, {"_id": 0}))
         registros = []
 
@@ -231,6 +232,24 @@ class MathMongoDB:
         else:
             print("📄 Campos tipo texto en los documentos:")
             print(df.to_string(index=False))
+    
+    def obtener_dict_por_id(self, doc_id: str) -> dict:
+        """
+        Retorna un diccionario limpio con todos los campos del documento dado su ID.
+
+        Parámetros:
+        - doc_id (str): ID del documento en la base
+
+        Retorna:
+        - dict: Diccionario con todos los campos, excluyendo _id
+        """
+        doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
+        if doc:
+            return dict(doc)
+        else:
+            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
+            return {}
+
 
     def cerrar_conexion(self) -> None:
         self.client.close()
