@@ -3,7 +3,7 @@ import subprocess
 import json
 
 class ExportadorLatex:
-    def __init__(self, plantilla_path: str = "export/templates/miestilo.sty") -> None:
+    def __init__(self, plantilla_path: str = "../export/templates/miestilo.sty") -> None:
         """
         Inicializa el exportador usando una plantilla LaTeX personalizada.
 
