@@ -80,14 +80,14 @@ class GrafoConocimiento:
 
         print(f"🧠 Nodos: {len(self.G.nodes)} | Aristas: {len(self.G.edges)}")
 
-    def exportar_html(self, salida="grafo.html") -> None:
+    def exportar_html(self, salida:str ="grafo.html",size:int = 30) -> None:
         net = Network(height="750px", width="100%", directed=True)
 
         for n in self.G.nodes():
             tipo = self.G.nodes[n].get("tipo", "otro")
             label = self.G.nodes[n].get("label", n)
-            if len(label) > 30:
-                label = label[:30] + "..."
+            if len(label) > size:
+                label = label[:size] + "..."
             color = self.color_por_tipo.get(tipo, "white")
             net.add_node(n, label=label, title=tipo, color=color)
 
