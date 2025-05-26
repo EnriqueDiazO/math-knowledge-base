@@ -61,24 +61,55 @@ class MathMongoDB:
     def buscar_por_id(self, doc_id) -> dict:
         return self.collection.find_one({"id": doc_id}, {"_id": 0})
        
-    def exportar_a_md(self, doc_id: str, salida="./exportados") -> None:
-        doc = self.buscar_por_id(doc_id)
+    def exportar_a_md_formato_actualizado(self, doc, salida="./exportados"):
+        doc = self.buscar_por_id(doc)
         if not doc:
-            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
-            return
-
+            print(f"❌ Documento con ID '{doc}' no encontrado.")
+            return 
         os.makedirs(salida, exist_ok=True)
-        md_path = os.path.join(salida, f"{doc_id.replace(':', '__')}.md")
-
+        md_path = os.path.join(salida, f"{doc['id'].replace(':', '__')}.md")
         try:
             with open(md_path, "w", encoding="utf-8") as f:
-                f.write("---\n")
-                f.write(yaml.dump({k: v for k, v in doc.items() if k != "contenido_latex"}, allow_unicode=True, sort_keys=False))
-                f.write("---\n\n")
-                f.write(doc.get("contenido_latex", ""))
-            print(f"📝 Archivo .md generado: {md_path}")
+                f.write(f"# {doc.get('titulo', 'Sin título')}\n\n")
+                campos_ordenados = [
+                    ("Tipo", "tipo"),
+                    ("Comentario", "comentario"),
+                    ("Comentario Previo", "comentario_previo"),
+                    ("Categorías", "categoria"),
+                    ("Tags", "tags"),
+                    ("Relacionado con", "relacionado_con"),
+                    ("Referencia", "referencia"),
+                    ("Enlaces de salida", "enlaces_salida"),
+                    ("Enlaces de entrada", "enlaces_entrada"),
+                    ("Comentario personal", "comentario_personal"),
+                    ("Inspirado en", "inspirado_en"),
+                    ("Creado a partir de", "creado_a_partir_de"),
+                    ]
+                for etiqueta, clave in campos_ordenados:
+                    valor = doc.get(clave, "")
+                    if isinstance(valor, list):
+                        valor = ", ".join(valor)
+                    elif isinstance(valor, dict) and clave == "referencia":
+                        v = valor
+                        valor = f"{v.get('autor', '')}, {v.get('año', '')}, {v.get('obra', '')}, {v.get('capitulo', '')}, {v.get('pagina', '')}, {v.get('bibkey', '')}"
+                    if valor:
+                        f.write(f"**{etiqueta}**: {valor}\n\n")
+
+                # contenido LaTeX
+                if "contenido_latex" in doc and doc["contenido_latex"].strip():
+                    f.write("$$\n")
+                    f.write(doc["contenido_latex"].strip() + "\n")
+                    f.write("$$\n\n")
+
+                # entrada bibtex
+                if "bibtex_entry" in doc and doc["bibtex_entry"].strip():
+                    f.write("```bibtex\n")
+                    f.write(doc["bibtex_entry"].strip() + "\n")
+                    f.write("```\n")
+            return md_path
         except Exception as e:
-            print(f"❌ Error al exportar a .md: {e}")
+            return f"❌ Error al exportar a .md: {e}"
+
     
     def editar_id(self, doc_id, nuevos_campos)-> None:
         """
