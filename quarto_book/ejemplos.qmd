@@ -1,9 +1,0 @@
-```markdown
-# Ejemplos
-```
-
-$$
-\textbf{Ejemplo: Espacio métrico en $\mathbb{R}$}
-
-Sea $X = \mathbb{R}$ con $d(x, y) = |x - y|$. Esto cumple todas las propiedades de un espacio métrico.
-$$

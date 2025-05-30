@@ -85,3 +85,14 @@ clean-all:
 	rm -rf build/ dist/ *.egg-info
 	rm -rf .ipynb_checkpoints/
 	rm -rf quarto_book/*s/*.qmd
+
+
+
+clean-book:
+	rm -fv quarto_book/definicions/*.qmd
+	rm -fv quarto_book/teoremas/*.qmd
+	rm -fv quarto_book/ejemplos/*.qmd
+	rm -fv quarto_book/proposicions/*.qmd
+	rm -fv quarto_book/corolarios/*.qmd
+	rm -fv quarto_book/lemas/*.qmd
+	rm -fv quarto_book/otros/*.qmd
