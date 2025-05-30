@@ -1,4 +1,5 @@
-from setuptools import setup, find_packages
+from setuptools import find_packages
+from setuptools import setup
 
 setup(
     name="math-knowledge-base",
@@ -17,7 +18,7 @@ setup(
     ],
     entry_points={
         "console_scripts": [
-            "mathdb=app.main:main"  # 
+            "mathdb=app.main:main"  #
         ]
     },
     author="Enrique Díaz Ocampo",
@@ -25,7 +26,7 @@ setup(
     url="https://github.com/EnriqueDiazO/math-knowledge-base",
     classifiers=[
         "Programming Language :: Python :: 3",
-        "License :: OSI Approved :: MIT License", 
+        "License :: OSI Approved :: MIT License",
         "Operating System :: OS Independent",
         "Development Status :: 4 - Beta",
     ],

@@ -1,25 +1,78 @@
-# Entorno virtual
+# ───── Entornos virtuales ─────
 mathdbmongo/
+.venv/
+env/
+venv/
 
-# Cache de Python
+# ───── Caches y archivos compilados ─────
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
+*.so
+*.dylib
 
-# Carpetas de construcción
+# ───── Archivos temporales o de respaldo ─────
+*.log
+*.bak
+*.tmp
+*.swp
+*.swo
+
+# ───── Configuraciones de editores ─────
+.vscode/
+.idea/
+*.code-workspace
+
+# ───── Archivos de Jupyter Notebook ─────
+.ipynb_checkpoints/
+**/.ipynb_checkpoints/
+
+# ───── Archivos de compilación de paquetes ─────
 build/
 dist/
 *.egg-info/
+.eggs/
+*.manifest
+*.spec
 
-# VSCode settings
-.vscode/
-
-# Archivos de Jupyter Notebook
-.ipynb_checkpoints/
-
-# Otros temporales
-*.log
+# ───── Configuraciones y bases temporales ─────
 *.sqlite
-*.bak
+*.db
+*.lock
+*.pid
+*.csv
+*.tsv
+*.xlsx
+
+# ───── Quarto / Book ─────
+quarto_book/*s/*.qmd
+quarto_book/_book/
+quarto_book/.quarto/
+quarto_book/*.html
+
+# ───── Archivos de sistema ─────
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# ───── Ruff / Linting / Cache ─────
+.ruff_cache/
+.ruff_cache/*
+.venv/bin/ruff
+mathdbmongo/bin/ruff
+
+# ───── PDFs / compilación LaTeX ─────
+*.aux
+*.out
+*.toc
+*.pdf
+*.log
+*.synctex.gz
+exportados/*.pdf
+exportados/*.tex
+
+# ───── Otros temporales generados ─────
+exportados/
+test/output/
+*.html

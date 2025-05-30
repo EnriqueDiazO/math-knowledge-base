@@ -1,8 +1,9 @@
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.abspath(".."))
 
 from db.mathmongo import MathMongoDB
-from pprint import pprint
 
 # 1. Conectarse a MongoDB
 db = MathMongoDB(db_name="matematica", collection_name="contenido")
@@ -31,7 +32,7 @@ db.insertar_desde_directorio("../app/data")  # ← ajusta la ruta si usas otra
 #db = MathMongoDB()
 
 #db.exportar_a_md("cor:espacio-metrico")
-try: 
+try:
     db.editar_documento("cor:espacio-metrico", "exportados/cor__espacio-metrico.md")
 except:
     print("Error")

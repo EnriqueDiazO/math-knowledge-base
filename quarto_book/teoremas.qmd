@@ -1,0 +1,4 @@
+
+# Teoremas
+
+Aquí puedes agregar teoremas formales, con su respectiva demostración en LaTeX si lo deseas.

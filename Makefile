@@ -1,24 +1,87 @@
 SHELL := /bin/bash
-.PHONY: start mongo
-# Inicia MongoDB
+.PHONY: start stop restart status run lint export grafo preview doc clean
+
+# -----------------------
+# 🔁 MongoDB Management
+# -----------------------
+
 start:
 	. mathdbmongo/bin/activate && make mongo
 
 mongo:
 	sudo systemctl start mongod
 	sudo systemctl status mongod
-# Detiene MongoDB
+
 stop:
 	. mathdbmongo/bin/activate && sudo systemctl stop mongod && echo "✅ MongoDB detenido."
 
-# Reinicia MongoDB
 restart:
 	. mathdbmongo/bin/activate && sudo systemctl restart mongod && make status
 
-# Muestra el estado de MongoDB
 status:
 	sudo systemctl status mongod
 
-# Lanza la app de Streamlit (ajusta si tu archivo principal es otro)
+# -----------------------
+# 🚀 Aplicación Principal
+# -----------------------
+
 run:
 	. mathdbmongo/bin/activate && streamlit run app/main.py
+
+# -----------------------
+# 🧹 Lint y correcciones automáticas
+# -----------------------
+
+lint:
+	ruff check . --fix
+
+# -----------------------
+# 📤 Exportar desde Mongo a Quarto
+# -----------------------
+
+export:
+	python export/exportar_qmd_desde_mongo.py
+
+# -----------------------
+# 🔗 Grafo interactivo desde Mongo
+# -----------------------
+
+grafo:
+	python grafo_interactivo/generador/generar_grafo.py
+
+# -----------------------
+# 📚 Documentación Quarto
+# -----------------------
+
+preview:
+	cd quarto_book && quarto preview
+
+doc:
+	cd quarto_book && quarto render
+
+# -----------------------
+# 🧼 Limpieza de archivos temporales
+# -----------------------
+
+clean:
+	find . -name "*.pyc" -delete
+	find . -name "__pycache__" -type d -exec rm -r {} +
+	find quarto_book -type f -path "*/s/*.qmd" -delete
+
+
+# Limpieza extendida
+clean-all:
+	find . -type d -name '__pycache__' -exec rm -r {} +;
+	find . -type f -name '*.py[cod]' -delete
+	find . -type f -name '*.log' -delete
+	find . -type f -name '*.aux' -delete
+	find . -type f -name '*.out' -delete
+	find . -type f -name '*.toc' -delete
+	find . -type f -name '*.pdf' -delete
+	find . -type f -name '*.tex' -delete
+	find . -type f -name '*.html' -delete
+	rm -rf exportados/
+	rm -rf .ruff_cache/
+	rm -rf build/ dist/ *.egg-info
+	rm -rf .ipynb_checkpoints/
+	rm -rf quarto_book/*s/*.qmd

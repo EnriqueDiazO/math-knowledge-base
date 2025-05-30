@@ -1,8 +1,12 @@
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.abspath(".."))
 
 from db.mathmongo import MathMongoDB
-from visualizacion.grafoconocimiento import GrafoConocimiento  # Asumiendo que tienes esta clase en grafo_conocimiento.py
+from visualizacion.grafoconocimiento import (
+    GrafoConocimiento,  # Asumiendo que tienes esta clase en grafo_conocimiento.py
+)
 
 # Paso 1: Conectarse a la base de datos
 db = MathMongoDB(db_name="matematica", collection_name="contenido")

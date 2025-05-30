@@ -1,6 +1,7 @@
-import streamlit as st
 import json
 import os
+
+import streamlit as st
 
 st.title("🧠 Editor de Objetos Matemáticos")
 
@@ -57,7 +58,7 @@ if obj["tipo"] == "definicion":
         if "::" in linea:
             d, l = linea.split("::", 1)
             obj["ejemplos_rapidos"].append({"descripcion": d.strip(), "latex": l.strip()})
-    
+
     obj["condiciones_formales"] = st.text_area("📏 Condiciones formales (una por línea)", value="\n".join(obj["condiciones_formales"])).splitlines()
 
 if obj["tipo"] == "ejemplo":

@@ -1,5 +1,6 @@
-from pyvis.network import Network
 import networkx as nx
+from pyvis.network import Network
+
 
 class GrafoConocimiento:
     """

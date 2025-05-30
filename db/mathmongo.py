@@ -2,14 +2,15 @@
 # Versión actualizada para incluir lectura desde archivos .md o .tex con YAML
 # Versión que permite exportar los documentos a dicionarios a traves de su id.
 
-import os
 import json
+import os
 import subprocess
-from pymongo import MongoClient
-import re
+
 import pandas as pd
-import yaml
+from pymongo import MongoClient
+
 from conversion.yaml_latex_parser import YamlLatexParser
+
 
 class MathMongoDB:
     """
@@ -60,12 +61,12 @@ class MathMongoDB:
 
     def buscar_por_id(self, doc_id) -> dict:
         return self.collection.find_one({"id": doc_id}, {"_id": 0})
-       
+
     def exportar_a_md_formato_actualizado(self, doc, salida="./exportados"):
         doc = self.buscar_por_id(doc)
         if not doc:
             print(f"❌ Documento con ID '{doc}' no encontrado.")
-            return 
+            return
         os.makedirs(salida, exist_ok=True)
         md_path = os.path.join(salida, f"{doc['id'].replace(':', '__')}.md")
         try:
@@ -110,7 +111,7 @@ class MathMongoDB:
         except Exception as e:
             return f"❌ Error al exportar a .md: {e}"
 
-    
+
     def editar_id(self, doc_id, nuevos_campos)-> None:
         """
         Edita un documento actualizando los campos indicados.
@@ -128,31 +129,49 @@ class MathMongoDB:
 
     def editar_documento(self, doc_id, ruta_archivo_md) -> None:
         try:
-            nuevos_datos = YamlLatexParser.extraer_yaml_y_contenido(ruta_archivo_md)
+            from conversion.markdownparser import MarkdownParser
+            parser = MarkdownParser()
+            nuevos_datos = parser.parsear_md(ruta_archivo_md, guardar=False)
+
             doc_anterior = self.buscar_por_id(doc_id)
             if not doc_anterior:
                 print(f"❌ Documento con ID '{doc_id}' no encontrado en la base de datos.")
                 return
-        
+
             cambios = {}
             for clave, valor_nuevo in nuevos_datos.items():
                 valor_actual = doc_anterior.get(clave)
-                if valor_actual != valor_nuevo:
+
+                # Comparación profunda para listas y diccionarios
+                if isinstance(valor_actual, list) and isinstance(valor_nuevo, list):
+                    if sorted(valor_actual) != sorted(valor_nuevo):
+                        cambios[clave] = valor_nuevo
+                elif isinstance(valor_actual, dict) and isinstance(valor_nuevo, dict):
+                    if valor_actual != valor_nuevo:
+                        cambios[clave] = valor_nuevo
+                elif valor_actual != valor_nuevo:
                     cambios[clave] = valor_nuevo
-        
+
             if not cambios:
                 print("⚠️ No se detectaron cambios respecto al documento actual.")
-                return 
-        
+                return
+
             resultado = self.collection.update_one({"id": doc_id}, {"$set": cambios})
             if resultado.modified_count:
                 print(f"✏️ Documento '{doc_id}' actualizado con los siguientes cambios:")
-                df = pd.DataFrame([{"campo": k, "anterior": doc_anterior.get(k), "nuevo": v} for k, v in cambios.items()])
+                import pandas as pd
+                df = pd.DataFrame([{
+                "campo": k,
+                "anterior": doc_anterior.get(k),
+                "nuevo": cambios[k]
+                } for k in cambios])
                 print(df.to_string(index=False))
             else:
                 print(f"⚠️ No se realizaron cambios en el documento '{doc_id}' o no se encontró.")
-        except:
+
+        except Exception as e:
             print(f"❌ Error al editar el documento: {e}")
+
 
     def exportar_documento_html(self, doc_id, salida="./exportados") -> None:
         doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
@@ -263,7 +282,7 @@ class MathMongoDB:
         else:
             print("📄 Campos tipo texto en los documentos:")
             print(df.to_string(index=False))
-    
+
     def obtener_dict_por_id(self, doc_id: str) -> dict:
         """
         Retorna un diccionario limpio con todos los campos del documento dado su ID.
@@ -302,3 +321,9 @@ def conectar_y_restaurar(db_name="matematica", collection_name="contenido", back
         return None
 
     return MathMongoDB(db_name=db_name, collection_name=collection_name)
+
+
+
+def buscar_todos(coleccion: str) -> list:
+    return list(db[coleccion].find())
+

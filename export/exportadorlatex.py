@@ -1,11 +1,11 @@
+import json
 import os
 import subprocess
-import json
+
 
 class ExportadorLatex:
     def __init__(self, plantilla_path: str = "../export/templates/miestilo.sty") -> None:
-        """
-        Inicializa el exportador usando una plantilla LaTeX personalizada.
+        """Inicializa el exportador usando una plantilla LaTeX personalizada.
 
         Parámetros:
         - plantilla_path (str): Ruta al archivo .sty a usar para formato.
@@ -14,8 +14,7 @@ class ExportadorLatex:
         print("✅ ExportadorLatex listo (sin MongoDB)")
 
     def exportar_desde_dict(self, doc: dict, salida: str = "./exportados") -> None:
-        """
-        Exporta un documento (ya en dict) a LaTeX y PDF.
+        """Exporta un documento (ya en dict) a LaTeX y PDF.
 
         Parámetros:
         - doc (dict): Documento en formato dict (con campos como 'titulo', 'contenido_latex', etc.)
@@ -33,7 +32,7 @@ class ExportadorLatex:
         # Copiar plantilla .sty si es necesario
         destino_sty = os.path.join(salida, "miestilo.sty")
         if not os.path.exists(destino_sty) and os.path.exists(self.plantilla_path):
-            with open(self.plantilla_path, "r", encoding="utf-8") as f_src, \
+            with open(self.plantilla_path, encoding="utf-8") as f_src, \
                  open(destino_sty, "w", encoding="utf-8") as f_dst:
                 f_dst.write(f_src.read())
             print(f"📄 Plantilla miestilo.sty copiada a {salida}")
@@ -120,7 +119,7 @@ class ExportadorLatex:
         - salida (str): Carpeta de salida
         """
         try:
-            with open(json_path, "r", encoding="utf-8") as f:
+            with open(json_path, encoding="utf-8") as f:
                 doc = json.load(f)
             self.exportar_desde_dict(doc, salida)
         except Exception as e:

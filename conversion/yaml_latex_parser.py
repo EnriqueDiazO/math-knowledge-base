@@ -1,7 +1,10 @@
 # conversion/yaml_latex_parser.py
-import re
-import yaml
 import os
+import re
+
+import yaml
+
+
 class YamlLatexParser:
     @staticmethod
     def extraer_yaml_y_contenido(tex_path: str) -> dict:

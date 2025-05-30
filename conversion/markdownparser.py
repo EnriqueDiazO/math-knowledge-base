@@ -1,7 +1,8 @@
-import re
+import hashlib
 import json
 import os
-import hashlib
+import re
+
 
 class MarkdownParser:
     """
@@ -41,7 +42,7 @@ class MarkdownParser:
         }
 
         titulo = re.search(r"#\s+(.*?)\n", contenido)
-        
+
         #id_match = re.search(r"\*\*ID\*\*:\s*(.*)", contenido)
         #if id_match:
         #    obj["id"] = id_match.group(1).strip()
@@ -54,7 +55,7 @@ class MarkdownParser:
             tipo_exp = re.search(r"\*\*Tipo\*\*:\s*(\w+)", contenido, re.IGNORECASE)
             if tipo_exp:
                 obj["tipo"] = tipo_exp.group(1).strip().lower()
-                
+
             tipo_detectado = obj["tipo"] or "obj"
             slug = re.sub(r"[^\w]+", "-", obj["titulo"].lower()).strip("-")
             resumen = obj["contenido_latex"] or contenido
@@ -150,7 +151,7 @@ class MarkdownParser:
             print(f"✅ Guardado como: {nombre_archivo}")
 
         return obj
-    
+
     def generar_ejemplo_md(self,nombre_archivo: str, carpeta_destino: str = "./md_files") -> None:
         """
         Genera un archivo Markdown de ejemplo con formato predefinido.
@@ -178,13 +179,13 @@ $$
 $$
 
 **Demostración**:
-- Dos veces aplicamos la desigualdad del triángulo para obtener  \( d(x, y) \\leq d(x, u) + d(u, y) \\leq d(x,u) + d(u,v) + d(y,v) \)
-- Luego \(d(x,u) - d(u,v) \\leq d(x,u) + d(y,v) \)
-- Intercambiando los papeles de las parejas \( (x,y) \) y \( (u,v) \) y gracias a la simetría de la distancia obtenemos que  
+- Dos veces aplicamos la desigualdad del triángulo para obtener  \\( d(x, y) \\leq d(x, u) + d(u, y) \\leq d(x,u) + d(u,v) + d(y,v) \\)
+- Luego \\(d(x,u) - d(u,v) \\leq d(x,u) + d(y,v) \\)
+- Intercambiando los papeles de las parejas \\( (x,y) \\) y \\( (u,v) \\) y gracias a la simetría de la distancia obtenemos que  
  implica 
-\( d(x, y) - d(x, u) \\leq d(u, y) \)
-- Por la misma desigualdad tenemos \( d(x, u) \\leq d(x, y) + d(u, y) \), de donde \( d(x, u) - d(x, y) \\leq d(u, y) \)
-- Finalmente \( | d(x,y) - d(u,v) | \\leq d(x,u) + d(y,v) \)
+\\( d(x, y) - d(x, u) \\leq d(u, y) \\)
+- Por la misma desigualdad tenemos \\( d(x, u) \\leq d(x, y) + d(u, y) \\), de donde \\( d(x, u) - d(x, y) \\leq d(u, y) \\)
+- Finalmente \\( | d(x,y) - d(u,v) | \\leq d(x,u) + d(y,v) \\)
 
 ```bibtex
 @book{Wilkiewicz2019,

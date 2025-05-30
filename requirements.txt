@@ -6,3 +6,5 @@ networkx
 tk
 streamlit
 pyyaml
+python-slugify
+ruff

@@ -1,6 +1,6 @@
-import re
-import yaml
-import sys, os
+import os
+import sys
+
 sys.path.append(os.path.abspath(".."))
 #from export.exportadorlatex import ExportadorLatex
 
@@ -30,9 +30,10 @@ sys.path.append(os.path.abspath(".."))
 #exportador = ExportadorLatex(plantilla_path="../export/templates/miestilo.sty")
 #exportador.exportar_desde_dict(data)  # ✅ Esto es lo correcto
 
-from export.exportadorlatex import ExportadorLatex
-from conversion.yaml_latex_parser import YamlLatexParser
 from pprint import pprint
+
+from conversion.yaml_latex_parser import YamlLatexParser
+from export.exportadorlatex import ExportadorLatex
 
 # Cargar archivo con encabezado YAML + contenido LaTeX
 data = YamlLatexParser.extraer_yaml_y_contenido("test.md")

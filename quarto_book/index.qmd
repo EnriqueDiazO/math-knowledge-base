@@ -1,0 +1,5 @@
+
+# Bienvenido
+
+Este es tu libro de conocimiento matemático, estructurado como un Quarto Book. Aquí podrás documentar definiciones, teoremas, ejemplos y observaciones.
+

@@ -1,0 +1,48 @@
+# ruff.toml
+
+# Versión objetivo del intérprete
+target-version = "py310"
+
+# Longitud máxima de línea (siguiendo convenciones de legibilidad)
+line-length = 100
+
+[lint]
+select = [
+  "E",    # Errores de estilo (pycodestyle)
+  "W",    # Advertencias de estilo (pycodestyle)
+  "F",    # Errores de análisis estático (pyflakes)
+  "B",    # Mejores prácticas (bugbear)
+  "C90",  # Complejidad ciclomática (mccabe)
+  "I",    # Ordenamiento de imports (isort)
+  "UP",   # Modernización (pyupgrade)
+  "N",    # Nombres de convenciones (pep8-naming)
+  "D",    # Docstrings (pydocstyle)
+]
+
+# Ignorados temporalmente hasta refactorizar
+ignore = [
+  "E501",   # Líneas largas (a revisar más adelante)
+  "C901",   # Funciones demasiado complejas
+  "E722",   # except sin tipo (dejar explícito más adelante)
+]
+
+# Habilitar autofixes seguros
+fixable = ["ALL"]
+unfixable = []
+
+[lint.isort]
+force-single-line = true
+known-first-party = [
+  "app",
+  "db",
+  "conversion",
+  "export",
+  "grafo_interactivo",
+  "visualizacion"
+]
+
+[lint.mccabe]
+max-complexity = 10
+
+[lint.pydocstyle]
+convention = "google"
