@@ -327,3 +327,23 @@ def conectar_y_restaurar(db_name="matematica", collection_name="contenido", back
 def buscar_todos(coleccion: str) -> list:
     return list(db[coleccion].find())
 
+
+
+class RepositorioMongo:
+    def __init__(self, uri: str, db_name: str, collection: str):
+        pass
+
+    def insertar_concepto(self, concepto: ConceptoBase) -> str:
+        pass
+
+    def buscar_por_id(self, id_concepto: str) -> ConceptoBase:
+        pass
+
+    def buscar_por_categoria(self, categoria: str) -> list:
+        pass
+
+    def actualizar_concepto(self, id_concepto: str, nuevo_concepto: dict) -> bool:
+        pass
+
+    def eliminar_concepto(self, id_concepto: str) -> bool:
+        pass

@@ -56,3 +56,15 @@ for concepto in coleccion.find():
             crear_qmd(concepto)
         except Exception as e:
             print(f"❌ Error en concepto ID: {concepto.get('id', 'sin_id')} – {e}")
+
+
+
+class ExportadorQuarto:
+    def __init__(self, base_quarto_dir: str):
+        pass
+
+    def exportar_conceptos(self, conceptos: list[ConceptoBase]) -> None:
+        pass
+
+    def actualizar_archivo_yml(self) -> None:
+        pass
