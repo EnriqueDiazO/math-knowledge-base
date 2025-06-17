@@ -2,7 +2,7 @@ from pydantic import BaseModel, Field
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-
+from __future__ import annotations
 
 # ----------------------------
 # ENUMS para campos categóricos
@@ -51,6 +51,7 @@ class TipoAplicacion(str, Enum):
 # ----------------------------
 
 class Referencia(BaseModel):
+    """Información bibliográfica del concepto"""
     autor: Optional[str]
     fuente: Optional[str]
     anio: Optional[int]
@@ -62,11 +63,20 @@ class Referencia(BaseModel):
     doi: Optional[str]
     url: Optional[str]
 
+    class Config:
+        orm_mode = True
+
+
 class ContextoDocente(BaseModel):
+    """Contexto de uso docente del concepto"""
     nivel_contexto: NivelContexto
     grado_formalidad: GradoFormalidad
 
+    class Config:
+        orm_mode = True
+
 class MetadatosTecnicos(BaseModel):
+    """Metadatos formales y técnicos del contenido"""
     usa_notacion_formal: bool = True
     incluye_demostracion: bool = False
     es_definicion_operativa: bool = False
@@ -78,14 +88,20 @@ class MetadatosTecnicos(BaseModel):
     nivel_simbolico: NivelSimbolico
     tipo_aplicacion: Optional[List[TipoAplicacion]] = None
 
+    class Config:
+        orm_mode = True
+
 
 # ----------------------------
 # MODELO PRINCIPAL: ConceptoBase
 # ----------------------------
 
 class ConceptoBase(BaseModel):
+    """
+    Modelo general para conceptos matemáticos: definiciones, teoremas, ejemplos, etc.
+    """
     id: str
-    tipo: str = Field(..., regex="^(definicion|proposicion|teorema|corolario|ejemplo|lema|nota)$")
+    tipo: Literal["definicion", "proposicion", "teorema", "corolario", "ejemplo", "lema", "nota"]
 
     titulo: Optional[str] = Field(None, description="Título o encabezado del concepto, si existe")
     tipo_titulo: TipoTitulo = Field(default="ninguno", description="Tipo de título: canonico, descripcion, generado, ninguno")
@@ -94,16 +110,15 @@ class ConceptoBase(BaseModel):
     categorias: List[str]
 
     es_algoritmo: Optional[bool] = Field(default=False, description="Indica si el concepto describe un algoritmo paso a paso")
-    pasos_algoritmo: Optional[List[str]] = Field(
-        default=None,
-        description="Lista ordenada de pasos si el concepto es un algoritmo"
-    )
+    pasos_algoritmo: Optional[List[str]] = Field(default=None, description="Lista ordenada de pasos si el concepto es un algoritmo")
 
     comentario: Optional[str] = None
-    estado: Optional[str] = Field(default="borrador", description="Estado editorial del concepto: borrador | revisado | publicado")
-
     referencia: Optional[Referencia] = None
     contexto_docente: Optional[ContextoDocente] = None
     metadatos_tecnicos: Optional[MetadatosTecnicos] = None
 
-    fecha_creacion: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    fecha_creacion: Optional[datetime] = Field(default_factory=datetime.now)
+    ultima_actualizacion: Optional[datetime] = Field(default_factory=datetime.now)
+
+    class Config:
+        orm_mode = True
