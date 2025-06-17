@@ -1,40 +1,54 @@
-# Entorno virtual
-mathdbmongo/
-
-# Cache de Python
+# ──────────────────────────────────────────────
+# 🐍 ENTORNOS VIRTUALES Y PYTHON CACHE
+# ──────────────────────────────────────────────
+mathdbmongo/                     # Tu entorno virtual
+.venv/
+env/
 __pycache__/
-*.pyc
+*.py[cod]
 *.pyo
 *.pyd
 
-# Carpetas de construcción
+# ──────────────────────────────────────────────
+# ⚙️ ARCHIVOS DE CONSTRUCCIÓN / INSTALACIÓN
+# ──────────────────────────────────────────────
 build/
 dist/
 *.egg-info/
+*.whl
 
-# VSCode settings
+# ──────────────────────────────────────────────
+# 📓 JUPYTER NOTEBOOKS Y VS CODE
+# ──────────────────────────────────────────────
+.ipynb_checkpoints/
 .vscode/
 
-# Archivos de Jupyter Notebook
-.ipynb_checkpoints/
-
-# Otros temporales
+# ──────────────────────────────────────────────
+# 📎 ARCHIVOS TEMPORALES Y BINARIOS
+# ──────────────────────────────────────────────
 *.log
-*.sqlite
 *.bak
+*.tmp
+*.sqlite
+*.zip
 .DS_Store
+*.swp
 
-# Archivos binarios y auxiliares
+# ──────────────────────────────────────────────
+# 📄 ARCHIVOS AUXILIARES DE LATEX
+# ──────────────────────────────────────────────
 *.aux
 *.pdf
-*.log
 *.toc
 *.out
-*.egg-info/
-__pycache__/
-*.zip
+*.lof
+*.lot
+*.fls
+*.fdb_latexmk
+*.synctex.gz
 
-# Exportaciones específicas
+# ──────────────────────────────────────────────
+# 📤 EXPORTACIONES AUTOMÁTICAS Y BASES
+# ──────────────────────────────────────────────
 test/exportados_pdf/
 db/*.json
-
