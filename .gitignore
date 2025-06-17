@@ -18,6 +18,7 @@ __pycache__/
 *.tmp
 *.swp
 *.swo
+*.~*
 
 # ───── Configuraciones de editores ─────
 .vscode/
@@ -28,7 +29,7 @@ __pycache__/
 .ipynb_checkpoints/
 **/.ipynb_checkpoints/
 
-# ───── Archivos de compilación de paquetes ─────
+# ───── Archivos de compilación y empaquetado ─────
 build/
 dist/
 *.egg-info/
@@ -36,7 +37,7 @@ dist/
 *.manifest
 *.spec
 
-# ───── Configuraciones y bases temporales ─────
+# ───── Archivos de datos y bases temporales ─────
 *.sqlite
 *.db
 *.lock
@@ -50,6 +51,8 @@ quarto_book/*s/*.qmd
 quarto_book/_book/
 quarto_book/.quarto/
 quarto_book/*.html
+quarto_book/*.ipynb
+quarto_book/*.md
 
 # ───── Archivos de sistema ─────
 .DS_Store
@@ -62,17 +65,23 @@ desktop.ini
 .venv/bin/ruff
 mathdbmongo/bin/ruff
 
-# ───── PDFs / compilación LaTeX ─────
+# ───── PDFs / Archivos LaTeX ─────
 *.aux
 *.out
 *.toc
 *.pdf
 *.log
 *.synctex.gz
+*.fdb_latexmk
+*.fls
+*.bbl
+*.blg
 exportados/*.pdf
 exportados/*.tex
 
-# ───── Otros temporales generados ─────
+# ───── Directorios de salida ─────
 exportados/
 test/output/
+
+# ───── Archivos HTML intermedios ─────
 *.html
