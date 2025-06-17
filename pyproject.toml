@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "mathmongo"
+version = "0.1.0"
+description = "Base de conocimiento matemática con modelos Pydantic y exportación a LaTeX"
+authors = ["Enrique Díaz Ocampo <doeo113900@gmail.com>"]
+license = "MIT"
+readme = "README.md"
+packages = [
+    { include = "app" },
+    { include = "conversion" },
+    { include = "db" },
+    { include = "export" },
+    { include = "visualizacion" }
+]
+
+[tool.poetry.dependencies]
+python = "^3.10"
+pydantic = "^2.7"
+pymongo = "^4.6"
+streamlit = "^1.35"
+pyyaml = "^6.0"
+networkx = "^3.3"
+matplotlib = "^3.9"
+jinja2 = "^3.1"
+typer = "^0.12"
+# Otros si los usas:
+# latex2mathml = "^3.74"
+# watchdog = "^4.0"
+
+[tool.poetry.dev-dependencies]
+pytest = "^8.2"
+ruff = "^0.4"
+ipykernel = "^6.29"
+jupyter = "^1.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
