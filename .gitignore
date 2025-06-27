@@ -12,6 +12,7 @@ __pycache__/
 *.so
 *.dylib
 .python-version
+*.ipynb
 # ───── Archivos temporales o de respaldo ─────
 *.log
 *.bak
@@ -30,6 +31,8 @@ __pycache__/
 **/.ipynb_checkpoints/
 
 # ───── Archivos de compilación y empaquetado ─────
+data/
+lib/
 build/
 dist/
 *.egg-info/
