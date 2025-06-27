@@ -17,14 +17,12 @@ Crear una **base de datos personalizable** de conocimiento matemático:
 
 ## 📦 Estructura del proyecto
 
-- `app/` — Aplicación Streamlit para captura y consulta.
-- `conversion/` — Utilidades para transformar LaTeX, JSON, Mongo.
-- `db/` — Conexión y gestión de la base de datos MongoDB.
-- `export/` — Scripts para generar documentos LaTeX/PDF.
-- `visualizacion/` — Visualización de grafos matemáticos.
-- `plantillas/` — Plantillas LaTeX utilizadas para la exportación.
-- `notebooks/` — Exploraciones y experimentos.
-- `.vscode/` — Configuración de entorno de desarrollo.
+- `editor/` — Aplicación Streamlit para captura y consulta.
+- `parsers/` — Funciones para agregar archivos md a la base de datos.
+- `mathdabase/` — Conexión y gestión de la base de datos MongoDB y clases principales.
+- `exporters/` — Scripts para generar documentos LaTeX/PDF.
+- `schemas/` — Esquemas relacionados para validar los campos de los conceptos matemáticos.
+- `visualizations/` — Visualización de grafos matemáticos.
 
 ---
 
