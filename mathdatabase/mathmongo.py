@@ -1,349 +1,242 @@
-# mathmongodb.py
-# Versión actualizada para incluir lectura desde archivos .md o .tex con YAML
-# Versión que permite exportar los documentos a dicionarios a traves de su id.
+from pymongo import MongoClient, ASCENDING
+from pathlib import Path
+from pydantic import ValidationError
+from schemas.schemas import ConceptoBase, Relation, TipoRelacion, RelationEnriched, Referencia, LineageResult
+from schemas.schemas import DocumentoLatex
+from typing import List, Optional
+from parsers.yaml_latex_parser import YamlLatexParser
+from datetime import datetime
 
-import json
-import os
-import subprocess
-
-import pandas as pd
-from pymongo import MongoClient
-
-from conversion.yaml_latex_parser import YamlLatexParser
-
-
-class MathMongoDB:
-    """
-    Clase para gestionar documentos matemáticos en una base de datos MongoDB.
-    Permite insertar, editar, buscar y exportar documentos con contenido matemático.
-    """
-    def __init__(self, db_name="matematicas", collection_name="objetos", uri="mongodb://localhost:27017/") -> None:
-        self.client = MongoClient(uri)
+class MathMongo:
+    def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="mathmongo"):
+        self.client = MongoClient(mongo_uri)
         self.db = self.client[db_name]
-        self.collection = self.db[collection_name]
-        print(f"✅ Conectado a la base de datos '{db_name}', colección '{collection_name}'")
+        self.concepts = self.db["concepts"]
+        self.relations = self.db["relations"]
+        self.latex_documents = self.db["latex_documents"]
+        print(f"✅ Conectado a la base de datos {db_name}")
 
-    def insertar_desde_directorio(self, ruta="./plantillas") -> None:
-        """
-        Inserta todos los archivos JSON y Markdown con YAML del directorio en la colección.
 
-        Parámetros:
-        - ruta (str): Carpeta donde se encuentran los archivos
-        """
-        count = 0
-        for archivo in os.listdir(ruta):
-            ruta_completa = os.path.join(ruta, archivo)
+        self.concepts.create_index([("id", ASCENDING),
+                                     ("source", ASCENDING)],
+                                       unique=True)
+        self.latex_documents.create_index([("id", ASCENDING),
+                                            ("source", ASCENDING)], 
+                                            unique=True)
+        self.relations.create_index([("desde", ASCENDING),
+                                      ("hasta", ASCENDING),
+                                        ("tipo", ASCENDING)], unique=True)
+
+
+
+    def ingest_folder(self, folder: str, source: str) -> list[ConceptoBase]:
+        resultados = []
+        path = Path(folder)
+        for file_path in path.glob("*.md"):
+            print(f"Procesando archivo: {file_path.name}")
+            meta, contenido_latex = YamlLatexParser.extraer_yaml_y_contenido(str(file_path))
+            meta["source"] = source
+            
 
             try:
-                if archivo.endswith(".json"):
-                    with open(ruta_completa, encoding="utf-8") as f:
-                        data = json.load(f)
+                concepto = ConceptoBase(**meta, contenido_latex=contenido_latex)
+            except ValidationError as e:
+                print(f"❌ Error en {file_path.name}: {e}")
+                continue
 
-                elif archivo.endswith(".md") or archivo.endswith(".tex"):
-                    data = YamlLatexParser.extraer_yaml_y_contenido(ruta_completa)
+            concepto_dict = concepto.model_dump(mode="python", exclude={"contenido_latex"}, exclude_none=True)
+            
+            self.concepts.update_one(
+                {"id": concepto.id, "source": source},
+                {"$set": concepto_dict},upsert=True)
+            
+            # 2. Guardar contenido LaTeX en latex_documents
+            now = datetime.now()
 
-                else:
-                    continue
+            self.latex_documents.update_one(
+            {"id": concepto.id, "source": source},
+            {
+                "$set": {
+                    "contenido_latex": contenido_latex,
+                    "ultima_actualizacion": now
+                },
+                "$setOnInsert": {"fecha_creacion": now}
+            },upsert=True)
 
-                if data.get("id") and data.get("titulo"):
-                    self.collection.insert_one(data)
-                    count += 1
-                    print(f"✅ Insertado: {archivo}")
-                else:
-                    print(f"⚠️ Archivo ignorado por estar incompleto: {archivo}")
-            except Exception as e:
-                print(f"❌ Error al procesar {archivo}: {e}")
+            resultados.append(concepto)
 
-        print(f"📥 Insertados {count} documentos desde '{ruta}'")
-
-    def mostrar_todos(self) -> list:
-        return list(self.collection.find({}, {"_id": 0}))
-
-    def buscar_por_id(self, doc_id) -> dict:
-        return self.collection.find_one({"id": doc_id}, {"_id": 0})
-
-    def exportar_a_md_formato_actualizado(self, doc, salida="./exportados"):
-        doc = self.buscar_por_id(doc)
-        if not doc:
-            print(f"❌ Documento con ID '{doc}' no encontrado.")
-            return
-        os.makedirs(salida, exist_ok=True)
-        md_path = os.path.join(salida, f"{doc['id'].replace(':', '__')}.md")
-        try:
-            with open(md_path, "w", encoding="utf-8") as f:
-                f.write(f"# {doc.get('titulo', 'Sin título')}\n\n")
-                campos_ordenados = [
-                    ("Tipo", "tipo"),
-                    ("Comentario", "comentario"),
-                    ("Comentario Previo", "comentario_previo"),
-                    ("Categorías", "categoria"),
-                    ("Tags", "tags"),
-                    ("Relacionado con", "relacionado_con"),
-                    ("Referencia", "referencia"),
-                    ("Enlaces de salida", "enlaces_salida"),
-                    ("Enlaces de entrada", "enlaces_entrada"),
-                    ("Comentario personal", "comentario_personal"),
-                    ("Inspirado en", "inspirado_en"),
-                    ("Creado a partir de", "creado_a_partir_de"),
-                    ]
-                for etiqueta, clave in campos_ordenados:
-                    valor = doc.get(clave, "")
-                    if isinstance(valor, list):
-                        valor = ", ".join(valor)
-                    elif isinstance(valor, dict) and clave == "referencia":
-                        v = valor
-                        valor = f"{v.get('autor', '')}, {v.get('año', '')}, {v.get('obra', '')}, {v.get('capitulo', '')}, {v.get('pagina', '')}, {v.get('bibkey', '')}"
-                    if valor:
-                        f.write(f"**{etiqueta}**: {valor}\n\n")
-
-                # contenido LaTeX
-                if "contenido_latex" in doc and doc["contenido_latex"].strip():
-                    f.write("$$\n")
-                    f.write(doc["contenido_latex"].strip() + "\n")
-                    f.write("$$\n\n")
-
-                # entrada bibtex
-                if "bibtex_entry" in doc and doc["bibtex_entry"].strip():
-                    f.write("```bibtex\n")
-                    f.write(doc["bibtex_entry"].strip() + "\n")
-                    f.write("```\n")
-            return md_path
-        except Exception as e:
-            return f"❌ Error al exportar a .md: {e}"
-
-
-    def editar_id(self, doc_id, nuevos_campos)-> None:
+        return resultados
+    
+    def add_relation(
+            self,
+            desde_id: str,
+            desde_source: str,
+            hasta_id: str,
+            hasta_source: str,
+            tipo: str,
+            descripcion: str = "",
+            validar_existencia: bool = True) -> Optional[Relation]:
         """
-        Edita un documento actualizando los campos indicados.
+        Crea o actualiza una relación semántica entre dos conceptos.
 
-        Parámetros:
-        - doc_id (str): ID del documento
-        - nuevos_campos (dict): Campos a modificar
+        :param desde_id: ID del concepto origen (por ej. "def:grupo_001")
+        :param desde_source: fuente del concepto origen (por ej. "LibroA")
+        :param hasta_id: ID del concepto destino (por ej. "def:grupo_001")
+        :param hasta_source: fuente del concepto destino (por ej. "LibroB")
+        :param tipo: tipo de relación (ej. "equivalente", "deriva_de", "inspirado_en", etc.)
+        :param descripcion: texto opcional que detalla la relación
+        :param validar_existencia: Si es True, verifica que ambos conceptos existan antes de crear la relación
         """
-        resultado = self.collection.update_one({"id": doc_id}, {"$set": nuevos_campos})
-        if resultado.modified_count:
-            print(f"✏️ Documento '{doc_id}' actualizado.")
-        else:
-            print(f"⚠️ No se realizaron cambios en el documento '{doc_id}' o no se encontró.")
 
+        if validar_existencia:
+            origen = self.concepts.find_one({"id": desde_id, "source": desde_source})
+            destino = self.concepts.find_one({"id": hasta_id, "source": hasta_source})
+            if not origen or not destino:
+                print("⚠️ No se puede crear la relación: uno o ambos conceptos no existen.")
+                return None
+        
+        rel = Relation(
+            desde_id=desde_id,
+            desde_source=desde_source,
+            hasta_id=hasta_id,
+            hasta_source=hasta_source,
+            tipo=tipo,
+            descripcion=descripcion
+        )
+        
+        doc = {
+            "desde": f"{rel.desde_id}@{rel.desde_source}",
+            "hasta": f"{rel.hasta_id}@{rel.hasta_source}",
+            "tipo": rel.tipo,
+            "descripcion": rel.descripcion
+        }
 
-    def editar_documento(self, doc_id, ruta_archivo_md) -> None:
-        try:
-            from conversion.markdownparser import MarkdownParser
-            parser = MarkdownParser()
-            nuevos_datos = parser.parsear_md(ruta_archivo_md, guardar=False)
+        self.relations.update_one(
+            {"desde": doc["desde"], "hasta": doc["hasta"], "tipo": doc["tipo"]},
+            {"$set": doc},
+            upsert=True
+        )
+        print(f"🔗 Relación registrada: {doc['desde']} --[{doc['tipo']}]--> {doc['hasta']}")
+        return rel
+    
 
-            doc_anterior = self.buscar_por_id(doc_id)
-            if not doc_anterior:
-                print(f"❌ Documento con ID '{doc_id}' no encontrado en la base de datos.")
-                return
-
-            cambios = {}
-            for clave, valor_nuevo in nuevos_datos.items():
-                valor_actual = doc_anterior.get(clave)
-
-                # Comparación profunda para listas y diccionarios
-                if isinstance(valor_actual, list) and isinstance(valor_nuevo, list):
-                    if sorted(valor_actual) != sorted(valor_nuevo):
-                        cambios[clave] = valor_nuevo
-                elif isinstance(valor_actual, dict) and isinstance(valor_nuevo, dict):
-                    if valor_actual != valor_nuevo:
-                        cambios[clave] = valor_nuevo
-                elif valor_actual != valor_nuevo:
-                    cambios[clave] = valor_nuevo
-
-            if not cambios:
-                print("⚠️ No se detectaron cambios respecto al documento actual.")
-                return
-
-            resultado = self.collection.update_one({"id": doc_id}, {"$set": cambios})
-            if resultado.modified_count:
-                print(f"✏️ Documento '{doc_id}' actualizado con los siguientes cambios:")
-                import pandas as pd
-                df = pd.DataFrame([{
-                "campo": k,
-                "anterior": doc_anterior.get(k),
-                "nuevo": cambios[k]
-                } for k in cambios])
-                print(df.to_string(index=False))
-            else:
-                print(f"⚠️ No se realizaron cambios en el documento '{doc_id}' o no se encontró.")
-
-        except Exception as e:
-            print(f"❌ Error al editar el documento: {e}")
-
-
-    def exportar_documento_html(self, doc_id, salida="./exportados") -> None:
-        doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
-        if not doc:
-            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
-            return
-
-        os.makedirs(salida, exist_ok=True)
-        safe_id = doc_id.replace(":", "__").replace("/", "__")
-        html_path = os.path.join(salida, f"{safe_id}.html")
-
-        try:
-            with open(html_path, "w", encoding="utf-8") as f:
-                f.write("""<!DOCTYPE html>
-<html lang=\"es\">
-<head>
-  <meta charset=\"UTF-8\">
-  <title>{titulo}</title>
-  <script src=\"https://polyfill.io/v3/polyfill.min.js?features=es6\"></script>
-  <script type=\"text/javascript\" id=\"MathJax-script\" async
-    src=\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\"></script>
-  <style>
-    body {{ font-family: sans-serif; margin: 40px; }}
-    h1 {{ color: darkblue; }}
-    .seccion {{ margin-top: 1.5em; }}
-  </style>
-</head>
-<body>
-""".format(titulo=doc.get("titulo", "Documento sin título")))
-
-                f.write(f"<h1>{doc.get('titulo', 'Sin título')}</h1>\n")
-
-                if "contenido_latex" in doc:
-                    f.write(f"<div class='seccion'><p>{doc['contenido_latex']}</p></div>\n")
-
-                if "demostracion" in doc:
-                    f.write("<div class='seccion'><h2>Demostración</h2><ul>\n")
-                    for paso in doc["demostracion"].get("pasos", []):
-                        desc = paso["descripcion"]
-                        refs = ", ".join(paso.get("referencias", []))
-                        f.write(f"<li>{desc} <em>[{refs}]</em></li>\n")
-                    f.write("</ul></div>\n")
-
-                if "categoria" in doc:
-                    categorias = ", ".join(doc["categoria"])
-                    f.write(f"<div class='seccion'><h2>Categorías</h2>{categorias}</div>\n")
-
-                if "dependencias" in doc:
-                    deps = ", ".join(doc["dependencias"])
-                    f.write(f"<div class='seccion'><h2>Dependencias</h2>{deps}</div>\n")
-
-                if "referencia" in doc:
-                    ref = doc["referencia"]
-                    autor = ref.get("autor", "")
-                    anio = ref.get("año", "")
-                    obra = ref.get("obra", "")
-                    f.write(f"<div class='seccion'><h2>Referencia</h2>{autor}, {anio}, <em>{obra}</em></div>\n")
-
-                if "bibtex_entry" in doc:
-                    f.write("<div class='seccion'><h2>Bibliografía</h2><pre>\n")
-                    f.write(doc["bibtex_entry"])
-                    f.write("</pre></div>\n")
-
-                f.write("</body>\n</html>")
-
-            print(f"🌐 HTML generado en: {html_path}")
-
-        except Exception as e:
-            print(f"❌ Error al exportar HTML: {e}")
-
-    def borrar_documento(self, doc_id) -> None:
-        resultado = self.collection.delete_one({"id": doc_id})
-        if resultado.deleted_count:
-            print(f"🗑️ Documento '{doc_id}' eliminado.")
-        else:
-            print(f"⚠️ Documento '{doc_id}' no encontrado.")
-
-    def hacer_backup(self, directorio="backup") -> None:
-        os.makedirs(directorio, exist_ok=True)
-        comando = ["mongodump", "--db", self.db.name, "--out", directorio]
-        try:
-            subprocess.run(comando, check=True)
-            print(f"💾 Backup creado en: {directorio}/{self.db.name}")
-        except subprocess.CalledProcessError as e:
-            print("❌ Error al realizar el backup:", e)
-
-    def mostrar_campos_texto(self, limite=10) -> None:
-        documentos = list(self.collection.find({}, {"_id": 0}))
-        registros = []
-
-        for doc in documentos[:limite]:
-            fila = {}
-            for clave, valor in doc.items():
-                if isinstance(valor, str):
-                    fila[clave] = valor.strip()
-                elif isinstance(valor, list) and all(isinstance(x, str) for x in valor):
-                    fila[clave] = ", ".join(valor)
-                elif isinstance(valor, dict):
-                    partes = [f"{k}: {v}" for k, v in valor.items() if isinstance(v, (str, int))]
-                    if partes:
-                        fila[clave] = "; ".join(partes)
-            if fila:
-                registros.append(fila)
-
-        df = pd.DataFrame(registros)
-        if df.empty:
-            print("⚠️ No hay campos de texto para mostrar.")
-        else:
-            print("📄 Campos tipo texto en los documentos:")
-            print(df.to_string(index=False))
-
-    def obtener_dict_por_id(self, doc_id: str) -> dict:
+ 
+    def get_relations(
+            self,
+            desde_id: Optional[str] = None,
+            desde_source: Optional[str] = None,
+            hasta_id: Optional[str] = None,
+            hasta_source: Optional[str] = None,
+            tipo: Optional[TipoRelacion] = None) -> List[Relation]:
         """
-        Retorna un diccionario limpio con todos los campos del documento dado su ID.
-
-        Parámetros:
-        - doc_id (str): ID del documento en la base
-
-        Retorna:
-        - dict: Diccionario con todos los campos, excluyendo _id
+        Obtiene las relaciones según filtros opcionales:
+        - desde_id + desde_source
+        - hasta_id + hasta_source
+        - tipo (enum)
         """
-        doc = self.collection.find_one({"id": doc_id}, {"_id": 0})
-        if doc:
-            return dict(doc)
-        else:
-            print(f"❌ Documento con ID '{doc_id}' no encontrado.")
-            return {}
+        query = {}
+        if desde_id and desde_source:
+            query["desde"] = f"{desde_id}@{desde_source}"
+        if hasta_id and hasta_source:
+            query["hasta"] = f"{hasta_id}@{hasta_source}"
+        if tipo:
+            query["tipo"] = tipo.value
+
+        docs = self.relations.find(query)
+        relaciones = []
+        for d in docs:
+            rel = Relation(
+            desde_id=d["desde"].split("@")[0],
+            desde_source=d["desde"].split("@")[1],
+            hasta_id=d["hasta"].split("@")[0],
+            hasta_source=d["hasta"].split("@")[1],
+            tipo=d["tipo"],  # con enum string
+            descripcion=d.get("descripcion", ""))
+            relaciones.append(rel)
+        return relaciones
+    
+
+    def get_relations_with_references(
+        self,
+        desde_id: Optional[str] = None,
+        desde_source: Optional[str] = None,
+        hasta_id: Optional[str] = None,
+        hasta_source: Optional[str] = None,
+        tipo: Optional[TipoRelacion] = None) -> List[RelationEnriched]:
+        """
+        Obtiene relaciones y las enriquece con referencias bibliográficas si existen.
+        """
+        relaciones = self.get_relations(
+        desde_id=desde_id,
+        desde_source=desde_source,
+        hasta_id=hasta_id,
+        hasta_source=hasta_source,
+        tipo=tipo)
+
+        resultados = []
+        for r in relaciones:
+             doc_desde = self.concepts.find_one({"id": r.desde_id, "source": r.desde_source})
+             doc_hasta = self.concepts.find_one({"id": r.hasta_id, "source": r.hasta_source})
+
+             ref_desde = doc_desde.get("referencia") if doc_desde else None
+             ref_hasta = doc_hasta.get("referencia") if doc_hasta else None
+             enriched = RelationEnriched(
+            relation=r,
+            desde_ref=(Referencia.model_validate(ref_desde)
+                       if isinstance(ref_desde, dict) and ref_desde.get("tipo_referencia")
+                       else None),
+            hasta_ref=(Referencia.model_validate(ref_hasta)
+                       if isinstance(ref_hasta, dict) and ref_hasta.get("tipo_referencia")
+                       else None))
+             resultados.append(enriched)
 
 
-    def cerrar_conexion(self) -> None:
-        self.client.close()
-        print("🔌 Conexión con MongoDB cerrada correctamente.")
+        return resultados
+    
 
 
-def conectar_y_restaurar(db_name="matematica", collection_name="contenido", backup_dir="backup") -> MathMongoDB:
-    db_backup_path = os.path.join(backup_dir, db_name)
-    if not os.path.exists(db_backup_path):
-        print(f"❌ No se encontró el respaldo en: {db_backup_path}")
-        return None
+    def get_lineage(
+            self,
+            full_id: str,
+            direction: str = "up",
+            rel_types: Optional[List[TipoRelacion]] = None,
+            max_depth: int = 3
+            ) -> LineageResult:
+        """
+        Obtiene el árbol de dependencias o derivaciones de un concepto.
 
-    comando = ["mongorestore", "--drop", "--db", db_name, db_backup_path]
-    try:
-        subprocess.run(comando, check=True)
-        print(f"✅ Base de datos '{db_name}' restaurada exitosamente desde '{backup_dir}'")
-    except subprocess.CalledProcessError as e:
-        print(f"❌ Error al restaurar la base de datos: {e}")
-        return None
+        :param full_id: ID completo del concepto en formato "id@source"
+        :param direction: "up" para buscar conceptos de los que depende, "down" para descendientes
+        :param rel_types: Lista de tipos de relación a considerar
+        :param max_depth: Profundidad máxima de búsqueda
+        """
 
-    return MathMongoDB(db_name=db_name, collection_name=collection_name)
+        if not rel_types:
+            rel_types = [TipoRelacion.deriva_de, TipoRelacion.requiere_concepto]
 
+        from_field = "hasta" if direction == "up" else "desde"
+        to_field = "desde" if direction == "up" else "hasta"
 
+        pipeline = [
+            {"$match": {from_field: full_id, "tipo": {"$in": [t.value for t in rel_types]}}},
+            {"$graphLookup": {
+            "from": "relations",
+            "startWith": f"${to_field}",
+            "connectFromField": to_field,
+            "connectToField": from_field,
+            "as": "lineage",
+            "maxDepth": max_depth - 1,
+            "restrictSearchWithMatch": {"tipo": {"$in": [t.value for t in rel_types]}}}},
+            {"$project": {to_field: 1, "lineage." + to_field: 1}}
+        ]
 
-def buscar_todos(coleccion: str) -> list:
-    return list(db[coleccion].find())
+        ids = set([full_id])
+        for doc in self.relations.aggregate(pipeline):
+            ids.add(doc.get(to_field))
+            for node in doc.get("lineage", []):
+                ids.add(node.get(to_field))
 
+        return LineageResult(root=full_id, path=list(ids))
 
+        
 
-class RepositorioMongo:
-    def __init__(self, uri: str, db_name: str, collection: str):
-        pass
-
-    def insertar_concepto(self, concepto: ConceptoBase) -> str:
-        pass
-
-    def buscar_por_id(self, id_concepto: str) -> ConceptoBase:
-        pass
-
-    def buscar_por_categoria(self, categoria: str) -> list:
-        pass
-
-    def actualizar_concepto(self, id_concepto: str, nuevo_concepto: dict) -> bool:
-        pass
-
-    def eliminar_concepto(self, id_concepto: str) -> bool:
-        pass
