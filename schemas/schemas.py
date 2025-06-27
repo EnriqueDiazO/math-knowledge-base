@@ -1,8 +1,10 @@
-from pydantic import BaseModel, Field
+from __future__ import annotations
+from pydantic import BaseModel, Field, ConfigDict
+from typing import Literal
 from typing import List, Optional
 from datetime import datetime
 from enum import Enum
-from __future__ import annotations
+
 
 # ----------------------------
 # ENUMS para campos categóricos
@@ -45,6 +47,29 @@ class TipoAplicacion(str, Enum):
     modelado = "modelado"
     historico = "historico"
 
+class TipoReferencia(str, Enum):
+    libro = "libro"
+    articulo = "articulo"
+    tesis = "tesis"
+    tesina = "tesina"
+    pagina_web = "pagina_web"
+    miscelanea = "miscelanea"
+
+
+# ----------------------------
+# ENUMS para tipos de relación
+# ----------------------------
+
+class TipoRelacion(str, Enum):
+    equivalente = "equivalente"
+    deriva_de = "deriva_de"
+    inspirado_en = "inspirado_en"
+    requiere_concepto = "requiere_concepto"
+    contrasta_con = "contrasta_con"
+    contradice = "contradice"
+    contra_ejemplo = "contra_ejemplo"
+
+
 
 # ----------------------------
 # SUBMODELOS ESTRUCTURADOS
@@ -52,6 +77,7 @@ class TipoAplicacion(str, Enum):
 
 class Referencia(BaseModel):
     """Información bibliográfica del concepto"""
+    tipo_referencia: Optional[TipoReferencia] = Field(..., description="Tipo de referencia (libro, articulo, tesis, etc.)")
     autor: Optional[str]
     fuente: Optional[str]
     anio: Optional[int]
@@ -63,17 +89,21 @@ class Referencia(BaseModel):
     doi: Optional[str]
     url: Optional[str]
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
+class RelationEnriched(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+    relation: Relation
+    desde_ref: Optional[Referencia]
+    hasta_ref: Optional[Referencia]
 
 class ContextoDocente(BaseModel):
     """Contexto de uso docente del concepto"""
     nivel_contexto: NivelContexto
     grado_formalidad: GradoFormalidad
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 class MetadatosTecnicos(BaseModel):
     """Metadatos formales y técnicos del contenido"""
@@ -88,8 +118,7 @@ class MetadatosTecnicos(BaseModel):
     nivel_simbolico: NivelSimbolico
     tipo_aplicacion: Optional[List[TipoAplicacion]] = None
 
-    class Config:
-        orm_mode = True
+    model_config = ConfigDict(from_attributes=True)
 
 
 # ----------------------------
@@ -120,5 +149,84 @@ class ConceptoBase(BaseModel):
     fecha_creacion: Optional[datetime] = Field(default_factory=datetime.now)
     ultima_actualizacion: Optional[datetime] = Field(default_factory=datetime.now)
 
-    class Config:
-        orm_mode = True
+    source: str = Field(..., description="Nombre de la carpeta contenedora de los conceptos")
+    alias_previos_pendientes: Optional[List[str]] = None
+
+    model_config = ConfigDict(from_attributes=True)
+
+
+# ----------------------------
+# SUBCLASES POR TIPO DE CONCEPTO
+# ----------------------------
+
+class Definicion(ConceptoBase):
+    tipo: Literal["definicion"] = "definicion"
+
+class Teorema(ConceptoBase):
+    tipo: Literal["teorema"] = "teorema"
+    demostracion: Optional[dict] = None
+
+class Proposicion(ConceptoBase):
+    tipo: Literal["proposicion"] = "proposicion"
+    demostracion: Optional[dict] = None
+
+class Corolario(ConceptoBase):
+    tipo: Literal["corolario"] = "corolario"
+    demostracion: Optional[dict] = None
+
+class Lema(ConceptoBase):
+    tipo: Literal["lema"] = "lema"
+    demostracion: Optional[dict] = None
+
+class Ejemplo(ConceptoBase):
+    tipo: Literal["ejemplo"] = "ejemplo"
+    descripcion: Optional[str] = None
+
+class Nota(ConceptoBase):
+    tipo: Literal["nota"] = "nota"
+    aclaracion: Optional[str] = None
+
+
+
+# ----------------------------
+# MODELO PRINCIPAL: Relation
+# ----------------------------
+
+class Relation(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+
+
+    desde_id: str = Field(..., description="ID del concepto origen")
+    desde_source: str = Field(..., description="Fuente del concepto origen")
+    hasta_id: str = Field(..., description="ID del concepto destino")
+    hasta_source: str = Field(..., description="Fuente del concepto destino")
+    tipo: TipoRelacion = Field(..., description="Tipo de relación")
+    descripcion: Optional[str] = Field("", description="Descripción opcional de la relación")
+
+# ----------------------------
+# MODELO PRINCIPAL: LineageResult
+# ----------------------------
+
+class LineageResult(BaseModel):
+    model_config = ConfigDict(from_attributes=True, use_enum_values=True)
+    root: str  # el ID completo del concepto inicial, e.g. "def:anillo_001@BookB"
+    path: List[str]  # lista de IDs completos conectados a través del grafo
+
+
+
+
+# ----------------------------
+# MODELO PRINCIPAL: DocumentoLaTeX
+# ----------------------------
+
+
+class DocumentoConTimestamp(BaseModel):
+    fecha_creacion: datetime = Field(default_factory=datetime.now)
+    ultima_actualizacion: datetime = Field(default_factory=datetime.now)
+    model_config = ConfigDict(from_attributes=True)
+
+class DocumentoLatex(DocumentoConTimestamp):
+    id: str
+    source: str
+    contenido_latex: str
+    model_config = ConfigDict(from_attributes=True)
