@@ -1,101 +1,75 @@
 import networkx as nx
 from pyvis.network import Network
 
-
 class GrafoConocimiento:
     """
-    → Clase para construir, filtrar y visualizar grafos de conocimiento
-    a partir de documentos matemáticos estructurados.
+    → Clase para construir y visualizar grafos de conocimiento
+    usando los datos de MathMongo (conceptos + relaciones).
     """
-    def __init__(self, documentos: list[dict]) -> None:
-        self.documentos_originales = documentos
-        self.documentos = documentos
+
+    def __init__(self, conceptos: list[dict], relaciones: list[dict]) -> None:
+        self.conceptos = conceptos
+        self.relaciones = relaciones
         self.G = nx.DiGraph()
 
-        # Colores para tipos de objetos (nodos)
+        # Colores por tipo de concepto
         self.color_por_tipo = {
             "definicion": "green",
             "teorema": "blue",
             "proposicion": "orange",
             "corolario": "violet",
-            "lema": "pink",  # color pastel rosado más visible
+            "lema": "pink",
             "ejemplo": "khaki",
-            "esquema": "gray",
+            "nota": "lightgray",
             "otro": "white"
         }
 
-        # Colores para tipos de relaciones (aristas)
-        self.color_por_enlace = {
-            "enlace_salida": "navy",
-            "enlace_entrada": "seagreen",
-            "dependencia": "crimson",
-            "relacionado_con": "darkgray"
+        # Colores por tipo de relación
+        self.color_por_relacion = {
+            "equivalente": "navy",
+            "deriva_de": "purple",
+            "inspirado_en": "teal",
+            "requiere_concepto": "crimson",
+            "contrasta_con": "orange",
+            "contradice": "black",
+            "contra_ejemplo": "gray"
         }
 
-    def filtrar(self, categorias: list[str] | None = None, tipos: list[str] | None = None) -> None:
-        def normalizar(texto: str | None) -> str:
-            return texto.lower().strip() if isinstance(texto, str) else ""
-
-        docs = self.documentos_originales
-
-        if categorias:
-            categorias_norm = [normalizar(c) for c in categorias]
-            docs = [d for d in docs if any(normalizar(cat) in categorias_norm for cat in d.get("categoria", []))]
-
-        if tipos:
-            tipos_norm = [normalizar(t) for t in tipos]
-            def tipo_match(doc):
-                tipo_doc = doc.get("tipo", "otro")
-                if isinstance(tipo_doc, list):
-                    return any(normalizar(t) in tipos_norm for t in tipo_doc)
-                return normalizar(tipo_doc) in tipos_norm
-
-            docs = [d for d in docs if tipo_match(d)]
-
-        self.documentos = docs
-        print(f"🔍 Documentos después del filtro: {len(self.documentos)}")
-
     def construir_grafo(self) -> None:
+        """Crea el grafo con los conceptos y relaciones."""
         self.G.clear()
 
-        for doc in self.documentos:
-            tipo = doc["tipo"][0] if isinstance(doc["tipo"], list) else doc.get("tipo", "otro")
-            self.G.add_node(doc["id"], label=doc.get("titulo", doc["id"]), tipo=tipo)
+        for doc in self.conceptos:
+            tipo = doc.get("tipo", "otro")
+            etiqueta = f"{doc['id']}@{doc['source']}"
+            titulo = doc.get("titulo", etiqueta)
+            color = self.color_por_tipo.get(tipo, "white")
 
-        ids_presentes = set(self.G.nodes)
+            self.G.add_node(etiqueta, label=titulo, tipo=tipo, color=color)
 
-        for doc in self.documentos:
-            origen = doc["id"]
-            for destino in doc.get("enlaces_salida", []):
-                if destino in ids_presentes:
-                    self.G.add_edge(origen, destino, tipo="enlace_salida")
-            for entrada in doc.get("enlaces_entrada", []):
-                if entrada in ids_presentes:
-                    self.G.add_edge(entrada, origen, tipo="enlace_entrada")
-            for dep in doc.get("dependencias", []):
-                if dep in ids_presentes:
-                    self.G.add_edge(origen, dep, tipo="dependencia")
-            for rel in doc.get("relacionado_con", []):
-                if rel in ids_presentes:
-                    self.G.add_edge(origen, rel, tipo="relacionado_con")
+        for rel in self.relaciones:
+            desde = f"{rel['desde_id']}@{rel['desde_source']}"
+            hasta = f"{rel['hasta_id']}@{rel['hasta_source']}"
+            tipo_rel = rel['tipo']
+            color = self.color_por_relacion.get(tipo_rel, "black")
+
+            if desde in self.G.nodes and hasta in self.G.nodes:
+                self.G.add_edge(desde, hasta, tipo=tipo_rel, color=color)
 
         print(f"🧠 Nodos: {len(self.G.nodes)} | Aristas: {len(self.G.edges)}")
 
-    def exportar_html(self, salida:str ="grafo.html",size:int = 30) -> None:
+    def exportar_html(self, salida="grafo_conceptos.html", size=30) -> None:
+        """Genera un archivo HTML interactivo."""
         net = Network(height="750px", width="100%", directed=True)
 
-        for n in self.G.nodes():
-            tipo = self.G.nodes[n].get("tipo", "otro")
-            label = self.G.nodes[n].get("label", n)
+        for n, datos in self.G.nodes(data=True):
+            label = datos.get("label", n)
             if len(label) > size:
                 label = label[:size] + "..."
-            color = self.color_por_tipo.get(tipo, "white")
-            net.add_node(n, label=label, title=tipo, color=color)
+            net.add_node(n, label=label, title=datos.get("tipo", ""), color=datos.get("color", "white"))
 
         for u, v, d in self.G.edges(data=True):
-            tipo_enlace = d.get("tipo", "")
-            color = self.color_por_enlace.get(tipo_enlace, "black")
-            net.add_edge(u, v, title=tipo_enlace, color=color)
+            net.add_edge(u, v, title=d.get("tipo", ""), color=d.get("color", "black"))
 
         net.write_html(salida)
         print(f"✅ Grafo exportado en: {salida}")
