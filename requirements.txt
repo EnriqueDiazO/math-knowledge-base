@@ -8,7 +8,6 @@ streamlit
 pyyaml
 python-slugify
 ruff
-re
 markdown-it-py[linkify,plugins]
 rapidfuzz
 matplotlib
