@@ -3,7 +3,7 @@ from pyvis.network import Network
 
 class GrafoConocimiento:
     """
-    → Clase para construir y visualizar grafos de conocimiento
+    Clase para construir y visualizar grafos de conocimiento
     usando los datos de MathMongo (conceptos + relaciones).
     """
 
@@ -39,6 +39,7 @@ class GrafoConocimiento:
         """Crea el grafo con los conceptos y relaciones."""
         self.G.clear()
 
+        # Crear nodos
         for doc in self.conceptos:
             tipo = doc.get("tipo", "otro")
             etiqueta = f"{doc['id']}@{doc['source']}"
@@ -47,16 +48,23 @@ class GrafoConocimiento:
 
             self.G.add_node(etiqueta, label=titulo, tipo=tipo, color=color)
 
+        # Crear aristas
         for rel in self.relaciones:
-            desde = f"{rel['desde_id']}@{rel['desde_source']}"
-            hasta = f"{rel['hasta_id']}@{rel['hasta_source']}"
-            tipo_rel = rel['tipo']
+            # Detectar el formato de relaciones
+            if "desde" in rel and "hasta" in rel:
+                desde = rel["desde"]
+                hasta = rel["hasta"]
+            else:
+                desde = f"{rel['desde_id']}@{rel['desde_source']}"
+                hasta = f"{rel['hasta_id']}@{rel['hasta_source']}"
+
+            tipo_rel = rel["tipo"]
             color = self.color_por_relacion.get(tipo_rel, "black")
 
             if desde in self.G.nodes and hasta in self.G.nodes:
                 self.G.add_edge(desde, hasta, tipo=tipo_rel, color=color)
 
-        print(f"🧠 Nodos: {len(self.G.nodes)} | Aristas: {len(self.G.edges)}")
+        print(f"🧠 Nodos creados: {len(self.G.nodes)} | Relaciones creadas: {len(self.G.edges)}")
 
     def exportar_html(self, salida="grafo_conceptos.html", size=30) -> None:
         """Genera un archivo HTML interactivo."""
@@ -71,5 +79,6 @@ class GrafoConocimiento:
         for u, v, d in self.G.edges(data=True):
             net.add_edge(u, v, title=d.get("tipo", ""), color=d.get("color", "black"))
 
+        net.show_buttons(filter_=["physics"])  # Panel para mover nodos
         net.write_html(salida)
         print(f"✅ Grafo exportado en: {salida}")
