@@ -1,6 +1,7 @@
 import os
 import subprocess
 from datetime import datetime
+from pymongo import MongoClient
 
 class ExportadorLatex:
     def __init__(self, plantilla_path: str = "../export/templates/miestilo.sty") -> None:
@@ -48,3 +49,22 @@ class ExportadorLatex:
 
         except Exception as e:
             print(f"❌ Error al generar el documento: {e}")
+    
+    def exportar_todos_de_source(self, db: MongoClient, source: str, salida: str = "./exportados") -> None:
+        """
+        Exporta todos los conceptos de un mismo source a PDF.
+        :param db: Conexión a la base de datos MathMongo.
+        :param source: Nombre exacto del campo source a exportar.
+        :param salida: Carpeta destino para los archivos.
+        """
+        conceptos = list(db.concepts.find({"source": source}))
+        print(f"🔎 Conceptos encontrados para source '{source}': {len(conceptos)}")
+
+        for c in conceptos:
+            latex_doc = db.latex_documents.find_one({"id": c["id"], "source": source})
+            if not latex_doc:
+                print(f"⚠️ LaTeX no encontrado para {c['id']}")
+                continue
+
+            contenido = latex_doc.get("contenido_latex", "")
+            self.exportar_concepto(c, contenido, salida=salida)
