@@ -48,7 +48,8 @@ dist/
 *.csv
 *.tsv
 *.xlsx
-
+*.pdf
+*.tex
 # ───── Quarto / Book ─────
 quarto_book/*s/*.qmd
 quarto_book/_book/
