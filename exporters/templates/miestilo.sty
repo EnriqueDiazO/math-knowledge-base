@@ -4,33 +4,50 @@
 \usepackage[utf8]{inputenc}
 \usepackage[T1]{fontenc}
 \usepackage{lmodern}
-\usepackage[T1]{fontenc}
+
+% Idioma y texto
 \usepackage[spanish]{babel}
 \usepackage{textcomp}
 \usepackage{enumitem}
+\usepackage{graphicx}
 \usepackage{hyperref}
-
-
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{siunitx}
+\usepackage{gensymb}
 
 % Matemáticas
-\usepackage{amsmath, amssymb, amsfonts}
+\usepackage{amsmath, amssymb, amsfonts, amsthm}
+\usepackage{physics}
+\usepackage{tikz}
+\usepackage{mathdots}
+\usepackage{yhmath}
+\usepackage{cancel}
+\usepackage{extarrows}
 
-% Página y márgenes
+% Tablas
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{booktabs}
+
+% TikZ extras
+\usetikzlibrary{fadings}
+\usetikzlibrary{patterns}
+\usetikzlibrary{shadows.blur}
+\usetikzlibrary{shapes}
+
+% Márgenes
 \usepackage{geometry}
 \geometry{margin=1in}
 
-% Colores y títulos
-\usepackage{xcolor}
+% Estilo de secciones
 \usepackage{titlesec}
 \titleformat{\section}{\large\bfseries\sffamily\color{blue}}{}{0em}{}
 
-% Texto
-\usepackage{textcomp}      % Para símbolos como \textdegree
-\usepackage{enumitem}      % Para personalizar listas
-\usepackage{graphicx}      % Por si se usan imágenes
-\usepackage{hyperref}      % Enlaces clicables
-\usepackage{babel}         % Soporte multilingüe si vas a usar español
-\usepackage{amsthm}  % Requerido para proof y nuevos teoremas
+% Interlineado
+\renewcommand{\baselinestretch}{1.2}
+
 % Estilo de teoremas personalizados
 \newtheoremstyle{miestilo}
   {1em}      % Espacio arriba
@@ -40,17 +57,13 @@
   {\bfseries} % Fuente del título
   {.}        % Puntuación al final
   {0.5em}    % Espacio tras el título
-  {}         % Título personalizado (vacío usa por defecto)
+  {}         % Título personalizado
 
 \theoremstyle{miestilo}
 
-% Definiciones de entornos con numeración opcional
 \newtheorem*{proposition}{Proposición}
 \newtheorem*{theorem}{Teorema}
 \newtheorem*{definition}{Definición}
 \newtheorem*{corollary}{Corolario}
 \newtheorem*{lemma}{Lema}
 \newtheorem*{example}{Ejemplo}
-
-% Interlineado
-\renewcommand{\baselinestretch}{1.2}
