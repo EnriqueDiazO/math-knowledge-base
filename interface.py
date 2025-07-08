@@ -73,12 +73,14 @@ def main():
             "fuente": input("Fuente: ") or None,
             "anio": int(input("Año: ")) if capturar_booleano("¿Ingresar año?", False) else None,
             "tomo": input("Tomo: ") or None,
+            "edicion": input("Edición: ") or None,
             "paginas": input("Páginas: ") or None,
             "capitulo": input("Capítulo: ") or None,
             "seccion": input("Sección: ") or None,
             "editorial": input("Editorial: ") or None,
             "doi": input("DOI: ") or None,
-            "url": input("URL: ") or None
+            "url": input("URL: ") or None,
+            "issbn": input("ISSBN: ") or None
         }
         data["referencia"] = ref
 
