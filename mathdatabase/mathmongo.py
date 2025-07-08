@@ -212,7 +212,7 @@ class MathMongo:
         """
 
         if not rel_types:
-            rel_types = [TipoRelacion.deriva_de, TipoRelacion.requiere_concepto]
+            rel_types = [TipoRelacion.implica,TipoRelacion.deriva_de, TipoRelacion.requiere_concepto]
 
         from_field = "hasta" if direction == "up" else "desde"
         to_field = "desde" if direction == "up" else "hasta"
