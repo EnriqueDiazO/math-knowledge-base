@@ -36,7 +36,7 @@ class GrafoConocimiento:
             "contra_ejemplo": "gray"
         }
 
-    def construir_grafo(self) -> None:
+    def construir_grafo(self, tipos_relacion: list[str] = None)  -> None:
         """Crea el grafo con los conceptos y relaciones."""
         self.G.clear()
 
@@ -46,7 +46,6 @@ class GrafoConocimiento:
             etiqueta = f"{doc['id']}@{doc['source']}"
             titulo = doc.get("titulo", etiqueta)
             color = self.color_por_tipo.get(tipo, "white")
-
             self.G.add_node(etiqueta, label=titulo, tipo=tipo, color=color)
 
         # Crear aristas
@@ -60,8 +59,11 @@ class GrafoConocimiento:
                 hasta = f"{rel['hasta_id']}@{rel['hasta_source']}"
 
             tipo_rel = rel["tipo"]
-            color = self.color_por_relacion.get(tipo_rel, "black")
+            # 🔎 Filtrar si se pidió solo ciertos tipos
+            if tipos_relacion and tipo_rel not in tipos_relacion:
+                continue
 
+            color = self.color_por_relacion.get(tipo_rel, "black")
             if desde in self.G.nodes and hasta in self.G.nodes:
                 self.G.add_edge(desde, hasta, tipo=tipo_rel, color=color)
 
