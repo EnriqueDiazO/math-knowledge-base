@@ -65,6 +65,7 @@ class TipoRelacion(str, Enum):
     deriva_de = "deriva_de"
     inspirado_en = "inspirado_en"
     requiere_concepto = "requiere_concepto"
+    implica = "implica"
     contrasta_con = "contrasta_con"
     contradice = "contradice"
     contra_ejemplo = "contra_ejemplo"
@@ -82,12 +83,14 @@ class Referencia(BaseModel):
     fuente: Optional[str]
     anio: Optional[int]
     tomo: Optional[str]
+    edicion: Optional[str]
     paginas: Optional[str]
     capitulo: Optional[str]
     seccion: Optional[str]
     editorial: Optional[str]
     doi: Optional[str]
     url: Optional[str]
+    issbn: Optional[str]
 
     model_config = ConfigDict(from_attributes=True)
 
@@ -194,8 +197,6 @@ class Nota(ConceptoBase):
 
 class Relation(BaseModel):
     model_config = ConfigDict(from_attributes=True, use_enum_values=True)
-
-
     desde_id: str = Field(..., description="ID del concepto origen")
     desde_source: str = Field(..., description="Fuente del concepto origen")
     hasta_id: str = Field(..., description="ID del concepto destino")
