@@ -14,9 +14,11 @@ class ExportadorLatex:
         if not concepto or not contenido_latex:
             print("❌ Datos incompletos para exportar.")
             return
-
-        doc_id = concepto.get("id", "documento_sin_id").replace(":", "__")
-        tex_path = os.path.join(salida, f"{doc_id}.tex")
+        
+        titulo = concepto.get("titulo", "concepto_sin_titulo")
+        titulo_limpio = "".join(c if c.isalnum() or c in " _-" else "_" for c in titulo).strip().replace(" ", "_")
+        nombre_archivo = titulo_limpio or "concepto_sin_nombre"
+        tex_path = os.path.join(salida, f"{nombre_archivo}.tex")
         os.makedirs(salida, exist_ok=True)
 
         destino_sty = os.path.join(salida, "miestilo.sty")
@@ -32,6 +34,7 @@ class ExportadorLatex:
                 f.write("\\begin{document}\n\n")
 
                 f.write(f"\\section*{{{concepto.get('titulo', 'Sin título')}}}\n\n")
+                f.write(f"\\textbf{{ID del concepto:}}~\\texttt{{{concepto.get('id', 'sin_id')}@{concepto.get('source', 'sin_source')}}}\n\n")
                 f.write(contenido_latex + "\n\n")
 
                 if concepto.get("comentario"):
@@ -40,12 +43,32 @@ class ExportadorLatex:
                 if concepto.get("referencia"):
                     ref = concepto["referencia"]
                     f.write("\\section*{{Referencia}}\n")
-                    f.write(f"{ref.get('autor', '')}, {ref.get('fuente', '')}, {ref.get('anio', '')}\n\n")
+                    
+                    linea1 = ", ".join(filter(None, [ref.get("autor"),
+                                                     ref.get("fuente"),
+                                                     f"({ref.get('anio')})" if ref.get("anio") else None]))
+                    f.write(f"{linea1}\\\\\n")
+
+                    linea2 = ", ".join(filter(None, [f"Tomo {ref.get('tomo')}" if ref.get("tomo") else None,
+                                                      f"Ed. {ref.get('edicion')}" if ref.get("edicion") else None,
+                                                      f"Cap. {ref.get('capitulo')}" if ref.get("capitulo") else None,
+                                                      f"Sección {ref.get('seccion')}" if ref.get("seccion") else None,
+                                                      f"Pág. {ref.get('paginas')}" if ref.get("paginas") else None,
+                                                      ref.get("editorial")]))
+                    if linea2:
+                        f.write(f"{linea2}\\\\\n")
+                    if ref.get("issbn"):
+                         f.write(f"ISSBN: {ref['issbn']}\\\\\n")
+                    if ref.get("doi"):
+                         f.write(f"DOI: {ref['doi']}\\\\\n")
+                    if ref.get("url"):
+                         f.write(f"\\url{{{ref['url']}}}\\\\\n")
+                         f.write("\n")
 
                 f.write("\\end{document}\n")
 
             subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory", salida, tex_path], check=True)
-            print(f"📄 PDF generado: {os.path.join(salida, doc_id)}.pdf")
+            print(f"📄 PDF generado: {os.path.join(salida, nombre_archivo)}.pdf")
 
         except Exception as e:
             print(f"❌ Error al generar el documento: {e}")
