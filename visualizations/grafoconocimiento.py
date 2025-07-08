@@ -26,6 +26,7 @@ class GrafoConocimiento:
 
         # Colores por tipo de relación
         self.color_por_relacion = {
+            "implica": "indigo",
             "equivalente": "navy",
             "deriva_de": "purple",
             "inspirado_en": "teal",
