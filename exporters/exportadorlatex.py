@@ -34,7 +34,6 @@ class ExportadorLatex:
                 f.write("\\begin{document}\n\n")
 
                 f.write(f"\\section*{{{concepto.get('titulo', 'Sin título')}}}\n\n")
-                f.write(f"\\textbf{{ID del concepto:}}~\\texttt{{{concepto.get('id', 'sin_id')}@{concepto.get('source', 'sin_source')}}}\n\n")
                 f.write(contenido_latex + "\n\n")
 
                 if concepto.get("comentario"):
@@ -64,6 +63,7 @@ class ExportadorLatex:
                     if ref.get("url"):
                          f.write(f"\\url{{{ref['url']}}}\\\\\n")
                          f.write("\n")
+                    f.write(f"\\textbf{{ID del concepto:}}~\\verb|{concepto.get('id')}@{concepto.get('source')}|\n\n")
 
                 f.write("\\end{document}\n")
 
