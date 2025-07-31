@@ -7,10 +7,12 @@ license = "MIT"
 readme = "README.md"
 packages = [
     { include = "app" },
-    { include = "conversion" },
-    { include = "db" },
-    { include = "export" },
-    { include = "visualizacion" }
+    { include = "editor" },
+    { include = "exporters" },
+    { include = "mathdatabase" },
+    { include = "parsers" },
+    { include = "schemas" },
+    { include = "visualizations" }
 ]
 
 [tool.poetry.dependencies]

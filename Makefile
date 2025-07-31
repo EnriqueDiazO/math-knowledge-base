@@ -26,7 +26,10 @@ status:
 # -----------------------
 
 run:
-	. mathdbmongo/bin/activate && streamlit run app/main.py
+	. mathdbmongo/bin/activate && streamlit run editor/editor_streamlit.py
+
+gui:
+	. mathdbmongo/bin/activate && python run_gui.py
 
 # -----------------------
 # 🧹 Lint y correcciones automáticas

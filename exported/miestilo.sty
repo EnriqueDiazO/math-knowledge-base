@@ -1,0 +1,69 @@
+\ProvidesPackage{miestilo}
+
+% Codificación y fuentes
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+
+% Idioma y texto
+\usepackage[spanish]{babel}
+\usepackage{textcomp}
+\usepackage{enumitem}
+\usepackage{graphicx}
+\usepackage{hyperref}
+\usepackage{color}
+\usepackage{xcolor}
+\usepackage{siunitx}
+\usepackage{gensymb}
+
+% Matemáticas
+\usepackage{amsmath, amssymb, amsfonts, amsthm}
+\usepackage{physics}
+\usepackage{tikz}
+\usepackage{mathdots}
+\usepackage{yhmath}
+\usepackage{cancel}
+\usepackage{extarrows}
+
+% Tablas
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{tabularx}
+\usepackage{booktabs}
+
+% TikZ extras
+\usetikzlibrary{fadings}
+\usetikzlibrary{patterns}
+\usetikzlibrary{shadows.blur}
+\usetikzlibrary{shapes}
+
+% Márgenes
+\usepackage{geometry}
+\geometry{margin=1in}
+
+% Estilo de secciones
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\sffamily\color{blue}}{}{0em}{}
+
+% Interlineado
+\renewcommand{\baselinestretch}{1.2}
+
+% Estilo de teoremas personalizados
+\newtheoremstyle{miestilo}
+  {1em}      % Espacio arriba
+  {1em}      % Espacio abajo
+  {\itshape} % Fuente del cuerpo
+  {}         % Indentación
+  {\bfseries} % Fuente del título
+  {.}        % Puntuación al final
+  {0.5em}    % Espacio tras el título
+  {}         % Título personalizado
+
+\theoremstyle{miestilo}
+
+\newtheorem*{proposition}{Proposición}
+\newtheorem*{theorem}{Teorema}
+\newtheorem*{definition}{Definición}
+\newtheorem*{corollary}{Corolario}
+\newtheorem*{lemma}{Lema}
+\newtheorem*{example}{Ejemplo}

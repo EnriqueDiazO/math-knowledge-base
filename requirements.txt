@@ -4,12 +4,10 @@ latexify-py
 pyvis
 networkx
 tk
-streamlit
 pyyaml
 python-slugify
 ruff
 markdown-it-py[linkify,plugins]
 rapidfuzz
 matplotlib
-networkx
-pyvis
+pydantic
