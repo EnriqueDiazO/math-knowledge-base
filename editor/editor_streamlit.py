@@ -339,14 +339,198 @@ elif page == "➕ Add Concept":
         help="Select relevant mathematical categories"
     )
     
-    # LaTeX content
+    # LaTeX content with helper toolbar
     st.subheader("📝 LaTeX Content")
+    
+    # LaTeX Helper Toolbar
+    st.write("**🔧 LaTeX Helper Tools:**")
+    
+    # Main structures
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("📝 Definition", key="btn_def"):
+            st.session_state.latex_insert = r"\begin{definition}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
+        
+        if st.button("📋 Theorem", key="btn_theorem"):
+            st.session_state.latex_insert = r"\begin{theorem}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
+        
+        if st.button("📖 Proof", key="btn_proof"):
+            st.session_state.latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
+        
+        if st.button("📊 Example", key="btn_example"):
+            st.session_state.latex_insert = r"\begin{example}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
+
+    with col2:
+        if st.button("📋 Lemma", key="btn_lemma"):
+            st.session_state.latex_insert = r"\begin{lemma}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
+        
+        if st.button("📋 Proposition", key="btn_prop"):
+            st.session_state.latex_insert = r"\begin{proposition}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
+        
+        if st.button("📋 Corollary", key="btn_corollary"):
+            st.session_state.latex_insert = r"\begin{corollary}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
+        
+        if st.button("📋 Remark", key="btn_remark"):
+            st.session_state.latex_insert = r"\begin{remark}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
+
+    with col3:
+        if st.button("🔢 Equation", key="btn_eq"):
+            st.session_state.latex_insert = r"\begin{equation}" + "\n" + r"% Equation here" + "\n" + r"\end{equation}"
+        
+        if st.button("🔢 Align", key="btn_align"):
+            st.session_state.latex_insert = r"\begin{align}" + "\n" + r"% Multiple equations here" + "\n" + r"\end{align}"
+        
+        if st.button("🔢 Matrix", key="btn_matrix"):
+            st.session_state.latex_insert = r"\begin{pmatrix}" + "\n" + r"a & b \\" + "\n" + r"c & d" + "\n" + r"\end{pmatrix}"
+        
+        if st.button("🔢 Cases", key="btn_cases"):
+            st.session_state.latex_insert = r"\begin{cases}" + "\n" + r"% Case 1 \\" + "\n" + r"% Case 2" + "\n" + r"\end{cases}"
+
+    with col4:
+        if st.button("📋 Itemize", key="btn_itemize"):
+            st.session_state.latex_insert = r"\begin{itemize}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{itemize}"
+        
+        if st.button("📋 Enumerate", key="btn_enumerate"):
+            st.session_state.latex_insert = r"\begin{enumerate}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{enumerate}"
+        
+        if st.button("📋 Description", key="btn_description"):
+            st.session_state.latex_insert = r"\begin{description}" + "\n" + r"\item[Term 1] Description 1" + "\n" + r"\item[Term 2] Description 2" + "\n" + r"\end{description}"
+        
+        if st.button("📋 Quote", key="btn_quote"):
+            st.session_state.latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
+    
+    # Mathematical symbols and operators
+    st.write("**🔢 Mathematical Symbols:**")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("∑ Sum", key="btn_sum"):
+            st.session_state.latex_insert = r"\sum_{i=1}^{n}"
+        if st.button("∏ Product", key="btn_prod"):
+            st.session_state.latex_insert = r"\prod_{i=1}^{n}"
+        if st.button("∫ Integral", key="btn_int"):
+            st.session_state.latex_insert = r"\int_{a}^{b}"
+        if st.button("∂ Partial", key="btn_partial"):
+            st.session_state.latex_insert = r"\partial"
+    
+    with col2:
+        if st.button("∞ Infinity", key="btn_inf"):
+            st.session_state.latex_insert = r"\infty"
+        if st.button("→ Arrow", key="btn_arrow"):
+            st.session_state.latex_insert = r"\rightarrow"
+        if st.button("↔ Bidirectional", key="btn_bidir"):
+            st.session_state.latex_insert = r"\leftrightarrow"
+        if st.button("∈ Belongs", key="btn_in"):
+            st.session_state.latex_insert = r"\in"
+    
+    with col3:
+        if st.button("⊂ Subset", key="btn_subset"):
+            st.session_state.latex_insert = r"\subset"
+        if st.button("∪ Union", key="btn_union"):
+            st.session_state.latex_insert = r"\cup"
+        if st.button("∩ Intersection", key="btn_intersection"):
+            st.session_state.latex_insert = r"\cap"
+        if st.button("∅ Empty Set", key="btn_empty"):
+            st.session_state.latex_insert = r"\emptyset"
+    
+    with col4:
+        if st.button("∀ For All", key="btn_forall"):
+            st.session_state.latex_insert = r"\forall"
+        if st.button("∃ Exists", key="btn_exists"):
+            st.session_state.latex_insert = r"\exists"
+        if st.button("∴ Therefore", key="btn_therefore"):
+            st.session_state.latex_insert = r"\therefore"
+        if st.button("∵ Because", key="btn_because"):
+            st.session_state.latex_insert = r"\because"
+    
+    # Greek letters
+    st.write("**🇬🇷 Greek Letters:**")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("α Alpha", key="btn_alpha"):
+            st.session_state.latex_insert = r"\alpha"
+        if st.button("β Beta", key="btn_beta"):
+            st.session_state.latex_insert = r"\beta"
+        if st.button("γ Gamma", key="btn_gamma"):
+            st.session_state.latex_insert = r"\gamma"
+        if st.button("δ Delta", key="btn_delta"):
+            st.session_state.latex_insert = r"\delta"
+    
+    with col2:
+        if st.button("ε Epsilon", key="btn_epsilon"):
+            st.session_state.latex_insert = r"\epsilon"
+        if st.button("θ Theta", key="btn_theta"):
+            st.session_state.latex_insert = r"\theta"
+        if st.button("λ Lambda", key="btn_lambda"):
+            st.session_state.latex_insert = r"\lambda"
+        if st.button("μ Mu", key="btn_mu"):
+            st.session_state.latex_insert = r"\mu"
+    
+    with col3:
+        if st.button("π Pi", key="btn_pi"):
+            st.session_state.latex_insert = r"\pi"
+        if st.button("σ Sigma", key="btn_sigma"):
+            st.session_state.latex_insert = r"\sigma"
+        if st.button("τ Tau", key="btn_tau"):
+            st.session_state.latex_insert = r"\tau"
+        if st.button("φ Phi", key="btn_phi"):
+            st.session_state.latex_insert = r"\phi"
+    
+    with col4:
+        if st.button("χ Chi", key="btn_chi"):
+            st.session_state.latex_insert = r"\chi"
+        if st.button("ψ Psi", key="btn_psi"):
+            st.session_state.latex_insert = r"\psi"
+        if st.button("ω Omega", key="btn_omega"):
+            st.session_state.latex_insert = r"\omega"
+        if st.button("Γ Gamma", key="btn_Gamma"):
+            st.session_state.latex_insert = r"\Gamma"
+    
+    # Initialize latex_insert in session state if not exists
+    if 'latex_insert' not in st.session_state:
+        st.session_state.latex_insert = ""
+    
+    # Show current insertion if any
+    if st.session_state.latex_insert:
+        st.info(f"**Ready to insert:** `{st.session_state.latex_insert}`")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("✅ Insert at Cursor", key="insert_btn"):
+                st.session_state.insert_latex = True
+        with col2:
+            if st.button("❌ Clear", key="clear_insert"):
+                st.session_state.latex_insert = ""
+                st.session_state.insert_latex = False
+    
+    # LaTeX text area
     contenido_latex = st.text_area(
         "LaTeX Content",
         height=200,
         placeholder="Enter your LaTeX content here...",
-        help="Write the mathematical content in LaTeX format"
+        help="Write the mathematical content in LaTeX format. Use the buttons above to insert common structures.",
+        key="latex_textarea"
     )
+    
+    # Handle insertion
+    if 'insert_latex' in st.session_state and st.session_state.insert_latex:
+        if st.session_state.latex_insert:
+            # Get current cursor position (approximate)
+            current_text = contenido_latex
+            insertion_point = len(current_text)  # Insert at end for now
+            
+            # Insert the LaTeX code
+            new_text = current_text[:insertion_point] + "\n" + st.session_state.latex_insert + current_text[insertion_point:]
+            
+            # Update the text area (this is a simplified approach)
+            st.session_state.latex_textarea = new_text
+            st.session_state.insert_latex = False
+            st.session_state.latex_insert = ""
+            st.rerun()
     
     # Algorithm section
     st.subheader("⚙️ Algorithm Information")
@@ -598,14 +782,152 @@ elif page == "✏️ Edit Concept":
             key="edit_categorias"
         )
         
-        # LaTeX content
+        # LaTeX content with helper toolbar
         st.subheader("📝 LaTeX Content")
+        
+        # LaTeX Helper Toolbar (same as Add Concept)
+        st.write("**🔧 LaTeX Helper Tools:**")
+        
+        # Main structures
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if st.button("📝 Definition", key="edit_btn_def"):
+                st.session_state.edit_latex_insert = r"\begin{definition}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
+            
+            if st.button("📋 Theorem", key="edit_btn_theorem"):
+                st.session_state.edit_latex_insert = r"\begin{theorem}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
+            
+            if st.button("📖 Proof", key="edit_btn_proof"):
+                st.session_state.edit_latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
+            
+            if st.button("📊 Example", key="edit_btn_example"):
+                st.session_state.edit_latex_insert = r"\begin{example}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
+        
+        with col2:
+            if st.button("📋 Lemma", key="edit_btn_lemma"):
+                st.session_state.edit_latex_insert = r"\begin{lemma}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
+            
+            if st.button("📋 Proposition", key="edit_btn_prop"):
+                st.session_state.edit_latex_insert = r"\begin{proposition}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
+            
+            if st.button("📋 Corollary", key="edit_btn_corollary"):
+                st.session_state.edit_latex_insert = r"\begin{corollary}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
+            
+            if st.button("📋 Remark", key="edit_btn_remark"):
+                st.session_state.edit_latex_insert = r"\begin{remark}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
+        
+        with col3:
+            if st.button("🔢 Equation", key="edit_btn_eq"):
+                st.session_state.edit_latex_insert = r"\begin{equation}" + "\n" + r"% Equation here" + "\n" + r"\end{equation}"
+            
+            if st.button("🔢 Align", key="edit_btn_align"):
+                st.session_state.edit_latex_insert = r"\begin{align}" + "\n" + r"% Multiple equations here" + "\n" + r"\end{align}"
+            
+            if st.button("🔢 Matrix", key="edit_btn_matrix"):
+                st.session_state.edit_latex_insert = r"\begin{pmatrix}" + "\n" + r"a & b \\" + "\n" + r"c & d" + "\n" + r"\end{pmatrix}"
+            
+            if st.button("🔢 Cases", key="edit_btn_cases"):
+                st.session_state.edit_latex_insert = r"\begin{cases}" + "\n" + r"% Case 1 \\" + "\n" + r"% Case 2" + "\n" + r"\end{cases}"
+        
+        with col4:
+            if st.button("📋 Itemize", key="edit_btn_itemize"):
+                st.session_state.edit_latex_insert = r"\begin{itemize}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{itemize}"
+            
+            if st.button("📋 Enumerate", key="edit_btn_enumerate"):
+                st.session_state.edit_latex_insert = r"\begin{enumerate}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{enumerate}"
+            
+            if st.button("📋 Description", key="edit_btn_description"):
+                st.session_state.edit_latex_insert = r"\begin{description}" + "\n" + r"\item[Term 1] Description 1" + "\n" + r"\item[Term 2] Description 2" + "\n" + r"\end{description}"
+            
+            if st.button("📋 Quote", key="edit_btn_quote"):
+                st.session_state.edit_latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
+        
+        # Mathematical symbols (abbreviated for edit page)
+        st.write("**🔢 Common Symbols:**")
+        
+        col1, col2, col3, col4 = st.columns(4)
+        
+        with col1:
+            if st.button("∑ Sum", key="edit_btn_sum"):
+                st.session_state.edit_latex_insert = r"\sum_{i=1}^{n}"
+            if st.button("∫ Integral", key="edit_btn_int"):
+                st.session_state.edit_latex_insert = r"\int_{a}^{b}"
+            if st.button("→ Arrow", key="edit_btn_arrow"):
+                st.session_state.edit_latex_insert = r"\rightarrow"
+            if st.button("∈ Belongs", key="edit_btn_in"):
+                st.session_state.edit_latex_insert = r"\in"
+        
+        with col2:
+            if st.button("∞ Infinity", key="edit_btn_inf"):
+                st.session_state.edit_latex_insert = r"\infty"
+            if st.button("∪ Union", key="edit_btn_union"):
+                st.session_state.edit_latex_insert = r"\cup"
+            if st.button("∩ Intersection", key="edit_btn_intersection"):
+                st.session_state.edit_latex_insert = r"\cap"
+            if st.button("∀ For All", key="edit_btn_forall"):
+                st.session_state.edit_latex_insert = r"\forall"
+        
+        with col3:
+            if st.button("α Alpha", key="edit_btn_alpha"):
+                st.session_state.edit_latex_insert = r"\alpha"
+            if st.button("β Beta", key="edit_btn_beta"):
+                st.session_state.edit_latex_insert = r"\beta"
+            if st.button("γ Gamma", key="edit_btn_gamma"):
+                st.session_state.edit_latex_insert = r"\gamma"
+            if st.button("δ Delta", key="edit_btn_delta"):
+                st.session_state.edit_latex_insert = r"\delta"
+        
+        with col4:
+            if st.button("π Pi", key="edit_btn_pi"):
+                st.session_state.edit_latex_insert = r"\pi"
+            if st.button("σ Sigma", key="edit_btn_sigma"):
+                st.session_state.edit_latex_insert = r"\sigma"
+            if st.button("λ Lambda", key="edit_btn_lambda"):
+                st.session_state.edit_latex_insert = r"\lambda"
+            if st.button("θ Theta", key="edit_btn_theta"):
+                st.session_state.edit_latex_insert = r"\theta"
+        
+        # Initialize edit_latex_insert in session state if not exists
+        if 'edit_latex_insert' not in st.session_state:
+            st.session_state.edit_latex_insert = ""
+        
+        # Show current insertion if any
+        if st.session_state.edit_latex_insert:
+            st.info(f"**Ready to insert:** `{st.session_state.edit_latex_insert}`")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("✅ Insert at Cursor", key="edit_insert_btn"):
+                    st.session_state.edit_insert_latex = True
+            with col2:
+                if st.button("❌ Clear", key="edit_clear_insert"):
+                    st.session_state.edit_latex_insert = ""
+                    st.session_state.edit_insert_latex = False
+        
+        # LaTeX text area
         contenido_latex = st.text_area(
             "LaTeX Content",
             value=current_latex,
             height=200,
             key="edit_latex"
         )
+        
+        # Handle insertion for edit page
+        if 'edit_insert_latex' in st.session_state and st.session_state.edit_insert_latex:
+            if st.session_state.edit_latex_insert:
+                # Get current cursor position (approximate)
+                current_text = contenido_latex
+                insertion_point = len(current_text)  # Insert at end for now
+                
+                # Insert the LaTeX code
+                new_text = current_text[:insertion_point] + "\n" + st.session_state.edit_latex_insert + current_text[insertion_point:]
+                
+                # Update the text area
+                st.session_state.edit_latex = new_text
+                st.session_state.edit_insert_latex = False
+                st.session_state.edit_latex_insert = ""
+                st.rerun()
         
         # Algorithm section
         st.subheader("⚙️ Algorithm Information")
@@ -923,82 +1245,311 @@ elif page == "🔗 Manage Relations":
     
     st.info(f"📊 Managing relations in: **{current_db}**")
     
-    # Add new relation
-    st.subheader("➕ Add New Relation")
+    # Tab navigation for relations
+    tab1, tab2, tab3 = st.tabs(["➕ Add New Relation", "✏️ Edit Relations", "📊 View Relations"])
     
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.write("**From Concept:**")
-        desde_id = st.text_input("From ID", placeholder="e.g., def:grupo_001")
-        desde_source = st.selectbox("From Source", [""] + list(db.concepts.distinct("source")))
-    
-    with col2:
-        st.write("**To Concept:**")
-        hasta_id = st.text_input("To ID", placeholder="e.g., teo:lagrange_001")
-        hasta_source = st.selectbox("To Source", [""] + list(db.concepts.distinct("source")))
-    
-    tipo_relacion = st.selectbox("Relation Type", [t.value for t in TipoRelacion])
-    descripcion = st.text_area("Description (Optional)", placeholder="Describe the relationship...")
-    
-    if st.button("🔗 Add Relation", type="primary"):
-        if desde_id and desde_source and hasta_id and hasta_source:
-            try:
-                relation = db.add_relation(
-                    desde_id=desde_id,
-                    desde_source=desde_source,
-                    hasta_id=hasta_id,
-                    hasta_source=hasta_source,
-                    tipo=tipo_relacion,
-                    descripcion=descripcion
-                )
-                if relation:
-                    st.success("✅ Relation added successfully!")
-                else:
-                    st.error("❌ Failed to add relation. Check if both concepts exist.")
-            except Exception as e:
-                st.error(f"❌ Error adding relation: {e}")
-        else:
-            st.error("❌ Please fill in all required fields.")
-    
-    st.markdown("---")
-    
-    # View existing relations
-    st.subheader("📊 Existing Relations")
-    
-    # Filter relations
-    col1, col2 = st.columns(2)
-    with col1:
-        filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")))
-    with col2:
-        filter_type = st.selectbox("Filter by Type", ["All"] + [t.value for t in TipoRelacion])
-    
-    # Build query
-    query = {}
-    if filter_source != "All":
-        query["$or"] = [
-            {"desde": {"$regex": f"@{filter_source}$"}},
-            {"hasta": {"$regex": f"@{filter_source}$"}}
-        ]
-    if filter_type != "All":
-        query["tipo"] = filter_type
-    
-    relations = list(db.relations.find(query))
-    
-    if relations:
-        for rel in relations:
-            with st.expander(f"{rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}"):
-                st.write(f"**Type:** {rel['tipo']}")
-                if rel.get('descripcion'):
-                    st.write(f"**Description:** {rel['descripcion']}")
+    with tab1:
+        st.subheader("➕ Add New Relation")
+        
+        # Smart concept selection
+        st.write("**Select Concepts:**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("**From Concept:**")
+            # Filter concepts for "from" selection
+            desde_source_filter = st.selectbox("From Source", ["All"] + list(db.concepts.distinct("source")), key="desde_source_filter")
+            desde_type_filter = st.selectbox("From Type", ["All"] + list(db.concepts.distinct("tipo")), key="desde_type_filter")
+            
+            # Build query for "from" concepts
+            desde_query = {}
+            if desde_source_filter != "All":
+                desde_query["source"] = desde_source_filter
+            if desde_type_filter != "All":
+                desde_query["tipo"] = desde_type_filter
+            
+            desde_concepts = list(db.concepts.find(desde_query).sort("fecha_creacion", -1))
+            
+            if desde_concepts:
+                desde_options = []
+                desde_map = {}
+                for concept in desde_concepts:
+                    display_name = f"{concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})"
+                    desde_options.append(display_name)
+                    desde_map[display_name] = concept
                 
-                if st.button("🗑️ Delete", key=f"del_rel_{rel['_id']}"):
-                    if st.button("⚠️ Confirm", key=f"confirm_rel_{rel['_id']}"):
-                        db.relations.delete_one({"_id": rel["_id"]})
-                        st.success("Relation deleted!")
-                        st.rerun()
-    else:
-        st.info("No relations found.")
+                selected_desde = st.selectbox("Choose From Concept", desde_options, key="desde_select")
+                if selected_desde:
+                    desde_concept = desde_map[selected_desde]
+                    desde_id = desde_concept['id']
+                    desde_source = desde_concept['source']
+                    st.info(f"Selected: {desde_id}@{desde_source}")
+            else:
+                st.warning("No concepts found with selected filters")
+                desde_id = ""
+                desde_source = ""
+        
+        with col2:
+            st.write("**To Concept:**")
+            # Filter concepts for "to" selection
+            hasta_source_filter = st.selectbox("To Source", ["All"] + list(db.concepts.distinct("source")), key="hasta_source_filter")
+            hasta_type_filter = st.selectbox("To Type", ["All"] + list(db.concepts.distinct("tipo")), key="hasta_type_filter")
+            
+            # Build query for "to" concepts
+            hasta_query = {}
+            if hasta_source_filter != "All":
+                hasta_query["source"] = hasta_source_filter
+            if hasta_type_filter != "All":
+                hasta_query["tipo"] = hasta_type_filter
+            
+            hasta_concepts = list(db.concepts.find(hasta_query).sort("fecha_creacion", -1))
+            
+            if hasta_concepts:
+                hasta_options = []
+                hasta_map = {}
+                for concept in hasta_concepts:
+                    display_name = f"{concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})"
+                    hasta_options.append(display_name)
+                    hasta_map[display_name] = concept
+                
+                selected_hasta = st.selectbox("Choose To Concept", hasta_options, key="hasta_select")
+                if selected_hasta:
+                    hasta_concept = hasta_map[selected_hasta]
+                    hasta_id = hasta_concept['id']
+                    hasta_source = hasta_concept['source']
+                    st.info(f"Selected: {hasta_id}@{hasta_source}")
+            else:
+                st.warning("No concepts found with selected filters")
+                hasta_id = ""
+                hasta_source = ""
+        
+        # Relation details
+        st.subheader("🔗 Relation Details")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            tipo_relacion = st.selectbox("Relation Type", [t.value for t in TipoRelacion], key="new_rel_type")
+        with col2:
+            descripcion = st.text_area("Description (Optional)", placeholder="Describe the relationship...", key="new_rel_desc")
+        
+        # Add relation button
+        if st.button("🔗 Add Relation", type="primary", key="add_rel_btn"):
+            if desde_id and desde_source and hasta_id and hasta_source:
+                if desde_id == hasta_id and desde_source == hasta_source:
+                    st.error("❌ Cannot create relation from a concept to itself.")
+                else:
+                    try:
+                        relation = db.add_relation(
+                            desde_id=desde_id,
+                            desde_source=desde_source,
+                            hasta_id=hasta_id,
+                            hasta_source=hasta_source,
+                            tipo=tipo_relacion,
+                            descripcion=descripcion
+                        )
+                        if relation:
+                            st.success("✅ Relation added successfully!")
+                            st.balloons()
+                        else:
+                            st.error("❌ Failed to add relation. Check if both concepts exist.")
+                    except Exception as e:
+                        st.error(f"❌ Error adding relation: {e}")
+            else:
+                st.error("❌ Please select both concepts.")
+    
+    with tab2:
+        st.subheader("✏️ Edit Relations")
+        
+        # Filter relations for editing
+        col1, col2 = st.columns(2)
+        with col1:
+            edit_filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")), key="edit_source_filter")
+        with col2:
+            edit_filter_type = st.selectbox("Filter by Type", ["All"] + [t.value for t in TipoRelacion], key="edit_type_filter")
+        
+        # Build query for relations to edit
+        edit_query = {}
+        if edit_filter_source != "All":
+            edit_query["$or"] = [
+                {"desde": {"$regex": f"@{edit_filter_source}$"}},
+                {"hasta": {"$regex": f"@{edit_filter_source}$"}}
+            ]
+        if edit_filter_type != "All":
+            edit_query["tipo"] = edit_filter_type
+        
+        edit_relations = list(db.relations.find(edit_query))
+        
+        if edit_relations:
+            st.write(f"**Found {len(edit_relations)} relations to edit:**")
+            
+            for i, rel in enumerate(edit_relations):
+                with st.expander(f"Edit: {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}", expanded=False):
+                    st.write(f"**Current Relation:** {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}")
+                    
+                    # Get concept details for display
+                    desde_parts = rel['desde'].split('@')
+                    hasta_parts = rel['hasta'].split('@')
+                    
+                    desde_concept = db.concepts.find_one({"id": desde_parts[0], "source": desde_parts[1]})
+                    hasta_concept = db.concepts.find_one({"id": hasta_parts[0], "source": hasta_parts[1]})
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write("**From Concept:**")
+                        if desde_concept:
+                            st.write(f"• **Title:** {desde_concept.get('titulo', desde_parts[0])}")
+                            st.write(f"• **Type:** {desde_concept['tipo']}")
+                            st.write(f"• **Source:** {desde_parts[1]}")
+                        else:
+                            st.write(f"• **ID:** {desde_parts[0]}")
+                            st.write(f"• **Source:** {desde_parts[1]}")
+                            st.warning("⚠️ Concept not found in database")
+                    
+                    with col2:
+                        st.write("**To Concept:**")
+                        if hasta_concept:
+                            st.write(f"• **Title:** {hasta_concept.get('titulo', hasta_parts[0])}")
+                            st.write(f"• **Type:** {hasta_concept['tipo']}")
+                            st.write(f"• **Source:** {hasta_parts[1]}")
+                        else:
+                            st.write(f"• **ID:** {hasta_parts[0]}")
+                            st.write(f"• **Source:** {hasta_parts[1]}")
+                            st.warning("⚠️ Concept not found in database")
+                    
+                    st.markdown("---")
+                    
+                    # Edit relation details
+                    st.write("**Edit Relation Details:**")
+                    
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        new_tipo = st.selectbox(
+                            "Relation Type",
+                            [t.value for t in TipoRelacion],
+                            index=[t.value for t in TipoRelacion].index(rel['tipo']),
+                            key=f"edit_type_{i}"
+                        )
+                    with col2:
+                        new_desc = st.text_area(
+                            "Description",
+                            value=rel.get('descripcion', ''),
+                            key=f"edit_desc_{i}"
+                        )
+                    
+                    # Action buttons
+                    col1, col2, col3 = st.columns(3)
+                    
+                    with col1:
+                        if st.button("💾 Update Relation", key=f"update_rel_{i}"):
+                            try:
+                                # Update the relation
+                                db.relations.update_one(
+                                    {"_id": rel["_id"]},
+                                    {
+                                        "$set": {
+                                            "tipo": new_tipo,
+                                            "descripcion": new_desc
+                                        }
+                                    }
+                                )
+                                st.success("✅ Relation updated successfully!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error updating relation: {e}")
+                    
+                    with col2:
+                        if st.button("🔄 Reset", key=f"reset_rel_{i}"):
+                            st.rerun()
+                    
+                    with col3:
+                        if st.button("🗑️ Delete", key=f"delete_rel_{i}"):
+                            if st.button("⚠️ Confirm Delete", key=f"confirm_delete_rel_{i}"):
+                                try:
+                                    db.relations.delete_one({"_id": rel["_id"]})
+                                    st.success("✅ Relation deleted successfully!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"❌ Error deleting relation: {e}")
+        else:
+            st.info("No relations found with the selected filters.")
+    
+    with tab3:
+        st.subheader("📊 View Relations")
+        
+        # Filter relations for viewing
+        col1, col2 = st.columns(2)
+        with col1:
+            view_filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")), key="view_source_filter")
+        with col2:
+            view_filter_type = st.selectbox("Filter by Type", ["All"] + [t.value for t in TipoRelacion], key="view_type_filter")
+        
+        # Build query
+        view_query = {}
+        if view_filter_source != "All":
+            view_query["$or"] = [
+                {"desde": {"$regex": f"@{view_filter_source}$"}},
+                {"hasta": {"$regex": f"@{view_filter_source}$"}}
+            ]
+        if view_filter_type != "All":
+            view_query["tipo"] = view_filter_type
+        
+        view_relations = list(db.relations.find(view_query))
+        
+        if view_relations:
+            st.write(f"**Found {len(view_relations)} relations:**")
+            
+            # Create a summary table
+            relation_data = []
+            for rel in view_relations:
+                desde_parts = rel['desde'].split('@')
+                hasta_parts = rel['hasta'].split('@')
+                
+                desde_concept = db.concepts.find_one({"id": desde_parts[0], "source": desde_parts[1]})
+                hasta_concept = db.concepts.find_one({"id": hasta_parts[0], "source": hasta_parts[1]})
+                
+                relation_data.append({
+                    "From": desde_concept.get('titulo', desde_parts[0]) if desde_concept else desde_parts[0],
+                    "From Type": desde_concept['tipo'] if desde_concept else "Unknown",
+                    "From Source": desde_parts[1],
+                    "Relation": rel['tipo'],
+                    "To": hasta_concept.get('titulo', hasta_parts[0]) if hasta_concept else hasta_parts[0],
+                    "To Type": hasta_concept['tipo'] if hasta_concept else "Unknown",
+                    "To Source": hasta_parts[1],
+                    "Description": rel.get('descripcion', '')
+                })
+            
+            df = pd.DataFrame(relation_data)
+            st.dataframe(df, use_container_width=True)
+            
+            # Statistics
+            st.subheader("📈 Relation Statistics")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Total Relations", len(view_relations))
+            
+            with col2:
+                relation_types = [rel['tipo'] for rel in view_relations]
+                unique_types = len(set(relation_types))
+                st.metric("Unique Types", unique_types)
+            
+            with col3:
+                sources_involved = set()
+                for rel in view_relations:
+                    desde_parts = rel['desde'].split('@')
+                    hasta_parts = rel['hasta'].split('@')
+                    sources_involved.add(desde_parts[1])
+                    sources_involved.add(hasta_parts[1])
+                st.metric("Sources Involved", len(sources_involved))
+            
+            # Type distribution
+            if relation_types:
+                type_counts = pd.Series(relation_types).value_counts()
+                st.subheader("📊 Relation Type Distribution")
+                st.bar_chart(type_counts)
+        else:
+            st.info("No relations found with the selected filters.")
 
 # Knowledge Graph page
 elif page == "📊 Knowledge Graph":
