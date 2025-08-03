@@ -13,6 +13,16 @@ Crear una **base de datos personalizable** de conocimiento matemático:
 - Exportación automática a LaTeX y generación de PDFs.
 - Visualización de relaciones entre conceptos usando grafos.
 
+## 🎨 Estilo visual de conceptos matemáticos
+
+Cada concepto registrado puede ser exportado a un archivo `.tex` y compilado como PDF, con formato estilizado gracias al uso del paquete [coloredtheorem](https://github.com/joaomlourenco/coloredtheorem).
+
+- Los entornos como **Definición**, **Teorema**, **Ejemplo**, etc., se muestran dentro de cajas coloreadas.
+- Se usa el archivo personalizado `exporters/templates/miestilo.sty` para controlar la presentación.
+- Puedes definir conceptos sin numeración usando entornos como `\begin{cthdefinicion*}{...}`.
+
+Esto permite generar documentos matemáticos visualmente atractivos directamente desde la base de datos.
+
 ---
 
 ## 📦 Estructura del proyecto
@@ -20,7 +30,7 @@ Crear una **base de datos personalizable** de conocimiento matemático:
 - `editor/` — Aplicación Streamlit para captura y consulta.
 - `parsers/` — Funciones para agregar archivos md a la base de datos.
 - `mathdabase/` — Conexión y gestión de la base de datos MongoDB y clases principales.
-- `exporters/` — Scripts para generar documentos LaTeX/PDF.
+- `exporters/` — Scripts para generar documentos LaTeX/PDF. Incluye integración con `miestilo.sty` y `coloredtheorem`.
 - `schemas/` — Esquemas relacionados para validar los campos de los conceptos matemáticos.
 - `visualizations/` — Visualización de grafos matemáticos.
 
@@ -30,7 +40,8 @@ Crear una **base de datos personalizable** de conocimiento matemático:
 
 - Ubuntu 20.04, 22.04 o similar (recomendado).
 - Python 3.10+ (recomendado: 3.10.14 o 3.11.6).
-- MongoDB instalado y activo (`sudo systemctl start mongod`).
+- MongoDB instalado y activo (`sudo apt install mongodb` y `sudo systemctl start mongod`).
+- Instalación completa de LaTeX (`sudo apt install texlive-full`) para exportar PDFs correctamente.
 - `make` instalado (habitual en sistemas Linux).
 - Git, pip.
 
@@ -55,9 +66,15 @@ pip install -r requirements.txt
 # Instalar el proyecto en modo editable
 pip install -e .
 
+# (Opcional) Verifica que pdflatex esté disponible
+pdflatex --version
+
 # Iniciar MongoDB
 make start
 
 # Lanzar la aplicación Streamlit
 make run
+
+# (Opcional) Exportar un concepto de prueba como PDF estilizado
+python exporters/exportadorlatex.py --id <concept_id>
 
