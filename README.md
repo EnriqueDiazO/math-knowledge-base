@@ -23,11 +23,28 @@ Cada concepto registrado puede ser exportado a un archivo `.tex` y compilado com
 
 Esto permite generar documentos matemáticos visualmente atractivos directamente desde la base de datos.
 
+### 📄 Generación de PDF desde la interfaz
+
+La aplicación incluye funcionalidad para generar PDFs directamente desde los formularios de conceptos:
+
+- **Botón "📄 Generar y abrir PDF"** en los formularios de "Add Concept" y "Edit Concept"
+- **Generación automática** usando `pdflatex` con el mismo estilo que `ExportadorLatex`
+- **Apertura automática** en el navegador web
+- **Almacenamiento persistente** en `~/math_knowledge_pdfs/`
+- **Nombres descriptivos** de archivos: `{id}_{tipo}.pdf`
+- **Permisos correctos** para acceso desde navegador (644 para archivos, 755 para directorio)
+
+Los PDFs generados usan **exactamente el mismo estilo** que el exportador existente:
+- **Archivos de estilo**: `miestilo.sty` y `coloredtheorem.sty`
+- **Formato LaTeX**: Mismo preámbulo y estructura que `ExportadorLatex`
+- **Entornos matemáticos**: Compatibles con `coloredtheorem` (cajas coloreadas)
+- **Metadatos**: Misma presentación de referencias y comentarios
+
 ---
 
 ## 📦 Estructura del proyecto
 
-- `editor/` — Aplicación Streamlit para captura y consulta.
+- `editor/` — Aplicación Streamlit para captura y consulta (incluye generación de PDF).
 - `parsers/` — Funciones para agregar archivos md a la base de datos.
 - `mathdabase/` — Conexión y gestión de la base de datos MongoDB y clases principales.
 - `exporters/` — Scripts para generar documentos LaTeX/PDF. Incluye integración con `miestilo.sty` y `coloredtheorem`.
@@ -77,4 +94,7 @@ make run
 
 # (Opcional) Exportar un concepto de prueba como PDF estilizado
 python exporters/exportadorlatex.py --id <concept_id>
+
+# (Opcional) Probar la generación de PDF desde la interfaz
+# Abre la aplicación y usa el botón "📄 Generar y abrir PDF" en cualquier formulario
 
