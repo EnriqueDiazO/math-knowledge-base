@@ -508,8 +508,13 @@ elif page == "➕ Add Concept":
                 st.session_state.insert_latex = False
     
     # LaTeX text area
+    # Initialize latex_textarea_value in session state if not exists
+    if 'latex_textarea_value' not in st.session_state:
+        st.session_state.latex_textarea_value = ""
+    
     contenido_latex = st.text_area(
         "LaTeX Content",
+        value=st.session_state.latex_textarea_value,
         height=200,
         placeholder="Enter your LaTeX content here...",
         help="Write the mathematical content in LaTeX format. Use the buttons above to insert common structures.",
@@ -526,10 +531,10 @@ elif page == "➕ Add Concept":
             # Insert the LaTeX code
             new_text = current_text[:insertion_point] + "\n" + st.session_state.latex_insert + current_text[insertion_point:]
             
-            # Update the text area (this is a simplified approach)
-            st.session_state.latex_textarea = new_text
+            # Update session state and trigger rerun
             st.session_state.insert_latex = False
             st.session_state.latex_insert = ""
+            st.session_state.latex_textarea_value = new_text
             st.rerun()
     
     # Algorithm section
@@ -906,9 +911,13 @@ elif page == "✏️ Edit Concept":
                     st.session_state.edit_insert_latex = False
         
         # LaTeX text area
+        # Initialize edit_latex_value in session state if not exists
+        if 'edit_latex_value' not in st.session_state:
+            st.session_state.edit_latex_value = current_latex
+        
         contenido_latex = st.text_area(
             "LaTeX Content",
-            value=current_latex,
+            value=st.session_state.edit_latex_value,
             height=200,
             key="edit_latex"
         )
@@ -923,10 +932,10 @@ elif page == "✏️ Edit Concept":
                 # Insert the LaTeX code
                 new_text = current_text[:insertion_point] + "\n" + st.session_state.edit_latex_insert + current_text[insertion_point:]
                 
-                # Update the text area
-                st.session_state.edit_latex = new_text
+                # Update session state and trigger rerun
                 st.session_state.edit_insert_latex = False
                 st.session_state.edit_latex_insert = ""
+                st.session_state.edit_latex_value = new_text
                 st.rerun()
         
         # Algorithm section
