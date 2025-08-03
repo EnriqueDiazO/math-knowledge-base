@@ -1,93 +1,165 @@
+#!/usr/bin/env python3
+# -*- coding: utf-8 -*-
 import os
+import shutil
 import subprocess
-from datetime import datetime
+from typing import List, Dict
 from pymongo import MongoClient
 
+
 class ExportadorLatex:
-    def __init__(self, plantilla_path: str = "../export/templates/miestilo.sty") -> None:
-        self.plantilla_path = plantilla_path
+    """
+    Exporta conceptos almacenados en MongoDB a documentos LaTeX-PDF,
+    copiando las plantillas .sty necesarias en la carpeta destino.
+    """
+
+    # ------------------------------------------------------------------
+    # 1) ρ C O N F I G U R A C I Ó N
+    # ------------------------------------------------------------------
+    #: nombres de ficheros .sty que siempre debemos copiar
+    _ARCHIVOS_PLANTILLA = ("miestilo.sty", "coloredtheorem.sty")
+
+    def __init__(
+        self,
+        templates_dir: str = "/home/enrique/Desktop/MathKnowledge/"
+                             "math-knowledge-base/exporters/templates",
+    ) -> None:
+        self.templates_dir = templates_dir
         print("✅ ExportadorLatex listo para conceptos y LaTeX")
 
-    def exportar_concepto(self, concepto: dict, contenido_latex: str, salida: str = "./exportados") -> None:
-        """Genera el .tex y PDF de un concepto."""
-        
+    # ------------------------------------------------------------------
+    # 2) ρ M É T O D O S   P Ú B L I C O S
+    # ------------------------------------------------------------------
+    def exportar_concepto(
+        self,
+        concepto: Dict,
+        contenido_latex: str,
+        salida: str = "./exportados",
+    ) -> None:
+        """Genera `.tex` y `.pdf` para un único concepto."""
+
+        # ---------- Validaciones básicas ----------
         if not concepto or not contenido_latex:
             print("❌ Datos incompletos para exportar.")
             return
-        
+
+        # ---------- Normalizamos nombre de archivo ----------
         titulo = concepto.get("titulo", "concepto_sin_titulo")
-        titulo_limpio = "".join(c if c.isalnum() or c in " _-" else "_" for c in titulo).strip().replace(" ", "_")
-        nombre_archivo = titulo_limpio or "concepto_sin_nombre"
-        tex_path = os.path.join(salida, f"{nombre_archivo}.tex")
+        titulo_limpio = "".join(
+            c if c.isalnum() or c in " _-" else "_" for c in titulo
+        ).strip().replace(" ", "_")
+        nombre_base = titulo_limpio or "concepto_sin_nombre"
+
+        # ---------- Preparamos carpeta ----------
         os.makedirs(salida, exist_ok=True)
+        self._copiar_plantillas(salida)          # ⬅️  nuevo paso
 
-        destino_sty = os.path.join(salida, "miestilo.sty")
-        if not os.path.exists(destino_sty) and os.path.exists(self.plantilla_path):
-            with open(self.plantilla_path, encoding="utf-8") as f_src, open(destino_sty, "w", encoding="utf-8") as f_dst:
-                f_dst.write(f_src.read())
-            print(f"📄 Plantilla miestilo.sty copiada a {salida}")
+        # ---------- Creamos fichero .tex ----------
+        tex_path = os.path.join(salida, f"{nombre_base}.tex")
+        self._escribir_tex(tex_path, concepto, contenido_latex)
 
+        # ---------- Compilamos ----------
         try:
-            with open(tex_path, "w", encoding="utf-8") as f:
-                f.write("\\documentclass[12pt]{article}\n")
-                f.write("\\usepackage{miestilo}\n")
-                f.write("\\begin{document}\n\n")
+            subprocess.run(
+                ["pdflatex", "-interaction=nonstopmode",
+                 "-output-directory", salida, tex_path],
+                check=True,
+            )
+            print(f"📄 PDF generado: {os.path.join(salida, nombre_base)}.pdf")
+        except subprocess.CalledProcessError as err:
+            print(f"❌ Error al compilar LaTeX: {err}")
 
-                f.write(f"\\section*{{{concepto.get('titulo', 'Sin título')}}}\n\n")
-                f.write(contenido_latex + "\n\n")
-
-                if concepto.get("comentario"):
-                    f.write(f"\\section*{{Comentario}}\n{concepto['comentario']}\n\n")
-
-                if concepto.get("referencia"):
-                    ref = concepto["referencia"]
-                    f.write("\\section*{{Referencia}}\n")
-                    
-                    linea1 = ", ".join(filter(None, [ref.get("autor"),
-                                                     ref.get("fuente"),
-                                                     f"({ref.get('anio')})" if ref.get("anio") else None]))
-                    f.write(f"{linea1}\\\\\n")
-
-                    linea2 = ", ".join(filter(None, [f"Tomo {ref.get('tomo')}" if ref.get("tomo") else None,
-                                                      f"Ed. {ref.get('edicion')}" if ref.get("edicion") else None,
-                                                      f"Cap. {ref.get('capitulo')}" if ref.get("capitulo") else None,
-                                                      f"Sección {ref.get('seccion')}" if ref.get("seccion") else None,
-                                                      f"Pág. {ref.get('paginas')}" if ref.get("paginas") else None,
-                                                      ref.get("editorial")]))
-                    if linea2:
-                        f.write(f"{linea2}\\\\\n")
-                    if ref.get("issbn"):
-                         f.write(f"ISSBN: {ref['issbn']}\\\\\n")
-                    if ref.get("doi"):
-                         f.write(f"DOI: {ref['doi']}\\\\\n")
-                    if ref.get("url"):
-                         f.write(f"\\url{{{ref['url']}}}\\\\\n")
-                         f.write("\n")
-                    f.write(f"\\textbf{{ID del concepto:}}~\\verb|{concepto.get('id')}@{concepto.get('source')}|\n\n")
-
-                f.write("\\end{document}\n")
-
-            subprocess.run(["pdflatex", "-interaction=nonstopmode", "-output-directory", salida, tex_path], check=True)
-            print(f"📄 PDF generado: {os.path.join(salida, nombre_archivo)}.pdf")
-
-        except Exception as e:
-            print(f"❌ Error al generar el documento: {e}")
-    
-    def exportar_todos_de_source(self, db: MongoClient, source: str, salida: str = "./exportados") -> None:
-        """
-        Exporta todos los conceptos de un mismo source a PDF.
-        :param db: Conexión a la base de datos MathMongo.
-        :param source: Nombre exacto del campo source a exportar.
-        :param salida: Carpeta destino para los archivos.
-        """
+    def exportar_todos_de_source(
+        self,
+        db: MongoClient,
+        source: str,
+        salida: str = "./exportados",
+    ) -> None:
+        """Exporta todos los conceptos provenientes de un mismo *source*."""
         conceptos = list(db.concepts.find({"source": source}))
-        print(f"🔎 Conceptos encontrados para source '{source}': {len(conceptos)}")
+        print(f"🔎 Conceptos encontrados para '{source}': {len(conceptos)}")
 
         for c in conceptos:
-            latex_doc = db.latex_documents.find_one({"id": c["id"], "source": source})
-            if not latex_doc:
-                print(f"⚠️ LaTeX no encontrado para {c['id']}")
+            doc = db.latex_documents.find_one({"id": c["id"], "source": source})
+            if not doc:
+                print(f"⚠️  LaTeX no encontrado para {c['id']}")
                 continue
+            self.exportar_concepto(c, doc.get("contenido_latex", ""), salida)
 
-            contenido = latex_doc.get("contenido_latex", "")
-            self.exportar_concepto(c, contenido, salida=salida)
+    # ------------------------------------------------------------------
+    # 3) ρ M É T O D O S   P R I V A D O S
+    # ------------------------------------------------------------------
+    def _copiar_plantillas(self, destino: str) -> None:
+        """
+        Copia los archivos .sty listados en `_ARCHIVOS_PLANTILLA` desde
+        `self.templates_dir` a la carpeta `destino` (si aún no existen).
+        """
+        for fname in self._ARCHIVOS_PLANTILLA:
+            src = os.path.join(self.templates_dir, fname)
+            dst = os.path.join(destino, fname)
+            if not os.path.exists(src):
+                print(f"⚠️  Plantilla no encontrada: {src}")
+                continue
+            if not os.path.exists(dst):
+                shutil.copy2(src, dst)
+                print(f"📄 Plantilla {fname} copiada a {destino}")
+
+    @staticmethod
+    def _escribir_tex(
+        tex_path: str, concepto: Dict, contenido_latex: str
+    ) -> None:
+        """Escribe el archivo .tex completo con su preámbulo y contenido."""
+        with open(tex_path, "w", encoding="utf-8") as f:
+            # --- preámbulo mínimo ---
+            f.write(r"\documentclass[12pt]{article}" "\n")
+            f.write(r"\usepackage{miestilo}" "\n")
+            f.write(r"\usepackage{coloredtheorem}" "\n")  # por si acaso
+            f.write(r"\begin{document}" "\n\n")
+
+            # --- título ---
+            f.write(r"\section*{" + concepto.get("titulo", "Sin título") + "}\n\n")
+
+            # --- cuerpo principal ---
+            f.write(contenido_latex + "\n\n")
+
+            # --- comentario opcional ---
+            if concepto.get("comentario"):
+                f.write(r"\section*{Comentario}" "\n" + concepto["comentario"] + "\n\n")
+
+            # --- referencia bibliográfica opcional ---
+            if ref := concepto.get("referencia"):
+                f.write(r"\section*{Referencia}" "\n")
+                linea1 = ", ".join(
+                    filter(None, (
+                        ref.get("autor"),
+                        ref.get("fuente"),
+                        f"({ref.get('anio')})" if ref.get("anio") else None,
+                    ))
+                )
+                f.write(linea1 + r"\\" "\n")
+
+                linea2 = ", ".join(
+                    filter(None, (
+                        f"Tomo {ref['tomo']}"       if ref.get("tomo") else None,
+                        f"Ed. {ref['edicion']}"    if ref.get("edicion") else None,
+                        f"Cap. {ref['capitulo']}"  if ref.get("capitulo") else None,
+                        f"Sección {ref['seccion']}"if ref.get("seccion") else None,
+                        f"Pág. {ref['paginas']}"   if ref.get("paginas") else None,
+                        ref.get("editorial"),
+                    ))
+                )
+                if linea2:
+                    f.write(linea2 + r"\\" "\n")
+                if ref.get("issbn"):
+                    f.write(f"ISSBN: {ref['issbn']}\\\\\n")
+                if ref.get("doi"):
+                    f.write(f"DOI: {ref['doi']}\\\\\n")
+                if ref.get("url"):
+                    f.write(r"\url{" + ref["url"] + "}\\\\" "\n")
+                f.write("\n")
+
+            # --- ID interno ---
+            f.write(r"\textbf{ID del concepto:}~\verb|" +
+                    f"{concepto.get('id')}@{concepto.get('source')}|" + "\n\n")
+
+            f.write(r"\end{document}" "\n")

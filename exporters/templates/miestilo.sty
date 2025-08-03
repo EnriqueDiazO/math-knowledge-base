@@ -1,69 +1,95 @@
-\ProvidesPackage{miestilo}
+% --------------------------------------------
+%  miestilo.sty  —  Estilo personal con cajas
+%                 de teorema en español
+% Fuente: 
+% https://github.com/joaomlourenco/coloredtheorem
+% --------------------------------------------
+\ProvidesPackage{miestilo}[2025/08/03 v1.0 estilos de teorema]
+\NeedsTeXFormat{LaTeX2e}
 
-% Codificación y fuentes
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage{lmodern}
-
-% Idioma y texto
-\usepackage[spanish]{babel}
-\usepackage{textcomp}
-\usepackage{enumitem}
-\usepackage{graphicx}
-\usepackage{hyperref}
-\usepackage{color}
-\usepackage{xcolor}
-\usepackage{siunitx}
-\usepackage{gensymb}
-
-% Matemáticas
-\usepackage{amsmath, amssymb, amsfonts, amsthm}
-\usepackage{physics}
-\usepackage{tikz}
-\usepackage{mathdots}
-\usepackage{yhmath}
-\usepackage{cancel}
-\usepackage{extarrows}
-
-% Tablas
-\usepackage{array}
-\usepackage{multirow}
-\usepackage{tabularx}
-\usepackage{booktabs}
-
-% TikZ extras
-\usetikzlibrary{fadings}
-\usetikzlibrary{patterns}
-\usetikzlibrary{shadows.blur}
-\usetikzlibrary{shapes}
-
-% Márgenes
-\usepackage{geometry}
+% --------------------------------------------
+% Paquetes básicos
+% --------------------------------------------
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[T1]{fontenc}
+\RequirePackage{lmodern}
+\RequirePackage[spanish]{babel}
+\RequirePackage{textcomp}
+\RequirePackage{geometry}
 \geometry{margin=1in}
 
-% Estilo de secciones
-\usepackage{titlesec}
-\titleformat{\section}{\large\bfseries\sffamily\color{blue}}{}{0em}{}
+% --------------------------------------------
+% Matemáticas y gráficos
+% --------------------------------------------
+\RequirePackage{amsmath,amssymb,amsfonts,amsthm}
+\RequirePackage{thmtools}          % interfaz avanzada para amsthm
+\RequirePackage{physics}
+\RequirePackage{tikz}
+\RequirePackage{mathdots,yhmath,cancel,extarrows}
+\tikzset{every picture/.style={line width=.8pt}}
 
-% Interlineado
-\renewcommand{\baselinestretch}{1.2}
+% --------------------------------------------
+% Otros paquetes útiles
+% --------------------------------------------
+\RequirePackage{array,multirow,tabularx,booktabs}
+\RequirePackage{siunitx,gensymb}
+\RequirePackage{xcolor}
+\RequirePackage{hyperref}
 
-% Estilo de teoremas personalizados
-\newtheoremstyle{miestilo}
-  {1em}      % Espacio arriba
-  {1em}      % Espacio abajo
-  {\itshape} % Fuente del cuerpo
-  {}         % Indentación
-  {\bfseries} % Fuente del título
-  {.}        % Puntuación al final
-  {0.5em}    % Espacio tras el título
-  {}         % Título personalizado
+% --------------------------------------------
+% Secciones
+% --------------------------------------------
+\RequirePackage{titlesec}
+\titleformat{\section}
+  {\large\bfseries\sffamily\color{blue}}{\thesection}{.5em}{}
 
-\theoremstyle{miestilo}
+% --------------------------------------------
+%  Cajas de teorema (coloredtheorem+tcolorbox)
+% --------------------------------------------
+\RequirePackage{coloredtheorem}
 
-\newtheorem*{proposition}{Proposición}
-\newtheorem*{theorem}{Teorema}
-\newtheorem*{definition}{Definición}
-\newtheorem*{corollary}{Corolario}
-\newtheorem*{lemma}{Lema}
-\newtheorem*{example}{Ejemplo}
+% --- estilo “miestilo” (sin sombreado clásico) ---
+\declaretheoremstyle[
+  headfont       = \color{blue}\bfseries,
+  bodyfont       = \itshape,
+  headpunct      = {.},
+  postheadspace  = 0.5em
+]{miestilo}
+
+% --- cajas con tcolorbox a través de coloredtheorem ---
+%   (colores: azul para definiciones, rojo para teoremas,
+%    verde para corolarios, púrpura para lemas… cambia al gusto)
+%
+\cthnewtheorem{definicion}{Definición}[colback=blue!5,colframe=blue!75!black,coltitle=white!85!black,fonttitle=\bfseries]
+
+\cthnewtheorem{teorema}{Teorema}[colback=red!5,colframe=red!65!black,coltitle=white!80!black,fonttitle=\bfseries]
+
+\cthnewtheorem{corolario}{Corolario}[colback=green!5,colframe=green!60!black,coltitle=white!70!black,fonttitle=\bfseries]
+
+\cthnewtheorem{lema}{Lema}[colback=purple!5,colframe=purple!60!black,coltitle=white!75!black,fonttitle=\bfseries]
+
+\cthnewtheorem{proposicion}{Proposición}[colback=orange!5,colframe=white!70!black,coltitle=orange!85!black,fonttitle=\bfseries]
+
+\cthnewtheorem{ejemplo}{Ejemplo}[colback=gray!8,colframe=gray!60,coltitle=white!20!black,fonttitle=\bfseries]
+
+\cthnewtheorem{nota}{Nota}[colback=yellow!10,colframe=yellow!65!black,coltitle=white!80!black,fonttitle=\bfseries]
+
+\cthnewtheorem{observacion}{Observación}[colback=teal!6,colframe=teal!60!black,coltitle=white!75!black,fonttitle=\bfseries]
+
+% --------------------------------------------
+% Alias “legacy” (por compatibilidad con ntheorem)
+% --------------------------------------------
+\let\theorem     \cthteorema
+\let\endtheorem  \endcthteorema
+\let\definition  \cthdefinicion
+\let\enddefinition\endcthdefinicion
+\let\corollary   \cthcorolario
+\let\endcorollary\endcthcorolario
+\let\lemma       \cthlema
+\let\endlemma    \endcthlema
+\let\proposition \cthproposicion
+\let\endproposition\endcthproposicion
+\let\example     \cthejemplo
+\let\endexample  \endcthejemplo
+\let\remark      \cthnota
+\let\endremark   \endcthnota
