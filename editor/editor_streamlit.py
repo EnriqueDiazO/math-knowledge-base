@@ -16,6 +16,7 @@ from schemas.schemas import (
 )
 from visualizations.grafoconocimiento import GrafoConocimiento
 from exporters.exportadorlatex import ExportadorLatex
+from pdf_export import generar_y_abrir_pdf_desde_formulario
 
 # Page configuration
 st.set_page_config(
@@ -333,12 +334,49 @@ elif page == "➕ Add Concept":
         titulo = st.text_input("Title (Optional)", placeholder="e.g., Definition of Group")
         tipo_titulo = st.selectbox("Title Type", [t.value for t in TipoTitulo])
     
-    categorias = st.multiselect(
-        "Categories",
-        ["Algebra", "Analysis", "Topology", "Geometry", "Number Theory", "Combinatorics", "Logic", "Statistics", "Calculus"],
-        help="Select relevant mathematical categories"
-    )
-    
+    # 1. Categorías base (predefinidas)
+    categorias_base = [
+    "Algebra", "Analysis", "Topology", "Geometry", "Number Theory",
+    "Combinatorics", "Logic", "Statistics", "Calculus"]
+
+    # 2. Categorías adicionales ya existentes en la base de datos
+    categorias_db = db.concepts.distinct("categorias")
+    categorias_db = [cat for cat in categorias_db if isinstance(cat, str)]
+
+    # 3. Opcional: incluir categorías sugeridas por usuarios previos
+    try:
+        categorias_sugeridas = [doc["nombre"] for doc in db.categorias.find()]
+    except Exception:
+        categorias_sugeridas = []
+
+    # 4. Combinar todas las categorías conocidas y eliminar duplicados
+    categorias_existentes = sorted(set(categorias_base + categorias_db + categorias_sugeridas))
+
+    # 🔒 Asegurar estado inicial
+    if 'categorias_seleccionadas' not in st.session_state:
+        st.session_state.categorias_seleccionadas = []
+
+    # 5. Input para nueva categoría
+    nueva_categoria = st.text_input("➕ Add New Category (Optional)", placeholder="e.g., Discrete Math")
+
+    # 6. Agregar a lista si es nueva
+    if nueva_categoria:
+        nueva_categoria = nueva_categoria.strip()
+        if nueva_categoria and nueva_categoria not in st.session_state.categorias_seleccionadas:
+            st.session_state.categorias_seleccionadas.append(nueva_categoria)
+
+    # ⚠️ Agregar seleccionadas a las opciones visibles
+    categorias_existentes = sorted(set(categorias_base + categorias_db + categorias_sugeridas + st.session_state.categorias_seleccionadas))
+
+    # 7. Mostrar multiselect
+    st.session_state.categorias_seleccionadas = st.multiselect("Categories",
+    options=categorias_existentes,
+    default=st.session_state.categorias_seleccionadas,
+    help="Select relevant mathematical categories")
+
+    # 8. Resultado final para guardar
+    categorias = st.session_state.categorias_seleccionadas
+
     # LaTeX content with helper toolbar
     st.subheader("📝 LaTeX Content")
     
@@ -350,29 +388,29 @@ elif page == "➕ Add Concept":
     
     with col1:
         if st.button("📝 Definition", key="btn_def"):
-            st.session_state.latex_insert = r"\begin{definition}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
+            st.session_state.latex_insert = r"\begin{definition}{% add Name or leave it in blank}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
         
         if st.button("📋 Theorem", key="btn_theorem"):
-            st.session_state.latex_insert = r"\begin{theorem}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
+            st.session_state.latex_insert = r"\begin{theorem}{% add Name or leave it in blank}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
         
         if st.button("📖 Proof", key="btn_proof"):
             st.session_state.latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
         
         if st.button("📊 Example", key="btn_example"):
-            st.session_state.latex_insert = r"\begin{example}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
+            st.session_state.latex_insert = r"\begin{example}{% add Name or leave it in blank}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
 
     with col2:
         if st.button("📋 Lemma", key="btn_lemma"):
-            st.session_state.latex_insert = r"\begin{lemma}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
+            st.session_state.latex_insert = r"\begin{lemma}{% add Name or leave it in blank}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
         
         if st.button("📋 Proposition", key="btn_prop"):
-            st.session_state.latex_insert = r"\begin{proposition}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
+            st.session_state.latex_insert = r"\begin{proposition}{% add Name or leave it in blank}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
         
         if st.button("📋 Corollary", key="btn_corollary"):
-            st.session_state.latex_insert = r"\begin{corollary}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
+            st.session_state.latex_insert = r"\begin{corollary}{% add Name or leave it in blank}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
         
         if st.button("📋 Remark", key="btn_remark"):
-            st.session_state.latex_insert = r"\begin{remark}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
+            st.session_state.latex_insert = r"\begin{remark}{% add Name or leave it in blank}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
 
     with col3:
         if st.button("🔢 Equation", key="btn_eq"):
@@ -690,6 +728,47 @@ elif page == "➕ Add Concept":
                 
             except Exception as e:
                 st.error(f"❌ Error saving concept: {e}")
+    
+    # PDF Generation Button
+    st.markdown("---")
+    st.subheader("📄 Generar PDF")
+    
+    # Check if we have the minimum required data for PDF generation
+    if concept_id and source and contenido_latex:
+        if st.button("📄 Generar y abrir PDF", type="secondary"):
+            # Build concept data for PDF generation
+            pdf_concept_data = {
+                "id": concept_id,
+                "tipo": concept_type,
+                "titulo": titulo if titulo else concept_id,
+                "categorias": categorias,
+                "contenido_latex": contenido_latex,
+                "source": source,
+                "comentario": comentario if comentario else None
+            }
+            
+            # Add reference if provided
+            if ref_autor or ref_fuente:
+                pdf_concept_data["referencia"] = {
+                    "tipo_referencia": ref_tipo,
+                    "autor": ref_autor if ref_autor else None,
+                    "fuente": ref_fuente if ref_fuente else None,
+                    "anio": ref_anio if ref_anio else None,
+                    "tomo": ref_tomo if ref_tomo else None,
+                    "edicion": ref_edicion if ref_edicion else None,
+                    "paginas": ref_paginas if ref_paginas else None,
+                    "capitulo": ref_capitulo if ref_capitulo else None,
+                    "seccion": ref_seccion if ref_seccion else None,
+                    "editorial": ref_editorial if ref_editorial else None,
+                    "doi": ref_doi if ref_doi else None,
+                    "url": ref_url if ref_url else None,
+                    "issbn": ref_issbn if ref_issbn else None
+                }
+            
+            # Generate and open PDF
+            generar_y_abrir_pdf_desde_formulario(pdf_concept_data)
+    else:
+        st.info("ℹ️ Complete los campos requeridos (ID, Source, LaTeX Content) para generar el PDF")
 
 # Edit Concept page
 elif page == "✏️ Edit Concept":
@@ -744,33 +823,100 @@ elif page == "✏️ Edit Concept":
         help="Select the concept you want to edit"
     )
     
+    # Handle concept selection and data loading
     if selected_concept_display:
         selected_concept = concept_map[selected_concept_display]
         
+        # Check if concept has changed and update session state
+        if ("last_selected_id" not in st.session_state or 
+            st.session_state.last_selected_id != selected_concept["id"]):
+            
+            # Update last selected ID
+            st.session_state.last_selected_id = selected_concept["id"]
+            
+            # Get LaTeX content from database
+            latex_doc = db.latex_documents.find_one({
+                "id": selected_concept['id'], 
+                "source": selected_concept['source']
+            })
+            current_latex = latex_doc['contenido_latex'] if latex_doc else ""
+            
+            # Update all form fields in session state
+            st.session_state.edit_id = selected_concept.get("id", "")
+            st.session_state.edit_source = selected_concept.get("source", "")
+            st.session_state.edit_titulo = selected_concept.get("titulo", "")
+            st.session_state.edit_tipo_titulo = selected_concept.get("tipo_titulo", "ninguno")
+            st.session_state.edit_latex = current_latex
+            st.session_state.edit_comentario = selected_concept.get("comentario", "")
+            st.session_state.edit_es_algoritmo = selected_concept.get("es_algoritmo", False)
+            st.session_state.edit_categorias = selected_concept.get("categorias", [])
+            st.session_state.edit_referencia = selected_concept.get("referencia", {})
+            st.session_state.edit_pasos_algoritmo = selected_concept.get("pasos_algoritmo", [])
+            st.session_state.edit_contexto_docente = selected_concept.get("contexto_docente", {})
+            st.session_state.edit_metadatos_tecnicos = selected_concept.get("metadatos_tecnicos", {})
+            
+            # Initialize reference fields in session state
+            ref = selected_concept.get("referencia", {})
+            st.session_state.edit_ref_tipo = ref.get('tipo_referencia', 'libro')
+            st.session_state.edit_ref_autor = ref.get('autor', '')
+            st.session_state.edit_ref_fuente = ref.get('fuente', '')
+            st.session_state.edit_ref_anio = ref.get('anio', 2024)
+            st.session_state.edit_ref_tomo = ref.get('tomo', '')
+            st.session_state.edit_ref_edicion = ref.get('edicion', '')
+            st.session_state.edit_ref_paginas = ref.get('paginas', '')
+            st.session_state.edit_ref_capitulo = ref.get('capitulo', '')
+            st.session_state.edit_ref_seccion = ref.get('seccion', '')
+            st.session_state.edit_ref_editorial = ref.get('editorial', '')
+            st.session_state.edit_ref_doi = ref.get('doi', '')
+            st.session_state.edit_ref_url = ref.get('url', '')
+            st.session_state.edit_ref_issbn = ref.get('issbn', '')
+            
+            # Initialize teaching context fields in session state
+            context = selected_concept.get("contexto_docente", {})
+            st.session_state.edit_nivel = context.get('nivel_contexto', 'introductorio')
+            st.session_state.edit_formalidad = context.get('grado_formalidad', 'informal')
+            
+            # Initialize technical metadata fields in session state
+            meta = selected_concept.get("metadatos_tecnicos", {})
+            st.session_state.edit_notacion = meta.get('usa_notacion_formal', True)
+            st.session_state.edit_demostracion = meta.get('incluye_demostracion', False)
+            st.session_state.edit_operativa = meta.get('es_definicion_operativa', False)
+            st.session_state.edit_fundamental = meta.get('es_concepto_fundamental', False)
+            st.session_state.edit_previos = ', '.join(meta.get('requiere_conceptos_previos', [])) if meta.get('requiere_conceptos_previos') else ""
+            st.session_state.edit_ejemplo = meta.get('incluye_ejemplo', False)
+            st.session_state.edit_autocontenible = meta.get('es_autocontenible', True)
+            st.session_state.edit_presentacion = meta.get('tipo_presentacion', 'expositivo')
+            st.session_state.edit_simbolico = meta.get('nivel_simbolico', 'bajo')
+            st.session_state.edit_aplicacion = meta.get('tipo_aplicacion', [])
+            
+            # Initialize algorithm fields in session state
+            st.session_state.edit_algoritmo = selected_concept.get("es_algoritmo", False)
+            st.session_state.edit_pasos = '\n'.join(selected_concept.get("pasos_algoritmo", [])) if selected_concept.get("pasos_algoritmo") else ""
+            
+            # Clear any pending LaTeX insertions
+            st.session_state.edit_latex_insert = ""
+            st.session_state.edit_insert_latex = False
+            
+            # Force rerun to update all widgets
+            st.rerun()
+        
+        # Display header
         st.markdown("---")
         st.subheader(f"✏️ Editing: {selected_concept.get('titulo', selected_concept['id'])}")
-        
-        # Get LaTeX content
-        latex_doc = db.latex_documents.find_one({
-            "id": selected_concept['id'], 
-            "source": selected_concept['source']
-        })
-        current_latex = latex_doc['contenido_latex'] if latex_doc else ""
         
         # Basic information
         st.subheader("📋 Basic Information")
         
         col1, col2 = st.columns(2)
         with col1:
-            concept_id = st.text_input("ID", value=selected_concept['id'], key="edit_id")
-            source = st.text_input("Source", value=selected_concept['source'], key="edit_source")
+            concept_id = st.text_input("ID", key="edit_id")
+            source = st.text_input("Source", key="edit_source")
         
         with col2:
-            titulo = st.text_input("Title", value=selected_concept.get('titulo', ''), key="edit_titulo")
+            titulo = st.text_input("Title", key="edit_titulo")
             tipo_titulo = st.selectbox(
                 "Title Type", 
                 [t.value for t in TipoTitulo],
-                index=[t.value for t in TipoTitulo].index(selected_concept.get('tipo_titulo', 'ninguno')),
                 key="edit_tipo_titulo"
             )
         
@@ -778,12 +924,17 @@ elif page == "✏️ Edit Concept":
         st.info(f"**Concept Type:** {selected_concept['tipo']} (cannot be changed)")
         
         # Categories
-        current_categories = selected_concept.get('categorias', [])
-        all_categories = ["Algebra", "Analysis", "Topology", "Geometry", "Number Theory", "Combinatorics", "Logic", "Statistics", "Calculus"]
+        # Get all available categories from database
+        categorias_db = db.concepts.distinct("categorias")
+        categorias_db = [cat for cat in categorias_db if isinstance(cat, str)]
+        
+        # Combine predefined and database categories
+        categorias_predefinidas = ["Algebra", "Analysis", "Topology", "Geometry", "Number Theory", "Combinatorics", "Logic", "Statistics", "Calculus"]
+        all_categories = sorted(set(categorias_predefinidas + categorias_db))
+        
         categorias = st.multiselect(
             "Categories",
             all_categories,
-            default=[cat for cat in current_categories if cat in all_categories],
             key="edit_categorias"
         )
         
@@ -911,13 +1062,8 @@ elif page == "✏️ Edit Concept":
                     st.session_state.edit_insert_latex = False
         
         # LaTeX text area
-        # Initialize edit_latex_value in session state if not exists
-        if 'edit_latex_value' not in st.session_state:
-            st.session_state.edit_latex_value = current_latex
-        
         contenido_latex = st.text_area(
             "LaTeX Content",
-            value=st.session_state.edit_latex_value,
             height=200,
             key="edit_latex"
         )
@@ -935,23 +1081,21 @@ elif page == "✏️ Edit Concept":
                 # Update session state and trigger rerun
                 st.session_state.edit_insert_latex = False
                 st.session_state.edit_latex_insert = ""
-                st.session_state.edit_latex_value = new_text
+                st.session_state.edit_latex = new_text
                 st.rerun()
         
         # Algorithm section
         st.subheader("⚙️ Algorithm Information")
         col1, col2 = st.columns(2)
         with col1:
-            es_algoritmo = st.checkbox("Is this an algorithm?", value=selected_concept.get('es_algoritmo', False), key="edit_algoritmo")
+            es_algoritmo = st.checkbox("Is this an algorithm?", key="edit_algoritmo")
         with col2:
             if es_algoritmo:
-                current_pasos = selected_concept.get('pasos_algoritmo', [])
-                pasos_text = '\n'.join(current_pasos) if current_pasos else ""
-                pasos_algoritmo = st.text_area("Algorithm Steps", value=pasos_text, key="edit_pasos")
+                pasos_algoritmo = st.text_area("Algorithm Steps", key="edit_pasos")
         
         # Reference information
         st.subheader("📚 Reference Information")
-        current_ref = selected_concept.get('referencia', {})
+        current_ref = st.session_state.edit_referencia
         
         with st.expander("Edit Reference", expanded=bool(current_ref)):
             col1, col2 = st.columns(2)
@@ -959,28 +1103,27 @@ elif page == "✏️ Edit Concept":
                 ref_tipo = st.selectbox(
                     "Reference Type", 
                     [t.value for t in TipoReferencia],
-                    index=[t.value for t in TipoReferencia].index(current_ref.get('tipo_referencia', 'libro')),
                     key="edit_ref_tipo"
                 )
-                ref_autor = st.text_input("Author", value=current_ref.get('autor', ''), key="edit_ref_autor")
-                ref_fuente = st.text_input("Source/Title", value=current_ref.get('fuente', ''), key="edit_ref_fuente")
-                ref_anio = st.number_input("Year", min_value=1800, max_value=2030, value=current_ref.get('anio', 2024), key="edit_ref_anio")
+                ref_autor = st.text_input("Author", key="edit_ref_autor")
+                ref_fuente = st.text_input("Source/Title", key="edit_ref_fuente")
+                ref_anio = st.number_input("Year", min_value=1800, max_value=2030, key="edit_ref_anio")
             
             with col2:
-                ref_tomo = st.text_input("Volume", value=current_ref.get('tomo', ''), key="edit_ref_tomo")
-                ref_edicion = st.text_input("Edition", value=current_ref.get('edicion', ''), key="edit_ref_edicion")
-                ref_paginas = st.text_input("Pages", value=current_ref.get('paginas', ''), key="edit_ref_paginas")
-                ref_capitulo = st.text_input("Chapter", value=current_ref.get('capitulo', ''), key="edit_ref_capitulo")
+                ref_tomo = st.text_input("Volume", key="edit_ref_tomo")
+                ref_edicion = st.text_input("Edition", key="edit_ref_edicion")
+                ref_paginas = st.text_input("Pages", key="edit_ref_paginas")
+                ref_capitulo = st.text_input("Chapter", key="edit_ref_capitulo")
             
-            ref_seccion = st.text_input("Section", value=current_ref.get('seccion', ''), key="edit_ref_seccion")
-            ref_editorial = st.text_input("Publisher", value=current_ref.get('editorial', ''), key="edit_ref_editorial")
-            ref_doi = st.text_input("DOI", value=current_ref.get('doi', ''), key="edit_ref_doi")
-            ref_url = st.text_input("URL", value=current_ref.get('url', ''), key="edit_ref_url")
-            ref_issbn = st.text_input("ISBN", value=current_ref.get('issbn', ''), key="edit_ref_issbn")
+            ref_seccion = st.text_input("Section", key="edit_ref_seccion")
+            ref_editorial = st.text_input("Publisher", key="edit_ref_editorial")
+            ref_doi = st.text_input("DOI", key="edit_ref_doi")
+            ref_url = st.text_input("URL", key="edit_ref_url")
+            ref_issbn = st.text_input("ISBN", key="edit_ref_issbn")
         
         # Teaching context
         st.subheader("🎓 Teaching Context")
-        current_context = selected_concept.get('contexto_docente', {})
+        current_context = st.session_state.edit_contexto_docente
         
         with st.expander("Edit Teaching Context", expanded=bool(current_context)):
             col1, col2 = st.columns(2)
@@ -988,61 +1131,54 @@ elif page == "✏️ Edit Concept":
                 nivel_contexto = st.selectbox(
                     "Context Level", 
                     [n.value for n in NivelContexto],
-                    index=[n.value for n in NivelContexto].index(current_context.get('nivel_contexto', 'introductorio')),
                     key="edit_nivel"
                 )
             with col2:
                 grado_formalidad = st.selectbox(
                     "Formality Degree", 
                     [g.value for g in GradoFormalidad],
-                    index=[g.value for g in GradoFormalidad].index(current_context.get('grado_formalidad', 'informal')),
                     key="edit_formalidad"
                 )
         
         # Technical metadata
         st.subheader("🔧 Technical Metadata")
-        current_meta = selected_concept.get('metadatos_tecnicos', {})
+        current_meta = st.session_state.edit_metadatos_tecnicos
         
         with st.expander("Edit Technical Metadata", expanded=bool(current_meta)):
             col1, col2 = st.columns(2)
             with col1:
-                usa_notacion_formal = st.checkbox("Uses Formal Notation", value=current_meta.get('usa_notacion_formal', True), key="edit_notacion")
-                incluye_demostracion = st.checkbox("Includes Proof", value=current_meta.get('incluye_demostracion', False), key="edit_demostracion")
-                es_definicion_operativa = st.checkbox("Is Operational Definition", value=current_meta.get('es_definicion_operativa', False), key="edit_operativa")
-                es_concepto_fundamental = st.checkbox("Is Fundamental Concept", value=current_meta.get('es_concepto_fundamental', False), key="edit_fundamental")
+                usa_notacion_formal = st.checkbox("Uses Formal Notation", key="edit_notacion")
+                incluye_demostracion = st.checkbox("Includes Proof", key="edit_demostracion")
+                es_definicion_operativa = st.checkbox("Is Operational Definition", key="edit_operativa")
+                es_concepto_fundamental = st.checkbox("Is Fundamental Concept", key="edit_fundamental")
             
             with col2:
                 requiere_conceptos_previos = st.text_area(
                     "Required Previous Concepts", 
-                    value=', '.join(current_meta.get('requiere_conceptos_previos', [])) if current_meta.get('requiere_conceptos_previos') else "",
                     key="edit_previos"
                 )
-                incluye_ejemplo = st.checkbox("Includes Example", value=current_meta.get('incluye_ejemplo', False), key="edit_ejemplo")
-                es_autocontenible = st.checkbox("Is Self-Contained", value=current_meta.get('es_autocontenible', True), key="edit_autocontenible")
+                incluye_ejemplo = st.checkbox("Includes Example", key="edit_ejemplo")
+                es_autocontenible = st.checkbox("Is Self-Contained", key="edit_autocontenible")
             
             tipo_presentacion = st.selectbox(
                 "Presentation Type", 
                 [t.value for t in TipoPresentacion],
-                index=[t.value for t in TipoPresentacion].index(current_meta.get('tipo_presentacion', 'expositivo')),
                 key="edit_presentacion"
             )
             nivel_simbolico = st.selectbox(
                 "Symbolic Level", 
                 [n.value for n in NivelSimbolico],
-                index=[n.value for n in NivelSimbolico].index(current_meta.get('nivel_simbolico', 'bajo')),
                 key="edit_simbolico"
             )
             tipo_aplicacion = st.multiselect(
                 "Application Type", 
                 [t.value for t in TipoAplicacion],
-                default=current_meta.get('tipo_aplicacion', []),
                 key="edit_aplicacion"
             )
         
         # Comment
         comentario = st.text_area(
             "Comment", 
-            value=selected_concept.get('comentario', ''),
             key="edit_comentario"
         )
         
@@ -1131,6 +1267,47 @@ elif page == "✏️ Edit Concept":
                     
                 except Exception as e:
                     st.error(f"❌ Error updating concept: {e}")
+        
+        # PDF Generation Button for Edit Concept
+        st.markdown("---")
+        st.subheader("📄 Generar PDF")
+        
+        # Check if we have the minimum required data for PDF generation
+        if concept_id and source and contenido_latex:
+            if st.button("📄 Generar y abrir PDF", key="edit_pdf_btn", type="secondary"):
+                # Build concept data for PDF generation
+                pdf_concept_data = {
+                    "id": concept_id,
+                    "tipo": selected_concept['tipo'],
+                    "titulo": titulo if titulo else concept_id,
+                    "categorias": categorias,
+                    "contenido_latex": contenido_latex,
+                    "source": source,
+                    "comentario": comentario if comentario else None
+                }
+                
+                # Add reference if provided
+                if ref_autor or ref_fuente:
+                    pdf_concept_data["referencia"] = {
+                        "tipo_referencia": ref_tipo,
+                        "autor": ref_autor if ref_autor else None,
+                        "fuente": ref_fuente if ref_fuente else None,
+                        "anio": ref_anio if ref_anio else None,
+                        "tomo": ref_tomo if ref_tomo else None,
+                        "edicion": ref_edicion if ref_edicion else None,
+                        "paginas": ref_paginas if ref_paginas else None,
+                        "capitulo": ref_capitulo if ref_capitulo else None,
+                        "seccion": ref_seccion if ref_seccion else None,
+                        "editorial": ref_editorial if ref_editorial else None,
+                        "doi": ref_doi if ref_doi else None,
+                        "url": ref_url if ref_url else None,
+                        "issbn": ref_issbn if ref_issbn else None
+                    }
+                
+                # Generate and open PDF
+                generar_y_abrir_pdf_desde_formulario(pdf_concept_data)
+        else:
+            st.info("ℹ️ Complete los campos requeridos (ID, Source, LaTeX Content) para generar el PDF")
         
         with col2:
             if st.button("🔄 Reset to Original"):
