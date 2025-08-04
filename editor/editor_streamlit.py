@@ -1431,18 +1431,25 @@ elif page == "🔗 Manage Relations":
     
     st.info(f"📊 Managing relations in: **{current_db}**")
     
+    # Import interactive graph manager
+    from editor.interactive_graph import InteractiveGraphManager
+    graph_manager = InteractiveGraphManager(db)
+    
     # Tab navigation for relations
     tab1, tab2, tab3 = st.tabs(["➕ Add New Relation", "✏️ Edit Relations", "📊 View Relations"])
     
     with tab1:
         st.subheader("➕ Add New Relation")
+        # Inicializa IDs y fuentes para que siempre existan
+        desde_id, desde_source = "", ""
+        hasta_id, hasta_source = "", ""
         
         # Smart concept selection
         st.write("**Select Concepts:**")
         
-        col1, col2 = st.columns(2)
+        col_from, col_to = st.columns(2)
         
-        with col1:
+        with col_from:
             st.write("**From Concept:**")
             # Filter concepts for "from" selection
             desde_source_filter = st.selectbox("From Source", ["All"] + list(db.concepts.distinct("source")), key="desde_source_filter")
@@ -1476,7 +1483,7 @@ elif page == "🔗 Manage Relations":
                 desde_id = ""
                 desde_source = ""
         
-        with col2:
+        with col_to:
             st.write("**To Concept:**")
             # Filter concepts for "to" selection
             hasta_source_filter = st.selectbox("To Source", ["All"] + list(db.concepts.distinct("source")), key="hasta_source_filter")
@@ -1513,11 +1520,101 @@ elif page == "🔗 Manage Relations":
         # Relation details
         st.subheader("🔗 Relation Details")
         
-        col1, col2 = st.columns(2)
-        with col1:
+        col_rel_type, col_rel_desc = st.columns(2)
+        with col_rel_type:
             tipo_relacion = st.selectbox("Relation Type", [t.value for t in TipoRelacion], key="new_rel_type")
-        with col2:
+        with col_rel_desc:
             descripcion = st.text_area("Description (Optional)", placeholder="Describe the relationship...", key="new_rel_desc")
+        
+        # Visual preview of selected concepts
+        if desde_id and hasta_id:
+            st.markdown("---")
+            st.subheader("👁️ Visual Preview")
+            
+            # Get the selected concepts for preview
+            preview_concepts = []
+            preview_relations = []
+            
+            # Add both selected concepts
+            desde_concept = db.concepts.find_one({"id": desde_id, "source": desde_source})
+            hasta_concept = db.concepts.find_one({"id": hasta_id, "source": hasta_source})
+            
+            if desde_concept:
+                preview_concepts.append(desde_concept)
+            if hasta_concept:
+                preview_concepts.append(hasta_concept)
+            
+            # Add existing relations between these concepts
+            existing_relations = db.relations.find({
+                "$or": [
+                    {"desde": f"{desde_id}@{desde_source}", "hasta": f"{hasta_id}@{hasta_source}"},
+                    {"desde": f"{hasta_id}@{hasta_source}", "hasta": f"{desde_id}@{desde_source}"}
+                ]
+            })
+            
+            for rel in existing_relations:
+                preview_relations.append(rel)
+            
+            # Add the new relation being created (preview)
+            preview_relations.append({
+                "desde": f"{desde_id}@{desde_source}",
+                "hasta": f"{hasta_id}@{hasta_source}",
+                "tipo": tipo_relacion,
+                "descripcion": descripcion
+            })
+            
+            # Generate mini preview graph
+            if preview_concepts:
+                try:
+                    with st.spinner("🔄 Generating preview..."):
+                        # Debug: Show the data being used for preview
+                        with st.expander("🔍 Debug: Preview Data", expanded=False):
+                            st.write("**Concepts:**")
+                            for concept in preview_concepts:
+                                st.write(f"- {concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})")
+                            
+                            st.write("**Relations:**")
+                            for rel in preview_relations:
+                                st.write(f"- {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}")
+                        
+                        preview_file = graph_manager.build_interactive_graph(
+                            concepts=preview_concepts,
+                            relations=preview_relations,
+                            selected_concept_id=desde_id,
+                            selected_concept_source=desde_source
+                        )
+                        
+                        # Debug: Verify the preview file was created
+                        import os
+                        if os.path.exists(preview_file):
+                            file_size = os.path.getsize(preview_file)
+                            #st.info(f"✅ Preview file created: {preview_file} (size: {file_size} bytes)")
+                            
+                            # Display mini graph
+                            #st.write("**Preview of the relation being created:**")
+                            graph_manager.render_graph_in_streamlit(
+                                graph_file=preview_file,
+                                concepts=preview_concepts,
+                                relations=preview_relations,
+                                selected_concept_id=desde_id,
+                                selected_concept_source=desde_source,
+                                unique_suffix="preview"
+                            )
+                            
+                            # Clean up preview file after a delay to ensure rendering
+                            import time
+                            time.sleep(0.5)  # Small delay to ensure rendering
+                            try:
+                                os.remove(preview_file)
+                                #st.info("✅ Preview file cleaned up")
+                            except Exception as cleanup_error:
+                                st.warning(f"⚠️ Could not cleanup preview file: {cleanup_error}")
+                        else:
+                            st.error(f"❌ Preview file was not created: {preview_file}")
+                
+                except Exception as e:
+                    st.error(f"❌ Could not generate preview: {e}")
+                    st.exception(e)
         
         # Add relation button
         if st.button("🔗 Add Relation", type="primary", key="add_rel_btn"):
@@ -1537,12 +1634,19 @@ elif page == "🔗 Manage Relations":
                         if relation:
                             st.success("✅ Relation added successfully!")
                             st.balloons()
+                            
+                            # Auto-refresh the interactive graph if it exists
+                            if hasattr(st.session_state, 'current_graph_file'):
+                                st.info("🔄 The interactive graph will be updated on next refresh.")
+                            
                         else:
                             st.error("❌ Failed to add relation. Check if both concepts exist.")
                     except Exception as e:
                         st.error(f"❌ Error adding relation: {e}")
             else:
                 st.error("❌ Please select both concepts.")
+        
+        # Live Graph Viewer
     
     with tab2:
         st.subheader("✏️ Edit Relations")
