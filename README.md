@@ -93,7 +93,7 @@ make start
 make run
 
 # (Opcional) Exportar un concepto de prueba como PDF estilizado
-python exporters/exportadorlatex.py --id <concept_id>
+python exporters_latex/exportadorlatex.py --id <concept_id>
 
 # (Opcional) Probar la generación de PDF desde la interfaz
 # Abre la aplicación y usa el botón "📄 Generar y abrir PDF" en cualquier formulario
