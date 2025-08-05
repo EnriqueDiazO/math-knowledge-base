@@ -15,7 +15,7 @@ from schemas.schemas import (
     NivelSimbolico, TipoAplicacion, TipoRelacion, Referencia, ContextoDocente, MetadatosTecnicos
 )
 from visualizations.grafoconocimiento import GrafoConocimiento
-from exporters.exportadorlatex import ExportadorLatex
+from exporters_latex.exportadorlatex import ExportadorLatex
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
 # Page configuration

@@ -29,7 +29,7 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
     """
     
     # Create a persistent temporary directory for LaTeX files
-    temp_dir = tempfile.mkdtemp()
+    temp_dir = Path(__file__).resolve().parent.parent / "templates_latex"
     temp_path = Path(temp_dir)
     
     try:

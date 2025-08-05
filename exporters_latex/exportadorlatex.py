@@ -5,7 +5,7 @@ import shutil
 import subprocess
 from typing import List, Dict
 from pymongo import MongoClient
-
+from pathlib import Path
 
 class ExportadorLatex:
     """
@@ -21,8 +21,7 @@ class ExportadorLatex:
 
     def __init__(
         self,
-        templates_dir: str = "/home/enrique/Desktop/MathKnowledge/"
-                             "math-knowledge-base/exporters/templates",
+        templates_dir: str = Path(__file__).resolve().parent.parent / "templates_latex",
     ) -> None:
         self.templates_dir = templates_dir
         print("✅ ExportadorLatex listo para conceptos y LaTeX")
