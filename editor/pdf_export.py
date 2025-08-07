@@ -107,7 +107,15 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
         # Clean up temporary directory (but keep the final PDF)
         import shutil
         try:
-            shutil.rmtree(temp_dir)
+            #shutil.rmtree(temp_dir)
+            #Extensiones a eliminar
+            extensiones = [".tex",".out",".log",".aux",".pdf"]
+            # Borrar los archivos de las extensiones en temp_dir
+            for archivo in temp_dir.dir.glob("*"):
+                if archivo.suffix in extensiones and archivo.is_file():
+                    archivo.unlink()
+            print("Creación completa del PDF")
+
         except Exception as e:
             print(f"⚠️ Warning: Could not clean up temporary directory {temp_dir}: {e}")
 
@@ -199,7 +207,7 @@ def _copiar_archivos_estilo(destino: Path) -> None:
     archivos_plantilla = ("miestilo.sty", "coloredtheorem.sty")
     
     # Templates directory (same as ExportadorLatex)
-    templates_dir = Path(__file__).parent.parent / "exporters" / "templates"
+    templates_dir = Path(__file__).parent.parent / "templates_latex"
     
     for fname in archivos_plantilla:
         src = templates_dir / fname
