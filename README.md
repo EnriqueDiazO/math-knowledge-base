@@ -1,5 +1,5 @@
 # 📚 Math Knowledge Base
-1
+
 > **Estado:** Versión Beta (0.1.0b1)  
 > Plataforma diseñada para registrar, visualizar y exportar definiciones, teoremas, ejemplos y conceptos matemáticos en LaTeX.
 
