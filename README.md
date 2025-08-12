@@ -98,3 +98,22 @@ python exporters_latex/exportadorlatex.py --id <concept_id>
 # (Opcional) Probar la generación de PDF desde la interfaz
 # Abre la aplicación y usa el botón "📄 Generar y abrir PDF" en cualquier formulario
 
+```
+## Añadir referencias 
+
+Para añadir referencias, puedes utilizar un formato de este estilo (.bib).
+
+```bash
+@book{knuth1984texbook,
+  author    = {Donald E. Knuth},
+  title     = {The TeXbook},
+  year      = {1984},
+  publisher = {Addison-Wesley},
+  edition   = {Revised},
+  volume    = {A},
+  pages     = {1--483},
+  isbn      = {0-201-13448-9},
+  doi       = {10.5555/53924},
+  url       = {https://ctan.org/pkg/texbook}
+  }
+```
