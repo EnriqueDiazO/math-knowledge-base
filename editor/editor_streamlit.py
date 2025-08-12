@@ -4,6 +4,7 @@ from datetime import datetime
 from pathlib import Path
 import sys
 import os
+import bibtexparser
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -17,6 +18,81 @@ from schemas.schemas import (
 from visualizations.grafoconocimiento import GrafoConocimiento
 from exporters_latex.exportadorlatex import ExportadorLatex
 from pdf_export import generar_y_abrir_pdf_desde_formulario
+
+
+# OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
+_TIPO_MAP = {
+    "book": "libro",
+    "article": "articulo",
+    "phdthesis": "tesis",
+    "mastersthesis": "tesis",
+    "inproceedings": "articulo",   # o "miscelanea" si prefieres
+    "incollection": "miscelanea",  # capítulo en libro → miscelanea (si no tienes "capitulo" como tipo)
+    "proceedings": "miscelanea",
+    "techreport": "miscelanea",
+    "misc": "miscelanea",
+    "unpublished": "miscelanea",
+    "online": "pagina_web",
+    "www": "pagina_web",
+}
+
+def _bib_to_referencia(entry: dict) -> dict:
+    get = entry.get
+
+    # Autor/es
+    autores = []
+    if get("author"):
+        for a in get("author").split(" and "):
+            autores.append(a.strip())
+    autores_str = "; ".join(autores) if autores else None
+
+    # TipoReferencia compatible con tu Enum
+    tipo_ref = _TIPO_MAP.get(get("ENTRYTYPE", "").lower(), "miscelanea")
+
+    # Fuente (journal/booktitle/publisher/title como fallback)
+    fuente = get("journal") or get("booktitle") or get("publisher") or get("title")
+
+    # Año
+    try:
+        anio = int(get("year")) if get("year") and get("year").isdigit() else None
+    except Exception:
+        anio = None
+
+    # Varios campos
+    paginas = get("pages").replace("--", "-").strip() if get("pages") else None
+    edicion = get("edition")
+    tomo = get("volume")
+    capitulo = get("chapter")
+    seccion = get("number") or get("issue")
+    editorial = get("publisher")
+    doi = get("doi")
+    url = get("url")
+    issbn = get("isbn") or get("issn")  # OJO: en tu modelo el campo se llama "issbn"
+
+    return {
+        "tipo_referencia": tipo_ref,
+        "autor": autores_str,
+        "fuente": fuente,
+        "anio": anio,
+        "tomo": tomo,
+        "edicion": edicion,
+        "paginas": paginas,
+        "capitulo": capitulo,
+        "seccion": seccion,
+        "editorial": editorial,
+        "doi": doi,
+        "url": url,
+        "issbn": issbn,
+    }
+
+def _parse_bibtex(file_bytes: bytes) -> list[dict]:
+    if not bibtexparser:
+        raise RuntimeError("Falta bibtexparser. Instala con: pip install bibtexparser==1.4.0")
+    db = bibtexparser.loads(file_bytes.decode("utf-8", errors="ignore"))
+    return db.entries or []
+# ---------------------------------------------------------
+
+
 
 # Page configuration
 st.set_page_config(
@@ -586,25 +662,81 @@ elif page == "➕ Add Concept":
     
     # Reference information
     st.subheader("📚 Reference Information")
-    with st.expander("Add Reference", expanded=False):
+    with st.expander("Add / Edit Reference", expanded=False):
+        # --- Carga opcional de BibTeX ---
+        st.write("Opcional: cargar desde un archivo BibTeX")
+        bib_file_add = st.file_uploader("Cargar .bib", type=["bib"], key="bib_add")
+
+        if bib_file_add is not None:
+            try:
+                bib_entries = _parse_bibtex(bib_file_add.getvalue())
+                if bib_entries:
+                    keys = [
+                            (e.get("ID", "(sin key)"), f'{e.get("title","(sin título)")[:60]}')
+                            for e in bib_entries
+                        ]
+                    idx = st.selectbox(
+                            "Selecciona entrada",
+                            list(range(len(keys))),
+                            format_func=lambda i: f"{keys[i][0]} — {keys[i][1]}",
+                            key="bib_choice_edit"
+                        )
+                    selected_bib_entry_edit = bib_entries[idx]
+
+                    if st.button("Usar esta entrada", key="use_bib_edit"):
+                        ref_dict = _bib_to_referencia(selected_bib_entry_edit)
+                        st.session_state["edit_ref_tipo"] = ref_dict["tipo_referencia"]
+                        st.session_state["edit_ref_autor"] = ref_dict["autor"] or ""
+                        st.session_state["edit_ref_fuente"] = ref_dict["fuente"] or ""
+                        st.session_state["edit_ref_anio"] = ref_dict["anio"] or 2024
+                        st.session_state["edit_ref_tomo"] = ref_dict["tomo"] or ""
+                        st.session_state["edit_ref_edicion"] = ref_dict["edicion"] or ""
+                        st.session_state["edit_ref_paginas"] = ref_dict["paginas"] or ""
+                        st.session_state["edit_ref_capitulo"] = ref_dict["capitulo"] or ""
+                        st.session_state["edit_ref_seccion"] = ref_dict["seccion"] or ""
+                        st.session_state["edit_ref_editorial"] = ref_dict["editorial"] or ""
+                        st.session_state["edit_ref_doi"] = ref_dict["doi"] or ""
+                        st.session_state["edit_ref_url"] = ref_dict["url"] or ""
+                        st.session_state["edit_ref_issbn"] = ref_dict["issbn"] or ""
+                        st.session_state["edit_ref_citekey"] = selected_bib_entry_edit.get("ID")
+                        st.success("Campos de referencia actualizados desde BibTeX.")
+                        st.rerun()  # <-- fuerza refresco de widgets
+                else:
+                    st.info("El archivo .bib no contiene entradas.")
+            except Exception as e:
+                st.error(f"No se pudo leer el .bib: {e}")
+
+            # --- Campos editables enlazados a session_state (claves edit_ref_*) ---
         col1, col2 = st.columns(2)
         with col1:
-            ref_tipo = st.selectbox("Reference Type", [t.value for t in TipoReferencia])
-            ref_autor = st.text_input("Author")
-            ref_fuente = st.text_input("Source/Title")
-            ref_anio = st.number_input("Year", min_value=1800, max_value=2030, value=2024)
-        
+            ref_tipo = st.selectbox(
+                    "Reference Type",
+                    [t.value for t in TipoReferencia],
+                    key="edit_ref_tipo",
+                )
+            ref_autor = st.text_input("Author", key="edit_ref_autor")
+            ref_fuente = st.text_input("Source/Title", key="edit_ref_fuente")
+            ref_anio = st.number_input(
+                    "Year",
+                    min_value=1800, max_value=2030,
+                    value=st.session_state.get("edit_ref_anio", 2024),
+                    key="edit_ref_anio"
+                )
+
         with col2:
-            ref_tomo = st.text_input("Volume")
-            ref_edicion = st.text_input("Edition")
-            ref_paginas = st.text_input("Pages")
-            ref_capitulo = st.text_input("Chapter")
-        
-        ref_seccion = st.text_input("Section")
-        ref_editorial = st.text_input("Publisher")
-        ref_doi = st.text_input("DOI")
-        ref_url = st.text_input("URL")
-        ref_issbn = st.text_input("ISBN")
+            ref_tomo = st.text_input("Volume", key="edit_ref_tomo")
+            ref_edicion = st.text_input("Edition", key="edit_ref_edicion")
+            ref_paginas = st.text_input("Pages", key="edit_ref_paginas")
+            ref_capitulo = st.text_input("Chapter", key="edit_ref_capitulo")
+
+        ref_seccion = st.text_input("Section", key="edit_ref_seccion")
+        ref_editorial = st.text_input("Publisher", key="edit_ref_editorial")
+        ref_doi = st.text_input("DOI", key="edit_ref_doi")
+        ref_url = st.text_input("URL", key="edit_ref_url")
+        ref_issbn = st.text_input("ISBN", key="edit_ref_issbn")
+
+        # Citekey opcional (si lo guardas en tu modelo)
+        st.text_input("Citekey (opcional)", key="edit_ref_citekey")
     
     # Teaching context
     st.subheader("🎓 Teaching Context")
