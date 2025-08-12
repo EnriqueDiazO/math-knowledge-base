@@ -11,3 +11,4 @@ markdown-it-py[linkify,plugins]
 rapidfuzz
 matplotlib
 pydantic
+bibtexparser
