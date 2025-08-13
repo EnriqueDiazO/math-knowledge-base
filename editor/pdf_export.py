@@ -111,7 +111,7 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
             #Extensiones a eliminar
             extensiones = [".tex",".out",".log",".aux",".pdf"]
             # Borrar los archivos de las extensiones en temp_dir
-            for archivo in temp_dir.dir.glob("*"):
+            for archivo in temp_dir.glob("*"):
                 if archivo.suffix in extensiones and archivo.is_file():
                     archivo.unlink()
             print("Creación completa del PDF")
