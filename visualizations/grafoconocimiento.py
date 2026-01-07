@@ -10,7 +10,8 @@ class GrafoConocimiento:
     def __init__(self, conceptos: list[dict], relaciones: list[dict]) -> None:
         self.conceptos = conceptos
         self.relaciones = relaciones
-        self.G = nx.DiGraph()
+        self.MaxLengthLabel=300
+        self.G = nx.MultiDiGraph()
 
         # Colores por tipo de concepto
         self.color_por_tipo = {
@@ -35,9 +36,20 @@ class GrafoConocimiento:
             "contradice": "black",
             "contra_ejemplo": "gray"
         }
+    def _ensure_placeholder(self, node_id: str) -> None:
+        if node_id in self.G.nodes:
+            return
+        label = node_id
+        if len(label) > self.MaxLengthLabel:
+            label = label[:self.MaxLengthLabel] + "..."
+        self.G.add_node(node_id, label=label, tipo="placeholder", color="#F0F0F0")
 
-    def construir_grafo(self, tipos_relacion: list[str] = None)  -> None:
+    def construir_grafo(self, tipos_relacion: list[str] = None, tipos_concepto: list[str] = None)  -> None:
         """Crea el grafo con los conceptos y relaciones."""
+        usar_placeholders = not tipos_concepto  # True si None o []
+        relaciones_omitidas_por_nodos_faltantes = 0
+        ejemplos_omitidos = []
+
         self.G.clear()
 
         # Crear nodos
@@ -64,13 +76,41 @@ class GrafoConocimiento:
                 continue
 
             color = self.color_por_relacion.get(tipo_rel, "black")
-            if desde in self.G.nodes and hasta in self.G.nodes:
-                self.G.add_edge(desde, hasta, tipo=tipo_rel, color=color)
 
+            falta_desde = desde not in self.G.nodes
+            falta_hasta = hasta not in self.G.nodes
+
+            if falta_desde or falta_hasta:
+                relaciones_omitidas_por_nodos_faltantes += 1
+                ejemplos_omitidos.append((desde, tipo_rel, hasta, falta_desde, falta_hasta))
+
+                if usar_placeholders:
+                    if falta_desde:
+                        self._ensure_placeholder(desde)
+                    if falta_hasta:
+                        self._ensure_placeholder(hasta)
+                else:
+                    continue
+
+            # agregar SIEMPRE la arista (ya existen los nodos: reales o placeholder)
+            self.G.add_edge(desde, hasta, key=tipo_rel, tipo=tipo_rel, color=color)
+        print("DEBUG tipos_concepto:", tipos_concepto, "usar_placeholders:", usar_placeholders)
         print(f"🧠 Nodos creados: {len(self.G.nodes)} | Relaciones creadas: {len(self.G.edges)}")
+        if relaciones_omitidas_por_nodos_faltantes > 0:
+            print(f"⚠️  Relaciones con placeholders por nodos faltantes: {relaciones_omitidas_por_nodos_faltantes}")
+            if ejemplos_omitidos:
+                print("⚠️  Ejemplos (placeholders usados):")
+            for d, t, h, fd, fh in ejemplos_omitidos:
+                faltan = []
+                if fd: faltan.append("desde")
+                if fh: faltan.append("hasta")
+                print(f"   - {d} -({t})-> {h}   [faltan: {', '.join(faltan)}]")
 
-    def exportar_html(self, salida="grafo_conceptos.html", size=30) -> None:
+
+    def exportar_html(self, salida="grafo_conceptos.html", size: int | None = None) -> None:
         """Genera un archivo HTML interactivo."""
+        if size is None:
+            size = self.MaxLengthLabel
         net = Network(height="750px", width="100%", directed=True)
 
         for n, datos in self.G.nodes(data=True):
@@ -79,8 +119,11 @@ class GrafoConocimiento:
                 label = label[:size] + "..."
             net.add_node(n, label=label, title=datos.get("tipo", ""), color=datos.get("color", "white"))
 
-        for u, v, d in self.G.edges(data=True):
-            net.add_edge(u, v, title=d.get("tipo", ""), color=d.get("color", "black"))
+        for u, v, k, d in self.G.edges(keys=True, data=True):
+            net.add_edge(u, v,
+                         title=d.get("tipo", ""),
+                         color=d.get("color", "black")
+                         )
 
         net.show_buttons(filter_=["physics"])  # Panel para mover nodos
         net.write_html(salida)
