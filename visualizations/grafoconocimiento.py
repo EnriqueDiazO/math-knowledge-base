@@ -36,6 +36,10 @@ class GrafoConocimiento:
             "contradice": "black",
             "contra_ejemplo": "gray"
         }
+
+    def _concepto_permitido(self, tipo: str, tipos_concepto: list[str] | None) -> bool:
+        return (not tipos_concepto) or (tipo in tipos_concepto)
+
     def _ensure_placeholder(self, node_id: str) -> None:
         if node_id in self.G.nodes:
             return
@@ -55,6 +59,9 @@ class GrafoConocimiento:
         # Crear nodos
         for doc in self.conceptos:
             tipo = doc.get("tipo", "otro")
+            if not self._concepto_permitido(tipo, tipos_concepto):
+                continue
+
             etiqueta = f"{doc['id']}@{doc['source']}"
             titulo = doc.get("titulo", etiqueta)
             color = self.color_por_tipo.get(tipo, "white")
