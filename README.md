@@ -1,109 +1,100 @@
 # 📚 Math Knowledge Base
 
-> **Estado:** Versión Beta (0.1.0b1)  
-> Plataforma diseñada para registrar, visualizar y exportar definiciones, teoremas, ejemplos y conceptos matemáticos en LaTeX.
+> **Status:** Beta Version (0.1.0b1)  
+> A platform designed to register, visualize, and export mathematical definitions, theorems, examples, and concepts in LaTeX.
 
 ---
 
-## 🚀 Objetivo
+## 🚀 Objective
 
-Crear una **base de datos personalizable** de conocimiento matemático:
-- Captura de entradas mediante interfaz Streamlit.
-- Almacenamiento estructurado en MongoDB.
-- Exportación automática a LaTeX y generación de PDFs.
-- Visualización de relaciones entre conceptos usando grafos.
-
-## 🎨 Estilo visual de conceptos matemáticos
-
-Cada concepto registrado puede ser exportado a un archivo `.tex` y compilado como PDF, con formato estilizado gracias al uso del paquete [coloredtheorem](https://github.com/joaomlourenco/coloredtheorem).
-
-- Los entornos como **Definición**, **Teorema**, **Ejemplo**, etc., se muestran dentro de cajas coloreadas.
-- Se usa el archivo personalizado `exporters/templates/miestilo.sty` para controlar la presentación.
-- Puedes definir conceptos sin numeración usando entornos como `\begin{cthdefinicion*}{...}`.
-
-Esto permite generar documentos matemáticos visualmente atractivos directamente desde la base de datos.
-
-### 📄 Generación de PDF desde la interfaz
-
-La aplicación incluye funcionalidad para generar PDFs directamente desde los formularios de conceptos:
-
-- **Botón "📄 Generar y abrir PDF"** en los formularios de "Add Concept" y "Edit Concept"
-- **Generación automática** usando `pdflatex` con el mismo estilo que `ExportadorLatex`
-- **Apertura automática** en el navegador web
-- **Almacenamiento persistente** en `~/math_knowledge_pdfs/`
-- **Nombres descriptivos** de archivos: `{id}_{tipo}.pdf`
-- **Permisos correctos** para acceso desde navegador (644 para archivos, 755 para directorio)
-
-Los PDFs generados usan **exactamente el mismo estilo** que el exportador existente:
-- **Archivos de estilo**: `miestilo.sty` y `coloredtheorem.sty`
-- **Formato LaTeX**: Mismo preámbulo y estructura que `ExportadorLatex`
-- **Entornos matemáticos**: Compatibles con `coloredtheorem` (cajas coloreadas)
-- **Metadatos**: Misma presentación de referencias y comentarios
+To build a **customizable mathematical knowledge database** that supports:
+- Entry capture via a Streamlit interface.
+- Structured storage in MongoDB.
+- Automatic LaTeX export and PDF generation.
+- Visualization of relationships between concepts using graphs.
 
 ---
 
-## 📦 Estructura del proyecto
+## 🎨 Visual Styling of Mathematical Concepts
 
-- `editor/` — Aplicación Streamlit para captura y consulta (incluye generación de PDF).
-- `parsers/` — Funciones para agregar archivos md a la base de datos.
-- `mathdabase/` — Conexión y gestión de la base de datos MongoDB y clases principales.
-- `exporters/` — Scripts para generar documentos LaTeX/PDF. Incluye integración con `miestilo.sty` y `coloredtheorem`.
-- `schemas/` — Esquemas relacionados para validar los campos de los conceptos matemáticos.
-- `visualizations/` — Visualización de grafos matemáticos.
+Each registered concept can be exported to a `.tex` file and compiled into a PDF, using a styled format powered by the  
+[coloredtheorem](https://github.com/joaomlourenco/coloredtheorem) package.
 
----
+- Environments such as **Definition**, **Theorem**, **Example**, etc., are rendered inside colored boxes.
+- A custom style file, `exporters/templates/miestilo.sty`, is used to control presentation.
+- You may define unnumbered concepts using environments like `\begin{cthdefinicion*}{...}`.
 
-## ⚙️ Requisitos
-
-- Ubuntu 20.04, 22.04 o similar (recomendado).
-- Python 3.10+ (recomendado: 3.10.14 o 3.11.6).
-- MongoDB instalado y activo (`sudo apt install mongodb` y `sudo systemctl start mongod`).
-- Instalación completa de LaTeX (`sudo apt install texlive-full`) para exportar PDFs correctamente.
-- `make` instalado (habitual en sistemas Linux).
-- Git, pip.
-
-> ⚠️ No está pensado aún para Windows puro; se recomienda WSL si se usa Windows.
+This enables the generation of visually appealing mathematical documents directly from the database.
 
 ---
 
-## 🛠️ Instalación rápida
+### 📄 PDF Generation from the Interface
+
+The application includes built-in functionality to generate PDFs directly from concept forms:
+
+- **“📄 Generate and open PDF” button** available in both *Add Concept* and *Edit Concept* forms.
+- **Automatic generation** using `pdflatex`, matching the style used by `ExportadorLatex`.
+- **Automatic opening** in the web browser.
+- **Persistent storage** in `~/math_knowledge_pdfs/`.
+- **Descriptive filenames**: `{id}_{type}.pdf`.
+- **Correct permissions** for browser access (644 for files, 755 for the directory).
+
+Generated PDFs use **exactly the same style** as the existing exporter:
+- **Style files**: `miestilo.sty` and `coloredtheorem.sty`.
+- **LaTeX format**: Same preamble and structure as `ExportadorLatex`.
+- **Mathematical environments**: Fully compatible with `coloredtheorem` (colored boxes).
+- **Metadata**: Same presentation for references and comments.
+
+---
+
+## 📦 Project Structure
+
+- `editor/` — Streamlit application for data entry and querying (includes PDF generation).
+- `parsers/` — Functions for importing Markdown files into the database.
+- `mathdabase/` — MongoDB connection, database management, and core classes.
+- `exporters/` — Scripts for generating LaTeX/PDF documents, including integration with `miestilo.sty` and `coloredtheorem`.
+- `schemas/` — Schemas used to validate mathematical concept fields.
+- `visualizations/` — Mathematical graph visualizations.
+
+---
+
+## ⚙️ Requirements
+
+- Ubuntu 20.04, 22.04, or similar (recommended).
+- Python 3.10+ (recommended: 3.10.14 or 3.11.6).
+- MongoDB installed and running.
+- Full LaTeX installation (`texlive-full`) for correct PDF export.
+- `make`, Git, pip.
+
+> ⚠️ Not yet intended for native Windows use; WSL is recommended.
+
+---
+
+## 🛠️ Quick Installation
 
 ```bash
-# Clonar el proyecto
 git clone https://github.com/EnriqueDiazO/math-knowledge-base.git
 cd math-knowledge-base
 
-# Crear y activar entorno virtual
 python -m venv mathdbmongo
 source mathdbmongo/bin/activate
 
-# Instalar dependencias
 pip install -r requirements.txt
-
-# Instalar el proyecto en modo editable
 pip install -e .
 
-# (Opcional) Verifica que pdflatex esté disponible
 pdflatex --version
 
-# Iniciar MongoDB
 make start
-
-# Lanzar la aplicación Streamlit
 make run
-
-# (Opcional) Exportar un concepto de prueba como PDF estilizado
-python exporters_latex/exportadorlatex.py --id <concept_id>
-
-# (Opcional) Probar la generación de PDF desde la interfaz
-# Abre la aplicación y usa el botón "📄 Generar y abrir PDF" en cualquier formulario
-
 ```
-## Añadir referencias 
 
-Para añadir referencias, puedes utilizar un formato de este estilo (.bib).
+---
 
-```bash
+## 📚 Adding References
+
+You can add references using standard BibTeX format:
+
+```bibtex
 @book{knuth1984texbook,
   author    = {Donald E. Knuth},
   title     = {The TeXbook},
@@ -115,5 +106,5 @@ Para añadir referencias, puedes utilizar un formato de este estilo (.bib).
   isbn      = {0-201-13448-9},
   doi       = {10.5555/53924},
   url       = {https://ctan.org/pkg/texbook}
-  }
+}
 ```

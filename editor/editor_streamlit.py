@@ -2037,8 +2037,11 @@ elif page == "📊 Knowledge Graph":
                 if concepts and relations:
                     # Generate graph
                     grafo = GrafoConocimiento(concepts, relations)
-                    grafo.construir_grafo(tipos_relacion=selected_relations)
-                    
+                    grafo.construir_grafo(
+                        tipos_relacion=selected_relations,
+                        tipos_concepto=selected_types
+                    )
+
                     # Export to HTML
                     html_file = "knowledge_graph.html"
                     grafo.exportar_html(salida=html_file)
