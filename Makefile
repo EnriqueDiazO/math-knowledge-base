@@ -6,20 +6,20 @@ SHELL := /bin/bash
 # -----------------------
 
 start:
-	. mathdbmongo/bin/activate && make mongo
+	@$(MAKE) mongo
 
 mongo:
-	sudo systemctl start mongod
-	sudo systemctl status mongod
+	@sudo systemctl start mongod
+	@sudo systemctl --no-pager status mongod || true
 
 stop:
-	. mathdbmongo/bin/activate && sudo systemctl stop mongod && echo "✅ MongoDB detenido."
+	@. mathdbmongo/bin/activate && sudo systemctl stop mongod && echo "✅ MongoDB detenido."
 
 restart:
-	. mathdbmongo/bin/activate && sudo systemctl restart mongod && make status
+	@. mathdbmongo/bin/activate && sudo systemctl restart mongod && make status
 
 status:
-	sudo systemctl status mongod
+	@sudo systemctl status mongod
 
 # -----------------------
 # 🚀 Aplicación Principal
