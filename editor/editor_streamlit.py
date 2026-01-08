@@ -1,10 +1,12 @@
 import streamlit as st
+from streamlit_ace import st_ace
 import pandas as pd
 from datetime import datetime
 from pathlib import Path
 import sys
 import os
 import bibtexparser
+
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -513,7 +515,23 @@ elif page == "➕ Add Concept":
         
         if st.button("📋 Quote", key="btn_quote"):
             st.session_state.latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
-    
+        
+        if st.button("🧩 Code", key="btn_code_listing"):
+            st.session_state["latex_insert"] = (
+                r"\begin{lstlisting}[language=ValorLanguage, caption=NombreParaCaption]" "\n"
+                r"# Comentario" "\n"
+                r"codigo" "\n"
+                r"\end{lstlisting}"
+            )
+        if st.button("🌳 Dir Tree", key="btn_dir_tree"):
+            st.session_state["latex_insert"] = (
+                r"\dirtree{%" "\n"
+                r".1 main folder." "\n"
+                r".2 subfolder." "\n"
+                r".3 subsubfolder." "\n"
+                r".4 subsubsubfolder." "\n"
+                r"}")
+
     # Mathematical symbols and operators
     st.write("**🔢 Mathematical Symbols:**")
     
@@ -622,35 +640,56 @@ elif page == "➕ Add Concept":
                 st.session_state.insert_latex = False
     
     # LaTeX text area
-    # Initialize latex_textarea_value in session state if not exists
-    if 'latex_textarea_value' not in st.session_state:
-        st.session_state.latex_textarea_value = ""
-    
-    contenido_latex = st.text_area(
-        "LaTeX Content",
-        value=st.session_state.latex_textarea_value,
-        height=200,
-        placeholder="Enter your LaTeX content here...",
-        help="Write the mathematical content in LaTeX format. Use the buttons above to insert common structures.",
-        key="latex_textarea"
+    # -------------------------
+    # LaTeX editor (state real + remount para inserciones)
+    # -------------------------
+    # Estado real del texto (NO es el key del widget)
+    if "latex_text" not in st.session_state:
+       st.session_state["latex_text"] = ""
+    # Revisión para forzar re-mount del componente cuando insertas
+    if "latex_editor_rev" not in st.session_state:
+        st.session_state["latex_editor_rev"] = 0
+    # Flags de inserción
+    if "latex_insert" not in st.session_state:
+        st.session_state["latex_insert"] = ""
+    if "insert_latex" not in st.session_state:
+        st.session_state["insert_latex"] = False
+
+
+    # Handle insertion (DEBE IR ANTES del st_ace)
+    if st.session_state.get("insert_latex") and st.session_state.get("latex_insert"):
+        current_text = st.session_state.get("latex_text", "") or ""
+        to_insert = st.session_state["latex_insert"]
+
+        if current_text and not current_text.endswith("\n"):
+            current_text += "\n"
+
+        st.session_state["latex_text"] = current_text + to_insert + "\n"
+        # limpiar flags
+        st.session_state["insert_latex"] = False
+        st.session_state["latex_insert"] = ""
+        # IMPORTANT: fuerza re-mount para que el nuevo value se refleje
+        st.session_state["latex_editor_rev"] += 1
+        st.rerun()
+
+    contenido_latex = st_ace(
+        value=st.session_state["latex_text"],
+        language="latex",
+        theme="monokai",
+        font_size=16,
+        tab_size=2,
+        height=800,
+        wrap=True,
+        show_gutter=True,
+        auto_update=True,
+        key=f"latex_editor_{st.session_state['latex_editor_rev']}"
     )
-    
-    # Handle insertion
-    if 'insert_latex' in st.session_state and st.session_state.insert_latex:
-        if st.session_state.latex_insert:
-            # Get current cursor position (approximate)
-            current_text = contenido_latex
-            insertion_point = len(current_text)  # Insert at end for now
-            
-            # Insert the LaTeX code
-            new_text = current_text[:insertion_point] + "\n" + st.session_state.latex_insert + current_text[insertion_point:]
-            
-            # Update session state and trigger rerun
-            st.session_state.insert_latex = False
-            st.session_state.latex_insert = ""
-            st.session_state.latex_textarea_value = new_text
-            st.rerun()
-    
+    # Sincronizar el contenido del editor con el estado
+    st.session_state["latex_text"] = contenido_latex or ""
+    # Este es el contenido que usarás para guardar en DB
+    contenido_latex = st.session_state["latex_text"]
+    ###----
+
     # Algorithm section
     st.subheader("⚙️ Algorithm Information")
     col1, col2 = st.columns(2)
@@ -978,7 +1017,13 @@ elif page == "✏️ Edit Concept":
             st.session_state.edit_source = selected_concept.get("source", "")
             st.session_state.edit_titulo = selected_concept.get("titulo", "")
             st.session_state.edit_tipo_titulo = selected_concept.get("tipo_titulo", "ninguno")
-            st.session_state.edit_latex = current_latex
+            st.session_state["edit_latex_text"] = current_latex
+            # estado para remount del editor en Edit Concept
+            # fuerza re-mount REAL cuando cambias de concepto (evita que ACE se quede pegado)
+            st.session_state["edit_latex_editor_rev"] = st.session_state.get("edit_latex_editor_rev", 0) + 1
+            st.session_state["edit_latex_insert"] = ""
+            st.session_state["edit_insert_latex"] = False
+
             st.session_state.edit_comentario = selected_concept.get("comentario", "")
             st.session_state.edit_es_algoritmo = selected_concept.get("es_algoritmo", False)
             st.session_state.edit_categorias = selected_concept.get("categorias", [])
@@ -1130,7 +1175,24 @@ elif page == "✏️ Edit Concept":
             
             if st.button("📋 Quote", key="edit_btn_quote"):
                 st.session_state.edit_latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
-        
+            
+            if st.button("🧩 Code", key="edit_btn_code_listing"):
+                st.session_state["edit_latex_insert"] = (
+                    r"\begin{lstlisting}[language=ValorLanguage, caption=NombreParaCaption]" "\n"
+                    r"# Comentario" "\n"
+                    r"codigo" "\n"
+                    r"\end{lstlisting}")
+
+            if st.button("🌳 Dir Tree", key="edit_btn_dir_tree"):
+                st.session_state["edit_latex_insert"] = (
+                    r"\dirtree{%" "\n"
+                    r".1 main folder." "\n"
+                    r".2 subfolder." "\n"
+                    r".3 subsubfolder." "\n"
+                    r".4 subsubsubfolder." "\n"
+                    r"}"
+                )
+
         # Mathematical symbols (abbreviated for edit page)
         st.write("**🔢 Common Symbols:**")
         
@@ -1145,7 +1207,7 @@ elif page == "✏️ Edit Concept":
                 st.session_state.edit_latex_insert = r"\rightarrow"
             if st.button("∈ Belongs", key="edit_btn_in"):
                 st.session_state.edit_latex_insert = r"\in"
-        
+
         with col2:
             if st.button("∞ Infinity", key="edit_btn_inf"):
                 st.session_state.edit_latex_insert = r"\infty"
@@ -1155,7 +1217,7 @@ elif page == "✏️ Edit Concept":
                 st.session_state.edit_latex_insert = r"\cap"
             if st.button("∀ For All", key="edit_btn_forall"):
                 st.session_state.edit_latex_insert = r"\forall"
-        
+
         with col3:
             if st.button("α Alpha", key="edit_btn_alpha"):
                 st.session_state.edit_latex_insert = r"\alpha"
@@ -1165,7 +1227,7 @@ elif page == "✏️ Edit Concept":
                 st.session_state.edit_latex_insert = r"\gamma"
             if st.button("δ Delta", key="edit_btn_delta"):
                 st.session_state.edit_latex_insert = r"\delta"
-        
+
         with col4:
             if st.button("π Pi", key="edit_btn_pi"):
                 st.session_state.edit_latex_insert = r"\pi"
@@ -1178,44 +1240,74 @@ elif page == "✏️ Edit Concept":
         
         # Initialize edit_latex_insert in session state if not exists
         if 'edit_latex_insert' not in st.session_state:
-            st.session_state.edit_latex_insert = ""
+            st.session_state["edit_latex_insert"] = ""
         
         # Show current insertion if any
-        if st.session_state.edit_latex_insert:
-            st.info(f"**Ready to insert:** `{st.session_state.edit_latex_insert}`")
-            
+        if st.session_state["edit_latex_insert"]:
+            st.info(f"**Ready to insert:** `{st.session_state['edit_latex_insert']}`")
+
             col1, col2 = st.columns(2)
             with col1:
                 if st.button("✅ Insert at Cursor", key="edit_insert_btn"):
-                    st.session_state.edit_insert_latex = True
+                    st.session_state["edit_insert_latex"] = True
             with col2:
                 if st.button("❌ Clear", key="edit_clear_insert"):
-                    st.session_state.edit_latex_insert = ""
-                    st.session_state.edit_insert_latex = False
+                    st.session_state["edit_latex_insert"] = ""
+                    st.session_state["edit_insert_latex"] = False
+
+
+        # -------------------------
+        # LaTeX editor (ACE) - Edit Concept
+        # -------------------------
+
+        # Estado real del texto (NO es el key del widget)
+        if "edit_latex_text" not in st.session_state:
+            st.session_state["edit_latex_text"] = ""
+
+        # Revisión para forzar re-mount del componente cuando insertas
+        if "edit_latex_editor_rev" not in st.session_state:
+            st.session_state["edit_latex_editor_rev"] = 0
+
+        # Flags de inserción (asegurar existencia)
+        if "edit_latex_insert" not in st.session_state:
+            st.session_state["edit_latex_insert"] = ""
+        if "edit_insert_latex" not in st.session_state:
+            st.session_state["edit_insert_latex"] = False
         
-        # LaTeX text area
-        contenido_latex = st.text_area(
-            "LaTeX Content",
-            height=200,
-            key="edit_latex"
-        )
-        
-        # Handle insertion for edit page
-        if 'edit_insert_latex' in st.session_state and st.session_state.edit_insert_latex:
-            if st.session_state.edit_latex_insert:
-                # Get current cursor position (approximate)
-                current_text = contenido_latex
-                insertion_point = len(current_text)  # Insert at end for now
-                
-                # Insert the LaTeX code
-                new_text = current_text[:insertion_point] + "\n" + st.session_state.edit_latex_insert + current_text[insertion_point:]
-                
-                # Update session state and trigger rerun
-                st.session_state.edit_insert_latex = False
-                st.session_state.edit_latex_insert = ""
-                st.session_state.edit_latex = new_text
-                st.rerun()
-        
+        # Handle insertion (DEBE IR ANTES del st_ace)
+        if st.session_state.get("edit_insert_latex") and st.session_state.get("edit_latex_insert"):
+            current_text = st.session_state.get("edit_latex_text", "") or ""
+            to_insert = st.session_state["edit_latex_insert"]
+            if current_text and not current_text.endswith("\n"):
+                current_text += "\n"
+            st.session_state["edit_latex_text"] = current_text + to_insert + "\n"
+            # limpiar flags
+            st.session_state["edit_insert_latex"] = False
+            st.session_state["edit_latex_insert"] = ""
+
+            # fuerza re-mount
+            st.session_state["edit_latex_editor_rev"] += 1
+            st.rerun()
+
+        editor_seed = f"{st.session_state.get('edit_id','')}@{st.session_state.get('edit_source','')}"
+        contenido_latex = st_ace(
+            value=st.session_state["edit_latex_text"],
+            language="latex",
+            theme="monokai",
+            font_size=16,
+            tab_size=2,
+            height=800,        # aquí súbele para edición cómoda
+            wrap=True,
+            show_gutter=True,
+            auto_update=True,
+            key=f"edit_latex_editor__{editor_seed}__{st.session_state['edit_latex_editor_rev']}",
+            )
+
+        # Sincronizar el contenido del editor con el estado
+        st.session_state["edit_latex_text"] = contenido_latex or ""
+        contenido_latex = st.session_state["edit_latex_text"]  # este es el que se guarda
+
+        ##----------------------------------------
         # Algorithm section
         st.subheader("⚙️ Algorithm Information")
         col1, col2 = st.columns(2)
