@@ -1006,19 +1006,19 @@ elif page == "✏️ Edit Concept":
         selected_concept = concept_map[selected_concept_display]
 
         # Check if concept has changed and update session state
-        if ("last_selected_id" not in st.session_state or 
+        if ("last_selected_id" not in st.session_state or
             st.session_state.last_selected_id != selected_concept["id"]):
-            
+
             # Update last selected ID
             st.session_state.last_selected_id = selected_concept["id"]
-            
+
             # Get LaTeX content from database
             latex_doc = db.latex_documents.find_one({
                 "id": selected_concept['id'], 
                 "source": selected_concept['source']
             })
             current_latex = latex_doc['contenido_latex'] if latex_doc else ""
-            
+
             # Update all form fields in session state
             st.session_state.edit_id = selected_concept.get("id", "")
             st.session_state.edit_source = selected_concept.get("source", "")
@@ -1038,7 +1038,7 @@ elif page == "✏️ Edit Concept":
             st.session_state.edit_pasos_algoritmo = selected_concept.get("pasos_algoritmo", [])
             st.session_state.edit_contexto_docente = selected_concept.get("contexto_docente", {})
             st.session_state.edit_metadatos_tecnicos = selected_concept.get("metadatos_tecnicos", {})
-            
+
             # Initialize reference fields in session state
             ref = selected_concept.get("referencia", {})
             st.session_state.edit_ref_tipo = ref.get('tipo_referencia', 'libro')
@@ -1054,12 +1054,12 @@ elif page == "✏️ Edit Concept":
             st.session_state.edit_ref_doi = ref.get('doi', '')
             st.session_state.edit_ref_url = ref.get('url', '')
             st.session_state.edit_ref_issbn = ref.get('issbn', '')
-            
+
             # Initialize teaching context fields in session state
             context = selected_concept.get("contexto_docente", {})
             st.session_state.edit_nivel = context.get('nivel_contexto', 'introductorio')
             st.session_state.edit_formalidad = context.get('grado_formalidad', 'informal')
-            
+
             # Initialize technical metadata fields in session state
             meta = selected_concept.get("metadatos_tecnicos", {})
             st.session_state.edit_notacion = meta.get('usa_notacion_formal', True)
@@ -1072,30 +1072,30 @@ elif page == "✏️ Edit Concept":
             st.session_state.edit_presentacion = meta.get('tipo_presentacion', 'expositivo')
             st.session_state.edit_simbolico = meta.get('nivel_simbolico', 'bajo')
             st.session_state.edit_aplicacion = meta.get('tipo_aplicacion', [])
-            
+
             # Initialize algorithm fields in session state
             st.session_state.edit_algoritmo = selected_concept.get("es_algoritmo", False)
             st.session_state.edit_pasos = '\n'.join(selected_concept.get("pasos_algoritmo", [])) if selected_concept.get("pasos_algoritmo") else ""
-            
+
             # Clear any pending LaTeX insertions
             st.session_state.edit_latex_insert = ""
             st.session_state.edit_insert_latex = False
-            
+
             # Force rerun to update all widgets
             st.rerun()
-        
+
         # Display header
         st.markdown("---")
         st.subheader(f"✏️ Editing: {selected_concept.get('titulo', selected_concept['id'])}")
-        
+
         # Basic information
         st.subheader("📋 Basic Information")
-        
+
         col1, col2 = st.columns(2)
         with col1:
             concept_id = st.text_input("ID", key="edit_id")
             source = st.text_input("Source", key="edit_source")
-        
+
         with col2:
             titulo = st.text_input("Title", key="edit_titulo")
             tipo_titulo = st.selectbox(
@@ -1103,19 +1103,19 @@ elif page == "✏️ Edit Concept":
                 [t.value for t in TipoTitulo],
                 key="edit_tipo_titulo"
             )
-        
+
         # Concept type (read-only for now to avoid complications)
         st.info(f"**Concept Type:** {selected_concept['tipo']} (cannot be changed)")
-        
+
         # Categories
         # Get all available categories from database
         categorias_db = db.concepts.distinct("categorias")
         categorias_db = [cat for cat in categorias_db if isinstance(cat, str)]
-        
+
         # Combine predefined and database categories
         categorias_predefinidas = ["Algebra", "Analysis", "Topology", "Geometry", "Number Theory", "Combinatorics", "Logic", "Statistics", "Calculus"]
         all_categories = sorted(set(categorias_predefinidas + categorias_db))
-        
+
         categorias = st.multiselect(
             "Categories",
             all_categories,
@@ -1137,52 +1137,52 @@ elif page == "✏️ Edit Concept":
             
             if st.button("📋 Theorem", key="edit_btn_theorem"):
                 st.session_state.edit_latex_insert = r"\begin{theorem}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
-            
+
             if st.button("📖 Proof", key="edit_btn_proof"):
                 st.session_state.edit_latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
-            
+
             if st.button("📊 Example", key="edit_btn_example"):
                 st.session_state.edit_latex_insert = r"\begin{example}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
-        
+
         with col2:
             if st.button("📋 Lemma", key="edit_btn_lemma"):
                 st.session_state.edit_latex_insert = r"\begin{lemma}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
-            
+
             if st.button("📋 Proposition", key="edit_btn_prop"):
                 st.session_state.edit_latex_insert = r"\begin{proposition}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
-            
+
             if st.button("📋 Corollary", key="edit_btn_corollary"):
                 st.session_state.edit_latex_insert = r"\begin{corollary}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
-            
+
             if st.button("📋 Remark", key="edit_btn_remark"):
                 st.session_state.edit_latex_insert = r"\begin{remark}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
-        
+
         with col3:
             if st.button("🔢 Equation", key="edit_btn_eq"):
                 st.session_state.edit_latex_insert = r"\begin{equation}" + "\n" + r"% Equation here" + "\n" + r"\end{equation}"
-            
+
             if st.button("🔢 Align", key="edit_btn_align"):
                 st.session_state.edit_latex_insert = r"\begin{align}" + "\n" + r"% Multiple equations here" + "\n" + r"\end{align}"
-            
+
             if st.button("🔢 Matrix", key="edit_btn_matrix"):
                 st.session_state.edit_latex_insert = r"\begin{pmatrix}" + "\n" + r"a & b \\" + "\n" + r"c & d" + "\n" + r"\end{pmatrix}"
-            
+
             if st.button("🔢 Cases", key="edit_btn_cases"):
                 st.session_state.edit_latex_insert = r"\begin{cases}" + "\n" + r"% Case 1 \\" + "\n" + r"% Case 2" + "\n" + r"\end{cases}"
-        
+
         with col4:
             if st.button("📋 Itemize", key="edit_btn_itemize"):
                 st.session_state.edit_latex_insert = r"\begin{itemize}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{itemize}"
-            
+
             if st.button("📋 Enumerate", key="edit_btn_enumerate"):
                 st.session_state.edit_latex_insert = r"\begin{enumerate}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{enumerate}"
-            
+
             if st.button("📋 Description", key="edit_btn_description"):
                 st.session_state.edit_latex_insert = r"\begin{description}" + "\n" + r"\item[Term 1] Description 1" + "\n" + r"\item[Term 2] Description 2" + "\n" + r"\end{description}"
-            
+
             if st.button("📋 Quote", key="edit_btn_quote"):
                 st.session_state.edit_latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
-            
+
             if st.button("🧩 Code", key="edit_btn_code_listing"):
                 st.session_state["edit_latex_insert"] = (
                     r"\begin{lstlisting}[language=ValorLanguage, caption=NombreParaCaption]" "\n"
@@ -1668,33 +1668,33 @@ elif page == "🔗 Manage Relations":
     
     # Tab navigation for relations
     tab1, tab2, tab3 = st.tabs(["➕ Add New Relation", "✏️ Edit Relations", "📊 View Relations"])
-    
+
     with tab1:
         st.subheader("➕ Add New Relation")
         # Inicializa IDs y fuentes para que siempre existan
         desde_id, desde_source = "", ""
         hasta_id, hasta_source = "", ""
-        
+
         # Smart concept selection
         st.write("**Select Concepts:**")
-        
+
         col_from, col_to = st.columns(2)
-        
+
         with col_from:
             st.write("**From Concept:**")
             # Filter concepts for "from" selection
             desde_source_filter = st.selectbox("From Source", ["All"] + list(db.concepts.distinct("source")), key="desde_source_filter")
             desde_type_filter = st.selectbox("From Type", ["All"] + list(db.concepts.distinct("tipo")), key="desde_type_filter")
-            
+
             # Build query for "from" concepts
             desde_query = {}
             if desde_source_filter != "All":
                 desde_query["source"] = desde_source_filter
             if desde_type_filter != "All":
                 desde_query["tipo"] = desde_type_filter
-            
+
             desde_concepts = list(db.concepts.find(desde_query).sort("fecha_creacion", -1))
-            
+
             if desde_concepts:
                 desde_options = []
                 desde_map = {}
@@ -1702,7 +1702,7 @@ elif page == "🔗 Manage Relations":
                     display_name = f"{concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})"
                     desde_options.append(display_name)
                     desde_map[display_name] = concept
-                
+
                 selected_desde = st.selectbox("Choose From Concept", desde_options, key="desde_select")
                 if selected_desde:
                     desde_concept = desde_map[selected_desde]
@@ -1713,7 +1713,7 @@ elif page == "🔗 Manage Relations":
                 st.warning("No concepts found with selected filters")
                 desde_id = ""
                 desde_source = ""
-        
+
         with col_to:
             st.write("**To Concept:**")
             # Filter concepts for "to" selection
@@ -1726,9 +1726,9 @@ elif page == "🔗 Manage Relations":
                 hasta_query["source"] = hasta_source_filter
             if hasta_type_filter != "All":
                 hasta_query["tipo"] = hasta_type_filter
-            
+
             hasta_concepts = list(db.concepts.find(hasta_query).sort("fecha_creacion", -1))
-            
+
             if hasta_concepts:
                 hasta_options = []
                 hasta_map = {}
@@ -1736,7 +1736,7 @@ elif page == "🔗 Manage Relations":
                     display_name = f"{concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})"
                     hasta_options.append(display_name)
                     hasta_map[display_name] = concept
-                
+
                 selected_hasta = st.selectbox("Choose To Concept", hasta_options, key="hasta_select")
                 if selected_hasta:
                     hasta_concept = hasta_map[selected_hasta]
@@ -1873,7 +1873,7 @@ elif page == "🔗 Manage Relations":
             "optional": [
                 "You can suggest an order of study (B before A) in one sentence.",
             ],},
-            
+
             "deriva_de": {
                 "definition": "A derives from B when A is obtained as a specialization, reformulation, or construction based on B.",
                 "essential": ["You can explain how A is obtained from B (special case, restriction, construction, or reformulation).",],

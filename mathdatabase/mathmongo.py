@@ -128,12 +128,11 @@ class MathMongo:
             hasta_id: Optional[str] = None,
             hasta_source: Optional[str] = None,
             tipo: Optional[TipoRelacion] = None) -> List[Relation]:
-        """
-        Obtiene las relaciones según filtros opcionales:
+        """Obtiene las relaciones según filtros opcionales.
         - desde_id + desde_source
         - hasta_id + hasta_source
-        - tipo (enum)
-        """
+        - tipo (enum).
+        """  # noqa: D205
         query = {}
         if desde_id and desde_source:
             query["desde"] = f"{desde_id}@{desde_source}"
@@ -192,25 +191,21 @@ class MathMongo:
 
 
         return resultados
-    
-
 
     def get_lineage(
             self,
             full_id: str,
             direction: str = "up",
-            rel_types: Optional[List[TipoRelacion]] = None,
+            rel_types: Optional[list[TipoRelacion]] = None,
             max_depth: int = 3
             ) -> LineageResult:
-        """
-        Obtiene el árbol de dependencias o derivaciones de un concepto.
+        """Obtiene el árbol de dependencias o derivaciones de un concepto.
 
         :param full_id: ID completo del concepto en formato "id@source"
         :param direction: "up" para buscar conceptos de los que depende, "down" para descendientes
         :param rel_types: Lista de tipos de relación a considerar
         :param max_depth: Profundidad máxima de búsqueda
         """
-
         if not rel_types:
             rel_types = [TipoRelacion.implica,TipoRelacion.deriva_de, TipoRelacion.requiere_concepto]
 

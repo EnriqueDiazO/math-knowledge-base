@@ -50,14 +50,11 @@ dist/
 *.xlsx
 *.pdf
 *.tex
-# ───── Quarto / Book ─────
-quarto_book/*s/*.qmd
-quarto_book/_book/
-quarto_book/.quarto/
-quarto_book/*.html
-quarto_book/*.ipynb
-quarto_book/*.md
-
+# ───── Quarto build (generated) ─────
+quarto_book_build/
+quarto_book_build/_book/
+quarto_book_build/.quarto/
+quarto_book_build/_freeze/
 # ───── Archivos de sistema ─────
 .DS_Store
 Thumbs.db
@@ -73,7 +70,6 @@ mathdbmongo/bin/ruff
 *.aux
 *.out
 *.toc
-*.pdf
 *.log
 *.synctex.gz
 *.fdb_latexmk
@@ -87,5 +83,11 @@ exportados/*.tex
 exportados/
 test/output/
 
-# ───── Archivos HTML intermedios ─────
-*.html
+# Generated HTML only (Quarto + exports)
+quarto_book_build/**/*.html
+quarto_book/_book/**/*.html
+exportados/**/*.html
+**/.quarto/
+**/_freeze/
+**/_book/
+

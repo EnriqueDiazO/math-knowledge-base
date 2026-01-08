@@ -1,9 +1,13 @@
 SHELL := /bin/bash
-.PHONY: start stop restart status run lint export grafo preview doc clean
+VENV := . mathdbmongo/bin/activate &&
+PY := $(VENV) python
+PY3 := $(VENV) python3
+BOOK_TEMPLATE := quarto_book
+BOOK_BUILD := quarto_book_build
 
-# -----------------------
-# 🔁 MongoDB Management
-# -----------------------
+.PHONY: start mongo stop restart status run gui lint export grafo \
+        book-clean book-export book-preview book-render \
+        clean clean-all book-clean-artifacts clean-book
 
 start:
 	@$(MAKE) mongo
@@ -13,10 +17,10 @@ mongo:
 	@sudo systemctl --no-pager status mongod || true
 
 stop:
-	@. mathdbmongo/bin/activate && sudo systemctl stop mongod && echo "✅ MongoDB detenido."
+	@sudo systemctl stop mongod && echo "✅ MongoDB detenido."
 
 restart:
-	@. mathdbmongo/bin/activate && sudo systemctl restart mongod && make status
+	@sudo systemctl restart mongod && $(MAKE) status
 
 status:
 	@sudo systemctl status mongod
@@ -43,24 +47,33 @@ lint:
 # -----------------------
 
 export:
-	python export/exportar_qmd_desde_mongo.py
+	$(PY) export/exportar_qmd_desde_mongo.py
 
 # -----------------------
 # 🔗 Grafo interactivo desde Mongo
 # -----------------------
 
 grafo:
-	python grafo_interactivo/generador/generar_grafo.py
+	$(PY) grafo_interactivo/generador/generar_grafo.py
 
 # -----------------------
 # 📚 Documentación Quarto
 # -----------------------
 
-preview:
-	cd quarto_book && quarto preview
+book-clean:
+	rm -rf $(BOOK_BUILD)
 
-doc:
-	cd quarto_book && quarto render
+book-export:
+	$(PY3) scripts/export_quarto_book.py --template $(BOOK_TEMPLATE) --output $(BOOK_BUILD) --force
+
+book-preview:
+	cd $(BOOK_BUILD) && quarto preview
+
+book-render:
+	cd $(BOOK_BUILD) && quarto render
+
+export-book:
+	$(PY3) scripts/export_quarto_book.py --output quarto_book_build --force
 
 # -----------------------
 # 🧼 Limpieza de archivos temporales
@@ -69,33 +82,26 @@ doc:
 clean:
 	find . -name "*.pyc" -delete
 	find . -name "__pycache__" -type d -exec rm -r {} +
-	find quarto_book -type f -path "*/s/*.qmd" -delete
+	rm -rf .ruff_cache/
 
 
 # Limpieza extendida
-clean-all:
-	find . -type d -name '__pycache__' -exec rm -r {} +;
-	find . -type f -name '*.py[cod]' -delete
-	find . -type f -name '*.log' -delete
-	find . -type f -name '*.aux' -delete
-	find . -type f -name '*.out' -delete
-	find . -type f -name '*.toc' -delete
-	find . -type f -name '*.pdf' -delete
-	find . -type f -name '*.tex' -delete
-	find . -type f -name '*.html' -delete
+clean-all: clean
 	rm -rf exportados/
-	rm -rf .ruff_cache/
 	rm -rf build/ dist/ *.egg-info
 	rm -rf .ipynb_checkpoints/
-	rm -rf quarto_book/*s/*.qmd
+	rm -rf $(BOOK_BUILD)/
+
+
+book-clean-artifacts:
+	@test -d $(BOOK_BUILD) || (echo "No build dir: $(BOOK_BUILD)"; exit 0)
+	rm -rf $(BOOK_BUILD)/_book
+	find $(BOOK_BUILD) -name "*.html" -delete || true
 
 
 
-clean-book:
-	rm -fv quarto_book/definicions/*.qmd
-	rm -fv quarto_book/teoremas/*.qmd
-	rm -fv quarto_book/ejemplos/*.qmd
-	rm -fv quarto_book/proposicions/*.qmd
-	rm -fv quarto_book/corolarios/*.qmd
-	rm -fv quarto_book/lemas/*.qmd
-	rm -fv quarto_book/otros/*.qmd
+clean-book: book-clean
+
+book: book-clean book-export book-preview
+
+book-html: book-clean book-export book-render

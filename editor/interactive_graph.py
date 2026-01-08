@@ -39,7 +39,7 @@ class InteractiveGraphManager:
         
         self.edge_colors = {
             "implica": "#8B0000",         # Dark Red
-            "equivalente": "#000080",     # Navy
+            "equivalente": "#B066B3",     # Navy
             "deriva_de": "#800080",       # Purple
             "inspirado_en": "#008080",    # Teal
             "requiere_concepto": "#DC143C", # Crimson
