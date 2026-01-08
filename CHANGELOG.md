@@ -7,7 +7,7 @@ and this project adheres to Semantic Versioning.
 
 ---
 
-## [Unreleased] — 2026-01-07
+## [Unreleased] — 2026-01-08
 
 ### Added
 - Cognitive **Relation Tutor** for semantic relations between concepts.
