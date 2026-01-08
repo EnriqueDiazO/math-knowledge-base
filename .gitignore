@@ -65,6 +65,10 @@ desktop.ini
 .ruff_cache/*
 .venv/bin/ruff
 mathdbmongo/bin/ruff
+knowledge_graph.html
+relation_preview_graph.html
+relation_preview.json
+*.html
 
 # ───── PDFs / Archivos LaTeX ─────
 *.aux
