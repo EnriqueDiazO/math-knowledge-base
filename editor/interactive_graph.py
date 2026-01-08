@@ -59,7 +59,13 @@ class InteractiveGraphManager:
             "contra_ejemplo": "dotted"
         }
     
-    def get_graph_data(self, selected_concept_id: Optional[str] = None, 
+    def _apply_style(self, net, profile: str = "full"):
+        if profile == "full":
+            net.set_options(self.FULL_OPTIONS_JSON)
+        else:
+            net.set_options(self.FULL_OPTIONS_JSON)  # mismo estilo, solo cambia height si quieres
+
+    def get_graph_data(self, selected_concept_id: Optional[str] = None,
                       selected_concept_source: Optional[str] = None,
                       filter_sources: Optional[List[str]] = None,
                       filter_types: Optional[List[str]] = None,

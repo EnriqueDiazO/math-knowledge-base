@@ -1,26 +1,33 @@
-import streamlit as st
-from streamlit_ace import st_ace
-import pandas as pd
+import os
+import sys
 from datetime import datetime
 from pathlib import Path
-import sys
-import os
-import bibtexparser
 
+import bibtexparser
+import pandas as pd
+import streamlit as st
+from streamlit_ace import st_ace
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from mathdatabase.mathmongo import MathMongo
-from schemas.schemas import (
-    ConceptoBase, Definicion, Teorema, Proposicion, Corolario, Lema, Ejemplo, Nota,
-    TipoTitulo, TipoReferencia, TipoPresentacion, NivelContexto, GradoFormalidad,
-    NivelSimbolico, TipoAplicacion, TipoRelacion, Referencia, ContextoDocente, MetadatosTecnicos
-)
-from visualizations.grafoconocimiento import GrafoConocimiento
-from exporters_latex.exportadorlatex import ExportadorLatex
+import streamlit.components.v1 as components
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
+from exporters_latex.exportadorlatex import ExportadorLatex
+
+# Render preview graph using the same renderer as "Knowledge Graph"
+from mathdatabase.mathmongo import MathMongo
+from schemas.schemas import ConceptoBase
+from schemas.schemas import GradoFormalidad
+from schemas.schemas import NivelContexto
+from schemas.schemas import NivelSimbolico
+from schemas.schemas import TipoAplicacion
+from schemas.schemas import TipoPresentacion
+from schemas.schemas import TipoReferencia
+from schemas.schemas import TipoRelacion
+from schemas.schemas import TipoTitulo
+from visualizations.grafoconocimiento import GrafoConocimiento
 
 # OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
 _TIPO_MAP = {
@@ -165,9 +172,9 @@ class DatabaseManager:
     def __init__(self):
         self.connections = {}
         self.current_connection = None
-    
+
     def add_connection(self, name, mongo_uri, db_name):
-        """Add a new database connection"""
+        """Add a new database connection."""
         try:
             connection = MathMongo(mongo_uri, db_name)
             self.connections[name] = {
@@ -180,21 +187,21 @@ class DatabaseManager:
         except Exception as e:
             st.error(f"Failed to connect to {name}: {e}")
             return False
-    
+
     def get_connection(self, name):
-        """Get a specific database connection"""
+        """Get a specific database connection."""
         return self.connections.get(name, {}).get('connection')
-    
+
     def list_connections(self):
-        """List all available connections"""
+        """List all available connections."""
         return list(self.connections.keys())
-    
+
     def get_current_connection(self):
-        """Get the currently active connection"""
+        """Get the currently active connection."""
         return self.current_connection
-    
+
     def set_current_connection(self, name):
-        """Set the current active connection"""
+        """Set the current active connection."""
         if name in self.connections:
             self.current_connection = self.connections[name]['connection']
             return True
@@ -203,21 +210,21 @@ class DatabaseManager:
 # Initialize database manager in session state
 if 'db_manager' not in st.session_state:
     st.session_state.db_manager = DatabaseManager()
-    
+
     # Add default connections
     st.session_state.db_manager.add_connection(
-        "MathMongo (Current)", 
-        "mongodb://localhost:27017", 
+        "MathMongo (Current)",
+        "mongodb://localhost:27017",
         "mathmongo"
     )
-    
+
     # Add MathV0 connection
     st.session_state.db_manager.add_connection(
-        "MathV0", 
-        "mongodb://localhost:27017", 
+        "MathV0",
+        "mongodb://localhost:27017",
         "MathV0"
     )
-    
+
     # Set current connection
     st.session_state.db_manager.set_current_connection("MathMongo (Current)")
 
@@ -259,7 +266,7 @@ if available_dbs:
         available_dbs,
         index=available_dbs.index(current_db) if current_db in available_dbs else 0
     )
-    
+
     if selected_db != current_db:
         if st.session_state.db_manager.set_current_connection(selected_db):
             st.sidebar.success(f"✅ Switched to {selected_db}")
@@ -270,7 +277,7 @@ with st.sidebar.expander("➕ Add New Database", expanded=False):
     new_db_name = st.text_input("Database Name", placeholder="e.g., MathV1, ResearchDB")
     new_db_uri = st.text_input("MongoDB URI", value="mongodb://localhost:27017")
     new_db_collection = st.text_input("Database Name", placeholder="e.g., mathmongo")
-    
+
     if st.button("Add Connection"):
         if new_db_name and new_db_uri and new_db_collection:
             if st.session_state.db_manager.add_connection(new_db_name, new_db_uri, new_db_collection):
@@ -305,42 +312,42 @@ page = st.sidebar.selectbox(
 # Dashboard page
 if page == "🏠 Dashboard":
     st.markdown('<h1 class="main-header">Math Knowledge Base</h1>', unsafe_allow_html=True)
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     # Show current database info
     st.info(f"📊 Currently connected to: **{current_db}**")
-    
+
     # Statistics
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         concept_count = db.concepts.count_documents({})
         st.metric("📚 Total Concepts", concept_count)
-    
+
     with col2:
         relation_count = db.relations.count_documents({})
         st.metric("🔗 Total Relations", relation_count)
-    
+
     with col3:
         sources = db.concepts.distinct("source")
         st.metric("📁 Sources", len(sources))
-    
+
     with col4:
         categories = db.concepts.distinct("categorias")
         st.metric("🏷️ Categories", len(categories))
-    
+
     st.markdown("---")
-    
+
     # Recent concepts
     col1, col2 = st.columns([2, 1])
-    
+
     with col1:
         st.subheader("📝 Recent Concepts")
         recent_concepts = list(db.concepts.find().sort("fecha_creacion", -1).limit(10))
-        
+
         if recent_concepts:
             for concept in recent_concepts:
                 with st.container():
@@ -354,21 +361,21 @@ if page == "🏠 Dashboard":
                     """, unsafe_allow_html=True)
         else:
             st.info("No concepts found. Add your first concept!")
-    
+
     with col2:
         st.subheader("📊 Quick Stats")
-        
+
         # Concept types distribution
         concept_types = db.concepts.aggregate([
             {"$group": {"_id": "$tipo", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}}
         ])
-        
+
         type_data = list(concept_types)
         if type_data:
             df_types = pd.DataFrame(type_data)
             st.bar_chart(df_types.set_index("_id")["count"])
-        
+
         # Top categories
         category_pipeline = [
             {"$unwind": "$categorias"},
@@ -376,7 +383,7 @@ if page == "🏠 Dashboard":
             {"$sort": {"count": -1}},
             {"$limit": 5}
         ]
-        
+
         top_categories = list(db.concepts.aggregate(category_pipeline))
         if top_categories:
             st.write("**Top Categories:**")
@@ -386,32 +393,32 @@ if page == "🏠 Dashboard":
 # Add Concept page
 elif page == "➕ Add Concept":
     st.title("➕ Add New Mathematical Concept")
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     st.info(f"📊 Adding concept to: **{current_db}**")
-    
+
     # Concept type selection
     concept_type = st.selectbox(
         "Concept Type",
         ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"],
         help="Select the type of mathematical concept you want to add"
     )
-    
+
     # Basic information
     st.subheader("📋 Basic Information")
-    
+
     col1, col2 = st.columns(2)
     with col1:
         concept_id = st.text_input("ID", placeholder="e.g., def:grupo_001", help="Unique identifier for the concept")
         source = st.text_input("Source", placeholder="e.g., BookA", help="Source or folder name")
-    
+
     with col2:
         titulo = st.text_input("Title (Optional)", placeholder="e.g., Definition of Group")
         tipo_titulo = st.selectbox("Title Type", [t.value for t in TipoTitulo])
-    
+
     # 1. Categorías base (predefinidas)
     categorias_base = [
     "Algebra", "Analysis", "Topology", "Geometry", "Number Theory",
@@ -457,65 +464,65 @@ elif page == "➕ Add Concept":
 
     # LaTeX content with helper toolbar
     st.subheader("📝 LaTeX Content")
-    
+
     # LaTeX Helper Toolbar
     st.write("**🔧 LaTeX Helper Tools:**")
-    
+
     # Main structures
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         if st.button("📝 Definition", key="btn_def"):
             st.session_state.latex_insert = r"\begin{definition}{% add Name or leave it in blank}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
-        
+
         if st.button("📋 Theorem", key="btn_theorem"):
             st.session_state.latex_insert = r"\begin{theorem}{% add Name or leave it in blank}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
-        
+
         if st.button("📖 Proof", key="btn_proof"):
             st.session_state.latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
-        
+
         if st.button("📊 Example", key="btn_example"):
             st.session_state.latex_insert = r"\begin{example}{% add Name or leave it in blank}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
 
     with col2:
         if st.button("📋 Lemma", key="btn_lemma"):
             st.session_state.latex_insert = r"\begin{lemma}{% add Name or leave it in blank}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
-        
+
         if st.button("📋 Proposition", key="btn_prop"):
             st.session_state.latex_insert = r"\begin{proposition}{% add Name or leave it in blank}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
-        
+
         if st.button("📋 Corollary", key="btn_corollary"):
             st.session_state.latex_insert = r"\begin{corollary}{% add Name or leave it in blank}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
-        
+
         if st.button("📋 Remark", key="btn_remark"):
             st.session_state.latex_insert = r"\begin{remark}{% add Name or leave it in blank}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
 
     with col3:
         if st.button("🔢 Equation", key="btn_eq"):
             st.session_state.latex_insert = r"\begin{equation}" + "\n" + r"% Equation here" + "\n" + r"\end{equation}"
-        
+
         if st.button("🔢 Align", key="btn_align"):
             st.session_state.latex_insert = r"\begin{align}" + "\n" + r"% Multiple equations here" + "\n" + r"\end{align}"
-        
+
         if st.button("🔢 Matrix", key="btn_matrix"):
             st.session_state.latex_insert = r"\begin{pmatrix}" + "\n" + r"a & b \\" + "\n" + r"c & d" + "\n" + r"\end{pmatrix}"
-        
+
         if st.button("🔢 Cases", key="btn_cases"):
             st.session_state.latex_insert = r"\begin{cases}" + "\n" + r"% Case 1 \\" + "\n" + r"% Case 2" + "\n" + r"\end{cases}"
 
     with col4:
         if st.button("📋 Itemize", key="btn_itemize"):
             st.session_state.latex_insert = r"\begin{itemize}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{itemize}"
-        
+
         if st.button("📋 Enumerate", key="btn_enumerate"):
             st.session_state.latex_insert = r"\begin{enumerate}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{enumerate}"
-        
+
         if st.button("📋 Description", key="btn_description"):
             st.session_state.latex_insert = r"\begin{description}" + "\n" + r"\item[Term 1] Description 1" + "\n" + r"\item[Term 2] Description 2" + "\n" + r"\end{description}"
-        
+
         if st.button("📋 Quote", key="btn_quote"):
             st.session_state.latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
-        
+
         if st.button("🧩 Code", key="btn_code_listing"):
             st.session_state["latex_insert"] = (
                 r"\begin{lstlisting}[language=ValorLanguage, caption=NombreParaCaption]" "\n"
@@ -534,9 +541,9 @@ elif page == "➕ Add Concept":
 
     # Mathematical symbols and operators
     st.write("**🔢 Mathematical Symbols:**")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         if st.button("∑ Sum", key="btn_sum"):
             st.session_state.latex_insert = r"\sum_{i=1}^{n}"
@@ -546,7 +553,7 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\int_{a}^{b}"
         if st.button("∂ Partial", key="btn_partial"):
             st.session_state.latex_insert = r"\partial"
-    
+
     with col2:
         if st.button("∞ Infinity", key="btn_inf"):
             st.session_state.latex_insert = r"\infty"
@@ -556,7 +563,7 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\leftrightarrow"
         if st.button("∈ Belongs", key="btn_in"):
             st.session_state.latex_insert = r"\in"
-    
+
     with col3:
         if st.button("⊂ Subset", key="btn_subset"):
             st.session_state.latex_insert = r"\subset"
@@ -566,7 +573,7 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\cap"
         if st.button("∅ Empty Set", key="btn_empty"):
             st.session_state.latex_insert = r"\emptyset"
-    
+
     with col4:
         if st.button("∀ For All", key="btn_forall"):
             st.session_state.latex_insert = r"\forall"
@@ -576,12 +583,12 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\therefore"
         if st.button("∵ Because", key="btn_because"):
             st.session_state.latex_insert = r"\because"
-    
+
     # Greek letters
     st.write("**🇬🇷 Greek Letters:**")
-    
+
     col1, col2, col3, col4 = st.columns(4)
-    
+
     with col1:
         if st.button("α Alpha", key="btn_alpha"):
             st.session_state.latex_insert = r"\alpha"
@@ -591,7 +598,7 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\gamma"
         if st.button("δ Delta", key="btn_delta"):
             st.session_state.latex_insert = r"\delta"
-    
+
     with col2:
         if st.button("ε Epsilon", key="btn_epsilon"):
             st.session_state.latex_insert = r"\epsilon"
@@ -601,7 +608,7 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\lambda"
         if st.button("μ Mu", key="btn_mu"):
             st.session_state.latex_insert = r"\mu"
-    
+
     with col3:
         if st.button("π Pi", key="btn_pi"):
             st.session_state.latex_insert = r"\pi"
@@ -611,7 +618,7 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\tau"
         if st.button("φ Phi", key="btn_phi"):
             st.session_state.latex_insert = r"\phi"
-    
+
     with col4:
         if st.button("χ Chi", key="btn_chi"):
             st.session_state.latex_insert = r"\chi"
@@ -621,15 +628,15 @@ elif page == "➕ Add Concept":
             st.session_state.latex_insert = r"\omega"
         if st.button("Γ Gamma", key="btn_Gamma"):
             st.session_state.latex_insert = r"\Gamma"
-    
+
     # Initialize latex_insert in session state if not exists
     if 'latex_insert' not in st.session_state:
         st.session_state.latex_insert = ""
-    
+
     # Show current insertion if any
     if st.session_state.latex_insert:
         st.info(f"**Ready to insert:** `{st.session_state.latex_insert}`")
-        
+
         col1, col2 = st.columns(2)
         with col1:
             if st.button("✅ Insert at Cursor", key="insert_btn"):
@@ -638,7 +645,7 @@ elif page == "➕ Add Concept":
             if st.button("❌ Clear", key="clear_insert"):
                 st.session_state.latex_insert = ""
                 st.session_state.insert_latex = False
-    
+
     # LaTeX text area
     # -------------------------
     # LaTeX editor (state real + remount para inserciones)
@@ -698,7 +705,7 @@ elif page == "➕ Add Concept":
     with col2:
         if es_algoritmo:
             pasos_algoritmo = st.text_area("Algorithm Steps", placeholder="Enter algorithm steps...")
-    
+
     # Reference information
     st.subheader("📚 Reference Information")
     with st.expander("Add / Edit Reference", expanded=False):
@@ -776,7 +783,7 @@ elif page == "➕ Add Concept":
 
         # Citekey opcional (si lo guardas en tu modelo)
         st.text_input("Citekey (opcional)", key="edit_ref_citekey")
-    
+
     # Teaching context
     st.subheader("🎓 Teaching Context")
     with st.expander("Add Teaching Context", expanded=False):
@@ -785,7 +792,7 @@ elif page == "➕ Add Concept":
             nivel_contexto = st.selectbox("Context Level", [n.value for n in NivelContexto])
         with col2:
             grado_formalidad = st.selectbox("Formality Degree", [g.value for g in GradoFormalidad])
-    
+
     # Technical metadata
     st.subheader("🔧 Technical Metadata")
     with st.expander("Add Technical Metadata", expanded=False):
@@ -795,19 +802,19 @@ elif page == "➕ Add Concept":
             incluye_demostracion = st.checkbox("Includes Proof")
             es_definicion_operativa = st.checkbox("Is Operational Definition")
             es_concepto_fundamental = st.checkbox("Is Fundamental Concept")
-        
+
         with col2:
             requiere_conceptos_previos = st.text_area("Required Previous Concepts", placeholder="Enter concepts separated by commas")
             incluye_ejemplo = st.checkbox("Includes Example")
             es_autocontenible = st.checkbox("Is Self-Contained", value=True)
-        
+
         tipo_presentacion = st.selectbox("Presentation Type", [t.value for t in TipoPresentacion])
         nivel_simbolico = st.selectbox("Symbolic Level", [n.value for n in NivelSimbolico])
         tipo_aplicacion = st.multiselect("Application Type", [t.value for t in TipoAplicacion])
-    
+
     # Comment
     comentario = st.text_area("Comment (Optional)", placeholder="Additional comments or notes...")
-    
+
     # Submit button
     if st.button("💾 Save Concept", type="primary"):
         if not concept_id or not source or not contenido_latex:
@@ -829,7 +836,7 @@ elif page == "➕ Add Concept":
                     "fecha_creacion": datetime.now(),
                     "ultima_actualizacion": datetime.now()
                 }
-                
+
                 # Add reference if provided
                 if ref_autor or ref_fuente:
                     concept_data["referencia"] = {
@@ -847,14 +854,14 @@ elif page == "➕ Add Concept":
                         "url": ref_url if ref_url else None,
                         "issbn": ref_issbn if ref_issbn else None
                     }
-                
+
                 # Add teaching context if provided
                 if nivel_contexto or grado_formalidad:
                     concept_data["contexto_docente"] = {
                         "nivel_contexto": nivel_contexto,
                         "grado_formalidad": grado_formalidad
                     }
-                
+
                 # Add technical metadata if provided
                 if usa_notacion_formal is not None or incluye_demostracion is not None:
                     concept_data["metadatos_tecnicos"] = {
@@ -869,18 +876,18 @@ elif page == "➕ Add Concept":
                         "nivel_simbolico": nivel_simbolico,
                         "tipo_aplicacion": tipo_aplicacion if tipo_aplicacion else None
                     }
-                
+
                 # Create concept object
                 concepto = ConceptoBase(**concept_data)
-                
+
                 # Save to database
                 concepto_dict = concepto.model_dump(mode="python", exclude={"contenido_latex"}, exclude_none=True)
-                
+
                 db.concepts.update_one(
                     {"id": concepto.id, "source": source},
                     {"$set": concepto_dict}, upsert=True
                 )
-                
+
                 # Save LaTeX content
                 now = datetime.now()
                 db.latex_documents.update_one(
@@ -893,17 +900,17 @@ elif page == "➕ Add Concept":
                         "$setOnInsert": {"fecha_creacion": now}
                     }, upsert=True
                 )
-                
+
                 st.success(f"✅ Concept '{concept_id}' saved successfully to {current_db}!")
                 st.balloons()
-                
+
             except Exception as e:
                 st.error(f"❌ Error saving concept: {e}")
-    
+
     # PDF Generation Button
     st.markdown("---")
     st.subheader("📄 Generar PDF")
-    
+
     # Check if we have the minimum required data for PDF generation
     if concept_id and source and contenido_latex:
         if st.button("📄 Generar y abrir PDF", type="secondary"):
@@ -917,7 +924,7 @@ elif page == "➕ Add Concept":
                 "source": source,
                 "comentario": comentario if comentario else None
             }
-            
+
             # Add reference if provided
             if ref_autor or ref_fuente:
                 pdf_concept_data["referencia"] = {
@@ -935,7 +942,7 @@ elif page == "➕ Add Concept":
                     "url": ref_url if ref_url else None,
                     "issbn": ref_issbn if ref_issbn else None
                 }
-            
+
             # Generate and open PDF
             generar_y_abrir_pdf_desde_formulario(pdf_concept_data)
     else:
@@ -944,60 +951,60 @@ elif page == "➕ Add Concept":
 # Edit Concept page
 elif page == "✏️ Edit Concept":
     st.title("✏️ Edit Mathematical Concept")
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     st.info(f"📊 Editing concepts in: **{current_db}**")
-    
+
     # Concept selection
     st.subheader("🔍 Select Concept to Edit")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         # Filter by source
         filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")))
-    
+
     with col2:
         # Filter by type
         filter_type = st.selectbox("Filter by Type", ["All"] + list(db.concepts.distinct("tipo")))
-    
+
     # Build query for concept selection
     query = {}
     if filter_source != "All":
         query["source"] = filter_source
     if filter_type != "All":
         query["tipo"] = filter_type
-    
+
     # Get concepts for selection
     concepts = list(db.concepts.find(query).sort("fecha_creacion", -1))
-    
+
     if not concepts:
         st.warning("⚠️ No concepts found with the selected filters.")
         st.stop()
-    
+
     # Create concept options for selection
     concept_options = []
     concept_map = {}
-    
+
     for concept in concepts:
         display_name = f"{concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})"
         concept_options.append(display_name)
         concept_map[display_name] = concept
-    
+
     # Concept selector
     selected_concept_display = st.selectbox(
         "Choose Concept to Edit",
         concept_options,
         help="Select the concept you want to edit"
     )
-    
+
     # Handle concept selection and data loading
     if selected_concept_display:
         selected_concept = concept_map[selected_concept_display]
-        
+
         # Check if concept has changed and update session state
         if ("last_selected_id" not in st.session_state or 
             st.session_state.last_selected_id != selected_concept["id"]):
@@ -1740,108 +1747,436 @@ elif page == "🔗 Manage Relations":
                 st.warning("No concepts found with selected filters")
                 hasta_id = ""
                 hasta_source = ""
-        
+
         # Relation details
         st.subheader("🔗 Relation Details")
-        
+
         col_rel_type, col_rel_desc = st.columns(2)
         with col_rel_type:
             tipo_relacion = st.selectbox("Relation Type", [t.value for t in TipoRelacion], key="new_rel_type")
         with col_rel_desc:
             descripcion = st.text_area("Description (Optional)", placeholder="Describe the relationship...", key="new_rel_desc")
-        
+
+        # -----------------------
+        # 🎓 Relation Tutor (educational guidance)
+        # -----------------------
+        if desde_id and hasta_id:
+            st.markdown("---")
+            st.subheader("🎓 Relation Tutor")
+            # Fetch full concept docs once (for cards + heuristics)
+            _from_doc = db.concepts.find_one({"id": desde_id, "source": desde_source}) or {}
+            _to_doc = db.concepts.find_one({"id": hasta_id, "source": hasta_source}) or {}
+
+            def _concept_label(doc: dict, fallback_id: str) -> str:
+                return doc.get("titulo") or doc.get("title") or fallback_id
+
+            def _node_key(cid: str, csource: str) -> str:
+                return f"{cid}@{csource}"
+            # A/B cards + relation notation
+            a_col, mid_col, b_col = st.columns([5, 2, 5])
+            with a_col:
+                st.markdown("**A (From)**")
+                st.markdown(
+                    f"""<div class="concept-card">
+                    <div style="font-size:1.05rem;font-weight:700">{_concept_label(_from_doc, desde_id)}</div>
+                    <div style="opacity:0.85;margin-top:0.25rem"><b>Type:</b> {_from_doc.get('tipo','—')} &nbsp;&nbsp; <b>Source:</b> {desde_source}</div>
+                    <div style="opacity:0.85;margin-top:0.25rem"><b>ID:</b> {desde_id}</div>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+            with mid_col:
+                st.markdown("**Relation**")
+                rel_symbol = {
+                    "equivalente": "≡",
+                    "implica": "⇒",
+                    "requiere_concepto": "↗",
+                    "deriva_de": "↩",
+                    "inspirado_en": "≈",
+                    "contrasta_con": "≠",
+                    "contradice": "⊥",
+                    "contra_ejemplo": "→/",
+                }.get(tipo_relacion, "→")
+                st.markdown(
+                    f"""<div class="metric-card" style="text-align:center">
+                    <div style="font-size:1.6rem;font-weight:800">{rel_symbol}</div>
+                    <div style="margin-top:0.25rem"><b>{tipo_relacion}</b></div>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+            with b_col:
+                st.markdown("**B (To)**")
+                st.markdown(
+                    f"""<div class="concept-card">
+                    <div style="font-size:1.05rem;font-weight:700">{_concept_label(_to_doc, hasta_id)}</div>
+                    <div style="opacity:0.85;margin-top:0.25rem"><b>Type:</b> {_to_doc.get('tipo','—')} &nbsp;&nbsp; <b>Source:</b> {hasta_source}</div>
+                    <div style="opacity:0.85;margin-top:0.25rem"><b>ID:</b> {hasta_id}</div>
+                    </div>""",
+                    unsafe_allow_html=True
+                )
+
+            # Heuristic warnings
+            warnings = []
+            a_key = _node_key(desde_id, desde_source)
+            b_key = _node_key(hasta_id, hasta_source)
+
+            _direct = db.relations.find_one({"desde": a_key, "hasta": b_key, "tipo": tipo_relacion})
+            _inverse = db.relations.find_one({"desde": b_key, "hasta": a_key, "tipo": tipo_relacion})
+
+            if _direct:
+                warnings.append(f"Direct relation exists: {_direct['desde']} --[{_direct['tipo']}]--> {_direct['hasta']}")
+            if _inverse:
+                warnings.append(f"Inverse relation exists: {_inverse['desde']} --[{_inverse['tipo']}]--> {_inverse['hasta']}")
+
+            if tipo_relacion == "equivalente":
+                if _from_doc.get("tipo") and _to_doc.get("tipo") and _from_doc.get("tipo") != _to_doc.get("tipo"):
+                    warnings.append("Equivalence across different concept types is often non-trivial. Document the bridge explicitly.")
+                if desde_source != hasta_source:
+                    warnings.append("Equivalence across different sources can indicate duplicates or parallel formulations. Add a short justification or reference.")
+
+            if tipo_relacion == "implica" and (_from_doc.get("tipo") == "nota" and _to_doc.get("tipo") in {"teorema", "proposicion", "corolario", "lema"}):
+                warnings.append("A 'nota' implying a formal statement can be valid, but usually requires explicit assumptions. Capture them in the proof sketch.")
+
+            for w in warnings:
+                st.warning(f"⚠️ {w}")
+
+            # Checklist
+            st.markdown("### ✅ Verification Checklist")
+
+            RELATION_CHECKLIST = {
+                "equivalente": {
+                    "definition": "Two concepts are equivalent when they define the same object/statement under compatible hypotheses, typically via A⇒B and B⇒A.",
+            "essential": [
+                "Same mathematical object/statement (up to notation or framework).",
+                "Hypotheses and scope are compatible (no hidden assumptions).",
+                "You can justify both directions (A⇒B and B⇒A), or cite a reliable reference.",
+            ],
+            "optional": [
+                "You can map notation/terminology from A to B explicitly.",
+                "You can explain why equivalence is pedagogically useful (deduplication or alternate viewpoint).",
+            ],},
+            "implica": {
+            "definition": "A implies B when, assuming A (and its hypotheses), B follows without adding extra assumptions beyond those stated.",
+            "essential": [
+                "You can state the implication A ⇒ B clearly.",
+                "No extra hypotheses are required beyond what is already in A (or you list them explicitly).",
+                "You can provide at least a short proof idea or reference.",
+            ],
+            "optional": [
+                "You can provide a counterexample showing why the reverse does not hold (if applicable).",
+            ],},
+            "requiere_concepto": {
+            "definition": "A requires B when understanding/using A depends on knowing B (B appears in the definition/proof/notation).",
+            "essential": [
+                "B appears in the definition/proof/notation of A, or is a prerequisite to parse it.",
+                "You can point to where B is used (section, line, or short description).",
+            ],
+            "optional": [
+                "You can suggest an order of study (B before A) in one sentence.",
+            ],},
+            
+            "deriva_de": {
+                "definition": "A derives from B when A is obtained as a specialization, reformulation, or construction based on B.",
+                "essential": ["You can explain how A is obtained from B (special case, restriction, construction, or reformulation).",],
+            "optional": ["You can specify what changes from B to A (hypotheses, notation, scope, or level of abstraction).",],},
+
+            "inspirado_en": {
+        "definition": "A is inspired by B when B motivated the ideas or approach of A, without strict logical dependence.",
+        "essential": [
+            "You can identify the idea, technique, or intuition from B that influenced A.",
+        ],
+        "optional": [
+            "You can explain why the relation is not 'implica' or 'equivalente'.",
+        ],
+    },
+
+    "contrasta_con": {
+        "definition": "A contrasts with B when they address similar topics but differ in assumptions, scope, or conclusions.",
+        "essential": [
+            "You can state at least one concrete conceptual difference between A and B.",
+        ],
+        "optional": [
+            "You can explain when one is preferable over the other.",
+        ],
+    },
+
+    "contradice": {
+    "definition": "A contradicts B when both cannot be true simultaneously under the same framework and compatible hypotheses.",
+    "essential": [
+        "You can state the conflicting claims precisely (what A asserts vs what B asserts).",
+        "You can specify the framework/definitions under which the contradiction holds (same meanings for terms).",
+        "You can point to the exact assumption(s) where the conflict arises, or cite a reliable reference.",
+    ],
+    "optional": [
+        "You can clarify whether the contradiction is absolute or only under certain hypotheses.",
+        "You can suggest how to resolve it (add a missing hypothesis, refine a definition, or restrict scope).",
+    ],},
+    "contra_ejemplo": {
+    "definition": "A is a counterexample to B when A shows that a general claim in B fails, typically by satisfying the stated hypotheses while violating the conclusion (or revealing a missing hypothesis).",
+    "essential": [
+        "You can state the claim in B that is being refuted (hypotheses ⇒ conclusion).",
+        "A satisfies the stated hypotheses (or you clearly explain which hypothesis is missing/incorrect in B).",
+        "A violates the conclusion, and you can explain why (brief argument or reference).",
+    ],
+    "optional": [
+        "You can indicate the minimal additional hypothesis needed to make B true.",
+        "You can provide a short intuition of why the claim fails and what it teaches.",
+    ], },
+    }
+            spec = RELATION_CHECKLIST.get(tipo_relacion, None)
+            if spec:
+                st.info(spec["definition"])
+                tutor_key = f"rel_tutor::{a_key}::{b_key}::{tipo_relacion}"
+
+                def _tri_state(label: str, key: str):
+                    return st.selectbox(label, ["✅ Sí", "🤔 No sé", "❌ No"], index=1, key=key)
+
+                essential_answers = []
+                for idx, crit in enumerate(spec["essential"]):
+                    essential_answers.append(_tri_state(f"Essential {idx+1}: {crit}", f"{tutor_key}::ess::{idx}"))
+
+                with st.expander("Optional checks", expanded=False):
+                    for idx, crit in enumerate(spec.get("optional", [])):
+                        _tri_state(f"Optional {idx+1}: {crit}", f"{tutor_key}::opt::{idx}")
+
+                # Semáforo
+                if any(a == "❌ No" for a in essential_answers):
+                    st.error("🔴 Quality: one or more essential criteria are not satisfied.")
+                elif all(a == "✅ Sí" for a in essential_answers):
+                    st.success("🟢 Quality: essential criteria satisfied.")
+                else:
+                    st.warning("🟡 Quality: some essential criteria are unknown. Consider adding evidence.")
+                # Plantilla de prueba
+                if tipo_relacion in {"equivalente", "implica"}:
+                    st.markdown("### ✍️ Proof / Justification Sketch")
+                    if tipo_relacion == "equivalente":
+                        st.text_area("A ⇒ B (idea / key steps)", key=f"{tutor_key}::proof::a_to_b", height=90)
+                        st.text_area("B ⇒ A (idea / key steps)", key=f"{tutor_key}::proof::b_to_a", height=90)
+                    else:
+                        st.text_area("A ⇒ B (idea / key steps)", key=f"{tutor_key}::proof::a_to_b", height=110)
+                        st.text_area("Extra hypotheses (if any)", key=f"{tutor_key}::proof::extra_hyp", height=70)
+                # Strict mode
+                strict_mode = st.checkbox("Strict mode (block saving unless essential criteria are ✅ Sí)", value=False, key=f"{tutor_key}::strict")
+                st.session_state["__rel_can_save__"] = (not strict_mode) or all(a == "✅ Sí" for a in essential_answers)
+            else:
+                st.caption("No tutor checklist is defined yet for this relation type. You can still add it, but consider documenting it in the description.")
+                st.session_state["__rel_can_save__"] = True
+        else:
+            st.session_state["__rel_can_save__"] = False
         # Visual preview of selected concepts
         if desde_id and hasta_id:
             st.markdown("---")
             st.subheader("👁️ Visual Preview")
-            
-            # Get the selected concepts for preview
+
             preview_concepts = []
             preview_relations = []
-            
+
+            a_key = f"{desde_id}@{desde_source}"
+            b_key = f"{hasta_id}@{hasta_source}"
+
             # Add both selected concepts
             desde_concept = db.concepts.find_one({"id": desde_id, "source": desde_source})
             hasta_concept = db.concepts.find_one({"id": hasta_id, "source": hasta_source})
-            
+
             if desde_concept:
                 preview_concepts.append(desde_concept)
             if hasta_concept:
                 preview_concepts.append(hasta_concept)
-            
-            # Add existing relations between these concepts
+
+            # Mini Camino B: 1-hop context
+            col_ctx1, col_ctx2 = st.columns([2, 3])
+            with col_ctx1:
+                include_context = st.checkbox(
+                    "Include context",
+                    value=True,
+                    key="rel_preview_context")
+            with col_ctx2:
+                preview_depth = st.slider(
+                    "Preview depth (hops)",
+                    min_value=1,
+                    max_value=3,
+                    value=1,
+                    step=1,
+                    disabled=not include_context,
+                    help="1 = neighbors, 2 = neighbors of neighbors, 3 = deeper context",
+                    key="rel_preview_depth"
+                )
+
+            if include_context:
+                ctx_relations = list(db.relations.find({
+                    "$or": [
+                         {"desde": a_key}, {"hasta": a_key},
+                          {"desde": b_key}, {"hasta": b_key},
+                    ]
+                }))
+                ctx_nodes = {a_key, b_key}
+                for rctx in ctx_relations:
+                    if rctx.get("desde"):
+                        ctx_nodes.add(rctx["desde"])
+                    if rctx.get("hasta"):
+                        ctx_nodes.add(rctx["hasta"])
+                existing_nodes = {(c.get("id"), c.get("source")) for c in preview_concepts}
+                for nk in sorted(ctx_nodes):
+                    try:
+                        cid, csrc = nk.split("@", 1)
+                    except ValueError:
+                        continue
+                    if (cid, csrc) in existing_nodes:
+                        continue
+                    doc = db.concepts.find_one({"id": cid, "source": csrc})
+                    if doc:
+                        preview_concepts.append(doc)
+                        existing_nodes.add((cid, csrc))
+
+                existing_triplets = {(r.get("desde"), r.get("hasta"), r.get("tipo")) for r in preview_relations}
+                for rctx in ctx_relations:
+                    trip = (rctx.get("desde"), rctx.get("hasta"), rctx.get("tipo"))
+                    if trip not in existing_triplets:
+                        preview_relations.append(rctx)
+                        existing_triplets.add(trip)
+            # Existing relations between A and B
             existing_relations = db.relations.find({
                 "$or": [
-                    {"desde": f"{desde_id}@{desde_source}", "hasta": f"{hasta_id}@{hasta_source}"},
-                    {"desde": f"{hasta_id}@{hasta_source}", "hasta": f"{desde_id}@{desde_source}"}
+                    {"desde": a_key, "hasta": b_key},
+                    {"desde": b_key, "hasta": a_key}
                 ]
             })
-            
             for rel in existing_relations:
                 preview_relations.append(rel)
-            
-            # Add the new relation being created (preview)
+
+            # Add new relation preview
             preview_relations.append({
-                "desde": f"{desde_id}@{desde_source}",
-                "hasta": f"{hasta_id}@{hasta_source}",
+                "desde": a_key,
+                "hasta": b_key,
                 "tipo": tipo_relacion,
                 "descripcion": descripcion
             })
-            
+
             # Generate mini preview graph
             if preview_concepts:
                 try:
                     with st.spinner("🔄 Generating preview..."):
                         # Debug: Show the data being used for preview
+
                         with st.expander("🔍 Debug: Preview Data", expanded=False):
-                            st.write("**Concepts:**")
-                            for concept in preview_concepts:
-                                st.write(f"- {concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})")
-                            
-                            st.write("**Relations:**")
-                            for rel in preview_relations:
-                                st.write(f"- {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}")
-                        
-                        preview_file = graph_manager.build_interactive_graph(
-                            concepts=preview_concepts,
-                            relations=preview_relations,
-                            selected_concept_id=desde_id,
-                            selected_concept_source=desde_source
-                        )
-                        
-                        # Debug: Verify the preview file was created
-                        import os
-                        if os.path.exists(preview_file):
-                            file_size = os.path.getsize(preview_file)
-                            #st.info(f"✅ Preview file created: {preview_file} (size: {file_size} bytes)")
-                            
-                            # Display mini graph
-                            #st.write("**Preview of the relation being created:**")
-                            graph_manager.render_graph_in_streamlit(
-                                graph_file=preview_file,
-                                concepts=preview_concepts,
-                                relations=preview_relations,
-                                selected_concept_id=desde_id,
-                                selected_concept_source=desde_source,
-                                unique_suffix="preview"
+                            # 1) Toggle de display
+                            display_mode = st.radio(
+                                "Show nodes/relations as:",
+                                ["Titles", "IDs", "Both"],
+                                horizontal=True,
+                                key="debug_display_mode"
                             )
-                            
-                            # Clean up preview file after a delay to ensure rendering
-                            import time
-                            time.sleep(0.5)  # Small delay to ensure rendering
-                            try:
-                                os.remove(preview_file)
-                                #st.info("✅ Preview file cleaned up")
-                            except Exception as cleanup_error:
-                                st.warning(f"⚠️ Could not cleanup preview file: {cleanup_error}")
-                        else:
-                            st.error(f"❌ Preview file was not created: {preview_file}")
-                
+
+                            # 2) Index para resolver id@source -> titulo
+                            def _node_key(cid: str, csrc: str) -> str:
+                                return f"{cid}@{csrc}"
+
+                            def _title(doc: dict) -> str:
+                                return doc.get("titulo") or doc.get("title") or doc.get("id", "—")
+
+                            concept_by_key = {}
+                            for c in preview_concepts:
+                                cid = c.get("id")
+                                csrc = c.get("source")
+                                if cid and csrc:
+                                    concept_by_key[_node_key(cid, csrc)] = c
+
+                            def _fmt_node(node_key: str) -> str:
+                                doc = concept_by_key.get(node_key, {})
+                                t = _title(doc)
+                                if display_mode == "Titles":
+                                    return t
+                                if display_mode == "IDs":
+                                    return node_key
+                                # Both
+                                return f"{t}  ({node_key})"
+
+                            # 3) Tabla amigable de conceptos
+                            st.markdown("**Concepts**")
+                            concept_rows = []
+                            for c in preview_concepts:
+                                node_key = _node_key(c.get("id",""), c.get("source",""))
+                                concept_rows.append({
+                                    "Title": _title(c),
+                                    "Type": c.get("tipo", "—"),
+                                    "Source": c.get("source", "—"),
+                                    "ID": c.get("id", "—"),
+                                    "NodeKey": node_key,})
+                            st.dataframe(concept_rows, use_container_width=True, hide_index=True)
+                            # 4) Tabla amigable de relaciones
+                            st.markdown("**Relations**")
+                            rel_rows = []
+                            for r in preview_relations:
+                                desde = r.get("desde","")
+                                hasta = r.get("hasta","")
+                                rel_rows.append({
+                                    "From": _fmt_node(desde) if "@" in desde else desde,
+                                    "Type": r.get("tipo","—"),
+                                    "To": _fmt_node(hasta) if "@" in hasta else hasta,
+                                    "FromKey": desde,
+                                    "ToKey": hasta,
+                                    })
+                            st.dataframe(rel_rows, use_container_width=True, hide_index=True)
+                            # 5) Export JSON (preview completo)
+                            import json
+                            export_payload = {
+                                "concepts": preview_concepts,
+                                "relations": preview_relations,
+                                 "meta": {
+                                     "from": {"id": desde_id, "source": desde_source},
+                                     "to": {"id": hasta_id, "source": hasta_source},
+                                     "new_relation": {"tipo": tipo_relacion, "descripcion": descripcion},
+                                     "include_1hop_context": st.session_state.get("rel_preview_context", False),
+                                 }
+                             }
+                            st.download_button(
+                                "⬇️ Export preview as JSON",
+                                data=json.dumps(
+                                    export_payload,
+                                    ensure_ascii=False,
+                                    indent=2,
+                                    default=str
+                                ),
+                                file_name="relation_preview.json",
+                                mime="application/json",
+                                key="download_preview_json")
+
+                        def _sanitize_mongo(doc: dict) -> dict:
+                            out = dict(doc)
+                            if "_id" in out:
+                                out["_id"] = str(out["_id"])
+                            return out
+
+                        concepts_clean = [_sanitize_mongo(c) for c in preview_concepts if c]
+                        relations_clean = [_sanitize_mongo(r) for r in preview_relations if r]
+
+                        grafo = GrafoConocimiento(concepts_clean, relations_clean)
+                        grafo.construir_grafo(
+                            tipos_relacion=list({r.get("tipo") for r in relations_clean if r.get("tipo")}),
+                            tipos_concepto=list({c.get("tipo") for c in concepts_clean if c.get("tipo")}),)
+
+                        preview_html_file = "relation_preview_graph.html"
+                        grafo.exportar_html(salida=preview_html_file)
+
+                        with open(preview_html_file, "r", encoding="utf-8") as f:
+                            html = f.read()
+                        st.download_button(
+                            label="⬇️ Download map (HTML)",
+                            data=html.encode("utf-8"),
+                            file_name="relation_preview_map.html",
+                            mime="text/html",
+                            key="download_preview_map_html",
+                        )
+                        components.html(html, height=650, scrolling=False)
+
                 except Exception as e:
                     st.error(f"❌ Could not generate preview: {e}")
                     st.exception(e)
-        
+        ###################################################################################################
         # Add relation button
-        if st.button("🔗 Add Relation", type="primary", key="add_rel_btn"):
+        can_save = st.session_state.get("__rel_can_save__", True)
+        if not can_save:
+            st.info("ℹ️ Strict mode is enabled and essential criteria are not all satisfied. Complete the checklist to enable saving.")
+        if st.button("🔗 Add Relation", type="primary", key="add_rel_btn", disabled=not can_save):
             if desde_id and desde_source and hasta_id and hasta_source:
                 if desde_id == hasta_id and desde_source == hasta_source:
                     st.error("❌ Cannot create relation from a concept to itself.")
@@ -1858,30 +2193,30 @@ elif page == "🔗 Manage Relations":
                         if relation:
                             st.success("✅ Relation added successfully!")
                             st.balloons()
-                            
+
                             # Auto-refresh the interactive graph if it exists
                             if hasattr(st.session_state, 'current_graph_file'):
                                 st.info("🔄 The interactive graph will be updated on next refresh.")
-                            
+
                         else:
                             st.error("❌ Failed to add relation. Check if both concepts exist.")
                     except Exception as e:
                         st.error(f"❌ Error adding relation: {e}")
             else:
                 st.error("❌ Please select both concepts.")
-        
+
         # Live Graph Viewer
-    
+
     with tab2:
         st.subheader("✏️ Edit Relations")
-        
+
         # Filter relations for editing
         col1, col2 = st.columns(2)
         with col1:
             edit_filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")), key="edit_source_filter")
         with col2:
             edit_filter_type = st.selectbox("Filter by Type", ["All"] + [t.value for t in TipoRelacion], key="edit_type_filter")
-        
+
         # Build query for relations to edit
         edit_query = {}
         if edit_filter_source != "All":
@@ -1891,23 +2226,23 @@ elif page == "🔗 Manage Relations":
             ]
         if edit_filter_type != "All":
             edit_query["tipo"] = edit_filter_type
-        
+
         edit_relations = list(db.relations.find(edit_query))
-        
+
         if edit_relations:
             st.write(f"**Found {len(edit_relations)} relations to edit:**")
-            
+
             for i, rel in enumerate(edit_relations):
                 with st.expander(f"Edit: {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}", expanded=False):
                     st.write(f"**Current Relation:** {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}")
-                    
+
                     # Get concept details for display
                     desde_parts = rel['desde'].split('@')
                     hasta_parts = rel['hasta'].split('@')
-                    
+
                     desde_concept = db.concepts.find_one({"id": desde_parts[0], "source": desde_parts[1]})
                     hasta_concept = db.concepts.find_one({"id": hasta_parts[0], "source": hasta_parts[1]})
-                    
+
                     col1, col2 = st.columns(2)
                     with col1:
                         st.write("**From Concept:**")
