@@ -12,3 +12,4 @@ rapidfuzz
 matplotlib
 pydantic
 bibtexparser
+streamlit-ace
