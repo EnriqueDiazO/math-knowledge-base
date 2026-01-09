@@ -1,0 +1,5 @@
+---
+title: "Notas"
+---
+
+Generated note pages will appear here.

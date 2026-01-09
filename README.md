@@ -47,6 +47,38 @@ Generated PDFs use **exactly the same style** as the existing exporter:
 
 ---
 
+### 📘 Book-Level Export with Quarto
+
+In addition to single-concept PDF generation, the project supports book-level exports using Quarto Book.
+
+Quarto is used to compile complete mathematical books from the knowledge base, allowing concepts to be organized into chapters and sections while preserving the same LaTeX visual identity.
+
+This enables:
+
+- Long-form mathematical documents
+
+- Research notes and lecture material
+
+- Thesis-style compilations
+
+### ⚙️ Quarto Installation (Mandatory, Script-Based)
+
+Quarto is not assumed to be installed on the system.
+
+To guarantee reproducibility, Quarto must be installed using the provided script:
+
+```bash
+scripts/install_quarto.sh
+```
+
+This script:
+
+- Downloads the official Quarto distribution
+
+- Installs it in a controlled manner
+
+- Verifies the installation with:
+
 ## 📦 Project Structure
 
 - `editor/` — Streamlit application for data entry and querying (includes PDF generation).
@@ -84,6 +116,14 @@ pip install -e .
 
 pdflatex --version
 
+# Instala Quarto usando el script oficial del proyecto
+bash scripts/install_quarto.sh
+
+# Verifica instalación
+quarto --version
+quarto check
+
+# Corremos la app
 make start
 make run
 ```

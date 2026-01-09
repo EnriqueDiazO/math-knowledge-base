@@ -1,12 +1,11 @@
+import urllib.parse
+
 import networkx as nx
 from pyvis.network import Network
-import math
-import urllib.parse
 
 
 class GrafoConocimiento:
-    """
-    Clase para construir y visualizar grafos de conocimiento
+    """Clase para construir y visualizar grafos de conocimiento
     usando los datos de MathMongo (conceptos + relaciones).
     """
 
