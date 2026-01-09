@@ -10,7 +10,6 @@
 % --------------------------------------------
 % Paquetes básicos
 % --------------------------------------------
-\RequirePackage[utf8]{inputenc}
 \RequirePackage[T1]{fontenc}
 \RequirePackage{lmodern}
 \RequirePackage[spanish]{babel}
@@ -25,7 +24,6 @@
 \RequirePackage{thmtools}          % interfaz avanzada para amsthm
 \RequirePackage{physics}
 \RequirePackage{tikz}
-\RequirePackage{dirtree}
 \RequirePackage{qtree}
 \RequirePackage{mathdots,yhmath,cancel,extarrows}
 \tikzset{every picture/.style={line width=.8pt}}
@@ -38,7 +36,29 @@
 \RequirePackage{xcolor}
 \RequirePackage{hyperref}
 \RequirePackage{dirtree}
+\RequirePackage{tikz-qtree}
 \RequirePackage{listings}
+
+% --------------------------------------------
+% Soporte de acentos en listings (UTF-8)
+% --------------------------------------------
+\lstset{
+  literate=
+   {á}{{\'a}}1
+   {é}{{\'e}}1
+   {í}{{\'i}}1
+   {ó}{{\'o}}1
+   {ú}{{\'u}}1
+   {Á}{{\'A}}1
+   {É}{{\'E}}1
+   {Í}{{\'I}}1
+   {Ó}{{\'O}}1
+   {Ú}{{\'U}}1
+   {ñ}{{\~n}}1
+   {Ñ}{{\~N}}1
+}
+
+
 % --------------------------------------------
 % Definir colores parar el código
 % --------------------------------------------
