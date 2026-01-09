@@ -70,7 +70,7 @@ book-preview:
 	cd $(BOOK_BUILD) && quarto preview
 
 book-render:
-	cd $(BOOK_BUILD) && quarto render
+	cd $(BOOK_BUILD) && quarto render --to pdf
 
 export-book:
 	$(PY3) scripts/export_quarto_book.py --output quarto_book_build --force

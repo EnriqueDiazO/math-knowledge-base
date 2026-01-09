@@ -11,10 +11,13 @@ from streamlit_ace import st_ace
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+from pathlib import Path
+
 import streamlit.components.v1 as components
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
 from exporters_latex.exportadorlatex import ExportadorLatex
+from exporters_quarto.quarto_exporter import QuartoBookExporter
 
 # Render preview graph using the same renderer as "Knowledge Graph"
 from mathdatabase.mathmongo import MathMongo
@@ -1604,26 +1607,90 @@ elif page == "📚 Browse Concepts":
     concepts = list(db.concepts.find(query).sort("fecha_creacion", -1))
     
     st.subheader(f"📊 Results ({len(concepts)} concepts)")
-    
+
+    # =========================
+    # Quarto Book Export (NEW)
+    # =========================
+    st.markdown("---")
+    st.subheader("📘 Export to Quarto Book")
+
+    # Build list of selectable IDs
+    concept_id_map = {
+        f"{c.get('titulo', c['id'])} [{c['tipo']}]": c["id"]
+        for c in concepts
+    }
+
+    selected_labels = st.multiselect(
+        "Select concepts to export",
+        options=list(concept_id_map.keys())
+    )
+
+
+    build_dir = st.text_input(
+        "Quarto build directory",
+        value="quarto_book_build"
+    )
+
+
+    force_build = st.checkbox(
+        "Overwrite existing build directory",
+        value=True
+    )
+
+    if st.button("🚀 Export selected concepts to Quarto"):
+        if not selected_labels:
+            st.warning("Please select at least one concept.")
+        else:
+            try:
+                from pathlib import Path
+
+                from exporters_quarto.quarto_exporter import QuartoBookExporter
+                from scripts.export_quarto_book import _write_book_quarto_yml
+                selected_ids = {concept_id_map[l] for l in selected_labels}
+                selected_concepts = []
+                for c in concepts:
+                    if c["id"] in selected_ids:
+                        latex_doc = db.latex_documents.find_one({"id": c["id"], "source": c["source"]})
+                        c2 = dict(c)  # copia para no mutar la lista base
+                        c2["contenido_latex"] = (latex_doc or {}).get("contenido_latex", "")
+                        selected_concepts.append(c2)
+
+                template_dir = Path("quarto_book").resolve()
+                build_path = Path(build_dir).resolve()
+
+                exporter = QuartoBookExporter(
+                    template_dir=template_dir,
+                    build_dir=build_path)
+
+                exporter.prepare_build(force=force_build)
+                exporter.export_concepts(selected_concepts)
+
+                _write_book_quarto_yml(build_path)
+
+                st.success(f"Quarto book exported to: {build_path}")
+                st.info("Next step: run `quarto render` inside that directory.")
+
+            except Exception as e:
+                st.error(f"Quarto export failed: {e}")
     if concepts:
         for concept in concepts:
             with st.expander(f"{concept.get('titulo', concept['id'])} ({concept['tipo']})"):
                 col1, col2 = st.columns([2, 1])
-                
+
                 with col1:
                     st.write(f"**ID:** {concept['id']}")
                     st.write(f"**Source:** {concept['source']}")
                     st.write(f"**Categories:** {', '.join(concept.get('categorias', []))}")
-                    
+
                     if concept.get('comentario'):
                         st.write(f"**Comment:** {concept['comentario']}")
-                    
+
                     # Show LaTeX content
                     latex_doc = db.latex_documents.find_one({"id": concept['id'], "source": concept['source']})
                     if latex_doc:
                         st.subheader("LaTeX Content")
                         st.code(latex_doc['contenido_latex'], language="latex")
-                
+
                 with col2:
                     # Actions
                     if st.button("📤 Export PDF", key=f"export_{concept['id']}"):
@@ -1633,7 +1700,7 @@ elif page == "📚 Browse Concepts":
                             st.success("PDF exported successfully!")
                         except Exception as e:
                             st.error(f"Export failed: {e}")
-                    
+
                     if st.button("🔗 View Relations", key=f"relations_{concept['id']}"):
                         relations = db.get_relations(desde_id=concept['id'], desde_source=concept['source'])
                         if relations:

@@ -6,6 +6,57 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to Semantic Versioning.
 
 ---
+## [Unreleased] — 2026-01-09
+
+### Added
+- Automated generation of `_quarto.yml` for Quarto Book exports, including:
+  - `format.html` with TOC and numbered sections
+  - `format.pdf` using `lualatex`
+  - Centralized LaTeX preamble via `include-in-header`
+- Explicit support for bibliography processing in Quarto Books:
+  - `bibliography: references.bib`
+  - `citeproc: true`
+- Robust custom LaTeX environment `algoritmo` for shell and code blocks:
+  - Safe handling of active characters (`>>`, `<<`) under `babel(spanish)`
+  - Consistent rendering using `tcolorbox` + `listings`
+- Enhanced syntax highlighting for code blocks:
+  - `bash`
+  - `python`
+  - Extensible to additional languages (e.g. C)
+- Dedicated Quarto installation script:
+  - `scripts/install_quarto.sh`
+  - Architecture-aware (`amd64`, `arm64`)
+  - Optional SHA256 verification
+  - Version-pinned installation for reproducible builds
+
+### Improved
+- Reliability of Quarto PDF builds by aligning generated `_quarto.yml`, LaTeX preamble, and export pipeline
+- Visual quality of code blocks in PDFs (improved colors, clearer token distinction)
+- Separation between mathematical environments (`definition`, `theorem`, etc.) and procedural/code environments (`algoritmo`, `lstlisting`)
+
+### Fixed
+- Quarto/Pandoc compilation failures caused by:
+  - Active characters in `babel(spanish)`
+  - Shell redirection operators (`>>`) inside code blocks
+- Missing or overwritten fields in auto-generated `_quarto.yml`
+- Undefined LaTeX environments in Quarto Book builds
+- Inconsistent bibliography resolution across generated chapters
+
+### Technical
+- `_write_book_quarto_yml` now emits a complete and explicit Quarto configuration
+- Improved diagnosability of LaTeX errors caused by symbol-level typos (e.g. `\apha` vs `\alpha`)
+- Established a single source of truth for Quarto configuration and LaTeX styling
+
+### Documentation
+- Updated README to require Quarto installation via `scripts/install_quarto.sh`
+- Added explicit warnings about LaTeX symbol typos that can break Quarto builds
+
+### Design Notes
+- Quarto Book export is treated as a first-class build target
+- LaTeX correctness is enforced as a hard requirement
+- Minor LaTeX symbol errors can invalidate the entire build and must be carefully reviewed
+
+---
 
 ## [Unreleased] — 2026-01-08
 

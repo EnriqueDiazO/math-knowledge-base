@@ -17,3 +17,13 @@ format:
   html:
     toc: true
     number-sections: true
+
+  pdf:
+    documentclass: scrreprt
+    number-sections: true
+    header-includes:
+      - \input{styles/latex-preamble.tex}
+
+bibliography: references.bib
+citeproc: true
+

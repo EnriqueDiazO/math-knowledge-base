@@ -25,9 +25,7 @@
 \RequirePackage{thmtools}          % interfaz avanzada para amsthm
 \RequirePackage{physics}
 \RequirePackage{tikz}
-\RequirePackage{dirtree}
-\RequirePackage{qtree}
-\RequirePackage{mathdots,yhmath,cancel,extarrows}
+\RequirePackage{mathdots,cancel,extarrows}
 \tikzset{every picture/.style={line width=.8pt}}
 
 % --------------------------------------------
@@ -38,6 +36,7 @@
 \RequirePackage{xcolor}
 \RequirePackage{hyperref}
 \RequirePackage{dirtree}
+\RequirePackage{qtree}
 \RequirePackage{listings}
 % --------------------------------------------
 % Definir colores parar el código
@@ -50,14 +49,11 @@
 % --------------------------------------------
 % Secciones
 % --------------------------------------------
-\RequirePackage{titlesec}
-\titleformat{\section}
-  {\large\bfseries\sffamily\color{blue}}{\thesection}{.5em}{}
 
 % --------------------------------------------
 %  Cajas de teorema (coloredtheorem+tcolorbox)
 % --------------------------------------------
-\RequirePackage{coloredtheorem}
+\RequirePackage{styles/coloredtheorem}
 
 % --- estilo “miestilo” (sin sombreado clásico) ---
 \declaretheoremstyle[
@@ -69,25 +65,56 @@
 
 % --- estilo “de código” (sin sombreado clásico) ---
 \lstdefinestyle{mystyle}{
-    backgroundcolor=\color{backcolour},   
-    commentstyle=\color{codegreen},
-    keywordstyle=\color{magenta},
-    numberstyle=\tiny\color{codegray},
-    stringstyle=\color{codepurple},
-    basicstyle=\ttfamily\footnotesize,
-    breakatwhitespace=false,         
-    breaklines=true,                 
-    captionpos=b,                    
-    keepspaces=true,                 
-    numbers=left,                    
-    numbersep=5pt,                  
-    showspaces=false,                
-    showstringspaces=false,
-    showtabs=false,                  
-    tabsize=2
+  backgroundcolor=\color{backcolour},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{magenta}\bfseries,
+  keywordstyle=[2]\color{blue},
+  commentstyle=\color{codegreen}\itshape,
+  stringstyle=\color{codepurple},
+  numberstyle=\tiny\color{codegray},
+  numbers=left,
+  numbersep=6pt,
+  showstringspaces=false,
+  showspaces=false,
+  showtabs=false,
+  tabsize=2,
+  breaklines=true,
+  breakatwhitespace=false,
+  upquote=true,
+  frame=single,
+  rulecolor=\color{black!30}
 }
 
+
 \lstset{style=mystyle}
+\lstdefinelanguage{bash}{
+  sensitive=true,
+  morekeywords={cd,ls,mkdir,rm,cp,mv,cat,echo,grep,sed,awk,find,chmod,chown,export,source,printf,python,pip,poetry,quarto,mkdocs},
+  morecomment=[l]{\#},
+  morestring=[b]"
+}
+% --------------------------------------------
+% Lenguaje Python para listings
+% --------------------------------------------
+\lstdefinelanguage{python}{
+  sensitive=true,
+  morekeywords={
+    False,None,True,and,as,assert,async,await,break,
+    class,continue,def,del,elif,else,except,finally,
+    for,from,global,if,import,in,is,lambda,nonlocal,
+    not,or,pass,raise,return,try,while,with,yield
+  },
+  morekeywords=[2]{
+    int,float,str,bool,list,dict,set,tuple,
+    print,len,range,enumerate,zip,map,filter,
+    open,input,type,isinstance
+  },
+  morecomment=[l]{\#},
+  morestring=[b]',
+  morestring=[b]",
+}
+
+
 
 % --- cajas con tcolorbox a través de coloredtheorem ---
 %   (colores: azul para definiciones, rojo para teoremas,
@@ -126,3 +153,62 @@
 \let\endexample  \endcthejemplo
 \let\remark      \cthnota
 \let\endremark   \endcthnota
+
+
+% --------------------------------------------
+% Wrappers para soportar entornos EN inglés
+% (porque tu contenido usa \begin{definition}...)
+% --------------------------------------------
+% --------------------------------------------
+% Wrappers para soportar entornos en inglés
+% (tu contenido usa \begin{definition}...)
+% --------------------------------------------
+\makeatletter
+\@ifundefined{definition}{\newenvironment{definition}{\begin{definicion}}{\end{definicion}}}{}
+\@ifundefined{theorem}{\newenvironment{theorem}{\begin{teorema}}{\end{teorema}}}{}
+\@ifundefined{corollary}{\newenvironment{corollary}{\begin{corolario}}{\end{corolario}}}{}
+\@ifundefined{lemma}{\newenvironment{lemma}{\begin{lema}}{\end{lema}}}{}
+\@ifundefined{proposition}{\newenvironment{proposition}{\begin{proposicion}}{\end{proposicion}}}{}
+\@ifundefined{example}{\newenvironment{example}{\begin{ejemplo}}{\end{ejemplo}}}{}
+\@ifundefined{remark}{\newenvironment{remark}{\begin{nota}}{\end{nota}}}{}
+\@ifundefined{observation}{\newenvironment{observation}{\begin{observacion}}{\end{observacion}}}{}
+\makeatother
+
+
+% --------------------------------------------
+% Entorno algoritmo (simple, robusto)
+% Pandoc lo usa como: \begin{algoritmo}[language=bash]{Titulo} ... \end{algoritmo}
+% --------------------------------------------
+% --- Algoritmos / bloques de código (robusto para Pandoc/Quarto) ---
+\RequirePackage{xparse}
+\RequirePackage{listings}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{listings,breakable,skins}
+
+\NewDocumentEnvironment{algoritmo}{O{} m}{
+  \begingroup
+  \shorthandoff{<>} % <- CLAVE: desactiva << >> de babel (spanish)
+  \begin{tcolorbox}[
+    enhanced,
+    breakable,
+    listing only,
+    listing engine=listings,
+    % ---- COLORES ----
+    colback=blue!2,                 % fondo suave
+    colframe=blue!15!black,         % borde
+    coltitle=white,                 % texto del título
+    fonttitle=\bfseries,
+    title={#2},
+    listing options={
+      style=mystyle,
+      breaklines=true,
+      upquote=true,
+      #1
+    }
+  ]
+}{
+  \end{tcolorbox}
+  \endgroup
+}
+
+

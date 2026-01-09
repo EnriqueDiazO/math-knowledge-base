@@ -86,6 +86,15 @@ def _write_book_quarto_yml(output_dir: Path) -> None:
     yml.append("    toc: true")
     yml.append("    number-sections: true")
     yml.append("")
+    yml.append("  pdf:")
+    yml.append("    pdf-engine: lualatex")
+    yml.append("    include-in-header:")
+    yml.append("      - styles/latex-preamble.tex")
+    yml.append("")
+    yml.append("bibliography: references.bib")
+    yml.append("citeproc: true")
+    yml.append("")
+
 
     (output_dir / "_quarto.yml").write_text("\n".join(yml), encoding="utf-8")
 
