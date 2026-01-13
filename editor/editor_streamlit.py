@@ -104,6 +104,59 @@ def _parse_bibtex(file_bytes: bytes) -> list[dict]:
     return db.entries or []
 # ---------------------------------------------------------
 
+def _normalize_ref_dict(ref: dict) -> dict:
+    """
+    Normaliza la referencia para soportar:
+    - esquema nuevo: tipo_referencia, issbn
+    - esquema viejo: tipo, isbn
+    - citekey opcional
+    """
+    if not isinstance(ref, dict):
+        return {}
+
+    # soporta ambos nombres de campo
+    tipo = ref.get("tipo_referencia") or ref.get("tipo")
+    issbn = ref.get("issbn") or ref.get("isbn")  # tu modelo usa issbn
+
+    out = dict(ref)
+    if tipo is not None:
+        out["tipo_referencia"] = tipo
+    if issbn is not None:
+        out["issbn"] = issbn
+
+    return out
+
+
+def load_last_reference_by_source(db, source: str) -> dict | None:
+    """
+    Busca el último concepto (fecha_creacion DESC) del mismo source
+    que tenga un campo 'referencia' utilizable.
+    """
+    if not source or not isinstance(source, str) or not source.strip():
+        return None
+
+    query = {
+        "source": source,
+        "referencia": {"$exists": True, "$ne": None},
+    }
+    projection = {"referencia": 1, "id": 1, "titulo": 1, "fecha_creacion": 1, "_id": 0}
+
+    doc = db.concepts.find_one(query, projection=projection, sort=[("fecha_creacion", -1)])
+    if not doc:
+        return None
+
+    ref = _normalize_ref_dict(doc.get("referencia") or {})
+    # “utilizable” = al menos autor o fuente o citekey (ajústalo si quieres)
+    if not (ref.get("autor") or ref.get("fuente") or ref.get("citekey")):
+        return None
+
+    # (opcional) Adjunta metadatos para debug
+    ref["__from_concept_id"] = doc.get("id")
+    ref["__from_concept_title"] = doc.get("titulo")
+    ref["__from_concept_date"] = doc.get("fecha_creacion")
+
+    return ref
+
 
 
 # Page configuration
@@ -447,7 +500,58 @@ elif page == "➕ Add Concept":
     col1, col2 = st.columns(2)
     with col1:
         concept_id = st.text_input("ID", placeholder="e.g., def:grupo_001", help="Unique identifier for the concept")
-        source = st.text_input("Source", placeholder="e.g., BookA", help="Source or folder name")
+
+        try:
+            existing_sources = db.concepts.distinct("source")
+            existing_sources = sorted([s for s in existing_sources if isinstance(s, str) and s.strip()], key=lambda x: x.lower())
+        except Exception:
+            existing_sources = []
+
+        source_choice = st.selectbox(
+            "Source",
+            ["(Custom...)"] + existing_sources,
+            help="Pick an existing source to avoid duplicates like 'Python' vs 'python'. Choose (Custom...) to type a new one.")
+        if source_choice == "(Custom...)":
+            source = st.text_input("New source name", placeholder="e.g., ProGit2024")
+        else:
+            source = source_choice
+        
+        if source:
+            try:
+                docs = list(
+                    db.concepts.find({"source": source},{"id": 1, "titulo": 1, "_id": 0}))
+                    # Normaliza y ordena por id
+                items = sorted(
+                        [
+                            {"id": d.get("id", "").strip(),
+                             "titulo": (d.get("titulo") or "").strip()}
+                            for d in docs
+                            if isinstance(d.get("id"), str)
+                        ],
+                        key=lambda x: x["id"]
+                )
+            except Exception:
+                items = []
+            
+            st.markdown("#### Existing IDs for this source")
+            if items:
+                show_n = 50
+                lines = []
+                for it in items[-show_n:]:
+                    if it["titulo"]:
+                        lines.append(f"{it['id']}  —  {it['titulo']}")
+                    else:
+                        lines.append(f"{it['id']}")
+                text = "\n".join(lines)
+                st.text_area(
+        "Existing IDs (latest 10)",
+        value="\n".join(lines),
+        height=220,
+        disabled=True,
+        label_visibility="collapsed"
+    )
+            else:
+                st.caption("No concepts yet for this source.")
 
     with col2:
         titulo = st.text_input("Title (Optional)", placeholder="e.g., Definition of Group")
@@ -732,6 +836,7 @@ elif page == "➕ Add Concept":
     ###----
 
     # Algorithm section
+
     st.subheader("⚙️ Algorithm Information")
     col1, col2 = st.columns(2)
     with col1:
@@ -740,8 +845,45 @@ elif page == "➕ Add Concept":
         if es_algoritmo:
             pasos_algoritmo = st.text_area("Algorithm Steps", placeholder="Enter algorithm steps...")
 
-    # Reference information
     st.subheader("📚 Reference Information")
+    if st.button("📋 Cargar referencia del concepto anterior", key="load_prev_ref"):
+        try:
+            ref = load_last_reference_by_source(db, source)
+            if not ref:
+                st.warning(f"⚠️ No se encontró ninguna referencia previa para el source: {source!r}")
+            else:
+                # Poblar session_state (Add Concept usa claves edit_ref_*)
+                st.session_state["edit_ref_tipo"] = ref.get("tipo_referencia", st.session_state.get("edit_ref_tipo", "libro"))
+                st.session_state["edit_ref_autor"] = ref.get("autor", "") or ""
+                st.session_state["edit_ref_fuente"] = ref.get("fuente", "") or ""
+                st.session_state["edit_ref_anio"] = ref.get("anio", 2024) or 2024
+                st.session_state["edit_ref_tomo"] = ref.get("tomo", "") or ""
+                st.session_state["edit_ref_edicion"] = ref.get("edicion", "") or ""
+                st.session_state["edit_ref_paginas"] = ref.get("paginas", "") or ""
+                st.session_state["edit_ref_capitulo"] = ref.get("capitulo", "") or ""
+                st.session_state["edit_ref_seccion"] = ref.get("seccion", "") or ""
+                st.session_state["edit_ref_editorial"] = ref.get("editorial", "") or ""
+                st.session_state["edit_ref_doi"] = ref.get("doi", "") or ""
+                st.session_state["edit_ref_url"] = ref.get("url", "") or ""
+                st.session_state["edit_ref_issbn"] = ref.get("issbn", "") or ""
+                st.session_state["edit_ref_citekey"] = ref.get("citekey", "") or ""
+
+                # Debug opcional (puedes quitarlo)
+                with st.expander("Debug (loaded from last concept)", expanded=False):
+                    st.write({
+                    "from_id": ref.get("__from_concept_id"),
+                    "from_title": ref.get("__from_concept_title"),
+                    "from_date": ref.get("__from_concept_date"),
+                })
+
+                st.success("✅ Referencia cargada desde el último concepto de este source. Puedes editar los campos.")
+                st.rerun()
+        except Exception as e:
+            st.error(f"❌ Error cargando referencia previa: {e}")
+
+
+    
+
     with st.expander("Add / Edit Reference", expanded=False):
         # --- Carga opcional de BibTeX ---
         st.write("Opcional: cargar desde un archivo BibTeX")
@@ -798,8 +940,8 @@ elif page == "➕ Add Concept":
             ref_fuente = st.text_input("Source/Title", key="edit_ref_fuente")
             ref_anio = st.number_input(
                     "Year",
-                    min_value=1800, max_value=2030,
-                    value=st.session_state.get("edit_ref_anio", 2024),
+                    min_value=1800, max_value=3000,
+                    value=st.session_state.get("edit_ref_anio"),
                     key="edit_ref_anio"
                 )
 
@@ -868,7 +1010,8 @@ elif page == "➕ Add Concept":
                     "comentario": comentario if comentario else None,
                     "source": source,
                     "fecha_creacion": datetime.now(),
-                    "ultima_actualizacion": datetime.now()
+                    "ultima_actualizacion": datetime.now(),
+                    "citekey": st.session_state.get("edit_ref_citekey") or None,
                 }
 
                 # Add reference if provided
