@@ -117,55 +117,86 @@ st.set_page_config(
 # Custom CSS for better styling
 st.markdown("""
 <style>
+    :root {
+        --bg: #0B0F19;
+        --panel: #111827;
+        --panel-2: #0F172A;
+        --border: #243244;
+        --text: #E5E7EB;
+        --muted: #9CA3AF;
+        --accent: #60A5FA;
+        --good: #22C55E;
+        --bad: #EF4444;
+    }
+
     .main-header {
         font-size: 3rem;
         font-weight: bold;
-        color: #1f77b4;
+        color: var(--text);
         text-align: center;
         margin-bottom: 2rem;
     }
+
+    /* Cards */
     .metric-card {
-        background-color: #f0f2f6;
+        background-color: var(--panel);
+        color: var(--text);
         padding: 1rem;
-        border-radius: 0.5rem;
-        border-left: 4px solid #1f77b4;
+        border-radius: 0.75rem;
+        border-left: 4px solid var(--accent);
+        border: 1px solid var(--border);
     }
+
     .concept-card {
-        background-color: white;
+        background-color: var(--panel);
+        color: var(--text);
         padding: 1.5rem;
-        border-radius: 0.5rem;
-        border: 1px solid #e0e0e0;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
         margin-bottom: 1rem;
-        box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        box-shadow: none;
     }
+
     .latex-preview {
-        background-color: #f8f9fa;
+        background-color: #0B1220;
+        color: var(--text);
         padding: 1rem;
-        border-radius: 0.5rem;
-        border: 1px solid #dee2e6;
-        font-family: 'Courier New', monospace;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        font-family: monospace;
     }
+
+    .db-connection-card {
+        background-color: #0B1220;
+        color: var(--text);
+        padding: 1rem;
+        border-radius: 0.75rem;
+        border: 1px solid var(--border);
+        margin-bottom: 1rem;
+    }
+
+    .db-status-connected {
+        color: var(--good);
+        font-weight: bold;
+    }
+
+    .db-status-disconnected {
+        color: var(--bad);
+        font-weight: bold;
+    }
+
+    /* Buttons */
     .stButton > button {
         width: 100%;
-        border-radius: 0.5rem;
+        border-radius: 0.75rem;
+        background: var(--panel);
+        color: var(--text);
+        border: 1px solid var(--border);
     }
-    .sidebar .sidebar-content {
-        background-color: #f8f9fa;
-    }
-    .db-connection-card {
-        background-color: #e8f4fd;
-        padding: 1rem;
-        border-radius: 0.5rem;
-        border: 2px solid #1f77b4;
-        margin-bottom: 1rem;
-    }
-    .db-status-connected {
-        color: #28a745;
-        font-weight: bold;
-    }
-    .db-status-disconnected {
-        color: #dc3545;
-        font-weight: bold;
+
+    /* Sidebar fix (you were forcing light) */
+    [data-testid="stSidebar"] {
+        background-color: var(--panel-2);
     }
 </style>
 """, unsafe_allow_html=True)

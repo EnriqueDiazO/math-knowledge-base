@@ -84,6 +84,7 @@ exportados/*.pdf
 exportados/*.tex
 
 # ───── Directorios de salida ─────
+exported/
 exportados/
 test/output/
 
