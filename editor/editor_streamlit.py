@@ -1722,25 +1722,42 @@ elif page == "✏️ Edit Concept":
                 st.rerun()
         
         with col3:
-            if st.button("🗑️ Delete Concept"):
-                if st.button("⚠️ Confirm Delete", key="confirm_delete_edit"):
-                    try:
-                        # Delete concept and LaTeX content
-                        db.concepts.delete_one({"id": selected_concept['id'], "source": selected_concept['source']})
-                        db.latex_documents.delete_one({"id": selected_concept['id'], "source": selected_concept['source']})
-                        
-                        # Delete related relations
-                        db.relations.delete_many({
-                            "$or": [
-                                {"desde": f"{selected_concept['id']}@{selected_concept['source']}"},
-                                {"hasta": f"{selected_concept['id']}@{selected_concept['source']}"}
-                            ]
-                        })
-                        
-                        st.success("✅ Concept deleted successfully!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error deleting concept: {e}")
+            # Persistent delete confirmation (Streamlit buttons are one-shot per rerun)
+            if "delete_armed_edit" not in st.session_state:
+                st.session_state["delete_armed_edit"] = False
+
+            if st.button("🗑️ Delete Concept", key="delete_edit"):
+                st.session_state["delete_armed_edit"] = True
+
+            if st.session_state["delete_armed_edit"]:
+                st.warning("⚠️ This will permanently delete the concept and related data.")
+                col_del_1, col_del_2 = st.columns(2)
+
+                with col_del_1:
+                    if st.button("⚠️ Confirm Delete", key="confirm_delete_edit"):
+                        try:
+                            # Delete concept and LaTeX content
+                            db.concepts.delete_one({"id": selected_concept['id'], "source": selected_concept['source']})
+                            db.latex_documents.delete_one({"id": selected_concept['id'], "source": selected_concept['source']})
+
+                            # Delete related relations
+                            db.relations.delete_many({
+                                "$or": [
+                                    {"desde": f"{selected_concept['id']}@{selected_concept['source']}"},
+                                    {"hasta": f"{selected_concept['id']}@{selected_concept['source']}"}
+                                ]
+                            })
+
+                            st.session_state["delete_armed_edit"] = False
+                            st.success("✅ Concept deleted successfully!")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error deleting concept: {e}")
+
+                with col_del_2:
+                    if st.button("Cancel", key="cancel_delete_edit"):
+                        st.session_state["delete_armed_edit"] = False
+                        st.info("Deletion cancelled.")
 
 # Browse Concepts page
 elif page == "📚 Browse Concepts":
@@ -1811,6 +1828,13 @@ elif page == "📚 Browse Concepts":
         value=True
     )
 
+    # MVP-B: LaTeX preflight (pdflatex compile check) before export
+    preflight_compile = st.checkbox(
+        "Preflight LaTeX (pdflatex compile check) before export",
+        value=True,
+        help="Compiles each selected concept with pdflatex + miestilo.sty. Blocks export on fatal errors."
+    )
+
     if st.button("🚀 Export selected concepts to Quarto"):
         if not selected_labels:
             st.warning("Please select at least one concept.")
@@ -1828,6 +1852,97 @@ elif page == "📚 Browse Concepts":
                         c2 = dict(c)  # copia para no mutar la lista base
                         c2["contenido_latex"] = (latex_doc or {}).get("contenido_latex", "")
                         selected_concepts.append(c2)
+
+                # --- MVP-B: LaTeX preflight (pdflatex compile check) ---
+                if preflight_compile:
+                    import shutil
+                    import subprocess
+                    import tempfile
+
+                    if not shutil.which("pdflatex"):
+                        raise RuntimeError(
+                            "pdflatex not found. Install TeX Live (texlive-latex-base) or disable the preflight checkbox."
+                        )
+
+                    #miestilo_src = Path("templates_latex/miestilo.sty")
+                    #if not miestilo_src.exists():
+                    quarto_styles_dir = Path("quarto_book/styles")
+                    miestilo_src = quarto_styles_dir / "miestilo.sty"
+                    if not miestilo_src.exists():
+                        raise FileNotFoundError(
+                            "miestilo.sty not found in templates_latex/ or quarto_book/styles/"
+                        )
+
+                    #coloredtheorem_src = Path("templates_latex/coloredtheorem.sty")
+                    #if not coloredtheorem_src.exists():
+                    coloredtheorem_src = quarto_styles_dir / "coloredtheorem.sty"
+                    if not coloredtheorem_src.exists():
+                        raise FileNotFoundError(
+                            "coloredtheorem.sty not found in templates_latex/ or quarto_book/styles/"
+                        )
+
+
+                    failures: list[tuple[str, str, str]] = []
+                    progress = st.progress(0, text="Preflight LaTeX: compiling selected concepts...")
+                    total = max(1, len(selected_concepts))
+
+                    for idx, c in enumerate(selected_concepts, start=1):
+                        latex_body = (c.get("contenido_latex") or "").strip()
+                        # Empty LaTeX content is treated as OK (non-blocking)
+                        if not latex_body:
+                            progress.progress(int(idx * 100 / total))
+                            continue
+
+                        with tempfile.TemporaryDirectory(prefix="mkb_preflight_") as td:
+                            td_path = Path(td)
+                            shutil.copy2(miestilo_src, td_path / "miestilo.sty")
+                            (td_path / "styles").mkdir(parents=True, exist_ok=True)
+                            shutil.copy2(coloredtheorem_src, td_path / "styles" / "coloredtheorem.sty")
+
+                            tex = (
+                                "\\documentclass{article}\n"
+                                "\\usepackage{miestilo}\n"
+                                "\\begin{document}\n"
+                                + latex_body
+                                + "\n\\end{document}\n"
+                            )
+                            (td_path / "main.tex").write_text(tex, encoding="utf-8")
+
+                            proc = subprocess.run(
+                                [
+                                    "pdflatex",
+                                    "-interaction=nonstopmode",
+                                    "-halt-on-error",
+                                    "-file-line-error",
+                                    "main.tex",
+                                ],
+                                cwd=str(td_path),
+                                stdout=subprocess.PIPE,
+                                stderr=subprocess.STDOUT,
+                                text=True,
+                                encoding="utf-8",
+                                errors="replace",
+                                timeout=25,
+                            )
+
+                            if proc.returncode != 0:
+                                log = proc.stdout or ""
+                                tail = "\n".join(log.splitlines()[-80:])
+                                key = f"{c.get('id')}@{c.get('source')}"
+                                failures.append((key, str(c.get("titulo") or ""), tail))
+
+                        progress.progress(int(idx * 100 / total))
+
+                    progress.empty()
+                    if failures:
+                        st.error(
+                            f"❌ LaTeX preflight failed for {len(failures)} concept(s). Export blocked."
+                        )
+                        for key, title, tail in failures:
+                            with st.expander(f"Preflight error: {title or key}"):
+                                st.code(tail)
+                        st.stop()
+                # --- end MVP-B ---
 
                 template_dir = Path("quarto_book").resolve()
                 build_path = Path(build_dir).resolve()
