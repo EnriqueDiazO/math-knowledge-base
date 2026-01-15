@@ -17,9 +17,7 @@ import yaml
 # Helpers
 # -----------------------------
 def _slug(s: str) -> str:
-    """
-    Normalize a string into a filesystem-friendly slug.
-    """
+    """Normalize a string into a filesystem-friendly slug."""
     s = (s or "").strip().lower()
     s = re.sub(r"[^\w\s-]", "", s, flags=re.UNICODE)
     s = re.sub(r"[\s_-]+", "-", s, flags=re.UNICODE)
@@ -27,9 +25,7 @@ def _slug(s: str) -> str:
 
 
 def _safe_title(concept: Dict[str, Any]) -> str:
-    """
-    Prefer titulo; fallback to Tipo (ID).
-    """
+    """Prefer titulo; fallback to Tipo (ID)."""
     t = (concept.get("titulo") or "").strip()
     if t:
         return t
@@ -40,8 +36,7 @@ def _safe_title(concept: Dict[str, Any]) -> str:
 
 
 def _route(concept: Dict[str, Any]) -> Path:
-    """
-    Map concept types into your Quarto Book folder structure.
+    """Map concept types into your Quarto Book folder structure.
     Normalizes unknown types to avoid weird folder names.
     """
     tipo = (concept.get("tipo") or "").strip().lower()
@@ -56,9 +51,8 @@ def _route(concept: Dict[str, Any]) -> Path:
 
 
 def _file_stem(concept: Dict[str, Any]) -> str:
-    """
-    File name stem that avoids collisions:
-    <slug(title)>-<slug(id)>
+    """File name stem that avoids collisions:
+    <slug(title)>-<slug(id)>.
     """
     title = _safe_title(concept)
     cid = str(concept.get("id") or "").strip()
@@ -78,11 +72,93 @@ def _bib_escape(s: str) -> str:
     s = s.replace("^", "\\textasciicircum{}")
     return s
 
+
+_CITEKEY_RE = re.compile(r"^[A-Za-z][A-Za-z0-9:_-]{0,79}$")
+
+
+def _valid_citekey(key: str) -> bool:
+    key = (key or "").strip()
+    return bool(_CITEKEY_RE.match(key))
+
+
+def _normalize_ref(ref: Dict[str, Any]) -> Dict[str, Any]:
+    """Minimal normalization for reference dictionaries.
+
+    Supports legacy keys and fills a few missing fields so exporters are stable.
+    """
+    if not isinstance(ref, dict):
+        return {}
+
+    out = dict(ref)
+    # Legacy compatibility
+    if not out.get("tipo_referencia") and out.get("tipo"):
+        out["tipo_referencia"] = out.get("tipo")
+    if not out.get("isbn") and out.get("issbn"):
+        out["isbn"] = out.get("issbn")
+
+    # Normalize basic string fields
+    for k in [
+        "tipo_referencia",
+        "autor",
+        "fuente",
+        "titulo",
+        "editorial",
+        "anio",
+        "isbn",
+        "doi",
+        "url",
+        "paginas",
+        "capitulo",
+        "seccion",
+    ]:
+        if k in out and out[k] is not None:
+            out[k] = str(out[k]).strip()
+
+    return out
+
+def _sanitize_locator(loc: str) -> str:
+    """Make locator safe to embed inside a Pandoc citation suffix.
+
+    Minimal: remove newlines and prevent ']' from breaking the markdown citation.
+    """
+    loc = (loc or "").replace("\n", " ").replace("\r", " ").strip()
+    if not loc:
+        return ""
+    return loc.replace("]", ")")
+
+
+
+def _locator_from_ref(ref: Dict[str, Any]) -> str:
+    """Build a Pandoc/Quarto locator string from context fields.
+
+    Example: "pp. 10-12; chap. 3; sec. 2.1"
+    """
+    loc_parts: list[str] = []
+
+    paginas = (ref.get("paginas") or "").strip()
+    if paginas:
+        loc_parts.append(f"pp. {paginas}")
+
+    capitulo = (ref.get("capitulo") or "").strip()
+    if capitulo:
+        loc_parts.append(f"chap. {capitulo}")
+
+    seccion = (ref.get("seccion") or "").strip()
+    if seccion:
+        loc_parts.append(f"sec. {seccion}")
+
+    return _sanitize_locator("; ".join(loc_parts))
+
 def _bib_key_for_ref(ref: Dict[str, Any], fallback: str) -> str:
-    base = (
-        f"{ref.get('autor','')}_{ref.get('anio','')}_"
-        f"{ref.get('titulo','') or ref.get('fuente','')}_{fallback}"
-    )
+    """Generate a stable citation key based on reference metadata.
+
+    Fallback is used only when metadata is missing.
+    """
+    autor = (ref.get("autor") or "").strip()
+    anio = (ref.get("anio") or "").strip()
+    titleish = (ref.get("titulo") or ref.get("fuente") or "").strip()
+
+    base = f"{autor}_{anio}_{titleish}"
     key = _slug(base)
     if not key or key == "concepto":
         key = _slug(fallback) or "ref"
@@ -112,11 +188,13 @@ def concept_to_qmd(concept: Dict[str, Any], bibfile: str) -> str:
     ]
 
     cite = concept.get("_cite_key")
+    loc = (concept.get("_cite_loc") or "").strip()
     if cite:
+        cite_text = f"[@{cite}, {loc}]" if loc else f"[@{cite}]"
         parts += [
             "## Referencias",
             "",
-            f"[@{cite}]",
+            cite_text,
             ""
         ]
 
@@ -124,13 +202,19 @@ def concept_to_qmd(concept: Dict[str, Any], bibfile: str) -> str:
 
 
 
-def referencia_to_bibtex(concept: Dict[str, Any]) -> tuple[str, str] | None:
-    ref = concept.get("referencia")
-    if not isinstance(ref, dict):
+def referencia_to_bibtex(concept: Dict[str, Any]) -> tuple[str, str, str] | None:
+    ref_raw = concept.get("referencia")
+    if not isinstance(ref_raw, dict):
         return None
 
+    ref = _normalize_ref(ref_raw)
     fallback = f"{concept.get('id','')}_{concept.get('source','')}"
-    key = _bib_key_for_ref(ref, fallback=fallback)
+
+    explicit = (concept.get("citekey") or "").strip()
+    if _valid_citekey(explicit):
+        key = explicit
+    else:
+        key = _bib_key_for_ref(ref, fallback=fallback)
 
     tipo = (ref.get("tipo_referencia") or "").strip().lower()
 
@@ -169,25 +253,26 @@ def referencia_to_bibtex(concept: Dict[str, Any]) -> tuple[str, str] | None:
     if editorial:
         lines.append(f"  publisher = {{{_bib_escape(editorial)}}},")
 
-    anio = ref.get("anio")
+    anio = (ref.get("anio") or "").strip()
     if anio:
         lines.append(f"  year = {{{_bib_escape(anio)}}},")
 
-    paginas = (ref.get("paginas") or "").strip()
-    if paginas:
-        lines.append(f"  pages = {{{_bib_escape(paginas)}}},")
+    # Optional fields supported by citeproc/biblatex in many pipelines
+    isbn = (ref.get("isbn") or "").strip()
+    if isbn:
+        lines.append(f"  isbn = {{{_bib_escape(isbn)}}},")
 
-    # Campos extra no estándar pero útiles como note
-    extra = []
-    if ref.get("capitulo"):
-        extra.append(f"capitulo: {ref['capitulo']}")
-    if ref.get("seccion"):
-        extra.append(f"seccion: {ref['seccion']}")
-    if extra:
-        lines.append(f"  note = {{{_bib_escape('; '.join(extra))}}},")
+    doi = (ref.get("doi") or "").strip()
+    if doi:
+        lines.append(f"  doi = {{{_bib_escape(doi)}}},")
+
+    url = (ref.get("url") or "").strip()
+    if url:
+        lines.append(f"  url = {{{_bib_escape(url)}}},")
 
     lines.append("}")
-    return "\n".join(lines), key
+    locator = _locator_from_ref(ref)
+    return "\n".join(lines), key, locator
 
 
 
@@ -230,18 +315,30 @@ class QuartoBookExporter:
         concepts = list(concepts)
 
         bib_entries: list[str] = []
-        seen: set[str] = set()
+        # key -> bibtex (to avoid silent data loss)
+        seen: dict[str, tuple[str, str, str]] = {}
 
         # 1) construir bibliografía global
         for c in concepts:
             res = referencia_to_bibtex(c)
             if res:
-                bibtex, key = res
-                if key not in seen:
+                bibtex, key, locator = res
+                if key in seen:
+                    prev_bibtex, prev_id, prev_source = seen[key]
+                    if prev_bibtex != bibtex:
+                        raise ValueError(
+                            "Citation key collision with different metadata. "
+                            f"key='{key}' first_concept_id='{prev_id}' first_source='{prev_source}' "
+                            f"conflicts_with_concept_id='{c.get('id')}' conflicts_with_source='{c.get('source')}'. "
+                            "Fix by setting an explicit, unique concept.citekey or normalizing the underlying reference."
+                        )
+                else:
+                    seen[key] = (bibtex, str(c.get("id") or ""), str(c.get("source") or ""))
                     bib_entries.append(bibtex)
                     bib_entries.append("")
-                    seen.add(key)
                 c["_cite_key"] = key
+                if locator:
+                    c["_cite_loc"] = locator
         # escribir references.bib
         bib_path = self.build_dir / "references.bib"
         bib_path.write_text("\n".join(bib_entries), encoding="utf-8")
