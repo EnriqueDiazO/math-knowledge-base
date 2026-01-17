@@ -1011,7 +1011,9 @@ elif page == "➕ Add Concept":
                     "source": source,
                     "fecha_creacion": datetime.now(),
                     "ultima_actualizacion": datetime.now(),
-                    "citekey": st.session_state.get("edit_ref_citekey") or None,
+                    # NOTE: We keep concept.citekey for backward compatibility with existing exporters.
+                    # The authoritative citekey should live inside concept.referencia.citekey.
+                    "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                 }
 
                 # Add reference if provided
@@ -1030,6 +1032,9 @@ elif page == "➕ Add Concept":
                         "doi": ref_doi if ref_doi else None,
                         "url": ref_url if ref_url else None,
                         "issbn": ref_issbn if ref_issbn else None
+                        ,
+                        # NEW: Persist citekey at reference-level (needed for stable Quarto/BibTeX export).
+                        "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
 
                 # Add teaching context if provided
@@ -1231,6 +1236,11 @@ elif page == "✏️ Edit Concept":
             st.session_state.edit_ref_doi = ref.get('doi', '')
             st.session_state.edit_ref_url = ref.get('url', '')
             st.session_state.edit_ref_issbn = ref.get('issbn', '')
+            # Citekey can be stored either at concept-level (legacy) or inside referencia (preferred).
+            st.session_state.edit_ref_citekey = (
+                (selected_concept.get("citekey") or "")
+                or (ref.get('citekey') or '')
+            )
 
             # Initialize teaching context fields in session state
             context = selected_concept.get("contexto_docente", {})
@@ -1528,6 +1538,8 @@ elif page == "✏️ Edit Concept":
             ref_doi = st.text_input("DOI", key="edit_ref_doi")
             ref_url = st.text_input("URL", key="edit_ref_url")
             ref_issbn = st.text_input("ISBN", key="edit_ref_issbn")
+            # Optional citekey used for bibliography export (Quarto/Pandoc).
+            st.text_input("Citekey (opcional)", key="edit_ref_citekey")
         
         # Teaching context
         st.subheader("🎓 Teaching Context")
@@ -1609,7 +1621,9 @@ elif page == "✏️ Edit Concept":
                         "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
                         "comentario": comentario if comentario else None,
                         "source": source,
-                        "ultima_actualizacion": datetime.now()
+                        "ultima_actualizacion": datetime.now(),
+                        # Keep concept-level citekey for backward compatibility.
+                        "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
                     
                     # Add reference if provided
@@ -1627,7 +1641,9 @@ elif page == "✏️ Edit Concept":
                             "editorial": ref_editorial if ref_editorial else None,
                             "doi": ref_doi if ref_doi else None,
                             "url": ref_url if ref_url else None,
-                            "issbn": ref_issbn if ref_issbn else None
+                            "issbn": ref_issbn if ref_issbn else None,
+                            # NEW: Persist citekey at reference-level (preferred).
+                            "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                         }
                     
                     # Add teaching context if provided
@@ -1709,7 +1725,9 @@ elif page == "✏️ Edit Concept":
                         "editorial": ref_editorial if ref_editorial else None,
                         "doi": ref_doi if ref_doi else None,
                         "url": ref_url if ref_url else None,
-                        "issbn": ref_issbn if ref_issbn else None
+                            "issbn": ref_issbn if ref_issbn else None,
+                            # NEW: Persist citekey at reference-level too.
+                            "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
                 
                 # Generate and open PDF

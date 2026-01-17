@@ -99,6 +99,7 @@ def _normalize_ref(ref: Dict[str, Any]) -> Dict[str, Any]:
     # Normalize basic string fields
     for k in [
         "tipo_referencia",
+        "citekey",
         "autor",
         "fuente",
         "titulo",
@@ -154,11 +155,19 @@ def _bib_key_for_ref(ref: Dict[str, Any], fallback: str) -> str:
 
     Fallback is used only when metadata is missing.
     """
-    autor = (ref.get("autor") or "").strip()
-    anio = (ref.get("anio") or "").strip()
-    titleish = (ref.get("titulo") or ref.get("fuente") or "").strip()
+    tipo = (ref.get("tipo_referencia") or "").strip().lower()
+    url = (ref.get("url") or "").strip()
 
-    base = f"{autor}_{anio}_{titleish}"
+    # For web pages, the URL is the most reliable identity key.
+    # This prevents collisions when many concepts share the same author/year.
+    if tipo in {"pagina_web", "web", "url"} and url:
+        base = url
+    else:
+        autor = (ref.get("autor") or "").strip()
+        anio = (ref.get("anio") or "").strip()
+        titleish = (ref.get("titulo") or ref.get("fuente") or "").strip()
+        base = f"{autor}_{anio}_{titleish}"
+
     key = _slug(base)
     if not key or key == "concepto":
         key = _slug(fallback) or "ref"
@@ -210,7 +219,8 @@ def referencia_to_bibtex(concept: Dict[str, Any]) -> tuple[str, str, str] | None
     ref = _normalize_ref(ref_raw)
     fallback = f"{concept.get('id','')}_{concept.get('source','')}"
 
-    explicit = (concept.get("citekey") or "").strip()
+    # Allow explicit citekey either at the concept level (legacy) or inside referencia.
+    explicit = (concept.get("citekey") or ref.get("citekey") or "").strip()
     if _valid_citekey(explicit):
         key = explicit
     else:
