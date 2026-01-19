@@ -39,6 +39,22 @@
 \RequirePackage{tikz-qtree}
 \RequirePackage{listings}
 
+
+% --------------------------------------------
+% Cajas de colores para resaltar código
+% --------------------------------------------
+
+\RequirePackage[most]{tcolorbox}
+\newtcbox{\kbd}{on line,
+  boxrule=0pt,
+  colback=green!8,
+  colframe=green!20,
+  arc=2pt,
+  left=2pt,right=2pt,top=1pt,bottom=1pt,
+  boxsep=0pt
+}
+
+
 % --------------------------------------------
 % Soporte de acentos en listings (UTF-8)
 % --------------------------------------------
