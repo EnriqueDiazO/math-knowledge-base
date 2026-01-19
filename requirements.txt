@@ -13,3 +13,4 @@ matplotlib
 pydantic
 bibtexparser
 streamlit-ace
+plotly>=5.0
