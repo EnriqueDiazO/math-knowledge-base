@@ -210,6 +210,14 @@ st.markdown("""
         box-shadow: none;
     }
 
+
+    /* MVP: make Recent Concepts a fixed-height scroll panel */
+    .recent-concepts-panel {
+        max-height: 520px;
+        overflow-y: auto;
+        padding-right: 0.5rem;
+    }
+
     .latex-preview {
         background-color: #0B1220;
         color: var(--text);
@@ -429,13 +437,14 @@ if page == "🏠 Dashboard":
     st.markdown("---")
 
     # Recent concepts
-    col1, col2 = st.columns([2, 1])
+    col1, col2 = st.columns([1, 2])
 
     with col1:
         st.subheader("📝 Recent Concepts")
-        recent_concepts = list(db.concepts.find().sort("fecha_creacion", -1).limit(10))
+        recent_concepts = list(db.concepts.find().sort("fecha_creacion", -1).limit(2))
 
         if recent_concepts:
+            st.markdown('<div class=\"recent-concepts-panel\">', unsafe_allow_html=True)
             for concept in recent_concepts:
                 with st.container():
                     st.markdown(f"""
@@ -446,29 +455,75 @@ if page == "🏠 Dashboard":
                         <p><strong>Created:</strong> {concept.get('fecha_creacion', 'Unknown')}</p>
                     </div>
                     """, unsafe_allow_html=True)
+            st.markdown('</div>', unsafe_allow_html=True)
         else:
             st.info("No concepts found. Add your first concept!")
 
     with col2:
         st.subheader("📊 Quick Stats")
 
-        # Concept types distribution
-        concept_types = db.concepts.aggregate([
-            {"$group": {"_id": "$tipo", "count": {"$sum": 1}}},
-            {"$sort": {"count": -1}}
-        ])
+        # --- MVP: filter Quick Stats by Source (All vs selected) ---
+        # Behavior:
+        # - If "All sources" is enabled, charts use the full dataset.
+        # - If disabled, user must select at least one source and charts are filtered.
+        try:
+            all_sources = st.toggle("All sources", value=True, key="qs_all_sources")
+        except Exception:
+            # Streamlit versions without st.toggle
+            all_sources = st.checkbox("All sources", value=True, key="qs_all_sources")
 
-        type_data = list(concept_types)
+        # Load available sources (sanitized)
+        try:
+            available_sources = db.concepts.distinct("source")
+            available_sources = sorted(
+                [s for s in available_sources if isinstance(s, str) and s.strip()],
+                key=lambda x: x.lower(),
+            )
+        except Exception:
+            available_sources = []
+
+        selected_sources = []
+        if not all_sources:
+            selected_sources = st.multiselect(
+                "Sources (min 1)",
+                options=available_sources,
+                default=available_sources[:1] if available_sources else [],
+                key="qs_selected_sources",
+            )
+            if not selected_sources:
+                st.warning("Select at least one source to filter Quick Stats.")
+
+        # Build optional MongoDB match stage
+        match_stage = None
+        if (not all_sources) and selected_sources:
+            match_stage = {"source": {"$in": selected_sources}}
+
+        # Concept types distribution
+        types_pipeline = []
+        if match_stage:
+            types_pipeline.append({"$match": match_stage})
+        types_pipeline += [
+            {"$group": {"_id": "$tipo", "count": {"$sum": 1}}},
+            {"$sort": {"count": -1}},
+        ]
+
+        type_data = list(db.concepts.aggregate(types_pipeline))
         if type_data:
             df_types = pd.DataFrame(type_data)
             st.bar_chart(df_types.set_index("_id")["count"])
+        else:
+            if match_stage:
+                st.info("No data for the selected source filter.")
 
         # Top categories
-        category_pipeline = [
+        category_pipeline = []
+        if match_stage:
+            category_pipeline.append({"$match": match_stage})
+        category_pipeline += [
             {"$unwind": "$categorias"},
             {"$group": {"_id": "$categorias", "count": {"$sum": 1}}},
             {"$sort": {"count": -1}},
-            {"$limit": 5}
+            {"$limit": 5},
         ]
 
         top_categories = list(db.concepts.aggregate(category_pipeline))
@@ -476,6 +531,89 @@ if page == "🏠 Dashboard":
             st.write("**Top Categories:**")
             for cat in top_categories:
                 st.write(f"• {cat['_id']}: {cat['count']}")
+
+            # --- MVP: Relaciones (Sankey) por Source y Tipo ---
+            # Flujo: Source (origen) -> Tipo de relacion -> Source (destino)
+            # Util para ver conectividad entre fuentes y distribucion de tipos.
+            with st.expander("🔗 Relations Flow (Sankey)", expanded=False):
+                st.caption(
+                    "MVP: resume relaciones como flujo Source -> Tipo -> Source. "
+                    "Si desactivaste 'All sources' arriba, el grafico se filtra por esas sources."
+                )
+
+                try:
+                    import plotly.graph_objects as go
+                except Exception:
+                    st.warning("Plotly no esta disponible. Instala con: pip install plotly")
+                else:
+                    rels = list(db.relations.find({}, {"_id": 0, "desde": 1, "hasta": 1, "tipo": 1}))
+
+                    def _src(key):
+                        if isinstance(key, str) and "@" in key:
+                            return key.rsplit("@", 1)[-1].strip()
+                        return None
+
+                    triples = []
+                    for r in rels:
+                        fs = _src(r.get("desde"))
+                        ts = _src(r.get("hasta"))
+                        rt = r.get("tipo") or "relacion"
+                        if not fs or not ts:
+                            continue
+                        if (not all_sources) and selected_sources:
+                            # Mantener relaciones donde al menos uno de los endpoints pertenece al filtro
+                            if (fs not in selected_sources) and (ts not in selected_sources):
+                                continue
+                        triples.append((fs, rt, ts))
+
+                    if not triples:
+                        st.info("No hay relaciones suficientes para graficar con este filtro.")
+                    else:
+                        from collections import Counter
+
+                        c_st = Counter((fs, rt) for fs, rt, ts in triples)
+                        c_tt = Counter((rt, ts) for fs, rt, ts in triples)
+
+                        node_ids = []
+                        labels = []
+
+                        def add_node(nid, label):
+                            if nid not in node_ids:
+                                node_ids.append(nid)
+                                labels.append(label)
+
+                        for fs, rt, ts in triples:
+                            add_node(f"S:{fs}", fs)
+                            add_node(f"T:{rt}", rt)
+                            add_node(f"S:{ts}", ts)
+
+                        idx = {nid: i for i, nid in enumerate(node_ids)}
+
+                        sources = []
+                        targets = []
+                        values = []
+
+                        for (fs, rt), v in c_st.items():
+                            sources.append(idx[f"S:{fs}"])
+                            targets.append(idx[f"T:{rt}"])
+                            values.append(v)
+
+                        for (rt, ts), v in c_tt.items():
+                            sources.append(idx[f"T:{rt}"])
+                            targets.append(idx[f"S:{ts}"])
+                            values.append(v)
+
+                        fig = go.Figure(
+                            data=[
+                                go.Sankey(
+                                    node=dict(label=labels, pad=12, thickness=12),
+                                    link=dict(source=sources, target=targets, value=values),
+                                )
+                            ]
+                        )
+                        fig.update_layout(height=600, margin=dict(l=10, r=10, t=10, b=10))
+                        st.plotly_chart(fig, use_container_width=True)
+
 
 # Add Concept page
 elif page == "➕ Add Concept":
