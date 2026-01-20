@@ -598,10 +598,10 @@ if page == "🏠 Dashboard":
                             targets.append(idx[f"T:{rt}"])
                             values.append(v)
 
-                        for (rt, ts), v in c_tt.items():
-                            sources.append(idx[f"T:{rt}"])
-                            targets.append(idx[f"S:{ts}"])
-                            values.append(v)
+                        #for (rt, ts), v in c_tt.items():
+                        #    sources.append(idx[f"T:{rt}"])
+                        #    targets.append(idx[f"S:{ts}"])
+                        #    values.append(v)
 
                         fig = go.Figure(
                             data=[
@@ -612,8 +612,286 @@ if page == "🏠 Dashboard":
                             ]
                         )
                         fig.update_layout(height=600, margin=dict(l=10, r=10, t=10, b=10))
-                        st.plotly_chart(fig, use_container_width=True)
+                        st.plotly_chart(fig, width='stretch')
 
+            # --- MVP: Relaciones (Sankey) a nivel de conceptos ---
+            # Flujo: Concepto (desde) -> Tipo de relacion -> Concepto (hasta)
+            # Nota: usa llaves flexibles para soportar esquemas {desde/hasta/tipo} o {from/to/relation_type}.
+            with st.expander("Concepts Flow (Sankey) [MVP]", expanded=False):
+                st.caption(
+                    "MVP: resume relaciones como flujo Concept -> Tipo -> Concept. "
+                    "Incluye limites para evitar sobrecargar el grafico."
+                )
+
+                # Controles MVP
+                c1, c2 = st.columns(2)
+                with c1:
+                    max_edges = st.slider(
+                        "max_edges",
+                        min_value=50,
+                        max_value=2000,
+                        value=400,
+                        step=50,
+                        help="Limite de relaciones (agregadas) que se grafican",
+                        key="concept_sankey_max_edges",
+                    )
+                with c2:
+                    top_concepts = st.slider(
+                        "top_concepts",
+                        min_value=10,
+                        max_value=400,
+                        value=60,
+                        step=10,
+                        help="Limite de conceptos por frecuencia (nodos)",
+                        key="concept_sankey_top_concepts",
+                    )
+
+                try:
+                    import plotly.graph_objects as go
+                except Exception:
+                    st.warning("Plotly no esta disponible. Instala con: pip install plotly")
+                else:
+                    from collections import Counter
+
+                    def _pick(d: dict, *keys):
+                        for k in keys:
+                            v = d.get(k)
+                            if v is not None and v != "":
+                                return v
+                        return None
+
+                    def _parse_endpoint(v):
+                        # Soporta:
+                        # - string "id@source"
+                        # - dict {id: '...', source: '...'} (o llaves equivalentes)
+                        if isinstance(v, str):
+                            if "@" in v:
+                                a, b = v.split("@", 1)
+                                a = (a or "").strip()
+                                b = (b or "").strip()
+                                if a and b:
+                                    return f"{a}@{b}"
+                            return None
+                        if isinstance(v, dict):
+                            cid = _pick(v, "id", "concept_id", "from_id", "to_id")
+                            csrc = _pick(v, "source", "concept_source", "from_source", "to_source")
+                            if isinstance(cid, str) and isinstance(csrc, str) and cid.strip() and csrc.strip():
+                                return f"{cid.strip()}@{csrc.strip()}"
+                        return None
+
+                    def _src_from_key(k: str) -> str | None:
+                        if isinstance(k, str) and "@" in k:
+                            return k.rsplit("@", 1)[-1].strip()
+                        return None
+
+                    # Cargar relaciones (proyeccion amplia para compatibilidad)
+                    try:
+                        rels = list(
+                            db.relations.find(
+                                {},
+                                {
+                                    "_id": 0,
+                                    "desde": 1,
+                                    "hasta": 1,
+                                    "tipo": 1,
+                                    "from": 1,
+                                    "to": 1,
+                                    "relation_type": 1,
+                                    "type": 1,
+                                },
+                            )
+                        )
+                    except Exception as e:
+                        st.error(f"❌ Error cargando relaciones: {e}")
+                        rels = []
+
+                    triples = []
+                    for r in rels:
+                        a = _pick(r, "desde", "from")
+                        b = _pick(r, "hasta", "to")
+                        rt = _pick(r, "tipo", "relation_type", "type") or "relacion"
+
+                        a_key = _parse_endpoint(a)
+                        b_key = _parse_endpoint(b)
+                        if not a_key or not b_key:
+                            continue
+
+                        # Respeta filtro por source del Dashboard (Quick Stats)
+                        if (not all_sources) and selected_sources:
+                            sa = _src_from_key(a_key)
+                            sb = _src_from_key(b_key)
+                            if (sa not in selected_sources) and (sb not in selected_sources):
+                                continue
+
+                        triples.append((a_key, str(rt), b_key))
+
+                    if not triples:
+                        st.info("No hay relaciones suficientes para graficar a nivel de conceptos con este filtro.")
+                    else:
+                        # -----------------------------
+                        # Split por clases de relación
+                        # -----------------------------
+                        available_types = sorted({rt for _a, rt, _b in triples}, key=lambda x: str(x).lower())
+
+                        def _render_concept_sankey(triples_in, selected_types, key_suffix: str):
+                            # Filtrar por tipo
+                            if selected_types:
+                                triples_t = [(a, rt, b) for (a, rt, b) in triples_in if rt in set(selected_types)]
+                            else:
+                                triples_t = []
+
+                            if not triples_t:
+                                st.info("No hay relaciones para los tipos seleccionados (con el filtro actual).")
+                                return
+
+                            # Top conceptos por frecuencia (nodos)
+                            freq = Counter()
+                            for a_key, _rt, b_key in triples_t:
+                                freq[a_key] += 1
+                                freq[b_key] += 1
+
+                            top_nodes = {k for k, _ in freq.most_common(int(top_concepts))}
+                            triples_f = [(a, rt, b) for (a, rt, b) in triples_t if a in top_nodes and b in top_nodes]
+
+                            if not triples_f:
+                                st.info("No hay relaciones despues de aplicar el limite de top_concepts.")
+                                return
+
+                            # Agregar edges identicos y limitar por max_edges
+                            edge_counts = Counter(triples_f)
+                            top_edges = edge_counts.most_common(int(max_edges))
+
+                            # Labels: mostrar TITULOS en lugar de IDs
+                            # - Intenta usar concept.titulo / concept.title / concept.name
+                            # - Si no hay titulo, cae a id
+                            # - Si el titulo colisiona en multiples sources, desambigua con " — <source>"
+                            def _split_key(k: str):
+                                if not isinstance(k, str) or "@" not in k:
+                                    return None, None
+                                cid, csrc = k.split("@", 1)
+                                cid = (cid or "").strip()
+                                csrc = (csrc or "").strip()
+                                if not cid or not csrc:
+                                    return None, None
+                                return cid, csrc
+
+                            # Cache: key "id@source" -> title (solo para nodos usados)
+                            concept_title_by_key = {}
+                            try:
+                                or_conditions = []
+                                for k in top_nodes:
+                                    cid, csrc = _split_key(k)
+                                    if cid and csrc:
+                                        or_conditions.append({"id": cid, "source": csrc})
+
+                                if or_conditions:
+                                    for doc in db.concepts.find(
+                                        {"$or": or_conditions},
+                                        {"_id": 0, "id": 1, "source": 1, "titulo": 1, "title": 1, "name": 1},
+                                    ):
+                                        _id = (doc.get("id") or "").strip()
+                                        _src = (doc.get("source") or "").strip()
+                                        if not _id or not _src:
+                                            continue
+                                        key = f"{_id}@{_src}"
+                                        title = (doc.get("titulo") or doc.get("title") or doc.get("name") or "").strip()
+                                        if title:
+                                            concept_title_by_key[key] = title
+                            except Exception:
+                                concept_title_by_key = {}
+
+                            # Detectar colisiones de titulo
+                            title_counts = Counter()
+                            for k in top_nodes:
+                                cid, csrc = _split_key(k)
+                                if not cid or not csrc:
+                                    continue
+                                key = f"{cid}@{csrc}"
+                                t = concept_title_by_key.get(key) or cid
+                                title_counts[t] += 1
+
+                            def _concept_label(k: str) -> str:
+                                cid, csrc = _split_key(k)
+                                if not cid or not csrc:
+                                    return str(k)
+                                key = f"{cid}@{csrc}"
+                                t = (concept_title_by_key.get(key) or cid).strip()
+                                if title_counts.get(t, 0) > 1:
+                                    return f"{t} — {csrc}"
+                                return t
+
+                            # Construir nodos y enlaces para Sankey: C -> T -> C
+                            node_ids = []
+                            labels = []
+
+                            def add_node(nid: str, label: str):
+                                if nid not in node_ids:
+                                    node_ids.append(nid)
+                                    labels.append(label)
+
+                            for (a_key, rt, b_key), _v in top_edges:
+                                add_node(f"C:{a_key}", _concept_label(a_key))
+                                add_node(f"T:{rt}", rt)
+                                add_node(f"C:{b_key}", _concept_label(b_key))
+
+                            idx = {nid: i for i, nid in enumerate(node_ids)}
+
+                            sources = []
+                            targets = []
+                            values = []
+
+                            # Agregar dos capas de links: (C->T) y (T->C)
+                            c_ct = Counter()
+                            c_tc = Counter()
+                            for (a_key, rt, b_key), v in top_edges:
+                                c_ct[(a_key, rt)] += v
+                                c_tc[(rt, b_key)] += v
+
+                            for (a_key, rt), v in c_ct.items():
+                                sources.append(idx[f"C:{a_key}"])
+                                targets.append(idx[f"T:{rt}"])
+                                values.append(v)
+
+                            for (rt, b_key), v in c_tc.items():
+                                sources.append(idx[f"T:{rt}"])
+                                targets.append(idx[f"C:{b_key}"])
+                                values.append(v)
+
+                            fig = go.Figure(
+                                data=[
+                                    go.Sankey(
+                                        node=dict(label=labels, pad=12, thickness=12),
+                                        link=dict(source=sources, target=targets, value=values),
+                                    )
+                                ]
+                            )
+                            fig.update_layout(height=650, margin=dict(l=10, r=10, t=10, b=10))
+                            st.plotly_chart(fig, width='stretch', key=f"concept_sankey_{key_suffix}")
+
+                        tab_dep, tab_log = st.tabs(["🧠 Dependencies", "⚖️ Logical / Critical"])
+
+                        with tab_dep:
+                            default_dep = [t for t in ["requiere_concepto", "deriva_de"] if t in available_types]
+                            sel_dep = st.multiselect(
+                                "Relation types (Dependencies)",
+                                options=available_types,
+                                default=default_dep if default_dep else available_types[: min(3, len(available_types))],
+                                help="Tipos de relación enfocados en prerequisitos y derivación.",
+                                key="concept_sankey_types_dependencies",
+                            )
+                            _render_concept_sankey(triples, sel_dep, "dep")
+
+                        with tab_log:
+                            default_log = [t for t in ["equivalente", "implica", "contradice", "contrasta_con", "contra_ejemplo"] if t in available_types]
+                            sel_log = st.multiselect(
+                                "Relation types (Logical/Critical)",
+                                options=available_types,
+                                default=default_log if default_log else available_types[: min(5, len(available_types))],
+                                help="Tipos de relación lógicos o críticos (equivalencias, implicaciones, contradicciones, etc.).",
+                                key="concept_sankey_types_logical",
+                            )
+                            _render_concept_sankey(triples, sel_log, "log")
+            # --- end MVP: concept-level sankey ---
 
 # Add Concept page
 elif page == "➕ Add Concept":
@@ -2613,7 +2891,7 @@ elif page == "🔗 Manage Relations":
                                     "Source": c.get("source", "—"),
                                     "ID": c.get("id", "—"),
                                     "NodeKey": node_key,})
-                            st.dataframe(concept_rows, use_container_width=True, hide_index=True)
+                            st.dataframe(concept_rows, width='stretch', hide_index=True)
                             # 4) Tabla amigable de relaciones
                             st.markdown("**Relations**")
                             rel_rows = []
@@ -2627,7 +2905,7 @@ elif page == "🔗 Manage Relations":
                                     "FromKey": desde,
                                     "ToKey": hasta,
                                     })
-                            st.dataframe(rel_rows, use_container_width=True, hide_index=True)
+                            st.dataframe(rel_rows, width='stretch', hide_index=True)
                             # 5) Export JSON (preview completo)
                             import json
                             export_payload = {
@@ -2881,7 +3159,7 @@ elif page == "🔗 Manage Relations":
                 })
             
             df = pd.DataFrame(relation_data)
-            st.dataframe(df, use_container_width=True)
+            st.dataframe(df, width='stretch')
             
             # Statistics
             st.subheader("📈 Relation Statistics")
