@@ -398,11 +398,38 @@ st.sidebar.markdown("---")
 
 # Get current database connection
 db = st.session_state.db_manager.get_current_connection()
+def _cuaderno_is_installed(conn) -> bool:
+    """Detecta si el modo cuaderno está instalado en la DB actual.
+
+    Se considera instalado si existen las 4 colecciones base.
+    """
+    try:
+        if conn is None:
+            return False
+        mongo_db = getattr(conn, "db", None)
+        if mongo_db is None:
+            return False
+        names = set(mongo_db.list_collection_names())
+        required = {"worklog_entries", "backlog_items", "weekly_reviews", "deliverables"}
+        return required.issubset(names)
+    except Exception:
+        return False
+
 
 page = st.sidebar.selectbox(
     "Navigation",
     ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📤 Export", "⚙️ Settings"]
 )
+
+# Experimental navigation (optional)
+_exp_options = ["(none)"]
+if _cuaderno_is_installed(db):
+    _exp_options.append("🧪 Cuaderno")
+
+exp_page = st.sidebar.selectbox("Experimental", _exp_options, index=0)
+if exp_page == "🧪 Cuaderno":
+    page = "🧪 Cuaderno"
+
 
 # Dashboard page
 if page == "🏠 Dashboard":
@@ -894,6 +921,41 @@ if page == "🏠 Dashboard":
             # --- end MVP: concept-level sankey ---
 
 # Add Concept page
+elif page == "🧪 Cuaderno":
+    st.title("🧪 Cuaderno (Experimental)")
+
+    if db is None:
+        st.error("❌ No database connection. Please select a database in the sidebar.")
+        st.stop()
+
+    if not _cuaderno_is_installed(db):
+        st.warning(
+            "El modo cuaderno no está instalado en esta base de datos. "
+            "Ejecuta: `make cuaderno-install`"
+        )
+    else:
+        mongo_db = getattr(db, "db", None)
+        if mongo_db is None:
+            st.error("❌ No se pudo acceder al objeto pymongo database (db.db).")
+            st.stop()
+
+        c_worklog = mongo_db["worklog_entries"].count_documents({})
+        c_backlog = mongo_db["backlog_items"].count_documents({})
+        c_weekly = mongo_db["weekly_reviews"].count_documents({})
+        c_deliv = mongo_db["deliverables"].count_documents({})
+
+        col1, col2, col3, col4 = st.columns(4)
+        col1.metric("Worklog", c_worklog)
+        col2.metric("Backlog", c_backlog)
+        col3.metric("Weekly", c_weekly)
+        col4.metric("Deliverables", c_deliv)
+
+        st.info(
+            "Este módulo es experimental. En los siguientes MVPs habilitaremos: "
+            "Worklog → Backlog → Weekly Review → Deliverables → Kanban."
+        )
+        st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
+
 elif page == "➕ Add Concept":
     st.title("➕ Add New Mathematical Concept")
 
