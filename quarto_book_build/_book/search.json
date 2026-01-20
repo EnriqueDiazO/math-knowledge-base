@@ -1,0 +1,82 @@
+[
+  {
+    "objectID": "index.html",
+    "href": "index.html",
+    "title": "Math Knowledge Base",
+    "section": "",
+    "text": "Generated from MathMongo.",
+    "crumbs": [
+      "<span class='chapter-number'>1</span>  <span class='chapter-title'>Math Knowledge Base</span>"
+    ]
+  },
+  {
+    "objectID": "chapters/README.html",
+    "href": "chapters/README.html",
+    "title": "2  Libro",
+    "section": "",
+    "text": "This section contains the linearized concept chapters exported from MathMongo.",
+    "crumbs": [
+      "<span class='chapter-number'>2</span>  <span class='chapter-title'>Libro</span>"
+    ]
+  },
+  {
+    "objectID": "chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.html",
+    "href": "chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.html",
+    "title": "3  Estado del controlador Bluetooth",
+    "section": "",
+    "text": "3.1 Contenido",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Estado del controlador Bluetooth</span>"
+    ]
+  },
+  {
+    "objectID": "chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.html#referencias",
+    "href": "chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.html#referencias",
+    "title": "3  Estado del controlador Bluetooth",
+    "section": "3.2 Referencias",
+    "text": "3.2 Referencias\n(BlueZ 2024, sec. Commands: scan, pair, trust, connect, info)\n\n\n\n\nBlueZ, Debian Manpages /. 2024. Manual Oficial Bluetoothctl (Manpage). https://manpages.debian.org/unstable/bluez/bluetoothctl.1.en.html.",
+    "crumbs": [
+      "<span class='chapter-number'>3</span>  <span class='chapter-title'>Estado del controlador Bluetooth</span>"
+    ]
+  },
+  {
+    "objectID": "atlas/README.html",
+    "href": "atlas/README.html",
+    "title": "4  Atlas",
+    "section": "",
+    "text": "This section contains independent pages (notes, examples, counterexamples) with cross-links.",
+    "crumbs": [
+      "<span class='chapter-number'>4</span>  <span class='chapter-title'>Atlas</span>"
+    ]
+  },
+  {
+    "objectID": "atlas/notas/README.html",
+    "href": "atlas/notas/README.html",
+    "title": "5  Notas",
+    "section": "",
+    "text": "Generated note pages will appear here.",
+    "crumbs": [
+      "<span class='chapter-number'>5</span>  <span class='chapter-title'>Notas</span>"
+    ]
+  },
+  {
+    "objectID": "atlas/ejemplos/README.html",
+    "href": "atlas/ejemplos/README.html",
+    "title": "6  Ejemplos",
+    "section": "",
+    "text": "Generated example pages will appear here.",
+    "crumbs": [
+      "<span class='chapter-number'>6</span>  <span class='chapter-title'>Ejemplos</span>"
+    ]
+  },
+  {
+    "objectID": "atlas/contra_ejemplos/README.html",
+    "href": "atlas/contra_ejemplos/README.html",
+    "title": "7  Contraejemplos",
+    "section": "",
+    "text": "Generated counterexample pages will appear here.",
+    "crumbs": [
+      "<span class='chapter-number'>7</span>  <span class='chapter-title'>Contraejemplos</span>"
+    ]
+  }
+]

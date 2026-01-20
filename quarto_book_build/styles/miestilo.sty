@@ -1,0 +1,251 @@
+% --------------------------------------------
+%  miestilo.sty  —  Estilo personal con cajas
+%                 de teorema en español
+% Fuente: 
+% https://github.com/joaomlourenco/coloredtheorem
+% --------------------------------------------
+\ProvidesPackage{miestilo}[2025/08/03 v1.0 estilos de teorema]
+\NeedsTeXFormat{LaTeX2e}
+
+% --------------------------------------------
+% Paquetes básicos
+% --------------------------------------------
+\RequirePackage[utf8]{inputenc}
+\RequirePackage[T1]{fontenc}
+\RequirePackage{lmodern}
+\RequirePackage[spanish]{babel}
+\RequirePackage{textcomp}
+\RequirePackage{geometry}
+\geometry{margin=1in}
+
+% --------------------------------------------
+% Matemáticas y gráficos
+% --------------------------------------------
+\RequirePackage{amsmath,amssymb,amsfonts,amsthm}
+\RequirePackage{mathtools}
+\RequirePackage{thmtools}          % interfaz avanzada para amsthm
+\RequirePackage{physics}
+\RequirePackage{tikz}
+\RequirePackage{mathdots,cancel,extarrows}
+\tikzset{every picture/.style={line width=.8pt}}
+
+
+% --------------------------------------------
+% Cajas de colores para resaltar código
+% --------------------------------------------
+
+\RequirePackage[most]{tcolorbox}
+\newtcbox{\kbd}{on line,
+  boxrule=0pt,
+  colback=green!8,
+  colframe=green!20,
+  arc=2pt,
+  left=2pt,right=2pt,top=1pt,bottom=1pt,
+  boxsep=0pt
+}
+
+
+% --------------------------------------------
+% Otros paquetes útiles
+% --------------------------------------------
+\RequirePackage{array,multirow,tabularx,booktabs}
+\RequirePackage{siunitx,gensymb}
+\RequirePackage{xcolor}
+\RequirePackage{hyperref}
+\RequirePackage{dirtree}
+\RequirePackage{qtree}
+\RequirePackage{listings}
+
+% --------------------------------------------
+% Soporte de acentos en listings (UTF-8)
+% --------------------------------------------
+\lstset{
+  literate=
+   {á}{{\'a}}1
+   {é}{{\'e}}1
+   {í}{{\'i}}1
+   {ó}{{\'o}}1
+   {ú}{{\'u}}1
+   {Á}{{\'A}}1
+   {É}{{\'E}}1
+   {Í}{{\'I}}1
+   {Ó}{{\'O}}1
+   {Ú}{{\'U}}1
+   {ñ}{{\~n}}1
+   {Ñ}{{\~N}}1
+}
+
+% --------------------------------------------
+% Definir colores parar el código
+% --------------------------------------------
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+% --------------------------------------------
+% Secciones
+% --------------------------------------------
+
+% --------------------------------------------
+%  Cajas de teorema (coloredtheorem+tcolorbox)
+% --------------------------------------------
+\RequirePackage{styles/coloredtheorem}
+
+% --- estilo “miestilo” (sin sombreado clásico) ---
+\declaretheoremstyle[
+  headfont       = \color{blue}\bfseries,
+  bodyfont       = \itshape,
+  headpunct      = {.},
+  postheadspace  = 0.5em
+]{miestilo}
+
+% --- estilo “de código” (sin sombreado clásico) ---
+\lstdefinestyle{mystyle}{
+  backgroundcolor=\color{backcolour},
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{magenta}\bfseries,
+  keywordstyle=[2]\color{blue},
+  commentstyle=\color{codegreen}\itshape,
+  stringstyle=\color{codepurple},
+  numberstyle=\tiny\color{codegray},
+  numbers=left,
+  numbersep=6pt,
+  showstringspaces=false,
+  showspaces=false,
+  showtabs=false,
+  tabsize=2,
+  breaklines=true,
+  breakatwhitespace=false,
+  upquote=true,
+  frame=single,
+  rulecolor=\color{black!30}
+}
+
+
+\lstset{style=mystyle}
+\lstdefinelanguage{bash}{
+  sensitive=true,
+  morekeywords={cd,ls,mkdir,rm,cp,mv,cat,echo,grep,sed,awk,find,chmod,chown,export,source,printf,python,pip,poetry,quarto,mkdocs},
+  morecomment=[l]{\#},
+  morestring=[b]"
+}
+% --------------------------------------------
+% Lenguaje Python para listings
+% --------------------------------------------
+\lstdefinelanguage{python}{
+  sensitive=true,
+  morekeywords={
+    False,None,True,and,as,assert,async,await,break,
+    class,continue,def,del,elif,else,except,finally,
+    for,from,global,if,import,in,is,lambda,nonlocal,
+    not,or,pass,raise,return,try,while,with,yield
+  },
+  morekeywords=[2]{
+    int,float,str,bool,list,dict,set,tuple,
+    print,len,range,enumerate,zip,map,filter,
+    open,input,type,isinstance
+  },
+  morecomment=[l]{\#},
+  morestring=[b]',
+  morestring=[b]",
+}
+
+
+
+% --- cajas con tcolorbox a través de coloredtheorem ---
+%   (colores: azul para definiciones, rojo para teoremas,
+%    verde para corolarios, púrpura para lemas… cambia al gusto)
+%
+\cthnewtheorem{definicion}{Definición}[colback=blue!5,colframe=blue!75!black,coltitle=white!85!black,fonttitle=\bfseries]
+
+\cthnewtheorem{teorema}{Teorema}[colback=red!5,colframe=red!65!black,coltitle=white!80!black,fonttitle=\bfseries]
+
+\cthnewtheorem{corolario}{Corolario}[colback=green!5,colframe=green!60!black,coltitle=white!70!black,fonttitle=\bfseries]
+
+\cthnewtheorem{lema}{Lema}[colback=purple!5,colframe=purple!60!black,coltitle=white!75!black,fonttitle=\bfseries]
+
+\cthnewtheorem{proposicion}{Proposición}[colback=orange!5,colframe=white!70!black,coltitle=orange!85!black,fonttitle=\bfseries]
+
+\cthnewtheorem{ejemplo}{Ejemplo}[colback=gray!8,colframe=gray!60,coltitle=white!20!black,fonttitle=\bfseries]
+
+\cthnewtheorem{nota}{Nota}[colback=yellow!10,colframe=yellow!65!black,coltitle=white!80!black,fonttitle=\bfseries]
+
+\cthnewtheorem{observacion}{Observación}[colback=teal!6,colframe=teal!60!black,coltitle=white!75!black,fonttitle=\bfseries]
+
+% --------------------------------------------
+% Alias “legacy” (por compatibilidad con ntheorem)
+% --------------------------------------------
+\let\theorem     \cthteorema
+\let\endtheorem  \endcthteorema
+\let\definition  \cthdefinicion
+\let\enddefinition\endcthdefinicion
+\let\corollary   \cthcorolario
+\let\endcorollary\endcthcorolario
+\let\lemma       \cthlema
+\let\endlemma    \endcthlema
+\let\proposition \cthproposicion
+\let\endproposition\endcthproposicion
+\let\example     \cthejemplo
+\let\endexample  \endcthejemplo
+\let\remark      \cthnota
+\let\endremark   \endcthnota
+
+
+% --------------------------------------------
+% Wrappers para soportar entornos EN inglés
+% (porque tu contenido usa \begin{definition}...)
+% --------------------------------------------
+% --------------------------------------------
+% Wrappers para soportar entornos en inglés
+% (tu contenido usa \begin{definition}...)
+% --------------------------------------------
+\makeatletter
+\@ifundefined{definition}{\newenvironment{definition}{\begin{definicion}}{\end{definicion}}}{}
+\@ifundefined{theorem}{\newenvironment{theorem}{\begin{teorema}}{\end{teorema}}}{}
+\@ifundefined{corollary}{\newenvironment{corollary}{\begin{corolario}}{\end{corolario}}}{}
+\@ifundefined{lemma}{\newenvironment{lemma}{\begin{lema}}{\end{lema}}}{}
+\@ifundefined{proposition}{\newenvironment{proposition}{\begin{proposicion}}{\end{proposicion}}}{}
+\@ifundefined{example}{\newenvironment{example}{\begin{ejemplo}}{\end{ejemplo}}}{}
+\@ifundefined{remark}{\newenvironment{remark}{\begin{nota}}{\end{nota}}}{}
+\@ifundefined{observation}{\newenvironment{observation}{\begin{observacion}}{\end{observacion}}}{}
+\makeatother
+
+
+% --------------------------------------------
+% Entorno algoritmo (simple, robusto)
+% Pandoc lo usa como: \begin{algoritmo}[language=bash]{Titulo} ... \end{algoritmo}
+% --------------------------------------------
+% --- Algoritmos / bloques de código (robusto para Pandoc/Quarto) ---
+\RequirePackage{xparse}
+\RequirePackage{listings}
+\RequirePackage{tcolorbox}
+\tcbuselibrary{listings,breakable,skins}
+
+\NewDocumentEnvironment{algoritmo}{O{} m}{
+  \begingroup
+  \shorthandoff{<>} % <- CLAVE: desactiva << >> de babel (spanish)
+  \begin{tcolorbox}[
+    enhanced,
+    breakable,
+    listing only,
+    listing engine=listings,
+    % ---- COLORES ----
+    colback=blue!2,                 % fondo suave
+    colframe=blue!15!black,         % borde
+    coltitle=white,                 % texto del título
+    fonttitle=\bfseries,
+    title={#2},
+    listing options={
+      style=mystyle,
+      breaklines=true,
+      upquote=true,
+      #1
+    }
+  ]
+}{
+  \end{tcolorbox}
+  \endgroup
+}
+
+

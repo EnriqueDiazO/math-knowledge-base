@@ -1,0 +1,5 @@
+---
+title: "Atlas"
+---
+
+This section contains independent pages (notes, examples, counterexamples) with cross-links.
