@@ -1,0 +1,5 @@
+---
+title: "Ejemplos"
+---
+
+Generated example pages will appear here.

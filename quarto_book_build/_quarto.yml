@@ -1,0 +1,28 @@
+project:
+  type: book
+  output-dir: _book
+
+book:
+  title: "Math Knowledge Base"
+  subtitle: "Exported from MathMongo"
+  chapters:
+    - index.qmd
+    - chapters/README.qmd
+    - chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.qmd
+    - atlas/README.qmd
+    - atlas/notas/README.qmd
+    - atlas/ejemplos/README.qmd
+    - atlas/contra_ejemplos/README.qmd
+
+format:
+  html:
+    toc: true
+    number-sections: true
+
+  pdf:
+    pdf-engine: lualatex
+    include-in-header:
+      - styles/latex-preamble.tex
+
+bibliography: references.bib
+citeproc: true
