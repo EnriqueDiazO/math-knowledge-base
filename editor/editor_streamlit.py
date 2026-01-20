@@ -954,7 +954,101 @@ elif page == "🧪 Cuaderno":
             "Este módulo es experimental. En los siguientes MVPs habilitaremos: "
             "Worklog → Backlog → Weekly Review → Deliverables → Kanban."
         )
-        st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
+        with st.expander("Instalación / Estado", expanded=False):
+            st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
+
+        tabs = st.tabs(["Worklog", "Backlog", "Weekly Review", "Deliverables"])
+
+        with tabs[0]:
+            st.subheader("🕒 Worklog")
+
+            with st.form("worklog_form", clear_on_submit=False):
+                col_a, col_b = st.columns(2)
+
+                with col_a:
+                    w_date = st.date_input("Date", value=datetime.today())
+                    w_block = st.selectbox("Block", ["AM", "PM", "Noche"])
+                    w_hours = st.number_input("Hours", min_value=0.0, value=0.0, step=0.25)
+                    w_status = st.selectbox(
+                        "Status",
+                        ["Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                    )
+
+                with col_b:
+                    w_project = st.text_input("Project")
+                    w_module = st.text_input("Module (optional)")
+                    w_task = st.text_input("Task")
+                    w_next_step = st.text_input("Next step (optional)")
+
+                w_desc = st.text_area("Descripción / Evidencia (optional)")
+                w_evidence_url = st.text_input("Evidence URL / path (optional)")
+                w_tags_csv = st.text_input("Tags (comma-separated)")
+
+                submitted = st.form_submit_button("Add Worklog Entry")
+
+            if submitted:
+                if not w_project.strip() or not w_task.strip():
+                    st.error("Project y Task son obligatorios.")
+                else:
+                    date_str = w_date.strftime("%Y-%m-%d")
+                    iso = datetime.strptime(date_str, "%Y-%m-%d").isocalendar()
+                    iso_year = int(getattr(iso, "year", iso[0]))
+                    iso_week = int(getattr(iso, "week", iso[1]))
+
+                    tags = [t.strip() for t in w_tags_csv.split(",") if t.strip()]
+                    now = datetime.utcnow()
+
+                    doc = {
+                        "date": date_str,
+                        "block": w_block,
+                        "start_time": None,
+                        "end_time": None,
+                        "hours": float(w_hours),
+                        "project": w_project.strip(),
+                        "module": w_module.strip() or None,
+                        "task": w_task.strip(),
+                        "description_evidence": w_desc.strip() or None,
+                        "status": w_status,
+                        "deliverable_id": None,
+                        "evidence_url": w_evidence_url.strip() or None,
+                        "next_step": w_next_step.strip() or None,
+                        "tags": tags,
+                        "iso_year": iso_year,
+                        "iso_week": iso_week,
+                        "created_at": now,
+                        "updated_at": now,
+                    }
+
+                    try:
+                        mongo_db["worklog_entries"].insert_one(doc)
+                        st.success("✅ Worklog entry guardada.")
+                    except Exception as e:
+                        st.error(f"❌ Error guardando worklog: {e}")
+
+            st.markdown("### Recientes (últimas 20 entradas)")
+            try:
+                rows = list(
+                    mongo_db["worklog_entries"]
+                    .find({}, {"_id": 0})
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(20)
+                )
+                if not rows:
+                    st.info("Aún no hay entradas en worklog.")
+                else:
+                    df = pd.DataFrame(rows)
+                    st.dataframe(df, use_container_width=True)
+            except Exception as e:
+                st.error(f"❌ Error cargando worklog: {e}")
+
+        with tabs[1]:
+            st.info("MVP próximamente: Backlog.")
+
+        with tabs[2]:
+            st.info("MVP próximamente: Weekly Review.")
+
+        with tabs[3]:
+            st.info("MVP próximamente: Deliverables.")
 
 elif page == "➕ Add Concept":
     st.title("➕ Add New Mathematical Concept")
