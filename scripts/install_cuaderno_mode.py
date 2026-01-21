@@ -34,6 +34,7 @@ REQUIRED_COLLECTIONS = [
     "backlog_items",
     "weekly_reviews",
     "deliverables",
+    "latex_notes",
 ]
 
 
@@ -165,6 +166,26 @@ def _deliverables_validator() -> Dict[str, Any]:
     }
 
 
+
+
+def _latex_notes_validator() -> Dict[str, Any]:
+    return {
+        "$jsonSchema": {
+            "bsonType": "object",
+            "required": ["title", "date", "latex_body", "created_at", "updated_at"],
+            "properties": {
+                "title": {"bsonType": "string"},
+                "date": {"bsonType": "string", "description": "YYYY-MM-DD"},
+                "project": {"bsonType": ["string", "null"]},
+                "context": {"enum": ["estudio", "debug", "lectura", "idea", "reflexion"]},
+                "latex_body": {"bsonType": "string"},
+                "tags": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                "created_at": {"bsonType": "date"},
+                "updated_at": {"bsonType": "date"},
+            },
+        }
+    }
+
 def _ensure_indexes(db) -> None:
     def _safe_create_index(col, keys, *, name: str, unique: bool = False) -> None:
         """Crea un índice de forma idempotente.
@@ -232,6 +253,19 @@ def _ensure_indexes(db) -> None:
     )
 
 
+# latex notes
+    _safe_create_index(
+    db["latex_notes"],
+    [("date", DESCENDING), ("updated_at", DESCENDING)],
+    name="date_desc_updated_desc",
+)
+    _safe_create_index(
+    db["latex_notes"],
+    [("project", ASCENDING), ("date", DESCENDING)],
+    name="project_date_desc",
+)
+
+
 def status(db) -> int:
     existing = set(db.list_collection_names())
     print("Colecciones:")
@@ -250,6 +284,7 @@ def install(db) -> int:
     _ensure_collection(db, "backlog_items", _backlog_validator())
     _ensure_collection(db, "weekly_reviews", _weekly_validator())
     _ensure_collection(db, "deliverables", _deliverables_validator())
+    _ensure_collection(db, "latex_notes", _latex_notes_validator())
     _ensure_indexes(db)
     print("✅ Cuaderno instalado (colecciones + validadores + índices).")
     return 0

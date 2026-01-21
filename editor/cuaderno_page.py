@@ -90,12 +90,14 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     c_backlog = mongo_db["backlog_items"].count_documents({})
     c_weekly = mongo_db["weekly_reviews"].count_documents({})
     c_deliv = mongo_db["deliverables"].count_documents({})
+    c_notes = mongo_db["latex_notes"].count_documents({})
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     col1.metric("Worklog", c_worklog)
     col2.metric("Backlog", c_backlog)
     col3.metric("Weekly", c_weekly)
     col4.metric("Deliverables", c_deliv)
+    col5.metric("Diario", c_notes)
 
     st.info(
         "Este módulo es experimental. En los siguientes MVPs habilitaremos: "
@@ -104,7 +106,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     with st.expander("Instalación / Estado", expanded=False):
         st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
 
-    tabs = st.tabs(["Worklog", "Backlog", "Weekly Review", "Deliverables", "Kanban"])
+    tabs = st.tabs(["Worklog", "Backlog", "Weekly Review", "Deliverables", "Kanban", "Diario"])
 
     with tabs[0]:
         st.subheader("🕒 Worklog")
@@ -721,3 +723,111 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                                 st.rerun()
                             else:
                                 st.error("❌ No se pudo actualizar el estado (id no encontrado).")
+
+
+
+    with tabs[5]:
+        st.subheader("📓 Diario LaTeX (V8)")
+        st.caption("Captura y consulta de notas largas en LaTeX. (Sin exportación todavía)")
+
+        notes_col = mongo_db["latex_notes"]
+
+        st.markdown("### ➕ Nueva nota")
+        with st.form("latex_note_create_form", clear_on_submit=False):
+            c1, c2 = st.columns([2, 1])
+            with c1:
+                n_title = st.text_input("Título")
+                n_latex = st.text_area("Contenido LaTeX", height=260)
+            with c2:
+                n_date = st.date_input("Fecha", value=date.today())
+                n_project = st.text_input("Proyecto (opcional)", value="")
+                n_context = st.selectbox(
+                "Contexto",
+                ["estudio", "debug", "lectura", "idea", "reflexion"],
+                index=0,
+                )
+                n_tags_csv = st.text_input("Tags (comma-separated)", value="")
+
+            save_note = st.form_submit_button("Guardar nota")
+
+        if save_note:
+            if not (n_title or "").strip() or not (n_latex or "").strip():
+                st.error("❌ Campos requeridos: Título y Contenido LaTeX.")
+            else:
+                now = datetime.utcnow()
+                doc = {
+                "title": (n_title or "").strip(),
+                "date": n_date.strftime("%Y-%m-%d"),
+                "project": (n_project or "").strip() or None,
+                "context": n_context,
+                "latex_body": (n_latex or "").strip(),
+                "tags": [t.strip() for t in (n_tags_csv or "").split(",") if t.strip()],
+                "created_at": now,
+                "updated_at": now,
+            }
+                try:
+                    notes_col.insert_one(doc)
+                    st.success("✅ Nota guardada.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error guardando nota: {e}")
+
+        st.divider()
+        st.markdown("### 🔎 Buscar notas")
+
+        f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
+        with f1:
+            flt_q = st.text_input("Texto (título o cuerpo)", value="")
+        with f2:
+            flt_project = st.text_input("Proyecto", value="")
+        with f3:
+            flt_context = st.selectbox(
+            "Contexto",
+            options=["(all)", "estudio", "debug", "lectura", "idea", "reflexion"],
+            index=0,
+        )
+        with f4:
+            limit = st.number_input("Limit", min_value=5, max_value=200, value=30, step=5)
+
+        q = {}
+        if flt_project.strip():
+            q["project"] = {"$regex": re.escape(flt_project.strip()), "$options": "i"}
+        if flt_context != "(all)":
+            q["context"] = flt_context
+        if flt_q.strip():
+            rx = {"$regex": re.escape(flt_q.strip()), "$options": "i"}
+            q["$or"] = [{"title": rx}, {"latex_body": rx}]
+
+        try:
+            notes = list(
+            notes_col.find(q)
+            .sort([("date", -1), ("updated_at", -1)])
+            .limit(int(limit))
+        )
+        except Exception as e:
+            st.error(f"❌ Error cargando notas: {e}")
+            notes = []
+
+        if not notes:
+            st.info("No hay notas para este filtro.")
+        else:
+            for n in notes:
+                nid = str(n.get("_id"))
+                title = n.get("title") or "(sin título)"
+                d = n.get("date") or ""
+                proj = n.get("project") or "—"
+                ctx = n.get("context") or "—"
+                tags = ", ".join(n.get("tags") or [])
+
+                with st.expander(f"{d} — {title}", expanded=False):
+                    meta1, meta2 = st.columns([2, 1])
+                    with meta1:
+                        st.write(f"**Proyecto:** {proj}")
+                        st.write(f"**Contexto:** {ctx}")
+                        if tags:
+                            st.write(f"**Tags:** {tags}")
+                    with meta2:
+                        st.write(f"**Id:** `{nid}`")
+                        st.write(f"**Updated:** {n.get('updated_at') or '—'}")
+
+                    st.code(n.get("latex_body") or "", language="latex")
