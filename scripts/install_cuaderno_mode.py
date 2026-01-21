@@ -262,7 +262,7 @@ def _ensure_indexes(db) -> None:
     _safe_create_index(
     db["latex_notes"],
     [("project", ASCENDING), ("date", DESCENDING)],
-    name="project_date_desc",
+    name="latex_project_date_desc",
 )
 
 

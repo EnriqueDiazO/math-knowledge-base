@@ -120,6 +120,105 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
             print(f"⚠️ Warning: Could not clean up temporary directory {temp_dir}: {e}")
 
 
+
+
+def generar_tex_nota_latex(nota: Dict) -> str:
+    """Generate a standalone LaTeX document for a diary note (latex_notes).
+
+    The output uses the same style files as concept export (miestilo.sty, coloredtheorem.sty).
+    """
+    title = (nota.get("title") or "Nota").strip()
+    fecha = (nota.get("date") or "").strip()
+    project = (nota.get("project") or "").strip()
+    context = (nota.get("context") or "").strip()
+    tags = nota.get("tags") or []
+    body = (nota.get("latex_body") or "").strip()
+
+    latex_doc = r"""\documentclass[12pt]{article}
+\usepackage{miestilo}
+\usepackage{coloredtheorem}
+\begin{document}
+
+"""
+
+    latex_doc += r"\section*{" + title.replace('{','\\{').replace('}','\\}') + r"}\n\n"
+
+    # Metadata block (optional)
+    meta_lines = []
+    if fecha:
+        meta_lines.append(r"\textbf{Fecha:} " + fecha + r"\\")
+    if project:
+        meta_lines.append(r"\textbf{Proyecto:} " + project + r"\\")
+    if context:
+        meta_lines.append(r"\textbf{Contexto:} " + context + r"\\")
+    if tags:
+        meta_lines.append(r"\textbf{Tags:} " + ", ".join(tags) + r"\\")
+
+    if meta_lines:
+        latex_doc += r"\noindent\begin{flushleft}\small\n"
+        latex_doc += "\n".join(meta_lines) + "\n"
+        latex_doc += r"\end{flushleft}\normalsize\n\n"
+
+    if body:
+        latex_doc += body + "\n\n"
+
+    latex_doc += r"\end{document}\n"
+    return latex_doc
+
+
+def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None) -> str:
+    """Generate a PDF from a diary note using pdflatex, reusing the concept export pipeline."""
+    # Use the same persistent templates directory as concept export
+    temp_dir = Path(__file__).resolve().parent.parent / "templates_latex"
+    temp_path = Path(temp_dir)
+
+    # Make sure style files exist in the output dir (idempotent)
+    _copiar_archivos_estilo(temp_path)
+
+    # Build LaTeX document
+    latex_content = generar_tex_nota_latex(nota)
+
+    # Build safe filename base
+    raw_id = str(nota.get("_id") or nota.get("id") or "latex_note")
+    safe_id = raw_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+    tex_file = temp_path / f"{safe_id}.tex"
+    tex_file.write_text(latex_content, encoding="utf-8")
+
+    # Compile
+    try:
+        result = subprocess.run(
+            ["pdflatex", "-interaction=nonstopmode", "-output-directory", str(temp_path), str(tex_file)],
+            capture_output=True,
+            text=True,
+            timeout=30,
+        )
+    except subprocess.TimeoutExpired:
+        raise Exception("LaTeX compilation timed out")
+
+    pdf_file = temp_path / f"{safe_id}.pdf"
+    if not pdf_file.exists():
+        st.error(f"❌ LaTeX compilation failed:\n{result.stderr}")
+        raise Exception(f"LaTeX compilation failed: {result.stderr}")
+
+    # Copy to final destination
+    if output_path is None:
+        pdf_dir = Path(os.path.expanduser("~/math_knowledge_pdfs/latex_notes"))
+        pdf_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(pdf_dir, 0o755)
+
+        # Optional date prefix
+        date_prefix = (nota.get("date") or "").replace("-", "")
+        title = (nota.get("title") or "nota").strip().replace(" ", "_")
+        title = "".join(ch for ch in title if ch.isalnum() or ch in ("_", "-", "."))
+        final_pdf = pdf_dir / f"{date_prefix}_{title}_{safe_id}.pdf" if date_prefix else pdf_dir / f"{title}_{safe_id}.pdf"
+    else:
+        final_pdf = Path(output_path)
+
+    import shutil
+    shutil.copy2(pdf_file, final_pdf)
+    os.chmod(final_pdf, 0o644)
+    return str(final_pdf)
+
 def _generar_latex_content(concepto: Dict) -> str:
     """
     Generate LaTeX content for a mathematical concept using the same style as ExportadorLatex.

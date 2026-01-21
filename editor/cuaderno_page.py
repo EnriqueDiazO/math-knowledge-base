@@ -18,7 +18,7 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from bson import ObjectId
-
+from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex
 import streamlit as st
 import pandas as pd
 
@@ -577,8 +577,11 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     "deliverable": d_deliverable.strip(),
                     "type": d_type,
                     "url_or_path": d_path.strip(),
-                    "commit_ref": d_commit.strip() or None,
                     "notes": d_notes.strip() or None,
+                    "linked_worklog_ids": [],
+                    "linked_note_ids": [],
+                    "commit_ref": d_commit.strip() or None,
+                    "linked_commits": [d_commit.strip()] if d_commit.strip() else [],
                     "tags": [t.strip() for t in d_tags_csv.split(",") if t.strip()],
                     "created_at": now,
                     "updated_at": now,
@@ -833,3 +836,71 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                         st.write(f"**Updated:** {n.get('updated_at') or '—'}")
 
                     st.code(n.get("latex_body") or "", language="latex")
+
+
+        st.markdown("#### 📤 Exportar")
+
+        if not notes:
+            st.info("Primero crea o filtra una nota para poder exportar.")
+        else:
+            # Selección explícita de nota a exportar (evita variables fuera de scope)
+            opt_labels = []
+            opt_map = {}
+            for n in notes:
+                _nid = str(n.get("_id"))
+                _d = n.get("date") or ""
+                _t = n.get("title") or "(sin título)"
+                label = f"{_d} — {_t}"
+                opt_labels.append(label)
+                opt_map[label] = _nid
+
+            selected_label = st.selectbox(
+                "Selecciona una nota",
+                options=opt_labels,
+                index=0,
+                key="latex_notes_export_select",
+            )
+            nid = opt_map.get(selected_label)
+            note_doc = None
+            if nid:
+                note_doc = _find_one_by_id(notes_col, nid)
+
+            if not note_doc:
+                st.warning("No se pudo cargar la nota seleccionada.")
+            else:
+                e1, e2 = st.columns(2)
+
+                with e1:
+                    if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
+                        st.session_state[f"note_tex_{nid}"] = generar_tex_nota_latex(note_doc)
+                        st.success("✅ TEX listo para descargar.")
+
+                    tex_data = st.session_state.get(f"note_tex_{nid}")
+                    if tex_data:
+                        st.download_button(
+                            "Descargar TEX",
+                            data=tex_data,
+                            file_name=f"latex_note_{nid}.tex",
+                            mime="text/x-tex",
+                            key=f"note_tex_dl_{nid}",
+                        )
+
+                with e2:
+                    if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
+                        try:
+                            pdf_path = generar_pdf_nota_latex(note_doc)
+                            st.session_state[f"note_pdf_path_{nid}"] = pdf_path
+                            st.success("✅ PDF listo para descargar.")
+                        except Exception as e:
+                            st.error(f"❌ Error generando PDF: {e}")
+
+                    pdf_path = st.session_state.get(f"note_pdf_path_{nid}")
+                    if pdf_path and os.path.exists(pdf_path):
+                        with open(pdf_path, "rb") as f:
+                            st.download_button(
+                                "Descargar PDF",
+                                data=f.read(),
+                                file_name=os.path.basename(pdf_path),
+                                mime="application/pdf",
+                                key=f"note_pdf_dl_{nid}",
+                            )
