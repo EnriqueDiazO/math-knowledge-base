@@ -22,6 +22,44 @@ from bson import ObjectId
 import streamlit as st
 import pandas as pd
 
+def _find_one_by_id(coll, id_value):
+    """Find a document by _id supporting both ObjectId and string ids."""
+    if id_value is None:
+        return None
+    # Normalize to string for parsing
+    s = str(id_value)
+    # First try ObjectId
+    try:
+        oid = ObjectId(s)
+        doc = coll.find_one({"_id": oid})
+        if doc is not None:
+            return doc
+    except Exception:
+        pass
+    # Fallback: string _id
+    try:
+        return coll.find_one({"_id": s})
+    except Exception:
+        return None
+
+
+def _update_one_by_id(coll, id_value, update_doc):
+    """Update a document by _id supporting both ObjectId and string ids."""
+    if id_value is None:
+        return None
+    s = str(id_value)
+    try:
+        oid = ObjectId(s)
+        res = coll.update_one({"_id": oid}, update_doc)
+        if getattr(res, "matched_count", 0) > 0:
+            return res
+    except Exception:
+        pass
+    try:
+        return coll.update_one({"_id": s}, update_doc)
+    except Exception:
+        return None
+
 
 def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     """
@@ -66,7 +104,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     with st.expander("Instalación / Estado", expanded=False):
         st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
 
-    tabs = st.tabs(["Worklog", "Backlog", "Weekly Review", "Deliverables"])
+    tabs = st.tabs(["Worklog", "Backlog", "Weekly Review", "Deliverables", "Kanban"])
 
     with tabs[0]:
         st.subheader("🕒 Worklog")
@@ -287,7 +325,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             # Obtener el documento actual
             current = None
             try:
-                current = mongo_db["backlog_items"].find_one({"_id": ObjectId(selected_id)})
+                current = _find_one_by_id(mongo_db["backlog_items"], selected_id)
             except Exception:
                 current = None
 
@@ -583,3 +621,103 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 st.dataframe(df, use_container_width=True)
         except Exception as e:
             st.error(f"❌ Error cargando deliverables: {e}")
+
+
+    with tabs[4]:
+        st.subheader("🧱 Kanban (V7 — mínimo)")
+        st.caption("Vista mínima del backlog por columnas. Cambio de estado vía selectbox (sin drag & drop).")
+
+        kf1, kf2 = st.columns([2, 1])
+        with kf1:
+            kb_project = st.selectbox(
+                "Project (filter)",
+                options=["(all)"] + sorted(
+                    [p for p in mongo_db["backlog_items"].distinct("project") if isinstance(p, str)]
+                ),
+                index=0,
+                key="kanban_filter_project",
+            )
+        with kf2:
+            if st.button("🔄 Refrescar", key="kanban_refresh"):
+                st.rerun()
+
+        k_query = {}
+        if kb_project != "(all)":
+            k_query["project"] = kb_project
+
+        try:
+            k_items = list(
+                mongo_db["backlog_items"]
+                .find(k_query)
+                .sort("updated_at", -1)
+                .limit(400)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando backlog (kanban): {e}")
+            k_items = []
+
+        statuses = ["Todo", "Doing", "Blocked", "Done"]
+        grouped = {s: [] for s in statuses}
+        for it in k_items:
+            s = it.get("status", "Todo")
+            if s not in grouped:
+                # Ignora estados fuera del Kanban mínimo (p.ej. Canceled)
+                continue
+            grouped[s].append(it)
+
+        col_todo, col_doing, col_blocked, col_done = st.columns(4)
+        cols = {
+            "Todo": col_todo,
+            "Doing": col_doing,
+            "Blocked": col_blocked,
+            "Done": col_done,
+        }
+
+        for s in statuses:
+            with cols[s]:
+                st.markdown(f"#### {s} ({len(grouped[s])})")
+
+                if not grouped[s]:
+                    st.info("—")
+                    continue
+
+                for it in grouped[s][:50]:
+                    _id_str = str(it.get("_id"))
+                    title = f"{it.get('project','')} — {it.get('task','')}"
+                    with st.expander(title, expanded=False):
+                        meta_left, meta_right = st.columns([2, 1])
+                        with meta_left:
+                            st.write(f"**Module:** {it.get('module') or '—'}")
+                            st.write(f"**Priority:** {it.get('priority') or '—'}")
+                            st.write(f"**Owner:** {it.get('owner') or '—'}")
+                            if it.get("target_date"):
+                                st.write(f"**Target date:** {it.get('target_date')}")
+                        with meta_right:
+                            st.write(f"**Updated:** {it.get('updated_at') or '—'}")
+                            st.write(f"**Id:** `{_id_str}`")
+
+                        new_status = st.selectbox(
+                            "Status",
+                            options=statuses,
+                            index=statuses.index(s),
+                            key=f"kanban_status_{_id_str}",
+                        )
+
+                        apply_btn = st.button(
+                            "Aplicar cambio",
+                            key=f"kanban_apply_{_id_str}",
+                            disabled=(new_status == s),
+                        )
+
+                        if apply_btn and new_status != s:
+                            now = datetime.utcnow()
+                            res = _update_one_by_id(
+                                mongo_db["backlog_items"],
+                                _id_str,
+                                {"$set": {"status": new_status, "updated_at": now}},
+                            )
+                            if res is not None and getattr(res, "matched_count", 0) > 0:
+                                st.success("✅ Estado actualizado.")
+                                st.rerun()
+                            else:
+                                st.error("❌ No se pudo actualizar el estado (id no encontrado).")
