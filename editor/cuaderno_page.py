@@ -553,9 +553,10 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 d_project = st.text_input("Proyecto")
                 d_type = st.selectbox(
                     "Tipo",
-                    ["report", "code", "dataset", "slides", "doc", "other"],
+                    ["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"],
                     index=0,
-                )
+                    )
+                d_deliverable = st.text_input("Deliverable (nombre)")
 
             with c2:
                 d_path = st.text_input("Ruta / URL")
@@ -566,15 +567,16 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             save_deliv = st.form_submit_button("Guardar entregable")
 
         if save_deliv:
-            if not d_project.strip() or not d_path.strip():
-                st.error("❌ Campos requeridos: Proyecto y Ruta / URL.")
+            if not d_project.strip() or not d_deliverable.strip() or not d_path.strip():
+                st.error("❌ Campos requeridos: Proyecto, Deliverable y Ruta / URL.")
             else:
                 now = datetime.utcnow()
                 doc = {
                     "date": d_date.strftime("%Y-%m-%d"),
                     "project": d_project.strip(),
+                    "deliverable": d_deliverable.strip(),
                     "type": d_type,
-                    "path_or_url": d_path.strip(),
+                    "url_or_path": d_path.strip(),
                     "commit_ref": d_commit.strip() or None,
                     "notes": d_notes.strip() or None,
                     "tags": [t.strip() for t in d_tags_csv.split(",") if t.strip()],
@@ -598,7 +600,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         with f2:
             flt_type = st.selectbox(
                 "Type (filter)",
-                options=["(all)", "report", "code", "dataset", "slides", "doc", "other"],
+                options=["(all)", "reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"],
                 index=0,
             )
         with f3:
