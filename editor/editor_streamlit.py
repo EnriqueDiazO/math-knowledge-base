@@ -1,12 +1,13 @@
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import bibtexparser
 import pandas as pd
 import streamlit as st
 from streamlit_ace import st_ace
+from bson import ObjectId
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -398,11 +399,38 @@ st.sidebar.markdown("---")
 
 # Get current database connection
 db = st.session_state.db_manager.get_current_connection()
+def _cuaderno_is_installed(conn) -> bool:
+    """Detecta si el modo cuaderno está instalado en la DB actual.
+
+    Se considera instalado si existen las 4 colecciones base.
+    """
+    try:
+        if conn is None:
+            return False
+        mongo_db = getattr(conn, "db", None)
+        if mongo_db is None:
+            return False
+        names = set(mongo_db.list_collection_names())
+        required = {"worklog_entries", "backlog_items", "weekly_reviews", "deliverables"}
+        return required.issubset(names)
+    except Exception:
+        return False
+
 
 page = st.sidebar.selectbox(
     "Navigation",
     ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📤 Export", "⚙️ Settings"]
 )
+
+# Experimental navigation (optional)
+_exp_options = ["(none)"]
+if _cuaderno_is_installed(db):
+    _exp_options.append("🧪 Cuaderno")
+
+exp_page = st.sidebar.selectbox("Experimental", _exp_options, index=0)
+if exp_page == "🧪 Cuaderno":
+    page = "🧪 Cuaderno"
+
 
 # Dashboard page
 if page == "🏠 Dashboard":
@@ -894,6 +922,9 @@ if page == "🏠 Dashboard":
             # --- end MVP: concept-level sankey ---
 
 # Add Concept page
+elif page == "🧪 Cuaderno":
+    from cuaderno_page import render_cuaderno
+    render_cuaderno(db, _cuaderno_is_installed)
 elif page == "➕ Add Concept":
     st.title("➕ Add New Mathematical Concept")
 

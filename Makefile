@@ -7,7 +7,7 @@ BOOK_BUILD := quarto_book_build
 
 .PHONY: start mongo stop restart status run gui lint export grafo \
         book-clean book-export book-preview book-render \
-        clean clean-all book-clean-artifacts clean-book
+        clean clean-all book-clean-artifacts clean-book cuaderno-install cuaderno-status
 
 start:
 	@$(MAKE) mongo
@@ -105,3 +105,11 @@ clean-book: book-clean
 book: book-clean book-export book-preview
 
 book-html: book-clean book-export book-render
+
+
+
+cuaderno-install:
+	python scripts/install_cuaderno_mode.py
+
+cuaderno-status:
+	python scripts/install_cuaderno_mode.py --status
