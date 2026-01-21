@@ -122,10 +122,24 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
 
 
 
-def generar_tex_nota_latex(nota: Dict) -> str:
+def _latex_escape_text(s: str) -> str:
+    """Best-effort escape for LaTeX text fields (titles/metadata), not for LaTeX bodies."""
+    if s is None:
+        return ""
+    # Keep this intentionally minimal; the body is trusted LaTeX authored by the user.
+    return (
+        s.replace("\\", r"\textbackslash{}")
+         .replace("{", r"\{")
+         .replace("}", r"\}")
+    )
+
+
+def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
     """Generate a standalone LaTeX document for a diary note (latex_notes).
 
-    The output uses the same style files as concept export (miestilo.sty, coloredtheorem.sty).
+    Args:
+        nota: Mongo document of latex_notes.
+        template: "simple" (default) or "diario" (mdframed boxes inspired by diario.tex).
     """
     title = (nota.get("title") or "Nota").strip()
     fecha = (nota.get("date") or "").strip()
@@ -134,49 +148,110 @@ def generar_tex_nota_latex(nota: Dict) -> str:
     tags = nota.get("tags") or []
     body = (nota.get("latex_body") or "").strip()
 
+    # Common metadata block (optional)
+    meta_lines = []
+    if fecha:
+        meta_lines.append(r"\textbf{Fecha:} " + _latex_escape_text(fecha) + r"\\")
+    if project:
+        meta_lines.append(r"\textbf{Proyecto:} " + _latex_escape_text(project) + r"\\")
+    if context:
+        meta_lines.append(r"\textbf{Contexto:} " + _latex_escape_text(context) + r"\\")
+    if tags:
+        meta_lines.append(r"\textbf{Tags:} " + _latex_escape_text(", ".join(tags)) + r"\\")
+
+    # Template: "diario" (boxed / nicer layout)
+    if template == "diario":
+        latex_doc = r"""\documentclass[12pt,letterpaper]{report}
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish]{babel}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{enumitem}
+\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
+\usepackage{graphicx,tikz}
+\usepackage{mdframed}
+\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
+\usepackage{hyperref}
+\hypersetup{
+    colorlinks=true,
+    linkcolor=blue,
+    filecolor=blue,
+    urlcolor=red,
+}
+
+% Box style inspired by diario.tex
+\mdfdefinestyle{MyFrame}{%
+    linecolor=black,
+    outerlinewidth=2pt,
+    roundcorner=20pt,
+    innertopmargin=8pt,
+    innerbottommargin=6pt,
+    innerrightmargin=10pt,
+    innerleftmargin=10pt,
+    leftmargin=4pt,
+    rightmargin=4pt,
+    backgroundcolor=gray!12!white
+}
+
+\begin{document}
+
+"""
+        latex_doc += r"\chapter*{" + _latex_escape_text(title) + r"}" + "\n"
+        latex_doc += r"\addcontentsline{toc}{chapter}{" + _latex_escape_text(title) + r"}" + "\n\n"
+
+        if meta_lines:
+            latex_doc += r"\noindent\begin{mdframed}[style=MyFrame,nobreak=true]" + "\n"
+            latex_doc += r"\small" + "\n" + "\n".join(meta_lines) + "\n"
+            latex_doc += r"\normalsize" + "\n"
+            latex_doc += r"\end{mdframed}" + "\n\n"
+
+        if body:
+            latex_doc += r"\begin{mdframed}[style=MyFrame,nobreak=true]" + "\n"
+            latex_doc += body + "\n"
+            latex_doc += r"\end{mdframed}" + "\n\n"
+
+        latex_doc += r"\end{document}" + "\n"
+        return latex_doc
+
+    # Default: "simple" (uses existing style files)
     latex_doc = r"""\documentclass[12pt]{article}
 \usepackage{miestilo}
 \usepackage{coloredtheorem}
 \begin{document}
 
 """
-
-    latex_doc += r"\section*{" + title.replace('{','\\{').replace('}','\\}') + r"}\n\n"
-
-    # Metadata block (optional)
-    meta_lines = []
-    if fecha:
-        meta_lines.append(r"\textbf{Fecha:} " + fecha + r"\\")
-    if project:
-        meta_lines.append(r"\textbf{Proyecto:} " + project + r"\\")
-    if context:
-        meta_lines.append(r"\textbf{Contexto:} " + context + r"\\")
-    if tags:
-        meta_lines.append(r"\textbf{Tags:} " + ", ".join(tags) + r"\\")
+    latex_doc += r"\section*{" + _latex_escape_text(title) + r"}" + "\n\n"
 
     if meta_lines:
-        latex_doc += r"\noindent\begin{flushleft}\small\n"
+        latex_doc += r"\noindent\begin{flushleft}\small" + "\n"
         latex_doc += "\n".join(meta_lines) + "\n"
-        latex_doc += r"\end{flushleft}\normalsize\n\n"
+        latex_doc += r"\end{flushleft}\normalsize" + "\n\n"
 
     if body:
         latex_doc += body + "\n\n"
 
-    latex_doc += r"\end{document}\n"
+    latex_doc += r"\end{document}" + "\n"
     return latex_doc
 
 
-def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None) -> str:
-    """Generate a PDF from a diary note using pdflatex, reusing the concept export pipeline."""
+def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, template: str = "diario") -> str:
+    """Generate a PDF from a diary note using pdflatex, reusing the concept export pipeline.
+
+    Args:
+        nota: Mongo document of latex_notes.
+        output_path: Optional destination path.
+        template: "simple" (default) or "diario".
+    """
     # Use the same persistent templates directory as concept export
     temp_dir = Path(__file__).resolve().parent.parent / "templates_latex"
     temp_path = Path(temp_dir)
 
-    # Make sure style files exist in the output dir (idempotent)
-    _copiar_archivos_estilo(temp_path)
+    # Only copy style files for "simple"; the "diario" template is self-contained.
+    if template == "simple":
+        _copiar_archivos_estilo(temp_path)
 
     # Build LaTeX document
-    latex_content = generar_tex_nota_latex(nota)
+    latex_content = generar_tex_nota_latex(nota, template=template)
 
     # Build safe filename base
     raw_id = str(nota.get("_id") or nota.get("id") or "latex_note")
@@ -210,7 +285,11 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None) -> str
         date_prefix = (nota.get("date") or "").replace("-", "")
         title = (nota.get("title") or "nota").strip().replace(" ", "_")
         title = "".join(ch for ch in title if ch.isalnum() or ch in ("_", "-", "."))
-        final_pdf = pdf_dir / f"{date_prefix}_{title}_{safe_id}.pdf" if date_prefix else pdf_dir / f"{title}_{safe_id}.pdf"
+        suffix = f"{template}"  # distinguish outputs by template
+        if date_prefix:
+            final_pdf = pdf_dir / f"{date_prefix}_{title}_{safe_id}_{suffix}.pdf"
+        else:
+            final_pdf = pdf_dir / f"{title}_{safe_id}_{suffix}.pdf"
     else:
         final_pdf = Path(output_path)
 
