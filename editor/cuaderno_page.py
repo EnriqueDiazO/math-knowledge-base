@@ -21,6 +21,7 @@ from bson import ObjectId
 from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex
 import streamlit as st
 import pandas as pd
+from streamlit_ace import st_ace
 
 def _find_one_by_id(coll, id_value):
     """Find a document by _id supporting both ObjectId and string ids."""
@@ -61,6 +62,181 @@ def _update_one_by_id(coll, id_value, update_doc):
         return None
 
 
+
+def _parse_tags_csv(s: str) -> List[str]:
+    """Parse comma-separated tags into a clean list."""
+    if not s:
+        return []
+    parts = [p.strip() for p in s.split(",")]
+    return [p for p in parts if p]
+
+
+def _note_label(doc: Dict[str, Any]) -> str:
+    d = doc.get("date") or ""
+    title = doc.get("title") or "(sin título)"
+    proj = doc.get("project") or "—"
+    ctx = doc.get("context") or "—"
+    return f"{d} — {title}  ·  {proj} / {ctx}"
+
+
+def _get_editor_keys(prefix: str) -> Dict[str, str]:
+    return {
+        "text": f"{prefix}_latex_text",
+        "rev": f"{prefix}_latex_editor_rev",
+        "insert": f"{prefix}_latex_insert",
+        "do_insert": f"{prefix}_insert_latex",
+        "loaded_id": f"{prefix}_loaded_id",
+    }
+
+
+def _ensure_editor_state(prefix: str, initial_text: str = "") -> None:
+    keys = _get_editor_keys(prefix)
+    if keys["text"] not in st.session_state:
+        st.session_state[keys["text"]] = initial_text or ""
+    if keys["rev"] not in st.session_state:
+        st.session_state[keys["rev"]] = 0
+    if keys["insert"] not in st.session_state:
+        st.session_state[keys["insert"]] = ""
+    if keys["do_insert"] not in st.session_state:
+        st.session_state[keys["do_insert"]] = False
+    if keys["loaded_id"] not in st.session_state:
+        st.session_state[keys["loaded_id"]] = ""
+
+
+def _queue_insert(prefix: str, snippet: str) -> None:
+    keys = _get_editor_keys(prefix)
+    st.session_state[keys["insert"]] = snippet
+    st.session_state[keys["do_insert"]] = True
+
+
+def _handle_pending_insert(prefix: str) -> None:
+    keys = _get_editor_keys(prefix)
+    if st.session_state.get(keys["do_insert"]) and st.session_state.get(keys["insert"]):
+        current_text = st.session_state.get(keys["text"], "") or ""
+        to_insert = st.session_state[keys["insert"]]
+
+        if current_text and not current_text.endswith("\n"):
+            current_text += "\n"
+
+        st.session_state[keys["text"]] = current_text + to_insert + "\n"
+        st.session_state[keys["do_insert"]] = False
+        st.session_state[keys["insert"]] = ""
+        st.session_state[keys["rev"]] += 1
+        st.rerun()
+
+
+def _render_latex_toolbar(prefix: str) -> None:
+    """Toolbar: same spirit as 'Añadir Concepto' + semantic diary blocks."""
+    st.write("**🔧 Herramientas LaTeX:**")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if st.button("📝 Definición", key=f"{prefix}_btn_def"):
+            _queue_insert(prefix, "\\begin{definition}\n% ...\n\\end{definition}\n")
+        if st.button("📋 Teorema", key=f"{prefix}_btn_theorem"):
+            _queue_insert(prefix, "\\begin{theorem}{% ...}\n% ...\n\\end{theorem}\n")
+        if st.button("📌 Lema", key=f"{prefix}_btn_lemma"):
+            _queue_insert(prefix, "\\begin{lemma}\n% ...\n\\end{lemma}\n")
+        if st.button("📌 Proposición", key=f"{prefix}_btn_prop"):
+            _queue_insert(prefix, "\\begin{proposition}\n% ...\n\\end{proposition}\n")
+        if st.button("📋 Corolario", key=f"{prefix}_btn_cor"):
+            _queue_insert(prefix, "\\begin{corollary}\n% ...\n\\end{corollary}\n")
+        if st.button("📖 Prueba", key=f"{prefix}_btn_proof"):
+            _queue_insert(prefix, "\\begin{proof}\n% ...\n\\end{proof}\n")
+
+    with col2:
+        if st.button("🧪 Ejemplo", key=f"{prefix}_btn_ex"):
+            _queue_insert(prefix, "\\begin{example}\n% ...\n\\end{example}\n")
+        if st.button("🗒️ Nota / Remark", key=f"{prefix}_btn_remark"):
+            _queue_insert(prefix, "\\begin{remark}\n% ...\n\\end{remark}\n")
+        if st.button("🔢 Ecuación", key=f"{prefix}_btn_eq"):
+            _queue_insert(prefix, "\\begin{equation}\n% ...\n\\end{equation}\n")
+        if st.button("🔢 Align", key=f"{prefix}_btn_align"):
+            _queue_insert(prefix, "\\begin{align}\n% ...\n\\end{align}\n")
+        if st.button("🔢 Matrix", key=f"{prefix}_btn_matrix"):
+            _queue_insert(prefix, "\\begin{pmatrix}\na & b \\\\\nc & d\n\\end{pmatrix}\n")
+        if st.button("🔢 Cases", key=f"{prefix}_btn_cases"):
+            _queue_insert(prefix, "\\begin{cases}\n% ...\n\\end{cases}\n")
+
+    with col3:
+        if st.button("• Itemize", key=f"{prefix}_btn_itemize"):
+            _queue_insert(prefix, "\\begin{itemize}\n  \\item ...\n\\end{itemize}\n")
+        if st.button("1) Enumerate", key=f"{prefix}_btn_enum"):
+            _queue_insert(prefix, "\\begin{enumerate}\n  \\item ...\n\\end{enumerate}\n")
+        if st.button("≡ Description", key=f"{prefix}_btn_desc"):
+            _queue_insert(prefix, "\\begin{description}\n  \\item[\Ítem] ...\n\\end{description}\n")
+        if st.button("💻 Código (lstlisting)", key=f"{prefix}_btn_code"):
+            _queue_insert(prefix, "\\begin{lstlisting}\n# ...\n\\end{lstlisting}\n")
+        if st.button("📁 DirTree", key=f"{prefix}_btn_dirtree"):
+            _queue_insert(prefix, "\\begin{dirtree}\n.1 /ruta.\n.2 archivo.txt.\n\\end{dirtree}\n")
+
+    with col4:
+        # Símbolos (mínimo viable)
+        sym_cols = st.columns(2)
+        with sym_cols[0]:
+            if st.button("∑", key=f"{prefix}_sym_sum"):
+                _queue_insert(prefix, "\\sum_{i=1}^{n}")
+            if st.button("∫", key=f"{prefix}_sym_int"):
+                _queue_insert(prefix, "\\int_{a}^{b}")
+            if st.button("∈", key=f"{prefix}_sym_in"):
+                _queue_insert(prefix, "\\in")
+            if st.button("∀", key=f"{prefix}_sym_forall"):
+                _queue_insert(prefix, "\\forall")
+            if st.button("ℝ", key=f"{prefix}_sym_R"):
+                _queue_insert(prefix, "\\mathbb{R}")
+        with sym_cols[1]:
+            if st.button("∃", key=f"{prefix}_sym_exists"):
+                _queue_insert(prefix, "\\exists")
+            if st.button("→", key=f"{prefix}_sym_to"):
+                _queue_insert(prefix, "\\rightarrow")
+            if st.button("∞", key=f"{prefix}_sym_inf"):
+                _queue_insert(prefix, "\\infty")
+            if st.button("ε", key=f"{prefix}_sym_eps"):
+                _queue_insert(prefix, "\\varepsilon")
+            if st.button("δ", key=f"{prefix}_sym_delta"):
+                _queue_insert(prefix, "\\delta")
+
+    st.write("**🧩 Bloques semánticos del cuaderno:**")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    semantic = [
+        ("context", b1),
+        ("reading", b1),
+        ("exploration", b2),
+        ("hypothesis", b2),
+        ("connections", b3),
+        ("reflection", b3),
+        ("decision", b4),
+        ("openquestions", b4),
+        ("technical", b5),
+        ("nextsteps", b5),
+    ]
+    for name, col in semantic:
+        with col:
+            if st.button(name, key=f"{prefix}_sem_{name}"):
+                _queue_insert(prefix, f"\\begin{{{name}}}\n...\n\\end{{{name}}}\n")
+
+
+def _render_latex_ace_editor(prefix: str, initial_text: str, height: int = 320) -> str:
+    """Ace editor with deterministic insertion mechanism (stable on reruns)."""
+    _ensure_editor_state(prefix, initial_text=initial_text)
+    _handle_pending_insert(prefix)
+
+    keys = _get_editor_keys(prefix)
+    value = st_ace(
+        value=st.session_state[keys["text"]],
+        language="latex",
+        theme="monokai",
+        font_size=16,
+        tab_size=2,
+        height=height,
+        wrap=True,
+        show_gutter=True,
+        auto_update=True,
+        key=f"{prefix}_latex_editor_{st.session_state[keys['rev']]}",
+    )
+    st.session_state[keys["text"]] = value or ""
+    return st.session_state[keys["text"]]
 def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     """
     Renderiza la página 🧪 Cuaderno (Experimental).
@@ -734,47 +910,60 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     with tabs[5]:
         st.subheader("📓 Diario LaTeX (V8)")
         st.caption("Captura y consulta de notas largas en LaTeX. (Sin exportación todavía)")
-
         notes_col = mongo_db["latex_notes"]
 
+
         st.markdown("### ➕ Nueva nota")
-        with st.form("latex_note_create_form", clear_on_submit=False):
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                n_title = st.text_input("Título")
-                n_latex = st.text_area("Contenido LaTeX", height=260)
-            with c2:
-                n_date = st.date_input("Fecha", value=date.today())
-                n_project = st.text_input("Proyecto (opcional)", value="")
-                n_context = st.selectbox(
+        # --- Reset seguro del form "Nueva nota" (antes de instanciar widgets) ---
+        if st.session_state.pop("diary_clear_new_form", False):
+            for _k in ("diary_new_title", "diary_new_date", "diary_new_project", "diary_new_context", "diary_new_tags"):
+                st.session_state.pop(_k, None)
+            _keys = _get_editor_keys("diary_new")
+            st.session_state.pop(_keys["text"], None)
+            st.session_state[_keys["rev"]] = st.session_state.get(_keys["rev"], 0) + 1
+
+
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            n_title = st.text_input("Título", key="diary_new_title")
+        with c2:
+            n_date = st.date_input("Fecha", value=date.today(), key="diary_new_date")
+            n_project = st.text_input("Proyecto (opcional)", value="", key="diary_new_project")
+            n_context = st.selectbox(
                 "Contexto",
-                ["estudio", "debug", "lectura", "idea", "reflexion"],
+                options=["estudio", "debug", "lectura", "idea", "reflexion"],
                 index=0,
-                )
-                n_tags_csv = st.text_input("Tags (comma-separated)", value="")
+                key="diary_new_context",
+            )
+            n_tags_raw = st.text_input("Tags (comma-separated)", value="", key="diary_new_tags")
 
-            save_note = st.form_submit_button("Guardar nota")
+        _render_latex_toolbar(prefix="diary_new")
+        n_latex = _render_latex_ace_editor(prefix="diary_new", initial_text="", height=320)
 
-        if save_note:
+        if st.button("Guardar nota", key="diary_new_save"):
+            tags = _parse_tags_csv(n_tags_raw)
             if not (n_title or "").strip() or not (n_latex or "").strip():
-                st.error("❌ Campos requeridos: Título y Contenido LaTeX.")
+                st.error("⚠️ Título y contenido LaTeX son obligatorios.")
             else:
-                now = datetime.utcnow()
                 doc = {
-                "title": (n_title or "").strip(),
-                "date": n_date.strftime("%Y-%m-%d"),
-                "project": (n_project or "").strip() or None,
-                "context": n_context,
-                "latex_body": (n_latex or "").strip(),
-                "tags": [t.strip() for t in (n_tags_csv or "").split(",") if t.strip()],
-                "created_at": now,
-                "updated_at": now,
-            }
+                    "title": n_title.strip(),
+                    "date": n_date.strftime("%Y-%m-%d"),
+                    "project": (n_project or "").strip(),
+                    "context": n_context,
+                    "tags": tags,
+                    "latex_body": n_latex,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                }
                 try:
                     notes_col.insert_one(doc)
                     st.success("✅ Nota guardada.")
+                    # Limpieza mínima
+                    # Limpiar el formulario en el siguiente rerun (evita modificar session_state después de instanciar widgets)
+                    st.session_state["diary_clear_new_form"] = True
                     st.rerun()
                 except Exception as e:
+                    st.error(f"❌ Error guardando nota: {e}")
                     st.error(f"❌ Error guardando nota: {e}")
 
         st.divider()
@@ -838,6 +1027,137 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     st.code(n.get("latex_body") or "", language="latex")
 
 
+
+        st.divider()
+        st.markdown("### ✏️ Editar nota")
+
+        if not notes:
+            st.info("No hay notas cargadas para editar con este filtro.")
+        else:
+            opt_map: Dict[str, str] = {}
+            opt_labels: List[str] = []
+            for n in notes:
+                _nid = str(n.get("_id"))
+                label = _note_label(n)
+                opt_labels.append(label)
+                opt_map[label] = _nid
+
+            selected_label = st.selectbox(
+                "Selecciona una nota para editar",
+                options=opt_labels,
+                index=0,
+                key="diary_edit_select",
+            )
+            nid = opt_map.get(selected_label)
+            note_doc = _find_one_by_id(notes_col, nid) if nid else None
+
+            if not note_doc:
+                st.warning("No se pudo cargar la nota seleccionada.")
+            else:
+                # Cargar valores al cambiar de selección
+                edit_prefix = "diary_edit"
+                keys = _get_editor_keys(edit_prefix)
+                if st.session_state.get(keys["loaded_id"]) != str(note_doc.get("_id")):
+                    st.session_state[keys["loaded_id"]] = str(note_doc.get("_id"))
+                    st.session_state["diary_edit_title"] = note_doc.get("title") or ""
+                    # date guardada como string YYYY-MM-DD
+                    try:
+                        st.session_state["diary_edit_date"] = datetime.strptime(note_doc.get("date") or "", "%Y-%m-%d").date()
+                    except Exception:
+                        st.session_state["diary_edit_date"] = date.today()
+                    st.session_state["diary_edit_project"] = note_doc.get("project") or ""
+                    st.session_state["diary_edit_context"] = note_doc.get("context") or "estudio"
+                    st.session_state["diary_edit_tags"] = ", ".join(note_doc.get("tags") or [])
+                    st.session_state[keys["text"]] = note_doc.get("latex_body") or ""
+                    st.session_state[keys["rev"]] += 1
+
+                e1, e2 = st.columns([2, 1])
+                with e1:
+                    e_title = st.text_input("Título", key="diary_edit_title")
+                with e2:
+                    e_date = st.date_input("Fecha", key="diary_edit_date")
+                    e_project = st.text_input("Proyecto (opcional)", key="diary_edit_project")
+                    e_context = st.selectbox(
+                        "Contexto",
+                        options=["estudio", "debug", "lectura", "idea", "reflexion"],
+                        index=["estudio", "debug", "lectura", "idea", "reflexion"].index(st.session_state.get("diary_edit_context", "estudio"))
+                        if st.session_state.get("diary_edit_context", "estudio") in ["estudio", "debug", "lectura", "idea", "reflexion"]
+                        else 0,
+                        key="diary_edit_context",
+                    )
+                    e_tags_raw = st.text_input("Tags (comma-separated)", key="diary_edit_tags")
+
+                _render_latex_toolbar(prefix=edit_prefix)
+                e_latex = _render_latex_ace_editor(prefix=edit_prefix, initial_text=note_doc.get("latex_body") or "", height=420)
+
+                if st.button("Guardar cambios", key="diary_edit_save"):
+                    if not (e_title or "").strip() or not (e_latex or "").strip():
+                        st.error("⚠️ Título y contenido LaTeX son obligatorios.")
+                    else:
+                        tags = _parse_tags_csv(e_tags_raw)
+                        upd = {
+                            "title": e_title.strip(),
+                            "date": e_date.strftime("%Y-%m-%d"),
+                            "project": (e_project or "").strip(),
+                            "context": e_context,
+                            "tags": tags,
+                            "latex_body": e_latex,
+                            "updated_at": datetime.utcnow(),
+                        }
+                        try:
+                            notes_col.update_one({"_id": ObjectId(nid)}, {"$set": upd})
+                            st.success("✅ Nota actualizada.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error actualizando nota: {e}")
+
+        st.divider()
+        st.markdown("### 🗑️ Borrar nota")
+
+        if not notes:
+            st.info("No hay notas cargadas para borrar con este filtro.")
+        else:
+            del_opt_map: Dict[str, str] = {}
+            del_opt_labels: List[str] = []
+            for n in notes:
+                _nid = str(n.get("_id"))
+                label = _note_label(n)
+                del_opt_labels.append(label)
+                del_opt_map[label] = _nid
+
+            del_selected = st.selectbox(
+                "Selecciona una nota para borrar",
+                options=del_opt_labels,
+                index=0,
+                key="diary_delete_select",
+            )
+            del_nid = del_opt_map.get(del_selected)
+            del_doc = _find_one_by_id(notes_col, del_nid) if del_nid else None
+
+            if not del_doc:
+                st.warning("No se pudo cargar la nota seleccionada.")
+            else:
+                st.write(f"**Título:** {del_doc.get('title') or '(sin título)'}")
+                st.write(f"**Fecha:** {del_doc.get('date') or ''}")
+                st.write(f"**Proyecto:** {del_doc.get('project') or '—'}")
+                st.write(f"**Contexto:** {del_doc.get('context') or '—'}")
+                preview = (del_doc.get("latex_body") or "")[:400]
+                if preview:
+                    st.code(preview, language="latex")
+
+                confirm = st.checkbox("Estoy seguro", key="diary_delete_confirm")
+                typed = st.text_input("Escribe BORRAR para confirmar", value="", key="diary_delete_typed")
+
+                if st.button("Borrar definitivamente", key="diary_delete_btn"):
+                    if not confirm or typed.strip().upper() != "BORRAR":
+                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
+                    else:
+                        try:
+                            notes_col.delete_one({"_id": ObjectId(del_nid)})
+                            st.success("✅ Nota borrada.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error borrando nota: {e}")
         st.markdown("#### 📤 Exportar")
 
         if not notes:
