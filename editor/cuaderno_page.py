@@ -186,7 +186,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 st.info("Aún no hay entradas en worklog.")
             else:
                 df = pd.DataFrame(rows)
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width='stretch')
         except Exception as e:
             st.error(f"❌ Error cargando worklog: {e}")
     with tabs[1]:
@@ -310,7 +310,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 )
 
             df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
 
             st.markdown("### ✏️ Actualizar item")
             options = [
@@ -625,7 +625,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 st.info("No hay entregables para este filtro.")
             else:
                 df = pd.DataFrame(rows)
-                st.dataframe(df, use_container_width=True)
+                st.dataframe(df, width='stretch')
         except Exception as e:
             st.error(f"❌ Error cargando deliverables: {e}")
 

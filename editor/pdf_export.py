@@ -12,6 +12,13 @@ from pathlib import Path
 from typing import Dict, Optional
 import streamlit as st
 
+# Valores constantes
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+EXPORTED_NOTES_DIR = PROJECT_ROOT / "exported_notes"
+TEMPLATES_LATEX_DIR = PROJECT_ROOT / "templates_latex"
+
+EXPORTED_NOTES_DIR.mkdir(parents=True, exist_ok=True)
 
 def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> str:
     """
@@ -243,7 +250,7 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
         template: "simple" (default) or "diario".
     """
     # Use the same persistent templates directory as concept export
-    temp_dir = Path(__file__).resolve().parent.parent / "templates_latex"
+    temp_dir = Path(__file__).resolve().parent.parent / "exported_notes"
     temp_path = Path(temp_dir)
 
     # Only copy style files for "simple"; the "diario" template is self-contained.
@@ -277,7 +284,7 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
 
     # Copy to final destination
     if output_path is None:
-        pdf_dir = Path(os.path.expanduser("~/math_knowledge_pdfs/latex_notes"))
+        pdf_dir = EXPORTED_NOTES_DIR
         pdf_dir.mkdir(parents=True, exist_ok=True)
         os.chmod(pdf_dir, 0o755)
 
