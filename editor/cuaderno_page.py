@@ -910,38 +910,137 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             df = pd.DataFrame(rows)
             st.dataframe(df, width='stretch', hide_index=True)
             st.markdown("### ⬇️ Exportar Backlog a CSV (MVP)")
-            st.caption("Selecciona items del backlog (según el filtro actual) y descárgalos como CSV.")
+            st.caption("Selecciona items y descárgalos como CSV. Por defecto se muestran los ítems recientes; opcionalmente puedes filtrar.")
 
-            export_df = df.copy()
-            if "select" not in export_df.columns:
-                export_df.insert(0, "select", False)
-
-            edited_df = st.data_editor(
-                export_df,
-                use_container_width=True,
-                num_rows="fixed",
-                key="backlog_export_editor",
+            export_mode = st.selectbox(
+                "Modo de exportación",
+                options=["Seleccionar de Recientes", "Consulta con filtros"],
+                index=0,
+                key="backlog_export_mode",
             )
 
-            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+            export_df = pd.DataFrame()
 
-            cdl1, cdl2 = st.columns([2, 1])
-            with cdl1:
-                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
-            with cdl2:
-                if len(selected_df) > 0:
-                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
-                    fname = f"backlog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
-                    st.download_button(
-                        "Descargar CSV",
-                        data=csv_bytes,
-                        file_name=fname,
-                        mime="text/csv",
-                        key="backlog_export_download",
+            if export_mode == "Seleccionar de Recientes":
+                export_df = df.copy()
+            else:
+                with st.expander("Filtros", expanded=False):
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        start_d = st.date_input("Desde", value=(date.today() - timedelta(days=7)), key="backlog_export_start")
+                    with c2:
+                        end_d = st.date_input("Hasta", value=date.today(), key="backlog_export_end")
+                    with c3:
+                        limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="backlog_export_limit")
+
+                    # Opciones dinámicas (best-effort) desde MongoDB
+                    try:
+                        proj_opts = sorted([p for p in mongo_db["backlog_items"].distinct("project") if isinstance(p, str)])
+                    except Exception:
+                        proj_opts = []
+                    try:
+                        owner_opts = sorted([o for o in mongo_db["backlog_items"].distinct("owner") if isinstance(o, str)])
+                    except Exception:
+                        owner_opts = []
+
+                    c4, c5, c6 = st.columns(3)
+                    with c4:
+                        flt_project2 = st.selectbox("Project", options=["(all)"] + proj_opts, index=0, key="backlog_export_project")
+                    with c5:
+                        flt_status2 = st.selectbox(
+                            "Status",
+                            options=["(all)", "Todo", "Doing", "Done", "Blocked", "Canceled"],
+                            index=0,
+                            key="backlog_export_status",
+                        )
+                    with c6:
+                        flt_priority2 = st.selectbox(
+                            "Priority",
+                            options=["(all)", "Alta", "Media", "Baja"],
+                            index=0,
+                            key="backlog_export_priority",
+                        )
+
+                    c7, c8 = st.columns(2)
+                    with c7:
+                        flt_owner2 = st.selectbox("Owner", options=["(all)"] + owner_opts, index=0, key="backlog_export_owner")
+                    with c8:
+                        text_q = st.text_input("Contiene (task/description)", value="", key="backlog_export_text")
+
+                start_dt = datetime(start_d.year, start_d.month, start_d.day, 0, 0, 0)
+                end_dt = datetime(end_d.year, end_d.month, end_d.day, 23, 59, 59)
+
+                q = {"updated_at": {"$gte": start_dt, "$lte": end_dt}}
+                if flt_project2 != "(all)":
+                    q["project"] = flt_project2
+                if flt_status2 != "(all)":
+                    q["status"] = flt_status2
+                if flt_priority2 != "(all)":
+                    q["priority"] = flt_priority2
+                if flt_owner2 != "(all)":
+                    q["owner"] = flt_owner2
+                if (text_q or "").strip():
+                    rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                    q["$or"] = [{"task": rx}, {"description": rx}]
+
+                try:
+                    docs = list(
+                        mongo_db["backlog_items"]
+                        .find(q)
+                        .sort([("updated_at", -1)])
+                        .limit(int(limit_n))
                     )
-                else:
-                    st.button("Descargar CSV", disabled=True, key="backlog_export_download_disabled")
+                    rows2 = []
+                    for it in docs:
+                        rows2.append(
+                            {
+                                "_id": str(it.get("_id")),
+                                "project": it.get("project", ""),
+                                "module": it.get("module", ""),
+                                "task": it.get("task", ""),
+                                "priority": it.get("priority", ""),
+                                "status": it.get("status", ""),
+                                "owner": it.get("owner", ""),
+                                "target_date": it.get("target_date", ""),
+                                "updated_at": it.get("updated_at", ""),
+                            }
+                        )
+                    export_df = pd.DataFrame(rows2)
+                except Exception as e:
+                    st.error(f"❌ Error preparando exportación: {e}")
+                    export_df = pd.DataFrame()
 
+            if export_df.empty:
+                st.info("No hay filas para exportar con los criterios actuales.")
+            else:
+                if "select" not in export_df.columns:
+                    export_df.insert(0, "select", False)
+
+                edited_df = st.data_editor(
+                    export_df,
+                    use_container_width=True,
+                    num_rows="fixed",
+                    key="backlog_export_editor",
+                )
+
+                selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+                cdl1, cdl2 = st.columns([2, 1])
+                with cdl1:
+                    st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+                with cdl2:
+                    if len(selected_df) > 0:
+                        csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                        fname = f"backlog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                        st.download_button(
+                            "Descargar CSV",
+                            data=csv_bytes,
+                            file_name=fname,
+                            mime="text/csv",
+                            key="backlog_export_download",
+                        )
+                    else:
+                        st.button("Descargar CSV", disabled=True, key="backlog_export_download_disabled")
 
             st.markdown("### ✏️ Actualizar item")
             options = [
