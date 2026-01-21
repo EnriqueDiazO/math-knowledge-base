@@ -406,6 +406,116 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             st.error(f"❌ Error cargando worklog: {e}")
 
         st.divider()
+        st.markdown("### ⬇️ Exportar Worklog a CSV (MVP-4)")
+        st.caption("Selecciona entradas y descárgalas como CSV. Por defecto se muestran las entradas recientes; opcionalmente puedes filtrar.")
+
+        export_mode = st.selectbox(
+            "Modo de exportación",
+            options=["Seleccionar de Recientes", "Consulta con filtros"],
+            index=0,
+            key="worklog_export_mode",
+        )
+
+        export_df = pd.DataFrame()
+
+        if export_mode == "Seleccionar de Recientes":
+            # Reusar la tabla de 'Recientes' si está disponible en este scope.
+            if "df" in locals() and isinstance(df, pd.DataFrame) and not df.empty:
+                export_df = df.copy()
+            else:
+                export_df = pd.DataFrame()
+        else:
+            with st.expander("Filtros", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    start_d = st.date_input("Desde", value=(date.today() - timedelta(days=7)), key="worklog_export_start")
+                with c2:
+                    end_d = st.date_input("Hasta", value=date.today(), key="worklog_export_end")
+                with c3:
+                    limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="worklog_export_limit")
+
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    try:
+                        proj_opts = sorted([p for p in mongo_db["worklog_entries"].distinct("project") if isinstance(p, str)])
+                    except Exception:
+                        proj_opts = []
+                    flt_project = st.selectbox("Project", options=["(all)"] + proj_opts, index=0, key="worklog_export_project")
+                with c5:
+                    flt_status = st.selectbox(
+                        "Status",
+                        options=["(all)", "Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                        index=0,
+                        key="worklog_export_status",
+                    )
+                with c6:
+                    text_q = st.text_input("Contiene (task/description)", value="", key="worklog_export_text")
+
+            q = {
+                "date": {"$gte": start_d.strftime("%Y-%m-%d"), "$lte": end_d.strftime("%Y-%m-%d")}
+            }
+            if flt_project != "(all)":
+                q["project"] = flt_project
+            if flt_status != "(all)":
+                q["status"] = flt_status
+            if (text_q or "").strip():
+                rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                q["$or"] = [{"task": rx}, {"description_evidence": rx}]
+
+            try:
+                docs = list(
+                    mongo_db["worklog_entries"]
+                    .find(q)
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(int(limit_n))
+                )
+                norm = []
+                for d in docs:
+                    dd = dict(d)
+                    dd["_id"] = str(dd.get("_id"))
+                    norm.append(dd)
+                export_df = pd.DataFrame(norm)
+            except Exception as e:
+                st.error(f"❌ Error preparando exportación: {e}")
+                export_df = pd.DataFrame()
+
+        if export_df.empty:
+            st.info("No hay filas para exportar con los criterios actuales.")
+        else:
+            # Normaliza _id para CSV y selección
+            if "_id" in export_df.columns:
+                export_df["_id"] = export_df["_id"].astype(str)
+
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="worklog_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"worklog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="worklog_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="worklog_export_download_disabled")
+
+        st.divider()
         st.markdown("### ✏️ Editar entrada (MVP-1)")
 
         try:
