@@ -1,0 +1,135 @@
+% --------------------------------------------
+% notes.sty — Bloques semánticos del cuaderno
+% Proyecto: MathMongoDB · Cuaderno
+% Autor: Enrique Díaz Ocampo
+% --------------------------------------------
+
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{notes}[2026/01/21 Semantic blocks for academic diary]
+
+% Requiere el estilo base del proyecto
+\RequirePackage{miestilo}
+\RequirePackage[most]{tcolorbox}
+
+\newcommand{\relatedconcept}[1]{%
+\textbf{Relacionado con:} \texttt{#1}
+}
+
+% --------------------------------------------
+% Estilo base para notas (común)
+% --------------------------------------------
+\tcbset{
+  notesbase/.style={
+    enhanced,
+    breakable,
+    boxrule=0.8pt,
+    arc=3pt,
+    outer arc=3pt,
+    left=6pt,
+    right=6pt,
+    top=6pt,
+    bottom=6pt,
+    coltitle=black,
+    fonttitle=\bfseries\sffamily,
+    before skip=10pt,
+    after skip=10pt
+  }
+}
+
+% --------------------------------------------
+% Título de la nota
+% --------------------------------------------
+\newcommand{\notetitle}[1]{%
+  \chapter*{#1}
+  \addcontentsline{toc}{chapter}{#1}
+}
+
+% --------------------------------------------
+% Bloques semánticos
+% --------------------------------------------
+
+% 1. Contexto / Situación
+\newtcolorbox{context}{
+  notesbase,
+  title=Contexto,
+  colback=gray!6,
+  colframe=gray!60
+}
+
+% 2. Lectura / Estudio
+\newtcolorbox{reading}{
+  notesbase,
+  title=Lectura / Estudio,
+  colback=blue!5,
+  colframe=blue!65
+}
+
+% 3. Exploración (pensar en voz alta)
+\newtcolorbox{exploration}{
+  notesbase,
+  title=Exploración,
+  colback=purple!5,
+  colframe=purple!65
+}
+
+% 4. Hipótesis
+\newtcolorbox{hypothesis}{
+  notesbase,
+  title=Hipótesis,
+  colback=orange!6,
+  colframe=orange!70
+}
+
+% 5. Conexiones conceptuales
+\newtcolorbox{connections}{
+  notesbase,
+  title=Conexiones,
+  colback=teal!6,
+  colframe=teal!65
+}
+
+% 6. Reflexión (metacognición)
+\newtcolorbox{reflection}{
+  notesbase,
+  title=Reflexión,
+  colback=yellow!10,
+  colframe=yellow!65
+}
+
+% 7. Decisión tomada
+\newtcolorbox{decision}{
+  notesbase,
+  title=Decisión,
+  colback=red!6,
+  colframe=red!65
+}
+
+% 8. Preguntas abiertas
+\newtcolorbox{openquestions}{
+  notesbase,
+  title=Preguntas abiertas,
+  colback=gray!10,
+  colframe=black!60
+}
+
+% 9. Técnica / Código
+\newtcolorbox{technical}{
+  notesbase,
+  title=Técnica / Código,
+  colback=backcolour,
+  colframe=codegray,
+  fontupper=\ttfamily\footnotesize
+}
+
+% 10. Próximos pasos
+\newtcolorbox{nextsteps}{
+  notesbase,
+  title=Próximos pasos,
+  colback=green!6,
+  colframe=green!65
+}
+
+% --------------------------------------------
+% Fin
+% --------------------------------------------
+\endinput
