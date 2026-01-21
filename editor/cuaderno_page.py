@@ -1134,6 +1134,61 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         default_iso_year = int(iso_now.year)
         default_iso_week = int(iso_now.week)
 
+        st.markdown("### 🧾 Weekly Reviews (recientes)")
+        st.caption("Selecciona una semana previa para cargarla en el editor (ISO year/week).")
+
+        try:
+            recent_weekly = list(
+                weekly_col.find({}, {"iso_year": 1, "iso_week": 1, "updated_at": 1})
+                .sort("updated_at", -1)
+                .limit(80)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando weekly reviews recientes: {e}")
+            recent_weekly = []
+
+        if recent_weekly:
+            # Tabla mínima
+            df_weekly_recent = []
+            for r in recent_weekly:
+                rr = dict(r)
+                rr["_id"] = str(rr.get("_id"))
+                df_weekly_recent.append(rr)
+
+            df_wr = pd.DataFrame(df_weekly_recent)
+            # Ordena columnas si están presentes
+            cols_pref = [c for c in ["iso_year", "iso_week", "updated_at", "_id"] if c in df_wr.columns]
+            df_wr = df_wr[cols_pref] if cols_pref else df_wr
+            st.dataframe(df_wr, width="stretch")
+
+            # Selector simple para cargar
+            opt_labels = []
+            opt_map = {}
+            for r in recent_weekly:
+                y = r.get("iso_year")
+                w = r.get("iso_week")
+                upd = r.get("updated_at") or ""
+                lab = f"{y}-W{int(w):02d}  ·  {upd}"
+                opt_labels.append(lab)
+                opt_map[lab] = {"iso_year": int(y), "iso_week": int(w)}
+
+            sel_lab = st.selectbox(
+                "Selecciona una semana",
+                options=opt_labels,
+                index=0,
+                key="weekly_recent_select",
+            )
+            if st.button("Cargar", key="weekly_recent_load_btn"):
+                picked = opt_map.get(sel_lab) or {}
+                if picked:
+                    st.session_state["weekly_iso_year"] = int(picked.get("iso_year"))
+                    st.session_state["weekly_iso_week"] = int(picked.get("iso_week"))
+                    st.rerun()
+        else:
+            st.info("No hay weekly reviews recientes aún.")
+
+        st.divider()
+
         c1, c2 = st.columns(2)
         with c1:
             iso_year = st.number_input(
@@ -1268,6 +1323,139 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             except Exception as e:
                 st.error(f"❌ Error guardando Weekly Review: {e}")
 
+
+        st.divider()
+        st.markdown("### ⬇️ Exportar Weekly Review a CSV (MVP)")
+        st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran las weekly reviews recientes; opcionalmente puedes filtrar.")
+
+        export_mode = st.selectbox(
+            "Modo de exportación",
+            options=["Seleccionar de Recientes", "Consulta con filtros"],
+            index=0,
+            key="weekly_export_mode",
+        )
+
+        export_df = pd.DataFrame()
+
+        if export_mode == "Seleccionar de Recientes":
+            if "df_wr" in locals() and isinstance(df_wr, pd.DataFrame) and not df_wr.empty:
+                export_df = df_wr.copy()
+            else:
+                try:
+                    docs = list(
+                        weekly_col.find({}, {"iso_year": 1, "iso_week": 1, "weekly_objectives": 1, "wins": 1, "blocks_risks": 1, "plan_next_week": 1, "updated_at": 1})
+                        .sort("updated_at", -1)
+                        .limit(80)
+                    )
+                    norm = []
+                    for d in docs:
+                        dd = dict(d)
+                        dd["_id"] = str(dd.get("_id"))
+                        norm.append(dd)
+                    export_df = pd.DataFrame(norm)
+                except Exception as e:
+                    st.error(f"❌ Error preparando exportación (recientes): {e}")
+                    export_df = pd.DataFrame()
+        else:
+            with st.expander("Filtros", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    start_d = st.date_input("Desde", value=(date.today() - timedelta(days=30)), key="weekly_export_start")
+                with c2:
+                    end_d = st.date_input("Hasta", value=date.today(), key="weekly_export_end")
+                with c3:
+                    limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="weekly_export_limit")
+
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    try:
+                        years = sorted([int(y) for y in weekly_col.distinct("iso_year") if str(y).isdigit()])
+                    except Exception:
+                        years = []
+                    flt_year = st.selectbox("ISO Year", options=["(all)"] + [str(y) for y in years], index=0, key="weekly_export_year")
+                with c5:
+                    flt_week = st.selectbox("ISO Week", options=["(all)"] + [str(w) for w in range(1, 54)], index=0, key="weekly_export_week")
+                with c6:
+                    text_q = st.text_input("Contiene (objetivos/wins/bloqueos/plan)", value="", key="weekly_export_text")
+
+            start_dt = datetime(start_d.year, start_d.month, start_d.day)
+            end_dt = datetime(end_d.year, end_d.month, end_d.day) + timedelta(days=1)  # exclusivo
+
+            q = {"updated_at": {"$gte": start_dt, "$lt": end_dt}}
+            if flt_year != "(all)":
+                q["iso_year"] = int(flt_year)
+            if flt_week != "(all)":
+                q["iso_week"] = int(flt_week)
+            if (text_q or "").strip():
+                rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                q["$or"] = [
+                    {"weekly_objectives": rx},
+                    {"wins": rx},
+                    {"blocks_risks": rx},
+                    {"plan_next_week": rx},
+                ]
+
+            try:
+                docs = list(
+                    weekly_col.find(
+                        q,
+                        {
+                            "iso_year": 1,
+                            "iso_week": 1,
+                            "weekly_objectives": 1,
+                            "wins": 1,
+                            "blocks_risks": 1,
+                            "plan_next_week": 1,
+                            "updated_at": 1,
+                        },
+                    )
+                    .sort("updated_at", -1)
+                    .limit(int(limit_n))
+                )
+                norm = []
+                for d in docs:
+                    dd = dict(d)
+                    dd["_id"] = str(dd.get("_id"))
+                    norm.append(dd)
+                export_df = pd.DataFrame(norm)
+            except Exception as e:
+                st.error(f"❌ Error preparando exportación: {e}")
+                export_df = pd.DataFrame()
+
+        if export_df.empty:
+            st.info("No hay filas para exportar con los criterios actuales.")
+        else:
+            if "_id" in export_df.columns:
+                export_df["_id"] = export_df["_id"].astype(str)
+
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="weekly_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"weekly_reviews_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="weekly_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="weekly_export_download_disabled")
     with tabs[3]:
         st.subheader("📦 Deliverables (V6)")
 
@@ -1347,17 +1535,242 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
         try:
             rows = list(
-                deliverables_col.find(query, {"_id": 0})
+                deliverables_col.find(query)
                 .sort([("date", -1), ("created_at", -1)])
                 .limit(int(limit))
             )
             if not rows:
                 st.info("No hay entregables para este filtro.")
             else:
-                df = pd.DataFrame(rows)
-                st.dataframe(df, width='stretch')
+                norm = []
+                for r in rows:
+                    rr = dict(r)
+                    rr["_id"] = str(rr.get("_id"))
+                    norm.append(rr)
+                df_deliv_recent = pd.DataFrame(norm)
+                st.dataframe(df_deliv_recent, width='stretch')
         except Exception as e:
             st.error(f"❌ Error cargando deliverables: {e}")
+
+
+        st.divider()
+        st.markdown("### ⬇️ Exportar Deliverables a CSV (MVP)")
+        st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran los entregables recientes; opcionalmente puedes filtrar.")
+
+        export_mode = st.selectbox(
+            "Modo de exportación",
+            options=["Seleccionar de Recientes", "Consulta con filtros"],
+            index=0,
+            key="deliverables_export_mode",
+        )
+
+        export_df = pd.DataFrame()
+
+        if export_mode == "Seleccionar de Recientes":
+            if "df_deliv_recent" in locals() and isinstance(df_deliv_recent, pd.DataFrame) and not df_deliv_recent.empty:
+                export_df = df_deliv_recent.copy()
+            else:
+                export_df = pd.DataFrame()
+        else:
+            with st.expander("Filtros", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    start_d = st.date_input("Desde", value=(date.today() - timedelta(days=30)), key="deliverables_export_start")
+                with c2:
+                    end_d = st.date_input("Hasta", value=date.today(), key="deliverables_export_end")
+                with c3:
+                    limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="deliverables_export_limit")
+
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    try:
+                        proj_opts = sorted([p for p in deliverables_col.distinct("project") if isinstance(p, str)])
+                    except Exception:
+                        proj_opts = []
+                    flt_project = st.selectbox("Proyecto", options=["(all)"] + proj_opts, index=0, key="deliverables_export_project")
+                with c5:
+                    flt_type = st.selectbox(
+                        "Tipo",
+                        options=["(all)", "reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"],
+                        index=0,
+                        key="deliverables_export_type",
+                    )
+                with c6:
+                    text_q = st.text_input("Contiene (nombre/notas/ruta)", value="", key="deliverables_export_text")
+
+            start_dt = datetime(start_d.year, start_d.month, start_d.day)
+            end_dt = datetime(end_d.year, end_d.month, end_d.day) + timedelta(days=1)  # exclusivo
+
+            q = {"updated_at": {"$gte": start_dt, "$lt": end_dt}}
+            if flt_project != "(all)":
+                q["project"] = flt_project
+            if flt_type != "(all)":
+                q["type"] = flt_type
+            if (text_q or "").strip():
+                rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                q["$or"] = [{"deliverable": rx}, {"notes": rx}, {"url_or_path": rx}]
+
+            try:
+                docs = list(
+                    deliverables_col.find(q)
+                    .sort("updated_at", -1)
+                    .limit(int(limit_n))
+                )
+                norm = []
+                for d in docs:
+                    dd = dict(d)
+                    dd["_id"] = str(dd.get("_id"))
+                    norm.append(dd)
+                export_df = pd.DataFrame(norm)
+            except Exception as e:
+                st.error(f"❌ Error preparando exportación: {e}")
+                export_df = pd.DataFrame()
+
+        if export_df.empty:
+            st.info("No hay filas para exportar con los criterios actuales.")
+        else:
+            if "_id" in export_df.columns:
+                export_df["_id"] = export_df["_id"].astype(str)
+
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="deliverables_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"deliverables_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="deliverables_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="deliverables_export_download_disabled")
+        st.divider()
+        st.markdown("### ✏️ Editar entregable (MVP)")
+
+        # Carga rápida desde los recientes (si ya se consultaron), si no vuelve a consultar.
+        deliv_rows = []
+        try:
+            if "rows" in locals() and isinstance(rows, list) and rows:
+                deliv_rows = rows
+            else:
+                deliv_rows = list(
+                    deliverables_col.find({})
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(200)
+                )
+        except Exception as e:
+            st.error(f"❌ Error cargando entregables para edición: {e}")
+            deliv_rows = []
+
+        if not deliv_rows:
+            st.info("No hay entregables suficientes para editar.")
+        else:
+            opt_labels = []
+            opt_map = {}
+            for d in deliv_rows:
+                _id = str(d.get("_id"))
+                d_date = d.get("date") or ""
+                d_proj = d.get("project") or "—"
+                d_name = d.get("deliverable") or "(sin nombre)"
+                d_type = d.get("type") or "—"
+                lab = f"{d_date} [{d_type}] {d_proj} — {d_name}"
+                opt_labels.append(lab)
+                opt_map[lab] = _id
+
+            selected_label = st.selectbox(
+                "Selecciona un entregable para editar",
+                options=opt_labels,
+                index=0,
+                key="deliverables_edit_select",
+            )
+            sel_id = opt_map.get(selected_label)
+
+            if st.button("Cargar", key="deliverables_edit_load_btn"):
+                st.session_state["deliverables_edit_id"] = sel_id or ""
+                st.rerun()
+
+            deliv_id = st.session_state.get("deliverables_edit_id") or sel_id
+            doc = _find_one_by_id(deliverables_col, deliv_id) if deliv_id else None
+
+            if not doc:
+                st.warning("No se pudo cargar el entregable seleccionado.")
+            else:
+                loaded_id = st.session_state.get("deliverables_edit_loaded_id")
+                current_id = str(doc.get("_id"))
+                if loaded_id != current_id:
+                    st.session_state["deliverables_edit_loaded_id"] = current_id
+                    # date guardada como string YYYY-MM-DD
+                    try:
+                        st.session_state["deliverables_edit_date"] = datetime.strptime(doc.get("date") or "", "%Y-%m-%d").date()
+                    except Exception:
+                        st.session_state["deliverables_edit_date"] = date.today()
+                    st.session_state["deliverables_edit_project"] = doc.get("project") or ""
+                    st.session_state["deliverables_edit_type"] = doc.get("type") or "reporte"
+                    st.session_state["deliverables_edit_deliverable"] = doc.get("deliverable") or ""
+                    st.session_state["deliverables_edit_path"] = doc.get("url_or_path") or ""
+                    st.session_state["deliverables_edit_commit"] = doc.get("commit_ref") or ""
+                    st.session_state["deliverables_edit_tags"] = ", ".join(doc.get("tags") or [])
+                    st.session_state["deliverables_edit_notes"] = doc.get("notes") or ""
+
+                e1, e2 = st.columns(2)
+                with e1:
+                    e_date = st.date_input("Fecha", key="deliverables_edit_date")
+                    e_project = st.text_input("Proyecto", key="deliverables_edit_project")
+                    e_type = st.selectbox(
+                        "Tipo",
+                        ["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"],
+                        index=["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"].index(st.session_state.get("deliverables_edit_type", "reporte"))
+                        if st.session_state.get("deliverables_edit_type", "reporte") in ["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"]
+                        else 0,
+                        key="deliverables_edit_type",
+                    )
+                    e_deliv = st.text_input("Deliverable (nombre)", key="deliverables_edit_deliverable")
+                with e2:
+                    e_path = st.text_input("Ruta / URL", key="deliverables_edit_path")
+                    e_commit = st.text_input("Commit ref (opcional)", key="deliverables_edit_commit")
+                    e_tags_csv = st.text_input("Tags (comma-separated)", key="deliverables_edit_tags")
+
+                e_notes = st.text_area("Notas (opcional)", height=140, key="deliverables_edit_notes")
+
+                if st.button("Guardar cambios", key="deliverables_edit_save_btn"):
+                    if not (e_project or "").strip() or not (e_deliv or "").strip() or not (e_path or "").strip():
+                        st.error("❌ Campos requeridos: Proyecto, Deliverable y Ruta / URL.")
+                    else:
+                        now = datetime.utcnow()
+                        upd = {
+                            "date": e_date.strftime("%Y-%m-%d"),
+                            "project": (e_project or "").strip(),
+                            "deliverable": (e_deliv or "").strip(),
+                            "type": e_type,
+                            "url_or_path": (e_path or "").strip(),
+                            "notes": (e_notes or "").strip() or None,
+                            "commit_ref": (e_commit or "").strip() or None,
+                            "linked_commits": [(e_commit or "").strip()] if (e_commit or "").strip() else [],
+                            "tags": [t.strip() for t in (e_tags_csv or "").split(",") if t.strip()],
+                            "updated_at": now,
+                        }
+                        res = _update_one_by_id(deliverables_col, current_id, {"$set": upd})
+                        if res is not None and getattr(res, "matched_count", 0) > 0:
+                            st.success("✅ Entregable actualizado.")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo actualizar (id no encontrado).")
 
 
     with tabs[4]:
