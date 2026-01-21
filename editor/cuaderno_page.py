@@ -154,7 +154,7 @@ def _handle_pending_insert(prefix: str) -> None:
         st.session_state[keys["text"]] = current_text + to_insert + "\n"
         st.session_state[keys["do_insert"]] = False
         st.session_state[keys["insert"]] = ""
-        st.session_state[keys["rev"]] += 1
+        st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
         st.rerun()
 
 
@@ -909,6 +909,39 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
             df = pd.DataFrame(rows)
             st.dataframe(df, width='stretch', hide_index=True)
+            st.markdown("### ⬇️ Exportar Backlog a CSV (MVP)")
+            st.caption("Selecciona items del backlog (según el filtro actual) y descárgalos como CSV.")
+
+            export_df = df.copy()
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="backlog_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"backlog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="backlog_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="backlog_export_download_disabled")
+
 
             st.markdown("### ✏️ Actualizar item")
             options = [
@@ -1491,7 +1524,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     st.session_state["diary_edit_context"] = note_doc.get("context") or "estudio"
                     st.session_state["diary_edit_tags"] = ", ".join(note_doc.get("tags") or [])
                     st.session_state[keys["text"]] = note_doc.get("latex_body") or ""
-                    st.session_state[keys["rev"]] += 1
+                    st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
 
                 e1, e2 = st.columns([2, 1])
                 with e1:
