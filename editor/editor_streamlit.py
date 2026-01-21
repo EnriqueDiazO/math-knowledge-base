@@ -1,6 +1,6 @@
 import os
 import sys
-from datetime import datetime
+from datetime import datetime, date, timedelta
 from pathlib import Path
 
 import bibtexparser
@@ -1247,7 +1247,148 @@ elif page == "🧪 Cuaderno":
                             st.error(f"❌ Error actualizando backlog item: {e}")
 
         with tabs[2]:
-            st.info("MVP próximamente: Weekly Review.")
+            st.subheader("📅 Weekly Review (V5)")
+
+            weekly_col = mongo_db["weekly_reviews"]
+
+            today = date.today()
+            iso_now = today.isocalendar()
+            default_iso_year = int(iso_now.year)
+            default_iso_week = int(iso_now.week)
+
+            c1, c2 = st.columns(2)
+            with c1:
+                iso_year = st.number_input(
+                    "ISO Year",
+                    min_value=2000,
+                    max_value=2100,
+                    value=default_iso_year,
+                    step=1,
+                    key="weekly_iso_year",
+                )
+            with c2:
+                iso_week = st.number_input(
+                    "ISO Week",
+                    min_value=1,
+                    max_value=53,
+                    value=default_iso_week,
+                    step=1,
+                    key="weekly_iso_week",
+                )
+
+            weekly_doc = None
+            try:
+                weekly_doc = weekly_col.find_one({"iso_year": int(iso_year), "iso_week": int(iso_week)})
+            except Exception as e:
+                st.error(f"❌ Error leyendo weekly review: {e}")
+
+            def _join_lines(arr):
+                if not arr:
+                    return ""
+                if isinstance(arr, str):
+                    return arr
+                return "\n".join([str(x) for x in arr if str(x).strip()])
+
+            weekly_objectives_txt = st.text_area(
+                "Objetivos de la semana (1 por línea)",
+                value=_join_lines((weekly_doc or {}).get("weekly_objectives")),
+                height=120,
+                placeholder="- Terminar MVP V4\n- Revisar paper X\n- Debug de microservicio Y",
+                key="weekly_objectives_txt",
+            )
+            wins_txt = st.text_area(
+                "Wins (1 por línea)",
+                value=_join_lines((weekly_doc or {}).get("wins")),
+                height=120,
+                placeholder="- Se aplicó patch sin conflictos\n- Se resolvió bug de concurrencia",
+                key="weekly_wins_txt",
+            )
+            blocks_risks_txt = st.text_area(
+                "Bloqueos / riesgos (1 por línea)",
+                value=_join_lines((weekly_doc or {}).get("blocks_risks")),
+                height=120,
+                placeholder="- Falta contexto de archivo real\n- Riesgo de romper export a Quarto",
+                key="weekly_blocks_risks_txt",
+            )
+            plan_next_week_txt = st.text_area(
+                "Plan próxima semana (1 por línea)",
+                value=_join_lines((weekly_doc or {}).get("plan_next_week")),
+                height=120,
+                placeholder="- Implementar V5 completo\n- Documentar decisiones\n- Preparar clase",
+                key="weekly_plan_next_week_txt",
+            )
+
+            def _split_lines(txt: str):
+                return [ln.strip() for ln in (txt or "").splitlines() if ln.strip()]
+
+            # Agregados automáticos (best-effort)
+            real_hours = None
+            try:
+                pipe = [
+                    {"$match": {"iso_year": int(iso_year), "iso_week": int(iso_week)}},
+                    {"$group": {"_id": None, "h": {"$sum": "$hours"}}},
+                ]
+                agg = list(mongo_db["worklog_entries"].aggregate(pipe))
+                real_hours = float(agg[0]["h"]) if agg else 0.0
+            except Exception:
+                real_hours = None
+
+            tasks_completed_count = None
+            try:
+                week_start = date.fromisocalendar(int(iso_year), int(iso_week), 1)
+                week_end = week_start + timedelta(days=7)  # exclusivo
+                tasks_completed_count = int(
+                    mongo_db["backlog_items"].count_documents(
+                        {
+                            "status": "Done",
+                            "updated_at": {
+                                "$gte": datetime(week_start.year, week_start.month, week_start.day),
+                                "$lt": datetime(week_end.year, week_end.month, week_end.day),
+                            },
+                        }
+                    )
+                )
+            except Exception:
+                tasks_completed_count = None
+
+            m1, m2 = st.columns(2)
+            with m1:
+                st.metric(
+                    "Horas reales (worklog)",
+                    f"{real_hours:.2f}" if isinstance(real_hours, (int, float)) else "N/A",
+                )
+            with m2:
+                st.metric(
+                    "Tareas Done (backlog)",
+                    tasks_completed_count if tasks_completed_count is not None else "N/A",
+                )
+
+            st.divider()
+
+            if st.button("Guardar Weekly Review", key="weekly_save_btn"):
+                now = datetime.utcnow()
+                doc = {
+                    "iso_year": int(iso_year),
+                    "iso_week": int(iso_week),
+                    "weekly_objectives": _split_lines(weekly_objectives_txt),
+                    "wins": _split_lines(wins_txt),
+                    "blocks_risks": _split_lines(blocks_risks_txt),
+                    "plan_next_week": _split_lines(plan_next_week_txt),
+                    "agg_real_hours": real_hours if isinstance(real_hours, (int, float)) else None,
+                    "agg_tasks_done": tasks_completed_count,
+                    "updated_at": now,
+                }
+
+                try:
+                    weekly_col.update_one(
+                        {"iso_year": int(iso_year), "iso_week": int(iso_week)},
+                        {"$set": doc, "$setOnInsert": {"created_at": now}},
+                        upsert=True,
+                    )
+                    st.success("✅ Weekly Review guardada.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error guardando Weekly Review: {e}")
 
         with tabs[3]:
             st.info("MVP próximamente: Deliverables.")
