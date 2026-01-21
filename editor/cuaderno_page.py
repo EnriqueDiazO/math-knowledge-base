@@ -63,6 +63,39 @@ def _update_one_by_id(coll, id_value, update_doc):
 
 
 
+
+def _worklog_label(doc: Dict[str, Any]) -> str:
+    """Etiqueta compacta para seleccionar entradas de Worklog."""
+    d = doc.get("date") or ""
+    block = doc.get("block") or "—"
+    proj = doc.get("project") or "—"
+    task = doc.get("task") or "(sin task)"
+    status = doc.get("status") or "—"
+    return f"{d} [{block}] ({status}) {proj} — {task}"
+
+
+def _safe_date_from_str(s: str) -> date:
+    """Parse YYYY-MM-DD safely; fallback to today."""
+    try:
+        return datetime.strptime((s or "").strip(), "%Y-%m-%d").date()
+    except Exception:
+        return date.today()
+
+
+def _iso_from_date_str(date_str: str) -> Dict[str, int]:
+    """Return ISO year/week from YYYY-MM-DD; fallback to today's ISO values."""
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        iso = dt.isocalendar()
+        return {
+            "iso_year": int(getattr(iso, "year", iso[0])),
+            "iso_week": int(getattr(iso, "week", iso[1])),
+        }
+    except Exception:
+        iso = date.today().isocalendar()
+        return {"iso_year": int(iso.year), "iso_week": int(iso.week)}
+
+
 def _parse_tags_csv(s: str) -> List[str]:
     """Parse comma-separated tags into a clean list."""
     if not s:
@@ -354,17 +387,296 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         try:
             rows = list(
                 mongo_db["worklog_entries"]
-                .find({}, {"_id": 0})
+                .find({})
                 .sort([("date", -1), ("created_at", -1)])
                 .limit(20)
             )
             if not rows:
                 st.info("Aún no hay entradas en worklog.")
             else:
-                df = pd.DataFrame(rows)
+                # Para inspección/selección: convierte _id a string (sin perder el id real en Mongo).
+                df_rows = []
+                for r in rows:
+                    rr = dict(r)
+                    rr["_id"] = str(rr.get("_id"))
+                    df_rows.append(rr)
+                df = pd.DataFrame(df_rows)
                 st.dataframe(df, width='stretch')
         except Exception as e:
             st.error(f"❌ Error cargando worklog: {e}")
+
+        st.divider()
+        st.markdown("### ✏️ Editar entrada (MVP-1)")
+
+        try:
+            edit_rows = list(
+                mongo_db["worklog_entries"]
+                .find({})
+                .sort([("date", -1), ("created_at", -1)])
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando entradas para edición: {e}")
+            edit_rows = []
+
+        if not edit_rows:
+            st.info("No hay entradas suficientes para editar.")
+        else:
+            edit_labels: List[str] = []
+            edit_map: Dict[str, str] = {}
+            for d in edit_rows:
+                _id = str(d.get("_id"))
+                lab = _worklog_label(d)
+                edit_labels.append(lab)
+                edit_map[lab] = _id
+
+            selected_label = st.selectbox(
+                "Selecciona una entrada para editar",
+                options=edit_labels,
+                index=0,
+                key="worklog_edit_select",
+            )
+            wid = edit_map.get(selected_label)
+            wdoc = _find_one_by_id(mongo_db["worklog_entries"], wid) if wid else None
+
+            if not wdoc:
+                st.warning("No se pudo cargar la entrada seleccionada.")
+            else:
+                loaded_id = st.session_state.get("worklog_edit_loaded_id")
+                current_id = str(wdoc.get("_id"))
+                if loaded_id != current_id:
+                    st.session_state["worklog_edit_loaded_id"] = current_id
+                    st.session_state["worklog_edit_date"] = _safe_date_from_str(wdoc.get("date") or "")
+                    st.session_state["worklog_edit_project"] = wdoc.get("project") or ""
+                    st.session_state["worklog_edit_module"] = wdoc.get("module") or ""
+                    st.session_state["worklog_edit_task"] = wdoc.get("task") or ""
+                    st.session_state["worklog_edit_desc"] = wdoc.get("description_evidence") or ""
+                    st.session_state["worklog_edit_status"] = wdoc.get("status") or "Planificado"
+
+                e1, e2 = st.columns(2)
+                with e1:
+                    ew_date = st.date_input("Date", key="worklog_edit_date")
+                    ew_status = st.selectbox(
+                        "Status",
+                        ["Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                        key="worklog_edit_status",
+                    )
+                with e2:
+                    ew_project = st.text_input("Project", key="worklog_edit_project")
+                    ew_module = st.text_input("Module (optional)", key="worklog_edit_module")
+                    ew_task = st.text_input("Task", key="worklog_edit_task")
+
+                ew_desc = st.text_area("Descripción / Evidencia (optional)", key="worklog_edit_desc")
+
+                if st.button("Guardar cambios", key="worklog_edit_save"):
+                    if not (ew_project or "").strip() or not (ew_task or "").strip():
+                        st.error("Project y Task son obligatorios.")
+                    else:
+                        date_str = ew_date.strftime("%Y-%m-%d")
+                        iso_vals = _iso_from_date_str(date_str)
+                        now = datetime.utcnow()
+
+                        upd = {
+                            "date": date_str,
+                            "project": (ew_project or "").strip(),
+                            "module": (ew_module or "").strip() or None,
+                            "task": (ew_task or "").strip(),
+                            "description_evidence": (ew_desc or "").strip() or None,
+                            "status": ew_status,
+                            "iso_year": int(iso_vals["iso_year"]),
+                            "iso_week": int(iso_vals["iso_week"]),
+                            "updated_at": now,
+                        }
+
+                        res = _update_one_by_id(
+                            mongo_db["worklog_entries"],
+                            wid,
+                            {"$set": upd},
+                        )
+                        if res is not None and getattr(res, "matched_count", 0) > 0:
+                            st.success("✅ Worklog entry actualizada.")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo actualizar la entrada (id no encontrado).")
+
+
+        st.divider()
+        st.markdown("### ➕ Crear entrada desde Backlog (MVP-2)")
+        st.caption("Integración unidireccional: Backlog → Worklog. No se modifica el Backlog.")
+
+        try:
+            backlog_candidates = list(
+                mongo_db["backlog_items"]
+                .find({"status": {"$in": ["Todo", "Doing", "Blocked"]}})
+                .sort([("updated_at", -1)])
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando backlog: {e}")
+            backlog_candidates = []
+
+        if not backlog_candidates:
+            st.info("No hay backlog items pendientes/activos (Todo/Doing/Blocked).")
+        else:
+            # Selector simple (reutiliza patrón de selección del módulo Backlog)
+            options = []
+            bmap: Dict[str, Dict[str, Any]] = {}
+            for it in backlog_candidates:
+                bid = str(it.get("_id"))
+                label = f"[{it.get('status','')}] {it.get('project','')} — {it.get('task','')}"
+                options.append(label)
+                bmap[label] = it
+
+            sel = st.selectbox("Selecciona una actividad del Backlog", options=options, key="wfb_select")
+            bdoc = bmap.get(sel)
+
+            if bdoc is None:
+                st.warning("No se pudo cargar el backlog item seleccionado.")
+            else:
+                bid = str(bdoc.get("_id"))
+                if st.session_state.get("wfb_loaded_id") != bid:
+                    st.session_state["wfb_loaded_id"] = bid
+                    st.session_state["wfb_date"] = datetime.today()
+                    st.session_state["wfb_block"] = "AM"
+                    st.session_state["wfb_hours"] = 0.0
+                    st.session_state["wfb_status"] = "En progreso"
+                    st.session_state["wfb_project"] = bdoc.get("project") or ""
+                    st.session_state["wfb_module"] = bdoc.get("module") or ""
+                    st.session_state["wfb_task"] = bdoc.get("task") or ""
+                    st.session_state["wfb_desc"] = bdoc.get("description") or ""
+                    st.session_state["wfb_next_step"] = ""
+                    st.session_state["wfb_evidence_url"] = ""
+                    st.session_state["wfb_tags"] = ", ".join(bdoc.get("tags") or [])
+
+                with st.form("worklog_from_backlog_form", clear_on_submit=False):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        wfb_date = st.date_input("Date", key="wfb_date")
+                        wfb_block = st.selectbox("Block", ["AM", "PM", "Noche"], key="wfb_block")
+                        wfb_hours = st.number_input("Hours", min_value=0.0, step=0.25, key="wfb_hours")
+                        wfb_status = st.selectbox(
+                            "Status",
+                            ["Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                            key="wfb_status",
+                        )
+                    with c2:
+                        wfb_project = st.text_input("Project", key="wfb_project")
+                        wfb_module = st.text_input("Module (optional)", key="wfb_module")
+                        wfb_task = st.text_input("Task", key="wfb_task")
+                        wfb_next_step = st.text_input("Next step (optional)", key="wfb_next_step")
+
+                    wfb_desc = st.text_area("Descripción / Evidencia (optional)", key="wfb_desc")
+                    wfb_evidence_url = st.text_input("Evidence URL / path (optional)", key="wfb_evidence_url")
+                    wfb_tags_csv = st.text_input("Tags (comma-separated)", key="wfb_tags")
+
+                    submit = st.form_submit_button("Crear Worklog Entry desde Backlog")
+
+                if submit:
+                    if not (wfb_project or "").strip() or not (wfb_task or "").strip():
+                        st.error("Project y Task son obligatorios.")
+                    else:
+                        date_str = wfb_date.strftime("%Y-%m-%d")
+                        iso_vals = _iso_from_date_str(date_str)
+                        now = datetime.utcnow()
+
+                        doc = {
+                            "date": date_str,
+                            "block": wfb_block,
+                            "start_time": None,
+                            "end_time": None,
+                            "hours": float(wfb_hours),
+                            "project": (wfb_project or "").strip(),
+                            "module": (wfb_module or "").strip() or None,
+                            "task": (wfb_task or "").strip(),
+                            "description_evidence": (wfb_desc or "").strip() or None,
+                            "status": wfb_status,
+                            "deliverable_id": None,
+                            "evidence_url": (wfb_evidence_url or "").strip() or None,
+                            "next_step": (wfb_next_step or "").strip() or None,
+                            "tags": [t.strip() for t in (wfb_tags_csv or "").split(",") if t.strip()],
+                            "iso_year": int(iso_vals["iso_year"]),
+                            "iso_week": int(iso_vals["iso_week"]),
+                            "created_at": now,
+                            "updated_at": now,
+                            # referencia blanda al origen (no genera dependencia fuerte)
+                            "source_backlog_id": bid,
+                        }
+
+                        try:
+                            mongo_db["worklog_entries"].insert_one(doc)
+                            st.success("✅ Worklog entry creada desde Backlog.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error guardando worklog desde backlog: {e}")
+
+
+        st.divider()
+        st.markdown("### 🗑️ Borrar entrada (MVP-3)")
+
+        try:
+            del_rows = list(
+                mongo_db["worklog_entries"]
+                .find({})
+                .sort([("date", -1), ("created_at", -1)])
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando entradas para borrado: {e}")
+            del_rows = []
+
+        if not del_rows:
+            st.info("No hay entradas suficientes para borrar.")
+        else:
+            del_labels: List[str] = []
+            del_map: Dict[str, str] = {}
+            for d in del_rows:
+                _id = str(d.get("_id"))
+                lab = _worklog_label(d)
+                del_labels.append(lab)
+                del_map[lab] = _id
+
+            del_selected = st.selectbox(
+                "Selecciona una entrada para borrar",
+                options=del_labels,
+                index=0,
+                key="worklog_delete_select",
+            )
+            del_id = del_map.get(del_selected)
+            del_doc = _find_one_by_id(mongo_db["worklog_entries"], del_id) if del_id else None
+
+            if not del_doc:
+                st.warning("No se pudo cargar la entrada seleccionada.")
+            else:
+                st.write(f"**Fecha:** {del_doc.get('date') or ''}  ·  **Block:** {del_doc.get('block') or '—'}")
+                st.write(f"**Proyecto:** {del_doc.get('project') or '—'}")
+                st.write(f"**Task:** {del_doc.get('task') or '(sin task)'}")
+
+                preview = (del_doc.get("description_evidence") or "")[:220]
+                if preview:
+                    st.code(preview, language="text")
+
+                confirm = st.checkbox("Estoy seguro", key="worklog_delete_confirm")
+                typed = st.text_input("Escribe BORRAR para confirmar", value="", key="worklog_delete_typed")
+
+                if st.button("Borrar definitivamente", key="worklog_delete_btn"):
+                    if not confirm or typed.strip().upper() != "BORRAR":
+                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
+                    else:
+                        try:
+                            s = str(del_id)
+                            deleted = None
+                            try:
+                                deleted = mongo_db["worklog_entries"].delete_one({"_id": ObjectId(s)})
+                            except Exception:
+                                deleted = mongo_db["worklog_entries"].delete_one({"_id": s})
+
+                            if deleted is not None and getattr(deleted, "deleted_count", 0) > 0:
+                                st.success("✅ Entrada borrada.")
+                                st.rerun()
+                            else:
+                                st.error("❌ No se pudo borrar (id no encontrado).")
+                        except Exception as e:
+                            st.error(f"❌ Error borrando worklog: {e}")
     with tabs[1]:
         st.subheader("📋 Backlog (V4)")
 
