@@ -97,3 +97,5 @@ exportados/**/*.html
 **/_freeze/
 **/_book/
 
+exported_notes/_build/*.sty
+exported_notes/_build/*.cls
