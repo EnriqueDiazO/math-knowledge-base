@@ -7,6 +7,7 @@ import bibtexparser
 import pandas as pd
 import streamlit as st
 from streamlit_ace import st_ace
+from bson import ObjectId
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1040,9 +1041,210 @@ elif page == "🧪 Cuaderno":
                     st.dataframe(df, use_container_width=True)
             except Exception as e:
                 st.error(f"❌ Error cargando worklog: {e}")
-
         with tabs[1]:
-            st.info("MVP próximamente: Backlog.")
+            st.subheader("📋 Backlog (V4)")
+
+            col_f1, col_f2, col_f3 = st.columns([2, 1, 1])
+            with col_f1:
+                flt_project = st.selectbox(
+                    "Project (filter)",
+                    options=["(all)"] + sorted([p for p in mongo_db["backlog_items"].distinct("project") if isinstance(p, str)]),
+                    index=0,
+                    key="backlog_filter_project",
+                )
+            with col_f2:
+                flt_status = st.selectbox(
+                    "Status (filter)",
+                    options=["(all)", "Todo", "Doing", "Done", "Blocked", "Canceled"],
+                    index=0,
+                    key="backlog_filter_status",
+                )
+            with col_f3:
+                flt_priority = st.selectbox(
+                    "Priority (filter)",
+                    options=["(all)", "Alta", "Media", "Baja"],
+                    index=0,
+                    key="backlog_filter_priority",
+                )
+
+            query = {}
+            if flt_project != "(all)":
+                query["project"] = flt_project
+            if flt_status != "(all)":
+                query["status"] = flt_status
+            if flt_priority != "(all)":
+                query["priority"] = flt_priority
+
+            st.markdown("### ➕ Crear backlog item")
+
+            # Nota: usamos form + submit button explícito (sin submits implícitos por Enter).
+            with st.form("backlog_create_form", clear_on_submit=False):
+                c1, c2 = st.columns(2)
+
+                with c1:
+                    b_project = st.text_input("Project", value=flt_project if flt_project != "(all)" else "")
+                    b_module = st.text_input("Module (optional)", value="")
+                    b_owner = st.text_input("Owner", value=os.getenv("USER", "") or "user")
+                    b_priority = st.selectbox("Priority", ["Alta", "Media", "Baja"], index=1)
+                    b_status = st.selectbox("Status", ["Todo", "Doing", "Done", "Blocked", "Canceled"], index=0)
+
+                with c2:
+                    b_task = st.text_input("Task (short)", value="")
+                    b_description = st.text_area("Description (optional)", value="", height=120)
+                    b_estimate = st.number_input("Estimate hours (optional)", min_value=0.0, value=0.0, step=0.25)
+                    use_target = st.checkbox("Set target date", value=False)
+                    b_target_date = st.date_input("Target date", value=datetime.today(), disabled=not use_target)
+
+                b_tags_csv = st.text_input("Tags (comma-separated)", value="")
+                create_btn = st.form_submit_button("Guardar backlog item")
+
+                if create_btn:
+                    b_project_s = (b_project or "").strip()
+                    b_task_s = (b_task or "").strip()
+                    b_owner_s = (b_owner or "").strip()
+
+                    if not b_project_s or not b_task_s or not b_owner_s:
+                        st.error("❌ Campos requeridos: Project, Task, Owner.")
+                    else:
+                        now = datetime.utcnow()
+                        doc = {
+                            "project": b_project_s,
+                            "module": (b_module or "").strip() or None,
+                            "task": b_task_s,
+                            "description": (b_description or "").strip() or None,
+                            "priority": b_priority,
+                            "status": b_status,
+                            "estimate_hours": float(b_estimate) if b_estimate and float(b_estimate) > 0 else None,
+                            "owner": b_owner_s,
+                            "target_date": b_target_date.strftime("%Y-%m-%d") if use_target else None,
+                            "tags": [t.strip() for t in (b_tags_csv or "").split(",") if t.strip()],
+                            "created_at": now,
+                            "updated_at": now,
+                        }
+
+                        try:
+                            mongo_db["backlog_items"].insert_one(doc)
+                            st.success("✅ Backlog item guardado.")
+                        except Exception as e:
+                            st.error(f"❌ Error guardando backlog item: {e}")
+
+            st.markdown("---")
+            st.markdown("### 📌 Items (recientes)")
+
+            try:
+                items = list(
+                    mongo_db["backlog_items"]
+                    .find(query)
+                    .sort("updated_at", -1)
+                    .limit(200)
+                )
+            except Exception as e:
+                st.error(f"❌ Error cargando backlog: {e}")
+                items = []
+
+            if not items:
+                st.info("No hay backlog items para este filtro.")
+            else:
+                rows = []
+                for it in items:
+                    rows.append(
+                        {
+                            "_id": str(it.get("_id")),
+                            "project": it.get("project", ""),
+                            "module": it.get("module", ""),
+                            "task": it.get("task", ""),
+                            "priority": it.get("priority", ""),
+                            "status": it.get("status", ""),
+                            "owner": it.get("owner", ""),
+                            "target_date": it.get("target_date", ""),
+                            "updated_at": it.get("updated_at", ""),
+                        }
+                    )
+
+                df = pd.DataFrame(rows)
+                st.dataframe(df, use_container_width=True, hide_index=True)
+
+                st.markdown("### ✏️ Actualizar item")
+                options = [
+                    (r["_id"], f"[{r['status']}] {r['project']} — {r['task']}")
+                    for r in rows
+                ]
+                selected_id = st.selectbox(
+                    "Selecciona un item",
+                    options=[o[0] for o in options],
+                    format_func=lambda x: dict(options).get(x, x),
+                    key="backlog_select_item",
+                )
+
+                # Obtener el documento actual
+                current = None
+                try:
+                    current = mongo_db["backlog_items"].find_one({"_id": ObjectId(selected_id)})
+                except Exception:
+                    current = None
+
+                if current is None:
+                    st.warning("No se pudo cargar el item seleccionado.")
+                else:
+                    u1, u2, u3 = st.columns([1, 1, 1])
+                    with u1:
+                        new_status = st.selectbox(
+                            "New status",
+                            ["Todo", "Doing", "Done", "Blocked", "Canceled"],
+                            index=["Todo", "Doing", "Done", "Blocked", "Canceled"].index(current.get("status", "Todo"))
+                            if current.get("status") in ["Todo", "Doing", "Done", "Blocked", "Canceled"] else 0,
+                            key="backlog_update_status",
+                        )
+                    with u2:
+                        new_priority = st.selectbox(
+                            "New priority",
+                            ["Alta", "Media", "Baja"],
+                            index=["Alta", "Media", "Baja"].index(current.get("priority", "Media"))
+                            if current.get("priority") in ["Alta", "Media", "Baja"] else 1,
+                            key="backlog_update_priority",
+                        )
+                    with u3:
+                        new_owner = st.text_input(
+                            "Owner",
+                            value=current.get("owner", ""),
+                            key="backlog_update_owner",
+                        )
+
+                    upd_task = st.text_input("Task", value=current.get("task", ""), key="backlog_update_task")
+                    upd_desc = st.text_area(
+                        "Description",
+                        value=current.get("description") or "",
+                        height=120,
+                        key="backlog_update_desc",
+                    )
+
+                    u_tags = st.text_input(
+                        "Tags (comma-separated)",
+                        value=", ".join(current.get("tags", []) or []),
+                        key="backlog_update_tags",
+                    )
+
+                    save_update = st.button("Guardar cambios", key="backlog_save_changes")
+                    if save_update:
+                        try:
+                            mongo_db["backlog_items"].update_one(
+                                {"_id": current["_id"]},
+                                {
+                                    "$set": {
+                                        "status": new_status,
+                                        "priority": new_priority,
+                                        "owner": (new_owner or "").strip() or "user",
+                                        "task": (upd_task or "").strip(),
+                                        "description": (upd_desc or "").strip() or None,
+                                        "tags": [t.strip() for t in (u_tags or "").split(",") if t.strip()],
+                                        "updated_at": datetime.utcnow(),
+                                    }
+                                },
+                            )
+                            st.success("✅ Cambios guardados.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error actualizando backlog item: {e}")
 
         with tabs[2]:
             st.info("MVP próximamente: Weekly Review.")
