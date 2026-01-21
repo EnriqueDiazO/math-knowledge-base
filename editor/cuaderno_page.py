@@ -1105,19 +1105,25 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 save_update = st.button("Guardar cambios", key="backlog_save_changes")
                 if save_update:
                     try:
+                        now = datetime.utcnow()
+                        set_doc = {
+                            "status": new_status,
+                            "priority": new_priority,
+                            "owner": (new_owner or "").strip() or "user",
+                            "task": (upd_task or "").strip(),
+                            "description": (upd_desc or "").strip() or None,
+                            "tags": [t.strip() for t in (u_tags or "").split(",") if t.strip()],
+                            "updated_at": now,
+                        }
+                        # Timestamp estable de "completado"
+                        if (current.get("status") != "Done") and (new_status == "Done"):
+                            set_doc["done_at"] = now
+                        elif (current.get("status") == "Done") and (new_status != "Done"):
+                            set_doc["done_at"] = None
+
                         mongo_db["backlog_items"].update_one(
                             {"_id": current["_id"]},
-                            {
-                                "$set": {
-                                    "status": new_status,
-                                    "priority": new_priority,
-                                    "owner": (new_owner or "").strip() or "user",
-                                    "task": (upd_task or "").strip(),
-                                    "description": (upd_desc or "").strip() or None,
-                                    "tags": [t.strip() for t in (u_tags or "").split(",") if t.strip()],
-                                    "updated_at": datetime.utcnow(),
-                                }
-                            },
+                            {"$set": set_doc},
                         )
                         st.success("✅ Cambios guardados.")
                         st.rerun()
@@ -1274,10 +1280,22 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 mongo_db["backlog_items"].count_documents(
                     {
                         "status": "Done",
-                        "updated_at": {
-                            "$gte": datetime(week_start.year, week_start.month, week_start.day),
-                            "$lt": datetime(week_end.year, week_end.month, week_end.day),
-                        },
+                        # Prefer done_at (más estable). Fallback a updated_at para items antiguos.
+                        "$or": [
+                            {
+                                "done_at": {
+                                    "$gte": datetime(week_start.year, week_start.month, week_start.day),
+                                    "$lt": datetime(week_end.year, week_end.month, week_end.day),
+                                }
+                            },
+                            {
+                                "done_at": None,
+                                "updated_at": {
+                                    "$gte": datetime(week_start.year, week_start.month, week_start.day),
+                                    "$lt": datetime(week_end.year, week_end.month, week_end.day),
+                                },
+                            },
+                        ],
                     }
                 )
             )
@@ -1296,6 +1314,43 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 tasks_completed_count if tasks_completed_count is not None else "N/A",
             )
 
+        # --- Ajuste manual (opcional) ---
+        # Por diseño, estas métricas son derivadas (worklog/backlog). Si quieres poder
+        # corregirlas manualmente (p.ej. backlog no tiene done_at histórico), habilita override.
+        loaded_week_key = f"{int(iso_year)}-{int(iso_week)}"
+        if st.session_state.get("weekly_metrics_loaded_key") != loaded_week_key:
+            st.session_state["weekly_metrics_loaded_key"] = loaded_week_key
+            st.session_state["weekly_override_metrics"] = bool((weekly_doc or {}).get("manual_override_metrics", False))
+            st.session_state["weekly_manual_real_hours"] = float(
+                (weekly_doc or {}).get("manual_real_hours", real_hours if isinstance(real_hours, (int, float)) else 0.0) or 0.0
+            )
+            st.session_state["weekly_manual_tasks_done"] = int(
+                (weekly_doc or {}).get("manual_tasks_done", tasks_completed_count if tasks_completed_count is not None else 0) or 0
+            )
+
+        st.markdown("#### Ajuste manual de métricas (opcional)")
+        override_metrics = st.checkbox(
+            "Sobrescribir métricas automáticas (Horas reales / Tareas Done)",
+            value=bool(st.session_state.get("weekly_override_metrics", False)),
+            key="weekly_override_metrics",
+        )
+        if override_metrics:
+            oc1, oc2 = st.columns(2)
+            with oc1:
+                st.number_input(
+                    "Horas reales (override)",
+                    min_value=0.0,
+                    step=0.25,
+                    key="weekly_manual_real_hours",
+                )
+            with oc2:
+                st.number_input(
+                    "Tareas Done (override)",
+                    min_value=0,
+                    step=1,
+                    key="weekly_manual_tasks_done",
+                )
+
         st.divider()
 
         if st.button("Guardar Weekly Review", key="weekly_save_btn"):
@@ -1309,6 +1364,9 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 "plan_next_week": _split_lines(plan_next_week_txt),
                 "agg_real_hours": real_hours if isinstance(real_hours, (int, float)) else None,
                 "agg_tasks_done": tasks_completed_count,
+                "manual_override_metrics": bool(st.session_state.get("weekly_override_metrics", False)),
+                "manual_real_hours": float(st.session_state.get("weekly_manual_real_hours", 0.0)) if st.session_state.get("weekly_override_metrics") else None,
+                "manual_tasks_done": int(st.session_state.get("weekly_manual_tasks_done", 0)) if st.session_state.get("weekly_override_metrics") else None,
                 "updated_at": now,
             }
 
@@ -1861,10 +1919,16 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
                         if apply_btn and new_status != s:
                             now = datetime.utcnow()
+                            set_doc = {"status": new_status, "updated_at": now}
+                            if (s != "Done") and (new_status == "Done"):
+                                set_doc["done_at"] = now
+                            elif (s == "Done") and (new_status != "Done"):
+                                set_doc["done_at"] = None
+
                             res = _update_one_by_id(
                                 mongo_db["backlog_items"],
                                 _id_str,
-                                {"$set": {"status": new_status, "updated_at": now}},
+                                {"$set": set_doc},
                             )
                             if res is not None and getattr(res, "matched_count", 0) > 0:
                                 st.success("✅ Estado actualizado.")
