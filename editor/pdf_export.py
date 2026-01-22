@@ -182,9 +182,10 @@ def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
             latex_doc += r"\end{notemeta}" + "\n\n"
 
         if body:
-            latex_doc += r"\begin{notebody}" + "\n"
+            pass
+            #latex_doc += r"\begin{notebody}" + "\n"
             latex_doc += body + "\n"
-            latex_doc += r"\end{notebody}" + "\n\n"
+            #latex_doc += r"\end{notebody}" + "\n\n"
 
         latex_doc += r"\end{document}" + "\n"
         return latex_doc
