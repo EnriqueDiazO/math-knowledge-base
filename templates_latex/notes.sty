@@ -10,7 +10,8 @@
 % Requiere el estilo base del proyecto
 \RequirePackage{miestilo}
 \RequirePackage[most]{tcolorbox}
-
+\RequirePackage{ulem} %Este paquete también permite \uuline{hacer doble subrayado}, \uwave{subrayar con curva ondulada} y \xout{tachar con ganas}.
+\RequirePackage{tgchorus}
 \newcommand{\relatedconcept}[1]{%
 \textbf{Relacionado con:} \texttt{#1}
 }
@@ -47,6 +48,30 @@
 % --------------------------------------------
 % Bloques semánticos
 % --------------------------------------------
+
+% Metadatos de la nota
+% Metadatos de la nota (dos columnas)
+\newtcolorbox{notemeta}{
+  notesbase,
+  title=Metadatos,
+  colback=gray!4,
+  colframe=darkgray!65,
+  boxrule=0.6pt,
+  left=8pt,
+  right=8pt,
+  top=6pt,
+  bottom=6pt,
+  before skip=6pt,
+  after skip=12pt,
+  fontupper=\small,
+}
+
+% Helper: fila de metadatos en dos columnas
+\newcommand{\metarow}[2]{%
+  \noindent\textbf{#1}\hfill #2\par
+}
+
+
 
 % 1. Contexto / Situación
 \newtcolorbox{context}{
@@ -128,6 +153,8 @@
   colback=green!6,
   colframe=green!65
 }
+
+
 
 % --------------------------------------------
 % Fin
