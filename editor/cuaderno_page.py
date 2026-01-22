@@ -1139,61 +1139,222 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         iso_now = today.isocalendar()
         default_iso_year = int(iso_now.year)
         default_iso_week = int(iso_now.week)
+        def _week_bounds(y: int, w: int):
+            ws = date.fromisocalendar(int(y), int(w), 1)
+            we = ws + timedelta(days=7)  # exclusivo
+            start_dt = datetime(ws.year, ws.month, ws.day)
+            end_dt = datetime(we.year, we.month, we.day)
+            return ws, we, start_dt, end_dt
 
-        st.markdown("### 🧾 Weekly Reviews (recientes)")
-        st.caption("Selecciona una semana previa para cargarla en el editor (ISO year/week).")
+        def _weekly_metrics(y: int, w: int) -> dict:
+            """Best-effort: calcula métricas derivadas para una semana ISO."""
+            out = {"real_hours": None, "tasks_done": None, "worklog_n": None, "worklog_tasks": None}
+            # Worklog: suma de horas + conteo + preview de tasks
+            try:
+                pipe = [
+                    {"$match": {"iso_year": int(y), "iso_week": int(w)}},
+                    {"$group": {"_id": None, "h": {"$sum": "$hours"}, "n": {"$sum": 1}}},
+                ]
+                agg = list(mongo_db["worklog_entries"].aggregate(pipe))
+                if agg:
+                    out["real_hours"] = float(agg[0].get("h") or 0.0)
+                    out["worklog_n"] = int(agg[0].get("n") or 0)
+                else:
+                    out["real_hours"] = 0.0
+                    out["worklog_n"] = 0
 
-        try:
-            recent_weekly = list(
-                weekly_col.find({}, {"iso_year": 1, "iso_week": 1, "updated_at": 1})
-                .sort("updated_at", -1)
-                .limit(80)
-            )
-        except Exception as e:
-            st.error(f"❌ Error cargando weekly reviews recientes: {e}")
-            recent_weekly = []
+                tdocs = list(
+                    mongo_db["worklog_entries"]
+                    .find({"iso_year": int(y), "iso_week": int(w)}, {"task": 1, "date": 1})
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(8)
+                )
+                tasks = [str(t.get("task")).strip() for t in tdocs if str(t.get("task", "")).strip()]
+                out["worklog_tasks"] = "; ".join(tasks) if tasks else ""
+            except Exception:
+                pass
 
-        if recent_weekly:
-            # Tabla mínima
-            df_weekly_recent = []
-            for r in recent_weekly:
-                rr = dict(r)
-                rr["_id"] = str(rr.get("_id"))
-                df_weekly_recent.append(rr)
+            # Backlog Done: preferir done_at si existe; fallback a updated_at para legacy
+            try:
+                _ws, _we, start_dt, end_dt = _week_bounds(y, w)
+                q_done = {
+                    "status": "Done",
+                    "$or": [
+                        {"done_at": {"$gte": start_dt, "$lt": end_dt}},
+                        {"$and": [{"done_at": {"$exists": False}}, {"updated_at": {"$gte": start_dt, "$lt": end_dt}}]},
+                        {"$and": [{"done_at": None}, {"updated_at": {"$gte": start_dt, "$lt": end_dt}}]},
+                    ],
+                }
+                out["tasks_done"] = int(mongo_db["backlog_items"].count_documents(q_done))
+            except Exception:
+                pass
 
-            df_wr = pd.DataFrame(df_weekly_recent)
-            # Ordena columnas si están presentes
-            cols_pref = [c for c in ["iso_year", "iso_week", "updated_at", "_id"] if c in df_wr.columns]
-            df_wr = df_wr[cols_pref] if cols_pref else df_wr
-            st.dataframe(df_wr, width="stretch")
+            return out
+
+        #st.markdown("### 🧾 Weekly Reviews (recientes)")
+        #st.caption("Selecciona una semana previa para cargarla en el editor (ISO year/week).")
+
+        #try:
+        #    recent_weekly = list(
+        #        weekly_col.find({}, {"iso_year": 1, "iso_week": 1, "updated_at": 1})
+        #        .sort("updated_at", -1)
+        #        .limit(80)
+        #    )
+        #except Exception as e:
+        #    st.error(f"❌ Error cargando weekly reviews recientes: {e}")
+        #    recent_weekly = []
+
+        #if recent_weekly:
+        #    # Tabla mínima
+        #    df_weekly_recent = []
+        #    for r in recent_weekly:
+        #        rr = dict(r)
+        #        rr["_id"] = str(rr.get("_id"))
+        #        df_weekly_recent.append(rr)
+
+        #    df_wr = pd.DataFrame(df_weekly_recent)
+        #    # Ordena columnas si están presentes
+        #    cols_pref = [c for c in ["iso_year", "iso_week", "real_hours", "tasks_done", "worklog_n", "worklog_tasks", "updated_at", "_id"] if c in df_wr.columns]
+        #    df_wr = df_wr[cols_pref] if cols_pref else df_wr
+        #    st.dataframe(df_wr, width="stretch")
 
             # Selector simple para cargar
-            opt_labels = []
-            opt_map = {}
-            for r in recent_weekly:
-                y = r.get("iso_year")
-                w = r.get("iso_week")
-                upd = r.get("updated_at") or ""
-                lab = f"{y}-W{int(w):02d}  ·  {upd}"
-                opt_labels.append(lab)
-                opt_map[lab] = {"iso_year": int(y), "iso_week": int(w)}
+        #    opt_labels = []
+        #    opt_map = {}
+        #    for r in recent_weekly:
+        #        y = r.get("iso_year")
+        #        w = r.get("iso_week")
+        #        upd = r.get("updated_at") or ""
+        #        lab = f"{y}-W{int(w):02d}  ·  {upd}"
+        #        opt_labels.append(lab)
+        #        opt_map[lab] = {"iso_year": int(y), "iso_week": int(w)}
 
-            sel_lab = st.selectbox(
-                "Selecciona una semana",
-                options=opt_labels,
-                index=0,
-                key="weekly_recent_select",
-            )
-            if st.button("Cargar", key="weekly_recent_load_btn"):
-                picked = opt_map.get(sel_lab) or {}
-                if picked:
-                    st.session_state["weekly_iso_year"] = int(picked.get("iso_year"))
-                    st.session_state["weekly_iso_week"] = int(picked.get("iso_week"))
-                    st.rerun()
-        else:
-            st.info("No hay weekly reviews recientes aún.")
+        #    sel_lab = st.selectbox(
+        #        "Selecciona una semana",
+        #        options=opt_labels,
+        #        index=0,
+        #        key="weekly_recent_select",
+        #    )
+        #    if st.button("Cargar", key="weekly_recent_load_btn"):
+        #        picked = opt_map.get(sel_lab) or {}
+        #        if picked:
+        #            st.session_state["weekly_iso_year"] = int(picked.get("iso_year"))
+        #            st.session_state["weekly_iso_week"] = int(picked.get("iso_week"))
+        #            st.rerun()
+        #else:
+        #    st.info("No hay weekly reviews recientes aún.")
 
         st.divider()
+
+        # --- Edición explícita de Weekly Reviews existentes (MVP) ---
+        # Nota: El editor principal (ISO year/week) ya permite actualizar por upsert,
+        # pero este apartado hace el flujo "Editar" explícito, similar a Worklog/Backlog.
+        st.markdown("### ✏️ Editar Weekly Review (existente)")
+        st.caption("Selecciona una Weekly Review existente para cargarla en el editor (ISO year/week) y modificarla.")
+
+        try:
+            weekly_edit_rows = list(
+                weekly_col.find(
+                    {},
+                    {
+                        "iso_year": 1,
+                        "iso_week": 1,
+                        "updated_at": 1,
+                        "_id": 1,
+                    },
+                )
+                .sort("updated_at", -1)
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando weekly reviews para edición: {e}")
+            weekly_edit_rows = []
+
+        if weekly_edit_rows:
+            edit_labels = []
+            edit_map = {}
+            for d in weekly_edit_rows:
+                y = d.get("iso_year")
+                w = d.get("iso_week")
+                upd = d.get("updated_at") or ""
+                _id = str(d.get("_id"))
+                lab = f"{y}-W{int(w):02d}  ·  {upd}  ·  {_id}"
+                edit_labels.append(lab)
+                edit_map[lab] = {"iso_year": int(y), "iso_week": int(w), "_id": _id}
+
+            sel_edit = st.selectbox(
+                "Selecciona una Weekly Review para editar",
+                options=edit_labels,
+                index=0,
+                key="weekly_edit_select",
+            )
+
+            col_e1, col_e2 = st.columns([1, 1])
+            with col_e1:
+                if st.button("Cargar en editor", key="weekly_edit_load_btn"):
+                    picked = edit_map.get(sel_edit) or {}
+                    if picked:
+                        st.session_state["weekly_iso_year"] = int(picked.get("iso_year"))
+                        st.session_state["weekly_iso_week"] = int(picked.get("iso_week"))
+                        st.session_state["weekly_edit_loaded_id"] = str(picked.get("_id") or "")
+                        st.rerun()
+
+            with col_e2:
+                # Borrado opcional (por _id), seguro por confirmación
+                st.write("")
+                st.write("")
+                confirm_del = st.checkbox("Estoy seguro (borrar)", key="weekly_delete_confirm")
+                typed_del = st.text_input("Escribe BORRAR", value="", key="weekly_delete_typed")
+                if st.button("Borrar Weekly Review", key="weekly_delete_btn"):
+                    if not confirm_del or typed_del.strip().upper() != "BORRAR":
+                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
+                    else:
+                        picked = edit_map.get(sel_edit) or {}
+                        del_id = picked.get("_id")
+                        if not del_id:
+                            st.error("No se encontró _id para borrar.")
+                        else:
+                            try:
+                                # Soporta ObjectId y string id
+                                try:
+                                    weekly_col.delete_one({"_id": ObjectId(str(del_id))})
+                                except Exception:
+                                    weekly_col.delete_one({"_id": str(del_id)})
+                                st.success("✅ Weekly Review borrada.")
+                                # Si estabas editando esa misma, limpia selección
+                                if st.session_state.get("weekly_edit_loaded_id") == str(del_id):
+                                    st.session_state["weekly_edit_loaded_id"] = ""
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error borrando weekly review: {e}")
+        else:
+            st.info("No hay weekly reviews suficientes para editar todavía.")
+
+        st.divider()
+
+        st.markdown("### ✏️ Editor Weekly Review")
+        ebc1, ebc2 = st.columns([1, 1])
+        with ebc1:
+            if st.button("➕ Nueva Weekly Review (limpiar)", key="weekly_new_btn"):
+                st.session_state["weekly_iso_year"] = default_iso_year
+                st.session_state["weekly_iso_week"] = default_iso_week
+                # Limpia el editor (texto) y overrides; útil para crear una nueva semana sin residuos.
+                st.session_state["weekly_editor_loaded_key"] = ""
+                st.session_state["weekly_editor_loaded_id"] = ""
+                st.session_state["weekly_objectives_txt"] = ""
+                st.session_state["weekly_wins_txt"] = ""
+                st.session_state["weekly_blocks_risks_txt"] = ""
+                st.session_state["weekly_plan_next_week_txt"] = ""
+                st.session_state["weekly_override_metrics"] = False
+                st.session_state["weekly_manual_real_hours"] = 0.0
+                st.session_state["weekly_manual_tasks_done"] = 0
+                st.rerun()
+        with ebc2:
+            if st.button("🔄 Recargar desde BD", key="weekly_reload_btn"):
+                # Fuerza recarga del documento actual en el editor.
+                st.session_state["weekly_editor_loaded_key"] = ""
+                st.session_state["weekly_editor_loaded_id"] = ""
+                st.rerun()
 
         c1, c2 = st.columns(2)
         with c1:
@@ -1228,30 +1389,45 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 return arr
             return "\n".join([str(x) for x in arr if str(x).strip()])
 
+        # --- Carga/edición: sincronizar el editor con el documento seleccionado ---
+        # Nota: Streamlit mantiene el valor de widgets por `key`. Si cambias iso_year/iso_week,
+        # el `value=` del widget NO sobreescribe automáticamente el session_state existente.
+        # Por eso, al cambiar de semana, reseteamos los campos del editor con los valores de BD.
+        weekly_editor_key = f"{int(iso_year)}-{int(iso_week)}"
+        weekly_editor_id = str((weekly_doc or {}).get("_id") or "")
+        if (st.session_state.get("weekly_editor_loaded_key") != weekly_editor_key) or (st.session_state.get("weekly_editor_loaded_id") != weekly_editor_id):
+            st.session_state["weekly_editor_loaded_key"] = weekly_editor_key
+            st.session_state["weekly_editor_loaded_id"] = weekly_editor_id
+            st.session_state["weekly_objectives_txt"] = _join_lines((weekly_doc or {}).get("weekly_objectives"))
+            st.session_state["weekly_wins_txt"] = _join_lines((weekly_doc or {}).get("wins"))
+            st.session_state["weekly_blocks_risks_txt"] = _join_lines((weekly_doc or {}).get("blocks_risks"))
+            st.session_state["weekly_plan_next_week_txt"] = _join_lines((weekly_doc or {}).get("plan_next_week"))
+
+
         weekly_objectives_txt = st.text_area(
             "Objetivos de la semana (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("weekly_objectives")),
+            value=str(st.session_state.get("weekly_objectives_txt", "")),
             height=120,
             placeholder="- Terminar MVP V4\n- Revisar paper X\n- Debug de microservicio Y",
             key="weekly_objectives_txt",
         )
         wins_txt = st.text_area(
             "Wins (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("wins")),
+            value=str(st.session_state.get("weekly_wins_txt", "")),
             height=120,
             placeholder="- Se aplicó patch sin conflictos\n- Se resolvió bug de concurrencia",
             key="weekly_wins_txt",
         )
         blocks_risks_txt = st.text_area(
             "Bloqueos / riesgos (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("blocks_risks")),
+            value=str(st.session_state.get("weekly_blocks_risks_txt", "")),
             height=120,
             placeholder="- Falta contexto de archivo real\n- Riesgo de romper export a Quarto",
             key="weekly_blocks_risks_txt",
         )
         plan_next_week_txt = st.text_area(
             "Plan próxima semana (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("plan_next_week")),
+            value=str(st.session_state.get("weekly_plan_next_week_txt", "")),
             height=120,
             placeholder="- Implementar V5 completo\n- Documentar decisiones\n- Preparar clase",
             key="weekly_plan_next_week_txt",
@@ -1396,8 +1572,8 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         export_df = pd.DataFrame()
 
         if export_mode == "Seleccionar de Recientes":
-            if "df_wr" in locals() and isinstance(df_wr, pd.DataFrame) and not df_wr.empty:
-                export_df = df_wr.copy()
+            if "df_wr" in locals() and isinstance(df_wr, pd.DataFrame) and not df_wr.empty:  # noqa: F821
+                export_df = df_wr.copy()  # noqa: F821
             else:
                 try:
                     docs = list(
@@ -1479,6 +1655,16 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
                 export_df = pd.DataFrame()
+
+        try:
+            if not export_df.empty and {'iso_year', 'iso_week'}.issubset(set(export_df.columns)):
+                rows = export_df.to_dict(orient='records')
+                for rr in rows:
+                    m = _weekly_metrics(rr.get('iso_year'), rr.get('iso_week'))
+                    rr.update(m)
+                export_df = pd.DataFrame(rows)
+        except Exception as e:
+            st.error(f"❌ Error calculando métricas para export: {e}")
 
         if export_df.empty:
             st.info("No hay filas para exportar con los criterios actuales.")
@@ -1614,7 +1800,8 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         st.divider()
         st.markdown("### ⬇️ Exportar Deliverables a CSV (MVP)")
         st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran los entregables recientes; opcionalmente puedes filtrar.")
-
+        
+        
         export_mode = st.selectbox(
             "Modo de exportación",
             options=["Seleccionar de Recientes", "Consulta con filtros"],

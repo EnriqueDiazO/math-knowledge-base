@@ -206,3 +206,126 @@ For issues, questions, or feature requests:
 ---
 
 **Happy Mathematical Knowledge Management! 🧮✨** 
+
+
+
+## 🆕 Newly Added Features (January 21, 2026)
+
+This section documents **all new functionality added today** to the Math Knowledge Base GUI, complementing the existing interface description.
+
+---
+
+## 🗓️ Weekly Review Module (V5)
+
+A new **Weekly Review** system has been fully integrated into the Notebook (`Cuaderno`) workflow, providing structured weekly reflection tightly connected to daily work and backlog execution.
+
+### Core Capabilities
+
+* **Add Weekly Review**
+
+  * Create a new weekly review identified by `ISO year + ISO week`.
+  * Structured narrative fields:
+
+    * Weekly objectives
+    * Wins
+    * Blockers / risks
+    * Plan for next week
+
+* **Edit Weekly Review**
+
+  * Load any existing weekly review from a *Recent Weeks* selector.
+  * Editor fields are automatically populated with persisted values from MongoDB.
+  * Changes overwrite the existing document (no duplication).
+
+* **Delete Weekly Review**
+
+  * Safe deletion flow with explicit confirmation.
+  * Prevents accidental removal of historical reviews.
+
+* **Export Weekly Reviews (CSV – MVP)**
+
+  * Same interaction pattern as Worklog and Backlog exports.
+  * Two modes:
+
+    * *Select from Recents*
+    * *Query with Filters* (date range, ISO year/week, free-text search)
+  * Row-level selection via interactive table.
+
+---
+
+## 📊 Derived Weekly Metrics Integration
+
+Weekly Reviews are now enriched with **automatically derived metrics** computed from other system modules:
+
+* **Real Hours Worked**
+
+  * Aggregated directly from Worklog entries for the corresponding ISO week.
+
+* **Tasks Completed**
+
+  * Count of Backlog items marked as `Done`.
+  * Uses `done_at` timestamps when available.
+  * Falls back to `updated_at` for legacy entries.
+
+* **Activity Preview**
+
+  * Displays a short summary of recent worklog tasks for contextual recall.
+
+### Manual Override (Optional)
+
+* Weekly metrics are *derived by default*.
+* A controlled override mechanism allows manual correction of:
+
+  * Real hours
+  * Tasks completed
+* Overrides are explicitly stored and auditable.
+
+---
+
+## 📦 Deliverables Module Enhancements
+
+The Deliverables section has been upgraded to match the maturity of Worklog and Weekly Review:
+
+* Load recent deliverables directly into the editor.
+* Edit existing deliverables without recreating records.
+* Export deliverables to CSV with:
+
+  * Filtering
+  * Row selection
+  * Consistent UI behavior across modules.
+
+---
+
+## 🔁 Cross-Module UX Consistency
+
+A major focus of this update was **workflow unification**:
+
+* Worklog, Backlog, Weekly Review, and Deliverables now share:
+
+  * The same *recents → load → edit → export* mental model.
+  * Identical CSV export UX patterns.
+  * Predictable session behavior when switching context.
+
+---
+
+## 🧠 Design Rationale
+
+* Weekly Reviews are treated as a **narrative + analytical artifact**, not as a primary source of truth.
+* Quantitative metrics remain derived from atomic records (Worklog / Backlog).
+* Narrative reflection, planning, and context are preserved independently.
+* The system prioritizes **traceability, reproducibility, and cognitive clarity** over feature density.
+
+---
+
+## 🛠️ Technical Notes
+
+* Careful synchronization between Streamlit `session_state` and MongoDB prevents stale or duplicated data.
+* All changes were intentionally **localized** to avoid regressions in other GUI areas.
+* Validation performed using:
+
+  * `git apply --check`
+  * `python -m compileall`
+
+---
+
+This update marks the completion of the **Weekly Review MVP** and establishes a solid foundation for future planning, analytics, and Kanban-style extensions.

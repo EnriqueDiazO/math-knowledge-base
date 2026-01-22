@@ -6,6 +6,75 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to Semantic Versioning.
 
 ---
+## [Unreleased] — 2026-01-21
+
+### Added
+
+* Fully functional **Weekly Review (V5) CRUD** inside the Notebook module:
+
+  * Explicit loading of existing weekly reviews via a recent-weeks selector.
+  * Proper **editing** of previously created weekly reviews (no duplicated records).
+  * Safe deletion of existing weekly reviews.
+* **Weekly Review CSV export (MVP)** following the same UX pattern as Worklog/Backlog:
+
+  * *Select from Recents* mode.
+  * *Filtered Query* mode (date range, ISO year/week, free-text search).
+  * Row-level selection via `st.data_editor`.
+* Display of derived weekly metrics:
+
+  * Real hours (aggregated from Worklog).
+  * Completed tasks count (from Backlog).
+  * Number of worklog entries.
+  * Short preview of recent activities.
+* Optional **manual override** for weekly metrics (real hours / tasks done), while keeping derived metrics as the default source of truth.
+* Functional CRUD for **Deliverables**:
+
+  * Loading of recent deliverables.
+  * Direct editing of existing deliverables.
+  * CSV export with filters and row selection.
+
+### Fixed
+
+* Fixed a critical issue where the Weekly Review editor **did not load original values** when switching between weeks:
+
+  * Explicit synchronization between Streamlit `session_state` and MongoDB documents.
+  * Removal of "sticky" values caused by reused widget keys.
+* Corrected Weekly Review task completion counts:
+
+  * Preferential use of `done_at` timestamps when available.
+  * Controlled fallback to `updated_at` for legacy backlog items.
+* Eliminated false-positive editor warnings (red underlines) caused by static analysis when using optional dataframes with `locals()`.
+
+### Improved
+
+* Full UX consistency across **Worklog**, **Backlog**, **Weekly Review**, and **Deliverables**:
+
+  * Unified patterns for recents, filtering, selection, and CSV export.
+* Clearer conceptual separation between:
+
+  * **Derived data** (worklog / backlog metrics).
+  * **Manual narrative data** (weekly review content).
+* Improved weekly traceability by consolidating narrative, metrics, and activities into a single coherent view.
+
+### Technical
+
+* Introduced internal helper functions for *best-effort* weekly metric computation.
+* Explicit and controlled use of `session_state` for reliable editor synchronization in Streamlit.
+* All changes kept minimal and localized, avoiding large refactors or navigation regressions.
+* Changes validated using:
+
+  * `git apply --check`
+  * `python -m compileall`
+
+### Design Notes
+
+* Weekly Review is now treated as a **narrative + analytical artifact**, not as a primary source of metrics.
+* Automatically derived metrics remain the default and authoritative source; manual overrides are explicit and auditable.
+* Stability, predictability, and cognitive clarity were prioritized over enterprise-style complexity.
+
+
+
+
 ## [Unreleased] — 2026-01-09
 
 ### Added

@@ -148,3 +148,108 @@ You can add references using standard BibTeX format:
   url       = {https://ctan.org/pkg/texbook}
 }
 ```
+
+
+
+## 🆕 Recent Additions to the Math Knowledge Base (January 21, 2026)
+
+This section summarizes the **most recent functional additions** to the Math Knowledge Base, extending the core concept-management platform with structured workflow, planning, and traceability features.
+
+---
+
+## 🗒️ Notebook (Cuaderno) System
+
+A new **Notebook-oriented workflow** has been introduced to complement concept capture with operational and reflective tooling. This subsystem is designed to record *what was done, why it was done, and what comes next*, while remaining tightly integrated with the mathematical knowledge base.
+
+### 🧾 Worklog
+
+* Daily chronological logging of work activities.
+* Text-based entries with optional hour tracking.
+* Filtering and querying by date ranges and keywords.
+* CSV export with row selection.
+
+### 📋 Backlog
+
+* Structured task tracking linked to projects and objectives.
+* Status-based workflow (e.g., To Do, In Progress, Done).
+* Query and export capabilities consistent with Worklog.
+* Acts as the primary source of truth for task completion metrics.
+
+---
+
+## 📅 Weekly Review (V5)
+
+The **Weekly Review** module provides a structured, week-level synthesis layer that connects daily execution (Worklog) and task completion (Backlog) with narrative reflection and planning.
+
+### Core Capabilities
+
+* **Add Weekly Review**
+
+  * Create a weekly review indexed by ISO year and ISO week.
+
+* **Edit Weekly Review**
+
+  * Load any existing weekly review from recent weeks.
+  * Editor fields are populated directly from persisted MongoDB documents.
+
+* **Delete Weekly Review**
+
+  * Safe deletion with explicit user confirmation.
+
+* **Export Weekly Reviews (CSV)**
+
+  * Same interaction model as Worklog and Backlog.
+  * Selection from recent weeks or filtered queries.
+
+### Structured Narrative Fields
+
+* Weekly objectives
+* Wins and achievements
+* Blockers and risks
+* Plan for the following week
+
+### Integrated Metrics
+
+Weekly Reviews are enriched with **automatically derived metrics**:
+
+* **Real hours worked** (aggregated from Worklog entries).
+* **Tasks completed** (derived from Backlog items marked as Done).
+* **Activity summary** (preview of recent worklog tasks).
+
+An optional **manual override** mechanism allows correcting these metrics when historical data is incomplete, while preserving derived values as the default.
+
+---
+
+## 📦 Deliverables Tracking
+
+The **Deliverables** module has been expanded into a first-class, editable artifact type:
+
+* Load and edit existing deliverables.
+* Track deliverables by project, status, and type.
+* Export deliverables to CSV using the same selection and filtering patterns used elsewhere in the system.
+
+---
+
+## 🔄 Unified User Experience
+
+All Notebook-related modules (Worklog, Backlog, Weekly Review, Deliverables) now share a **common interaction model**:
+
+* Recent items view
+* Explicit load into editor
+* Safe edit and save
+* CSV export with row-level selection
+
+This consistency reduces cognitive load and supports long-term, incremental knowledge accumulation.
+
+---
+
+## 🧠 Design Philosophy
+
+* Mathematical concepts remain the **core canonical objects** of the system.
+* Notebook artifacts provide **context, traceability, and planning**, not competing sources of truth.
+* Quantitative metrics are derived from atomic records whenever possible.
+* Narrative reflection and planning are stored explicitly and independently.
+
+---
+
+These additions position the Math Knowledge Base not only as a repository of mathematical knowledge, but also as a **research and study companion** capable of supporting sustained, multi-week intellectual work.
