@@ -1,13 +1,20 @@
+# -----------------------------
+# Paths (relative, no hardcode)
+# -----------------------------
 SHELL := /bin/bash
 VENV := . mathdbmongo/bin/activate &&
 PY := $(VENV) python
 PY3 := $(VENV) python3
 BOOK_TEMPLATE := quarto_book
 BOOK_BUILD := quarto_book_build
+EXPORTED_NOTES_DIR := exported_notes
+EXPORTED_NOTES_BUILD_DIR := $(EXPORTED_NOTES_DIR)/_build
+
+
 
 .PHONY: start mongo stop restart status run gui lint export grafo \
         book-clean book-export book-preview book-render \
-        clean clean-all book-clean-artifacts clean-book cuaderno-install cuaderno-status
+        clean clean-all book-clean-artifacts clean-book cuaderno-install cuaderno-status clean-notes
 
 start:
 	@$(MAKE) mongo
@@ -113,3 +120,13 @@ cuaderno-install:
 
 cuaderno-status:
 	python scripts/install_cuaderno_mode.py --status
+
+clean-notes:
+	@echo "🧹 Cleaning exported notes (keeping directories)..."
+	@if [ -d "$(EXPORTED_NOTES_DIR)" ]; then \
+		find "$(EXPORTED_NOTES_DIR)" -mindepth 1 -maxdepth 1 ! -name "_build" -exec rm -rf {} + ; \
+	fi
+	@if [ -d "$(EXPORTED_NOTES_BUILD_DIR)" ]; then \
+		rm -rf "$(EXPORTED_NOTES_BUILD_DIR)"/* ; \
+	fi
+	@echo "✅ exported_notes cleaned (directories preserved)"

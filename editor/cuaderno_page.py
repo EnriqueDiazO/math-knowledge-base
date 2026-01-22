@@ -21,6 +21,7 @@ from bson import ObjectId
 from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex
 import streamlit as st
 import pandas as pd
+from streamlit_ace import st_ace
 
 def _find_one_by_id(coll, id_value):
     """Find a document by _id supporting both ObjectId and string ids."""
@@ -61,6 +62,214 @@ def _update_one_by_id(coll, id_value, update_doc):
         return None
 
 
+
+
+def _worklog_label(doc: Dict[str, Any]) -> str:
+    """Etiqueta compacta para seleccionar entradas de Worklog."""
+    d = doc.get("date") or ""
+    block = doc.get("block") or "—"
+    proj = doc.get("project") or "—"
+    task = doc.get("task") or "(sin task)"
+    status = doc.get("status") or "—"
+    return f"{d} [{block}] ({status}) {proj} — {task}"
+
+
+def _safe_date_from_str(s: str) -> date:
+    """Parse YYYY-MM-DD safely; fallback to today."""
+    try:
+        return datetime.strptime((s or "").strip(), "%Y-%m-%d").date()
+    except Exception:
+        return date.today()
+
+
+def _iso_from_date_str(date_str: str) -> Dict[str, int]:
+    """Return ISO year/week from YYYY-MM-DD; fallback to today's ISO values."""
+    try:
+        dt = datetime.strptime(date_str, "%Y-%m-%d")
+        iso = dt.isocalendar()
+        return {
+            "iso_year": int(getattr(iso, "year", iso[0])),
+            "iso_week": int(getattr(iso, "week", iso[1])),
+        }
+    except Exception:
+        iso = date.today().isocalendar()
+        return {"iso_year": int(iso.year), "iso_week": int(iso.week)}
+
+
+def _parse_tags_csv(s: str) -> List[str]:
+    """Parse comma-separated tags into a clean list."""
+    if not s:
+        return []
+    parts = [p.strip() for p in s.split(",")]
+    return [p for p in parts if p]
+
+
+def _note_label(doc: Dict[str, Any]) -> str:
+    d = doc.get("date") or ""
+    title = doc.get("title") or "(sin título)"
+    proj = doc.get("project") or "—"
+    ctx = doc.get("context") or "—"
+    return f"{d} — {title}  ·  {proj} / {ctx}"
+
+
+def _get_editor_keys(prefix: str) -> Dict[str, str]:
+    return {
+        "text": f"{prefix}_latex_text",
+        "rev": f"{prefix}_latex_editor_rev",
+        "insert": f"{prefix}_latex_insert",
+        "do_insert": f"{prefix}_insert_latex",
+        "loaded_id": f"{prefix}_loaded_id",
+    }
+
+
+def _ensure_editor_state(prefix: str, initial_text: str = "") -> None:
+    keys = _get_editor_keys(prefix)
+    if keys["text"] not in st.session_state:
+        st.session_state[keys["text"]] = initial_text or ""
+    if keys["rev"] not in st.session_state:
+        st.session_state[keys["rev"]] = 0
+    if keys["insert"] not in st.session_state:
+        st.session_state[keys["insert"]] = ""
+    if keys["do_insert"] not in st.session_state:
+        st.session_state[keys["do_insert"]] = False
+    if keys["loaded_id"] not in st.session_state:
+        st.session_state[keys["loaded_id"]] = ""
+
+
+def _queue_insert(prefix: str, snippet: str) -> None:
+    keys = _get_editor_keys(prefix)
+    st.session_state[keys["insert"]] = snippet
+    st.session_state[keys["do_insert"]] = True
+
+
+def _handle_pending_insert(prefix: str) -> None:
+    keys = _get_editor_keys(prefix)
+    if st.session_state.get(keys["do_insert"]) and st.session_state.get(keys["insert"]):
+        current_text = st.session_state.get(keys["text"], "") or ""
+        to_insert = st.session_state[keys["insert"]]
+
+        if current_text and not current_text.endswith("\n"):
+            current_text += "\n"
+
+        st.session_state[keys["text"]] = current_text + to_insert + "\n"
+        st.session_state[keys["do_insert"]] = False
+        st.session_state[keys["insert"]] = ""
+        st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
+        st.rerun()
+
+
+def _render_latex_toolbar(prefix: str) -> None:
+    """Toolbar: same spirit as 'Añadir Concepto' + semantic diary blocks."""
+    st.write("**🔧 Herramientas LaTeX:**")
+
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        if st.button("📝 Definición", key=f"{prefix}_btn_def"):
+            _queue_insert(prefix, "\\begin{definition}\n% ...\n\\end{definition}\n")
+        if st.button("📋 Teorema", key=f"{prefix}_btn_theorem"):
+            _queue_insert(prefix, "\\begin{theorem}{% ...}\n% ...\n\\end{theorem}\n")
+        if st.button("📌 Lema", key=f"{prefix}_btn_lemma"):
+            _queue_insert(prefix, "\\begin{lemma}\n% ...\n\\end{lemma}\n")
+        if st.button("📌 Proposición", key=f"{prefix}_btn_prop"):
+            _queue_insert(prefix, "\\begin{proposition}\n% ...\n\\end{proposition}\n")
+        if st.button("📋 Corolario", key=f"{prefix}_btn_cor"):
+            _queue_insert(prefix, "\\begin{corollary}\n% ...\n\\end{corollary}\n")
+        if st.button("📖 Prueba", key=f"{prefix}_btn_proof"):
+            _queue_insert(prefix, "\\begin{proof}\n% ...\n\\end{proof}\n")
+
+    with col2:
+        if st.button("🧪 Ejemplo", key=f"{prefix}_btn_ex"):
+            _queue_insert(prefix, "\\begin{example}\n% ...\n\\end{example}\n")
+        if st.button("🗒️ Nota / Remark", key=f"{prefix}_btn_remark"):
+            _queue_insert(prefix, "\\begin{remark}\n% ...\n\\end{remark}\n")
+        if st.button("🔢 Ecuación", key=f"{prefix}_btn_eq"):
+            _queue_insert(prefix, "\\begin{equation}\n% ...\n\\end{equation}\n")
+        if st.button("🔢 Align", key=f"{prefix}_btn_align"):
+            _queue_insert(prefix, "\\begin{align}\n% ...\n\\end{align}\n")
+        if st.button("🔢 Matrix", key=f"{prefix}_btn_matrix"):
+            _queue_insert(prefix, "\\begin{pmatrix}\na & b \\\\\nc & d\n\\end{pmatrix}\n")
+        if st.button("🔢 Cases", key=f"{prefix}_btn_cases"):
+            _queue_insert(prefix, "\\begin{cases}\n% ...\n\\end{cases}\n")
+
+    with col3:
+        if st.button("• Itemize", key=f"{prefix}_btn_itemize"):
+            _queue_insert(prefix, "\\begin{itemize}\n  \\item ...\n\\end{itemize}\n")
+        if st.button("1) Enumerate", key=f"{prefix}_btn_enum"):
+            _queue_insert(prefix, "\\begin{enumerate}\n  \\item ...\n\\end{enumerate}\n")
+        if st.button("≡ Description", key=f"{prefix}_btn_desc"):
+            _queue_insert(prefix, "\\begin{description}\n  \\item[\Ítem] ...\n\\end{description}\n")
+        if st.button("💻 Código (lstlisting)", key=f"{prefix}_btn_code"):
+            _queue_insert(prefix, "\\begin{lstlisting}\n# ...\n\\end{lstlisting}\n")
+        if st.button("📁 DirTree", key=f"{prefix}_btn_dirtree"):
+            _queue_insert(prefix, "\\begin{dirtree}\n.1 /ruta.\n.2 archivo.txt.\n\\end{dirtree}\n")
+
+    with col4:
+        # Símbolos (mínimo viable)
+        sym_cols = st.columns(2)
+        with sym_cols[0]:
+            if st.button("∑", key=f"{prefix}_sym_sum"):
+                _queue_insert(prefix, "\\sum_{i=1}^{n}")
+            if st.button("∫", key=f"{prefix}_sym_int"):
+                _queue_insert(prefix, "\\int_{a}^{b}")
+            if st.button("∈", key=f"{prefix}_sym_in"):
+                _queue_insert(prefix, "\\in")
+            if st.button("∀", key=f"{prefix}_sym_forall"):
+                _queue_insert(prefix, "\\forall")
+            if st.button("ℝ", key=f"{prefix}_sym_R"):
+                _queue_insert(prefix, "\\mathbb{R}")
+        with sym_cols[1]:
+            if st.button("∃", key=f"{prefix}_sym_exists"):
+                _queue_insert(prefix, "\\exists")
+            if st.button("→", key=f"{prefix}_sym_to"):
+                _queue_insert(prefix, "\\rightarrow")
+            if st.button("∞", key=f"{prefix}_sym_inf"):
+                _queue_insert(prefix, "\\infty")
+            if st.button("ε", key=f"{prefix}_sym_eps"):
+                _queue_insert(prefix, "\\varepsilon")
+            if st.button("δ", key=f"{prefix}_sym_delta"):
+                _queue_insert(prefix, "\\delta")
+
+    st.write("**🧩 Bloques semánticos del cuaderno:**")
+    b1, b2, b3, b4, b5 = st.columns(5)
+    semantic = [
+        ("context", b1),
+        ("reading", b1),
+        ("exploration", b2),
+        ("hypothesis", b2),
+        ("connections", b3),
+        ("reflection", b3),
+        ("decision", b4),
+        ("openquestions", b4),
+        ("technical", b5),
+        ("nextsteps", b5),
+    ]
+    for name, col in semantic:
+        with col:
+            if st.button(name, key=f"{prefix}_sem_{name}"):
+                _queue_insert(prefix, f"\\begin{{{name}}}\n...\n\\end{{{name}}}\n")
+
+
+def _render_latex_ace_editor(prefix: str, initial_text: str, height: int = 320) -> str:
+    """Ace editor with deterministic insertion mechanism (stable on reruns)."""
+    _ensure_editor_state(prefix, initial_text=initial_text)
+    _handle_pending_insert(prefix)
+
+    keys = _get_editor_keys(prefix)
+    value = st_ace(
+        value=st.session_state[keys["text"]],
+        language="latex",
+        theme="monokai",
+        font_size=16,
+        tab_size=2,
+        height=height,
+        wrap=True,
+        show_gutter=True,
+        auto_update=True,
+        key=f"{prefix}_latex_editor_{st.session_state[keys['rev']]}",
+    )
+    st.session_state[keys["text"]] = value or ""
+    return st.session_state[keys["text"]]
 def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     """
     Renderiza la página 🧪 Cuaderno (Experimental).
@@ -100,7 +309,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     col5.metric("Diario", c_notes)
 
     st.info(
-        "Este módulo es experimental. En los siguientes MVPs habilitaremos: "
+        "Este módulo es experimental. En los siguientes MVP mejoraremos los sectores: "
         "Worklog → Backlog → Weekly Review → Deliverables → Kanban."
     )
     with st.expander("Instalación / Estado", expanded=False):
@@ -178,17 +387,406 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         try:
             rows = list(
                 mongo_db["worklog_entries"]
-                .find({}, {"_id": 0})
+                .find({})
                 .sort([("date", -1), ("created_at", -1)])
                 .limit(20)
             )
             if not rows:
                 st.info("Aún no hay entradas en worklog.")
             else:
-                df = pd.DataFrame(rows)
-                st.dataframe(df, use_container_width=True)
+                # Para inspección/selección: convierte _id a string (sin perder el id real en Mongo).
+                df_rows = []
+                for r in rows:
+                    rr = dict(r)
+                    rr["_id"] = str(rr.get("_id"))
+                    df_rows.append(rr)
+                df = pd.DataFrame(df_rows)
+                st.dataframe(df, width='stretch')
         except Exception as e:
             st.error(f"❌ Error cargando worklog: {e}")
+
+        st.divider()
+        st.markdown("### ⬇️ Exportar Worklog a CSV (MVP-4)")
+        st.caption("Selecciona entradas y descárgalas como CSV. Por defecto se muestran las entradas recientes; opcionalmente puedes filtrar.")
+
+        export_mode = st.selectbox(
+            "Modo de exportación",
+            options=["Seleccionar de Recientes", "Consulta con filtros"],
+            index=0,
+            key="worklog_export_mode",
+        )
+
+        export_df = pd.DataFrame()
+
+        if export_mode == "Seleccionar de Recientes":
+            # Reusar la tabla de 'Recientes' si está disponible en este scope.
+            if "df" in locals() and isinstance(df, pd.DataFrame) and not df.empty:
+                export_df = df.copy()
+            else:
+                export_df = pd.DataFrame()
+        else:
+            with st.expander("Filtros", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    start_d = st.date_input("Desde", value=(date.today() - timedelta(days=7)), key="worklog_export_start")
+                with c2:
+                    end_d = st.date_input("Hasta", value=date.today(), key="worklog_export_end")
+                with c3:
+                    limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="worklog_export_limit")
+
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    try:
+                        proj_opts = sorted([p for p in mongo_db["worklog_entries"].distinct("project") if isinstance(p, str)])
+                    except Exception:
+                        proj_opts = []
+                    flt_project = st.selectbox("Project", options=["(all)"] + proj_opts, index=0, key="worklog_export_project")
+                with c5:
+                    flt_status = st.selectbox(
+                        "Status",
+                        options=["(all)", "Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                        index=0,
+                        key="worklog_export_status",
+                    )
+                with c6:
+                    text_q = st.text_input("Contiene (task/description)", value="", key="worklog_export_text")
+
+            q = {
+                "date": {"$gte": start_d.strftime("%Y-%m-%d"), "$lte": end_d.strftime("%Y-%m-%d")}
+            }
+            if flt_project != "(all)":
+                q["project"] = flt_project
+            if flt_status != "(all)":
+                q["status"] = flt_status
+            if (text_q or "").strip():
+                rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                q["$or"] = [{"task": rx}, {"description_evidence": rx}]
+
+            try:
+                docs = list(
+                    mongo_db["worklog_entries"]
+                    .find(q)
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(int(limit_n))
+                )
+                norm = []
+                for d in docs:
+                    dd = dict(d)
+                    dd["_id"] = str(dd.get("_id"))
+                    norm.append(dd)
+                export_df = pd.DataFrame(norm)
+            except Exception as e:
+                st.error(f"❌ Error preparando exportación: {e}")
+                export_df = pd.DataFrame()
+
+        if export_df.empty:
+            st.info("No hay filas para exportar con los criterios actuales.")
+        else:
+            # Normaliza _id para CSV y selección
+            if "_id" in export_df.columns:
+                export_df["_id"] = export_df["_id"].astype(str)
+
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="worklog_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"worklog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="worklog_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="worklog_export_download_disabled")
+
+        st.divider()
+        st.markdown("### ✏️ Editar entrada (MVP-1)")
+
+        try:
+            edit_rows = list(
+                mongo_db["worklog_entries"]
+                .find({})
+                .sort([("date", -1), ("created_at", -1)])
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando entradas para edición: {e}")
+            edit_rows = []
+
+        if not edit_rows:
+            st.info("No hay entradas suficientes para editar.")
+        else:
+            edit_labels: List[str] = []
+            edit_map: Dict[str, str] = {}
+            for d in edit_rows:
+                _id = str(d.get("_id"))
+                lab = _worklog_label(d)
+                edit_labels.append(lab)
+                edit_map[lab] = _id
+
+            selected_label = st.selectbox(
+                "Selecciona una entrada para editar",
+                options=edit_labels,
+                index=0,
+                key="worklog_edit_select",
+            )
+            wid = edit_map.get(selected_label)
+            wdoc = _find_one_by_id(mongo_db["worklog_entries"], wid) if wid else None
+
+            if not wdoc:
+                st.warning("No se pudo cargar la entrada seleccionada.")
+            else:
+                loaded_id = st.session_state.get("worklog_edit_loaded_id")
+                current_id = str(wdoc.get("_id"))
+                if loaded_id != current_id:
+                    st.session_state["worklog_edit_loaded_id"] = current_id
+                    st.session_state["worklog_edit_date"] = _safe_date_from_str(wdoc.get("date") or "")
+                    st.session_state["worklog_edit_project"] = wdoc.get("project") or ""
+                    st.session_state["worklog_edit_module"] = wdoc.get("module") or ""
+                    st.session_state["worklog_edit_task"] = wdoc.get("task") or ""
+                    st.session_state["worklog_edit_desc"] = wdoc.get("description_evidence") or ""
+                    st.session_state["worklog_edit_status"] = wdoc.get("status") or "Planificado"
+
+                e1, e2 = st.columns(2)
+                with e1:
+                    ew_date = st.date_input("Date", key="worklog_edit_date")
+                    ew_status = st.selectbox(
+                        "Status",
+                        ["Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                        key="worklog_edit_status",
+                    )
+                with e2:
+                    ew_project = st.text_input("Project", key="worklog_edit_project")
+                    ew_module = st.text_input("Module (optional)", key="worklog_edit_module")
+                    ew_task = st.text_input("Task", key="worklog_edit_task")
+
+                ew_desc = st.text_area("Descripción / Evidencia (optional)", key="worklog_edit_desc")
+
+                if st.button("Guardar cambios", key="worklog_edit_save"):
+                    if not (ew_project or "").strip() or not (ew_task or "").strip():
+                        st.error("Project y Task son obligatorios.")
+                    else:
+                        date_str = ew_date.strftime("%Y-%m-%d")
+                        iso_vals = _iso_from_date_str(date_str)
+                        now = datetime.utcnow()
+
+                        upd = {
+                            "date": date_str,
+                            "project": (ew_project or "").strip(),
+                            "module": (ew_module or "").strip() or None,
+                            "task": (ew_task or "").strip(),
+                            "description_evidence": (ew_desc or "").strip() or None,
+                            "status": ew_status,
+                            "iso_year": int(iso_vals["iso_year"]),
+                            "iso_week": int(iso_vals["iso_week"]),
+                            "updated_at": now,
+                        }
+
+                        res = _update_one_by_id(
+                            mongo_db["worklog_entries"],
+                            wid,
+                            {"$set": upd},
+                        )
+                        if res is not None and getattr(res, "matched_count", 0) > 0:
+                            st.success("✅ Worklog entry actualizada.")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo actualizar la entrada (id no encontrado).")
+
+
+        st.divider()
+        st.markdown("### ➕ Crear entrada desde Backlog (MVP-2)")
+        st.caption("Integración unidireccional: Backlog → Worklog. No se modifica el Backlog.")
+
+        try:
+            backlog_candidates = list(
+                mongo_db["backlog_items"]
+                .find({"status": {"$in": ["Todo", "Doing", "Blocked"]}})
+                .sort([("updated_at", -1)])
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando backlog: {e}")
+            backlog_candidates = []
+
+        if not backlog_candidates:
+            st.info("No hay backlog items pendientes/activos (Todo/Doing/Blocked).")
+        else:
+            # Selector simple (reutiliza patrón de selección del módulo Backlog)
+            options = []
+            bmap: Dict[str, Dict[str, Any]] = {}
+            for it in backlog_candidates:
+                bid = str(it.get("_id"))
+                label = f"[{it.get('status','')}] {it.get('project','')} — {it.get('task','')}"
+                options.append(label)
+                bmap[label] = it
+
+            sel = st.selectbox("Selecciona una actividad del Backlog", options=options, key="wfb_select")
+            bdoc = bmap.get(sel)
+
+            if bdoc is None:
+                st.warning("No se pudo cargar el backlog item seleccionado.")
+            else:
+                bid = str(bdoc.get("_id"))
+                if st.session_state.get("wfb_loaded_id") != bid:
+                    st.session_state["wfb_loaded_id"] = bid
+                    st.session_state["wfb_date"] = datetime.today()
+                    st.session_state["wfb_block"] = "AM"
+                    st.session_state["wfb_hours"] = 0.0
+                    st.session_state["wfb_status"] = "En progreso"
+                    st.session_state["wfb_project"] = bdoc.get("project") or ""
+                    st.session_state["wfb_module"] = bdoc.get("module") or ""
+                    st.session_state["wfb_task"] = bdoc.get("task") or ""
+                    st.session_state["wfb_desc"] = bdoc.get("description") or ""
+                    st.session_state["wfb_next_step"] = ""
+                    st.session_state["wfb_evidence_url"] = ""
+                    st.session_state["wfb_tags"] = ", ".join(bdoc.get("tags") or [])
+
+                with st.form("worklog_from_backlog_form", clear_on_submit=False):
+                    c1, c2 = st.columns(2)
+                    with c1:
+                        wfb_date = st.date_input("Date", key="wfb_date")
+                        wfb_block = st.selectbox("Block", ["AM", "PM", "Noche"], key="wfb_block")
+                        wfb_hours = st.number_input("Hours", min_value=0.0, step=0.25, key="wfb_hours")
+                        wfb_status = st.selectbox(
+                            "Status",
+                            ["Planificado", "En progreso", "Hecho", "Bloqueado", "Cancelado"],
+                            key="wfb_status",
+                        )
+                    with c2:
+                        wfb_project = st.text_input("Project", key="wfb_project")
+                        wfb_module = st.text_input("Module (optional)", key="wfb_module")
+                        wfb_task = st.text_input("Task", key="wfb_task")
+                        wfb_next_step = st.text_input("Next step (optional)", key="wfb_next_step")
+
+                    wfb_desc = st.text_area("Descripción / Evidencia (optional)", key="wfb_desc")
+                    wfb_evidence_url = st.text_input("Evidence URL / path (optional)", key="wfb_evidence_url")
+                    wfb_tags_csv = st.text_input("Tags (comma-separated)", key="wfb_tags")
+
+                    submit = st.form_submit_button("Crear Worklog Entry desde Backlog")
+
+                if submit:
+                    if not (wfb_project or "").strip() or not (wfb_task or "").strip():
+                        st.error("Project y Task son obligatorios.")
+                    else:
+                        date_str = wfb_date.strftime("%Y-%m-%d")
+                        iso_vals = _iso_from_date_str(date_str)
+                        now = datetime.utcnow()
+
+                        doc = {
+                            "date": date_str,
+                            "block": wfb_block,
+                            "start_time": None,
+                            "end_time": None,
+                            "hours": float(wfb_hours),
+                            "project": (wfb_project or "").strip(),
+                            "module": (wfb_module or "").strip() or None,
+                            "task": (wfb_task or "").strip(),
+                            "description_evidence": (wfb_desc or "").strip() or None,
+                            "status": wfb_status,
+                            "deliverable_id": None,
+                            "evidence_url": (wfb_evidence_url or "").strip() or None,
+                            "next_step": (wfb_next_step or "").strip() or None,
+                            "tags": [t.strip() for t in (wfb_tags_csv or "").split(",") if t.strip()],
+                            "iso_year": int(iso_vals["iso_year"]),
+                            "iso_week": int(iso_vals["iso_week"]),
+                            "created_at": now,
+                            "updated_at": now,
+                            # referencia blanda al origen (no genera dependencia fuerte)
+                            "source_backlog_id": bid,
+                        }
+
+                        try:
+                            mongo_db["worklog_entries"].insert_one(doc)
+                            st.success("✅ Worklog entry creada desde Backlog.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error guardando worklog desde backlog: {e}")
+
+
+        st.divider()
+        st.markdown("### 🗑️ Borrar entrada (MVP-3)")
+
+        try:
+            del_rows = list(
+                mongo_db["worklog_entries"]
+                .find({})
+                .sort([("date", -1), ("created_at", -1)])
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando entradas para borrado: {e}")
+            del_rows = []
+
+        if not del_rows:
+            st.info("No hay entradas suficientes para borrar.")
+        else:
+            del_labels: List[str] = []
+            del_map: Dict[str, str] = {}
+            for d in del_rows:
+                _id = str(d.get("_id"))
+                lab = _worklog_label(d)
+                del_labels.append(lab)
+                del_map[lab] = _id
+
+            del_selected = st.selectbox(
+                "Selecciona una entrada para borrar",
+                options=del_labels,
+                index=0,
+                key="worklog_delete_select",
+            )
+            del_id = del_map.get(del_selected)
+            del_doc = _find_one_by_id(mongo_db["worklog_entries"], del_id) if del_id else None
+
+            if not del_doc:
+                st.warning("No se pudo cargar la entrada seleccionada.")
+            else:
+                st.write(f"**Fecha:** {del_doc.get('date') or ''}  ·  **Block:** {del_doc.get('block') or '—'}")
+                st.write(f"**Proyecto:** {del_doc.get('project') or '—'}")
+                st.write(f"**Task:** {del_doc.get('task') or '(sin task)'}")
+
+                preview = (del_doc.get("description_evidence") or "")[:220]
+                if preview:
+                    st.code(preview, language="text")
+
+                confirm = st.checkbox("Estoy seguro", key="worklog_delete_confirm")
+                typed = st.text_input("Escribe BORRAR para confirmar", value="", key="worklog_delete_typed")
+
+                if st.button("Borrar definitivamente", key="worklog_delete_btn"):
+                    if not confirm or typed.strip().upper() != "BORRAR":
+                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
+                    else:
+                        try:
+                            s = str(del_id)
+                            deleted = None
+                            try:
+                                deleted = mongo_db["worklog_entries"].delete_one({"_id": ObjectId(s)})
+                            except Exception:
+                                deleted = mongo_db["worklog_entries"].delete_one({"_id": s})
+
+                            if deleted is not None and getattr(deleted, "deleted_count", 0) > 0:
+                                st.success("✅ Entrada borrada.")
+                                st.rerun()
+                            else:
+                                st.error("❌ No se pudo borrar (id no encontrado).")
+                        except Exception as e:
+                            st.error(f"❌ Error borrando worklog: {e}")
     with tabs[1]:
         st.subheader("📋 Backlog (V4)")
 
@@ -310,7 +908,139 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 )
 
             df = pd.DataFrame(rows)
-            st.dataframe(df, use_container_width=True, hide_index=True)
+            st.dataframe(df, width='stretch', hide_index=True)
+            st.markdown("### ⬇️ Exportar Backlog a CSV (MVP)")
+            st.caption("Selecciona items y descárgalos como CSV. Por defecto se muestran los ítems recientes; opcionalmente puedes filtrar.")
+
+            export_mode = st.selectbox(
+                "Modo de exportación",
+                options=["Seleccionar de Recientes", "Consulta con filtros"],
+                index=0,
+                key="backlog_export_mode",
+            )
+
+            export_df = pd.DataFrame()
+
+            if export_mode == "Seleccionar de Recientes":
+                export_df = df.copy()
+            else:
+                with st.expander("Filtros", expanded=False):
+                    c1, c2, c3 = st.columns(3)
+                    with c1:
+                        start_d = st.date_input("Desde", value=(date.today() - timedelta(days=7)), key="backlog_export_start")
+                    with c2:
+                        end_d = st.date_input("Hasta", value=date.today(), key="backlog_export_end")
+                    with c3:
+                        limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="backlog_export_limit")
+
+                    # Opciones dinámicas (best-effort) desde MongoDB
+                    try:
+                        proj_opts = sorted([p for p in mongo_db["backlog_items"].distinct("project") if isinstance(p, str)])
+                    except Exception:
+                        proj_opts = []
+                    try:
+                        owner_opts = sorted([o for o in mongo_db["backlog_items"].distinct("owner") if isinstance(o, str)])
+                    except Exception:
+                        owner_opts = []
+
+                    c4, c5, c6 = st.columns(3)
+                    with c4:
+                        flt_project2 = st.selectbox("Project", options=["(all)"] + proj_opts, index=0, key="backlog_export_project")
+                    with c5:
+                        flt_status2 = st.selectbox(
+                            "Status",
+                            options=["(all)", "Todo", "Doing", "Done", "Blocked", "Canceled"],
+                            index=0,
+                            key="backlog_export_status",
+                        )
+                    with c6:
+                        flt_priority2 = st.selectbox(
+                            "Priority",
+                            options=["(all)", "Alta", "Media", "Baja"],
+                            index=0,
+                            key="backlog_export_priority",
+                        )
+
+                    c7, c8 = st.columns(2)
+                    with c7:
+                        flt_owner2 = st.selectbox("Owner", options=["(all)"] + owner_opts, index=0, key="backlog_export_owner")
+                    with c8:
+                        text_q = st.text_input("Contiene (task/description)", value="", key="backlog_export_text")
+
+                start_dt = datetime(start_d.year, start_d.month, start_d.day, 0, 0, 0)
+                end_dt = datetime(end_d.year, end_d.month, end_d.day, 23, 59, 59)
+
+                q = {"updated_at": {"$gte": start_dt, "$lte": end_dt}}
+                if flt_project2 != "(all)":
+                    q["project"] = flt_project2
+                if flt_status2 != "(all)":
+                    q["status"] = flt_status2
+                if flt_priority2 != "(all)":
+                    q["priority"] = flt_priority2
+                if flt_owner2 != "(all)":
+                    q["owner"] = flt_owner2
+                if (text_q or "").strip():
+                    rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                    q["$or"] = [{"task": rx}, {"description": rx}]
+
+                try:
+                    docs = list(
+                        mongo_db["backlog_items"]
+                        .find(q)
+                        .sort([("updated_at", -1)])
+                        .limit(int(limit_n))
+                    )
+                    rows2 = []
+                    for it in docs:
+                        rows2.append(
+                            {
+                                "_id": str(it.get("_id")),
+                                "project": it.get("project", ""),
+                                "module": it.get("module", ""),
+                                "task": it.get("task", ""),
+                                "priority": it.get("priority", ""),
+                                "status": it.get("status", ""),
+                                "owner": it.get("owner", ""),
+                                "target_date": it.get("target_date", ""),
+                                "updated_at": it.get("updated_at", ""),
+                            }
+                        )
+                    export_df = pd.DataFrame(rows2)
+                except Exception as e:
+                    st.error(f"❌ Error preparando exportación: {e}")
+                    export_df = pd.DataFrame()
+
+            if export_df.empty:
+                st.info("No hay filas para exportar con los criterios actuales.")
+            else:
+                if "select" not in export_df.columns:
+                    export_df.insert(0, "select", False)
+
+                edited_df = st.data_editor(
+                    export_df,
+                    use_container_width=True,
+                    num_rows="fixed",
+                    key="backlog_export_editor",
+                )
+
+                selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+                cdl1, cdl2 = st.columns([2, 1])
+                with cdl1:
+                    st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+                with cdl2:
+                    if len(selected_df) > 0:
+                        csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                        fname = f"backlog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                        st.download_button(
+                            "Descargar CSV",
+                            data=csv_bytes,
+                            file_name=fname,
+                            mime="text/csv",
+                            key="backlog_export_download",
+                        )
+                    else:
+                        st.button("Descargar CSV", disabled=True, key="backlog_export_download_disabled")
 
             st.markdown("### ✏️ Actualizar item")
             options = [
@@ -375,19 +1105,25 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 save_update = st.button("Guardar cambios", key="backlog_save_changes")
                 if save_update:
                     try:
+                        now = datetime.utcnow()
+                        set_doc = {
+                            "status": new_status,
+                            "priority": new_priority,
+                            "owner": (new_owner or "").strip() or "user",
+                            "task": (upd_task or "").strip(),
+                            "description": (upd_desc or "").strip() or None,
+                            "tags": [t.strip() for t in (u_tags or "").split(",") if t.strip()],
+                            "updated_at": now,
+                        }
+                        # Timestamp estable de "completado"
+                        if (current.get("status") != "Done") and (new_status == "Done"):
+                            set_doc["done_at"] = now
+                        elif (current.get("status") == "Done") and (new_status != "Done"):
+                            set_doc["done_at"] = None
+
                         mongo_db["backlog_items"].update_one(
                             {"_id": current["_id"]},
-                            {
-                                "$set": {
-                                    "status": new_status,
-                                    "priority": new_priority,
-                                    "owner": (new_owner or "").strip() or "user",
-                                    "task": (upd_task or "").strip(),
-                                    "description": (upd_desc or "").strip() or None,
-                                    "tags": [t.strip() for t in (u_tags or "").split(",") if t.strip()],
-                                    "updated_at": datetime.utcnow(),
-                                }
-                            },
+                            {"$set": set_doc},
                         )
                         st.success("✅ Cambios guardados.")
                         st.rerun()
@@ -403,6 +1139,222 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         iso_now = today.isocalendar()
         default_iso_year = int(iso_now.year)
         default_iso_week = int(iso_now.week)
+        def _week_bounds(y: int, w: int):
+            ws = date.fromisocalendar(int(y), int(w), 1)
+            we = ws + timedelta(days=7)  # exclusivo
+            start_dt = datetime(ws.year, ws.month, ws.day)
+            end_dt = datetime(we.year, we.month, we.day)
+            return ws, we, start_dt, end_dt
+
+        def _weekly_metrics(y: int, w: int) -> dict:
+            """Best-effort: calcula métricas derivadas para una semana ISO."""
+            out = {"real_hours": None, "tasks_done": None, "worklog_n": None, "worklog_tasks": None}
+            # Worklog: suma de horas + conteo + preview de tasks
+            try:
+                pipe = [
+                    {"$match": {"iso_year": int(y), "iso_week": int(w)}},
+                    {"$group": {"_id": None, "h": {"$sum": "$hours"}, "n": {"$sum": 1}}},
+                ]
+                agg = list(mongo_db["worklog_entries"].aggregate(pipe))
+                if agg:
+                    out["real_hours"] = float(agg[0].get("h") or 0.0)
+                    out["worklog_n"] = int(agg[0].get("n") or 0)
+                else:
+                    out["real_hours"] = 0.0
+                    out["worklog_n"] = 0
+
+                tdocs = list(
+                    mongo_db["worklog_entries"]
+                    .find({"iso_year": int(y), "iso_week": int(w)}, {"task": 1, "date": 1})
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(8)
+                )
+                tasks = [str(t.get("task")).strip() for t in tdocs if str(t.get("task", "")).strip()]
+                out["worklog_tasks"] = "; ".join(tasks) if tasks else ""
+            except Exception:
+                pass
+
+            # Backlog Done: preferir done_at si existe; fallback a updated_at para legacy
+            try:
+                _ws, _we, start_dt, end_dt = _week_bounds(y, w)
+                q_done = {
+                    "status": "Done",
+                    "$or": [
+                        {"done_at": {"$gte": start_dt, "$lt": end_dt}},
+                        {"$and": [{"done_at": {"$exists": False}}, {"updated_at": {"$gte": start_dt, "$lt": end_dt}}]},
+                        {"$and": [{"done_at": None}, {"updated_at": {"$gte": start_dt, "$lt": end_dt}}]},
+                    ],
+                }
+                out["tasks_done"] = int(mongo_db["backlog_items"].count_documents(q_done))
+            except Exception:
+                pass
+
+            return out
+
+        #st.markdown("### 🧾 Weekly Reviews (recientes)")
+        #st.caption("Selecciona una semana previa para cargarla en el editor (ISO year/week).")
+
+        #try:
+        #    recent_weekly = list(
+        #        weekly_col.find({}, {"iso_year": 1, "iso_week": 1, "updated_at": 1})
+        #        .sort("updated_at", -1)
+        #        .limit(80)
+        #    )
+        #except Exception as e:
+        #    st.error(f"❌ Error cargando weekly reviews recientes: {e}")
+        #    recent_weekly = []
+
+        #if recent_weekly:
+        #    # Tabla mínima
+        #    df_weekly_recent = []
+        #    for r in recent_weekly:
+        #        rr = dict(r)
+        #        rr["_id"] = str(rr.get("_id"))
+        #        df_weekly_recent.append(rr)
+
+        #    df_wr = pd.DataFrame(df_weekly_recent)
+        #    # Ordena columnas si están presentes
+        #    cols_pref = [c for c in ["iso_year", "iso_week", "real_hours", "tasks_done", "worklog_n", "worklog_tasks", "updated_at", "_id"] if c in df_wr.columns]
+        #    df_wr = df_wr[cols_pref] if cols_pref else df_wr
+        #    st.dataframe(df_wr, width="stretch")
+
+            # Selector simple para cargar
+        #    opt_labels = []
+        #    opt_map = {}
+        #    for r in recent_weekly:
+        #        y = r.get("iso_year")
+        #        w = r.get("iso_week")
+        #        upd = r.get("updated_at") or ""
+        #        lab = f"{y}-W{int(w):02d}  ·  {upd}"
+        #        opt_labels.append(lab)
+        #        opt_map[lab] = {"iso_year": int(y), "iso_week": int(w)}
+
+        #    sel_lab = st.selectbox(
+        #        "Selecciona una semana",
+        #        options=opt_labels,
+        #        index=0,
+        #        key="weekly_recent_select",
+        #    )
+        #    if st.button("Cargar", key="weekly_recent_load_btn"):
+        #        picked = opt_map.get(sel_lab) or {}
+        #        if picked:
+        #            st.session_state["weekly_iso_year"] = int(picked.get("iso_year"))
+        #            st.session_state["weekly_iso_week"] = int(picked.get("iso_week"))
+        #            st.rerun()
+        #else:
+        #    st.info("No hay weekly reviews recientes aún.")
+
+        st.divider()
+
+        # --- Edición explícita de Weekly Reviews existentes (MVP) ---
+        # Nota: El editor principal (ISO year/week) ya permite actualizar por upsert,
+        # pero este apartado hace el flujo "Editar" explícito, similar a Worklog/Backlog.
+        st.markdown("### ✏️ Editar Weekly Review (existente)")
+        st.caption("Selecciona una Weekly Review existente para cargarla en el editor (ISO year/week) y modificarla.")
+
+        try:
+            weekly_edit_rows = list(
+                weekly_col.find(
+                    {},
+                    {
+                        "iso_year": 1,
+                        "iso_week": 1,
+                        "updated_at": 1,
+                        "_id": 1,
+                    },
+                )
+                .sort("updated_at", -1)
+                .limit(200)
+            )
+        except Exception as e:
+            st.error(f"❌ Error cargando weekly reviews para edición: {e}")
+            weekly_edit_rows = []
+
+        if weekly_edit_rows:
+            edit_labels = []
+            edit_map = {}
+            for d in weekly_edit_rows:
+                y = d.get("iso_year")
+                w = d.get("iso_week")
+                upd = d.get("updated_at") or ""
+                _id = str(d.get("_id"))
+                lab = f"{y}-W{int(w):02d}  ·  {upd}  ·  {_id}"
+                edit_labels.append(lab)
+                edit_map[lab] = {"iso_year": int(y), "iso_week": int(w), "_id": _id}
+
+            sel_edit = st.selectbox(
+                "Selecciona una Weekly Review para editar",
+                options=edit_labels,
+                index=0,
+                key="weekly_edit_select",
+            )
+
+            col_e1, col_e2 = st.columns([1, 1])
+            with col_e1:
+                if st.button("Cargar en editor", key="weekly_edit_load_btn"):
+                    picked = edit_map.get(sel_edit) or {}
+                    if picked:
+                        st.session_state["weekly_iso_year"] = int(picked.get("iso_year"))
+                        st.session_state["weekly_iso_week"] = int(picked.get("iso_week"))
+                        st.session_state["weekly_edit_loaded_id"] = str(picked.get("_id") or "")
+                        st.rerun()
+
+            with col_e2:
+                # Borrado opcional (por _id), seguro por confirmación
+                st.write("")
+                st.write("")
+                confirm_del = st.checkbox("Estoy seguro (borrar)", key="weekly_delete_confirm")
+                typed_del = st.text_input("Escribe BORRAR", value="", key="weekly_delete_typed")
+                if st.button("Borrar Weekly Review", key="weekly_delete_btn"):
+                    if not confirm_del or typed_del.strip().upper() != "BORRAR":
+                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
+                    else:
+                        picked = edit_map.get(sel_edit) or {}
+                        del_id = picked.get("_id")
+                        if not del_id:
+                            st.error("No se encontró _id para borrar.")
+                        else:
+                            try:
+                                # Soporta ObjectId y string id
+                                try:
+                                    weekly_col.delete_one({"_id": ObjectId(str(del_id))})
+                                except Exception:
+                                    weekly_col.delete_one({"_id": str(del_id)})
+                                st.success("✅ Weekly Review borrada.")
+                                # Si estabas editando esa misma, limpia selección
+                                if st.session_state.get("weekly_edit_loaded_id") == str(del_id):
+                                    st.session_state["weekly_edit_loaded_id"] = ""
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"❌ Error borrando weekly review: {e}")
+        else:
+            st.info("No hay weekly reviews suficientes para editar todavía.")
+
+        st.divider()
+
+        st.markdown("### ✏️ Editor Weekly Review")
+        ebc1, ebc2 = st.columns([1, 1])
+        with ebc1:
+            if st.button("➕ Nueva Weekly Review (limpiar)", key="weekly_new_btn"):
+                st.session_state["weekly_iso_year"] = default_iso_year
+                st.session_state["weekly_iso_week"] = default_iso_week
+                # Limpia el editor (texto) y overrides; útil para crear una nueva semana sin residuos.
+                st.session_state["weekly_editor_loaded_key"] = ""
+                st.session_state["weekly_editor_loaded_id"] = ""
+                st.session_state["weekly_objectives_txt"] = ""
+                st.session_state["weekly_wins_txt"] = ""
+                st.session_state["weekly_blocks_risks_txt"] = ""
+                st.session_state["weekly_plan_next_week_txt"] = ""
+                st.session_state["weekly_override_metrics"] = False
+                st.session_state["weekly_manual_real_hours"] = 0.0
+                st.session_state["weekly_manual_tasks_done"] = 0
+                st.rerun()
+        with ebc2:
+            if st.button("🔄 Recargar desde BD", key="weekly_reload_btn"):
+                # Fuerza recarga del documento actual en el editor.
+                st.session_state["weekly_editor_loaded_key"] = ""
+                st.session_state["weekly_editor_loaded_id"] = ""
+                st.rerun()
 
         c1, c2 = st.columns(2)
         with c1:
@@ -437,30 +1389,45 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 return arr
             return "\n".join([str(x) for x in arr if str(x).strip()])
 
+        # --- Carga/edición: sincronizar el editor con el documento seleccionado ---
+        # Nota: Streamlit mantiene el valor de widgets por `key`. Si cambias iso_year/iso_week,
+        # el `value=` del widget NO sobreescribe automáticamente el session_state existente.
+        # Por eso, al cambiar de semana, reseteamos los campos del editor con los valores de BD.
+        weekly_editor_key = f"{int(iso_year)}-{int(iso_week)}"
+        weekly_editor_id = str((weekly_doc or {}).get("_id") or "")
+        if (st.session_state.get("weekly_editor_loaded_key") != weekly_editor_key) or (st.session_state.get("weekly_editor_loaded_id") != weekly_editor_id):
+            st.session_state["weekly_editor_loaded_key"] = weekly_editor_key
+            st.session_state["weekly_editor_loaded_id"] = weekly_editor_id
+            st.session_state["weekly_objectives_txt"] = _join_lines((weekly_doc or {}).get("weekly_objectives"))
+            st.session_state["weekly_wins_txt"] = _join_lines((weekly_doc or {}).get("wins"))
+            st.session_state["weekly_blocks_risks_txt"] = _join_lines((weekly_doc or {}).get("blocks_risks"))
+            st.session_state["weekly_plan_next_week_txt"] = _join_lines((weekly_doc or {}).get("plan_next_week"))
+
+
         weekly_objectives_txt = st.text_area(
             "Objetivos de la semana (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("weekly_objectives")),
+            value=str(st.session_state.get("weekly_objectives_txt", "")),
             height=120,
             placeholder="- Terminar MVP V4\n- Revisar paper X\n- Debug de microservicio Y",
             key="weekly_objectives_txt",
         )
         wins_txt = st.text_area(
             "Wins (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("wins")),
+            value=str(st.session_state.get("weekly_wins_txt", "")),
             height=120,
             placeholder="- Se aplicó patch sin conflictos\n- Se resolvió bug de concurrencia",
             key="weekly_wins_txt",
         )
         blocks_risks_txt = st.text_area(
             "Bloqueos / riesgos (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("blocks_risks")),
+            value=str(st.session_state.get("weekly_blocks_risks_txt", "")),
             height=120,
             placeholder="- Falta contexto de archivo real\n- Riesgo de romper export a Quarto",
             key="weekly_blocks_risks_txt",
         )
         plan_next_week_txt = st.text_area(
             "Plan próxima semana (1 por línea)",
-            value=_join_lines((weekly_doc or {}).get("plan_next_week")),
+            value=str(st.session_state.get("weekly_plan_next_week_txt", "")),
             height=120,
             placeholder="- Implementar V5 completo\n- Documentar decisiones\n- Preparar clase",
             key="weekly_plan_next_week_txt",
@@ -489,10 +1456,22 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 mongo_db["backlog_items"].count_documents(
                     {
                         "status": "Done",
-                        "updated_at": {
-                            "$gte": datetime(week_start.year, week_start.month, week_start.day),
-                            "$lt": datetime(week_end.year, week_end.month, week_end.day),
-                        },
+                        # Prefer done_at (más estable). Fallback a updated_at para items antiguos.
+                        "$or": [
+                            {
+                                "done_at": {
+                                    "$gte": datetime(week_start.year, week_start.month, week_start.day),
+                                    "$lt": datetime(week_end.year, week_end.month, week_end.day),
+                                }
+                            },
+                            {
+                                "done_at": None,
+                                "updated_at": {
+                                    "$gte": datetime(week_start.year, week_start.month, week_start.day),
+                                    "$lt": datetime(week_end.year, week_end.month, week_end.day),
+                                },
+                            },
+                        ],
                     }
                 )
             )
@@ -511,6 +1490,43 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 tasks_completed_count if tasks_completed_count is not None else "N/A",
             )
 
+        # --- Ajuste manual (opcional) ---
+        # Por diseño, estas métricas son derivadas (worklog/backlog). Si quieres poder
+        # corregirlas manualmente (p.ej. backlog no tiene done_at histórico), habilita override.
+        loaded_week_key = f"{int(iso_year)}-{int(iso_week)}"
+        if st.session_state.get("weekly_metrics_loaded_key") != loaded_week_key:
+            st.session_state["weekly_metrics_loaded_key"] = loaded_week_key
+            st.session_state["weekly_override_metrics"] = bool((weekly_doc or {}).get("manual_override_metrics", False))
+            st.session_state["weekly_manual_real_hours"] = float(
+                (weekly_doc or {}).get("manual_real_hours", real_hours if isinstance(real_hours, (int, float)) else 0.0) or 0.0
+            )
+            st.session_state["weekly_manual_tasks_done"] = int(
+                (weekly_doc or {}).get("manual_tasks_done", tasks_completed_count if tasks_completed_count is not None else 0) or 0
+            )
+
+        st.markdown("#### Ajuste manual de métricas (opcional)")
+        override_metrics = st.checkbox(
+            "Sobrescribir métricas automáticas (Horas reales / Tareas Done)",
+            value=bool(st.session_state.get("weekly_override_metrics", False)),
+            key="weekly_override_metrics",
+        )
+        if override_metrics:
+            oc1, oc2 = st.columns(2)
+            with oc1:
+                st.number_input(
+                    "Horas reales (override)",
+                    min_value=0.0,
+                    step=0.25,
+                    key="weekly_manual_real_hours",
+                )
+            with oc2:
+                st.number_input(
+                    "Tareas Done (override)",
+                    min_value=0,
+                    step=1,
+                    key="weekly_manual_tasks_done",
+                )
+
         st.divider()
 
         if st.button("Guardar Weekly Review", key="weekly_save_btn"):
@@ -524,6 +1540,9 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 "plan_next_week": _split_lines(plan_next_week_txt),
                 "agg_real_hours": real_hours if isinstance(real_hours, (int, float)) else None,
                 "agg_tasks_done": tasks_completed_count,
+                "manual_override_metrics": bool(st.session_state.get("weekly_override_metrics", False)),
+                "manual_real_hours": float(st.session_state.get("weekly_manual_real_hours", 0.0)) if st.session_state.get("weekly_override_metrics") else None,
+                "manual_tasks_done": int(st.session_state.get("weekly_manual_tasks_done", 0)) if st.session_state.get("weekly_override_metrics") else None,
                 "updated_at": now,
             }
 
@@ -538,6 +1557,149 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             except Exception as e:
                 st.error(f"❌ Error guardando Weekly Review: {e}")
 
+
+        st.divider()
+        st.markdown("### ⬇️ Exportar Weekly Review a CSV (MVP)")
+        st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran las weekly reviews recientes; opcionalmente puedes filtrar.")
+
+        export_mode = st.selectbox(
+            "Modo de exportación",
+            options=["Seleccionar de Recientes", "Consulta con filtros"],
+            index=0,
+            key="weekly_export_mode",
+        )
+
+        export_df = pd.DataFrame()
+
+        if export_mode == "Seleccionar de Recientes":
+            if "df_wr" in locals() and isinstance(df_wr, pd.DataFrame) and not df_wr.empty:  # noqa: F821
+                export_df = df_wr.copy()  # noqa: F821
+            else:
+                try:
+                    docs = list(
+                        weekly_col.find({}, {"iso_year": 1, "iso_week": 1, "weekly_objectives": 1, "wins": 1, "blocks_risks": 1, "plan_next_week": 1, "updated_at": 1})
+                        .sort("updated_at", -1)
+                        .limit(80)
+                    )
+                    norm = []
+                    for d in docs:
+                        dd = dict(d)
+                        dd["_id"] = str(dd.get("_id"))
+                        norm.append(dd)
+                    export_df = pd.DataFrame(norm)
+                except Exception as e:
+                    st.error(f"❌ Error preparando exportación (recientes): {e}")
+                    export_df = pd.DataFrame()
+        else:
+            with st.expander("Filtros", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    start_d = st.date_input("Desde", value=(date.today() - timedelta(days=30)), key="weekly_export_start")
+                with c2:
+                    end_d = st.date_input("Hasta", value=date.today(), key="weekly_export_end")
+                with c3:
+                    limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="weekly_export_limit")
+
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    try:
+                        years = sorted([int(y) for y in weekly_col.distinct("iso_year") if str(y).isdigit()])
+                    except Exception:
+                        years = []
+                    flt_year = st.selectbox("ISO Year", options=["(all)"] + [str(y) for y in years], index=0, key="weekly_export_year")
+                with c5:
+                    flt_week = st.selectbox("ISO Week", options=["(all)"] + [str(w) for w in range(1, 54)], index=0, key="weekly_export_week")
+                with c6:
+                    text_q = st.text_input("Contiene (objetivos/wins/bloqueos/plan)", value="", key="weekly_export_text")
+
+            start_dt = datetime(start_d.year, start_d.month, start_d.day)
+            end_dt = datetime(end_d.year, end_d.month, end_d.day) + timedelta(days=1)  # exclusivo
+
+            q = {"updated_at": {"$gte": start_dt, "$lt": end_dt}}
+            if flt_year != "(all)":
+                q["iso_year"] = int(flt_year)
+            if flt_week != "(all)":
+                q["iso_week"] = int(flt_week)
+            if (text_q or "").strip():
+                rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                q["$or"] = [
+                    {"weekly_objectives": rx},
+                    {"wins": rx},
+                    {"blocks_risks": rx},
+                    {"plan_next_week": rx},
+                ]
+
+            try:
+                docs = list(
+                    weekly_col.find(
+                        q,
+                        {
+                            "iso_year": 1,
+                            "iso_week": 1,
+                            "weekly_objectives": 1,
+                            "wins": 1,
+                            "blocks_risks": 1,
+                            "plan_next_week": 1,
+                            "updated_at": 1,
+                        },
+                    )
+                    .sort("updated_at", -1)
+                    .limit(int(limit_n))
+                )
+                norm = []
+                for d in docs:
+                    dd = dict(d)
+                    dd["_id"] = str(dd.get("_id"))
+                    norm.append(dd)
+                export_df = pd.DataFrame(norm)
+            except Exception as e:
+                st.error(f"❌ Error preparando exportación: {e}")
+                export_df = pd.DataFrame()
+
+        try:
+            if not export_df.empty and {'iso_year', 'iso_week'}.issubset(set(export_df.columns)):
+                rows = export_df.to_dict(orient='records')
+                for rr in rows:
+                    m = _weekly_metrics(rr.get('iso_year'), rr.get('iso_week'))
+                    rr.update(m)
+                export_df = pd.DataFrame(rows)
+        except Exception as e:
+            st.error(f"❌ Error calculando métricas para export: {e}")
+
+        if export_df.empty:
+            st.info("No hay filas para exportar con los criterios actuales.")
+        else:
+            if "_id" in export_df.columns:
+                export_df["_id"] = export_df["_id"].astype(str)
+
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="weekly_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"weekly_reviews_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="weekly_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="weekly_export_download_disabled")
     with tabs[3]:
         st.subheader("📦 Deliverables (V6)")
 
@@ -617,17 +1779,243 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
         try:
             rows = list(
-                deliverables_col.find(query, {"_id": 0})
+                deliverables_col.find(query)
                 .sort([("date", -1), ("created_at", -1)])
                 .limit(int(limit))
             )
             if not rows:
                 st.info("No hay entregables para este filtro.")
             else:
-                df = pd.DataFrame(rows)
-                st.dataframe(df, use_container_width=True)
+                norm = []
+                for r in rows:
+                    rr = dict(r)
+                    rr["_id"] = str(rr.get("_id"))
+                    norm.append(rr)
+                df_deliv_recent = pd.DataFrame(norm)
+                st.dataframe(df_deliv_recent, width='stretch')
         except Exception as e:
             st.error(f"❌ Error cargando deliverables: {e}")
+
+
+        st.divider()
+        st.markdown("### ⬇️ Exportar Deliverables a CSV (MVP)")
+        st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran los entregables recientes; opcionalmente puedes filtrar.")
+        
+        
+        export_mode = st.selectbox(
+            "Modo de exportación",
+            options=["Seleccionar de Recientes", "Consulta con filtros"],
+            index=0,
+            key="deliverables_export_mode",
+        )
+
+        export_df = pd.DataFrame()
+
+        if export_mode == "Seleccionar de Recientes":
+            if "df_deliv_recent" in locals() and isinstance(df_deliv_recent, pd.DataFrame) and not df_deliv_recent.empty:
+                export_df = df_deliv_recent.copy()
+            else:
+                export_df = pd.DataFrame()
+        else:
+            with st.expander("Filtros", expanded=False):
+                c1, c2, c3 = st.columns(3)
+                with c1:
+                    start_d = st.date_input("Desde", value=(date.today() - timedelta(days=30)), key="deliverables_export_start")
+                with c2:
+                    end_d = st.date_input("Hasta", value=date.today(), key="deliverables_export_end")
+                with c3:
+                    limit_n = st.number_input("Límite", min_value=10, max_value=5000, value=500, step=50, key="deliverables_export_limit")
+
+                c4, c5, c6 = st.columns(3)
+                with c4:
+                    try:
+                        proj_opts = sorted([p for p in deliverables_col.distinct("project") if isinstance(p, str)])
+                    except Exception:
+                        proj_opts = []
+                    flt_project = st.selectbox("Proyecto", options=["(all)"] + proj_opts, index=0, key="deliverables_export_project")
+                with c5:
+                    flt_type = st.selectbox(
+                        "Tipo",
+                        options=["(all)", "reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"],
+                        index=0,
+                        key="deliverables_export_type",
+                    )
+                with c6:
+                    text_q = st.text_input("Contiene (nombre/notas/ruta)", value="", key="deliverables_export_text")
+
+            start_dt = datetime(start_d.year, start_d.month, start_d.day)
+            end_dt = datetime(end_d.year, end_d.month, end_d.day) + timedelta(days=1)  # exclusivo
+
+            q = {"updated_at": {"$gte": start_dt, "$lt": end_dt}}
+            if flt_project != "(all)":
+                q["project"] = flt_project
+            if flt_type != "(all)":
+                q["type"] = flt_type
+            if (text_q or "").strip():
+                rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+                q["$or"] = [{"deliverable": rx}, {"notes": rx}, {"url_or_path": rx}]
+
+            try:
+                docs = list(
+                    deliverables_col.find(q)
+                    .sort("updated_at", -1)
+                    .limit(int(limit_n))
+                )
+                norm = []
+                for d in docs:
+                    dd = dict(d)
+                    dd["_id"] = str(dd.get("_id"))
+                    norm.append(dd)
+                export_df = pd.DataFrame(norm)
+            except Exception as e:
+                st.error(f"❌ Error preparando exportación: {e}")
+                export_df = pd.DataFrame()
+
+        if export_df.empty:
+            st.info("No hay filas para exportar con los criterios actuales.")
+        else:
+            if "_id" in export_df.columns:
+                export_df["_id"] = export_df["_id"].astype(str)
+
+            if "select" not in export_df.columns:
+                export_df.insert(0, "select", False)
+
+            edited_df = st.data_editor(
+                export_df,
+                use_container_width=True,
+                num_rows="fixed",
+                key="deliverables_export_editor",
+            )
+
+            selected_df = edited_df[edited_df["select"] == True].drop(columns=["select"], errors="ignore")
+
+            cdl1, cdl2 = st.columns([2, 1])
+            with cdl1:
+                st.caption(f"Seleccionadas: {len(selected_df)} / {len(edited_df)}")
+            with cdl2:
+                if len(selected_df) > 0:
+                    csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
+                    fname = f"deliverables_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    st.download_button(
+                        "Descargar CSV",
+                        data=csv_bytes,
+                        file_name=fname,
+                        mime="text/csv",
+                        key="deliverables_export_download",
+                    )
+                else:
+                    st.button("Descargar CSV", disabled=True, key="deliverables_export_download_disabled")
+        st.divider()
+        st.markdown("### ✏️ Editar entregable (MVP)")
+
+        # Carga rápida desde los recientes (si ya se consultaron), si no vuelve a consultar.
+        deliv_rows = []
+        try:
+            if "rows" in locals() and isinstance(rows, list) and rows:
+                deliv_rows = rows
+            else:
+                deliv_rows = list(
+                    deliverables_col.find({})
+                    .sort([("date", -1), ("created_at", -1)])
+                    .limit(200)
+                )
+        except Exception as e:
+            st.error(f"❌ Error cargando entregables para edición: {e}")
+            deliv_rows = []
+
+        if not deliv_rows:
+            st.info("No hay entregables suficientes para editar.")
+        else:
+            opt_labels = []
+            opt_map = {}
+            for d in deliv_rows:
+                _id = str(d.get("_id"))
+                d_date = d.get("date") or ""
+                d_proj = d.get("project") or "—"
+                d_name = d.get("deliverable") or "(sin nombre)"
+                d_type = d.get("type") or "—"
+                lab = f"{d_date} [{d_type}] {d_proj} — {d_name}"
+                opt_labels.append(lab)
+                opt_map[lab] = _id
+
+            selected_label = st.selectbox(
+                "Selecciona un entregable para editar",
+                options=opt_labels,
+                index=0,
+                key="deliverables_edit_select",
+            )
+            sel_id = opt_map.get(selected_label)
+
+            if st.button("Cargar", key="deliverables_edit_load_btn"):
+                st.session_state["deliverables_edit_id"] = sel_id or ""
+                st.rerun()
+
+            deliv_id = st.session_state.get("deliverables_edit_id") or sel_id
+            doc = _find_one_by_id(deliverables_col, deliv_id) if deliv_id else None
+
+            if not doc:
+                st.warning("No se pudo cargar el entregable seleccionado.")
+            else:
+                loaded_id = st.session_state.get("deliverables_edit_loaded_id")
+                current_id = str(doc.get("_id"))
+                if loaded_id != current_id:
+                    st.session_state["deliverables_edit_loaded_id"] = current_id
+                    # date guardada como string YYYY-MM-DD
+                    try:
+                        st.session_state["deliverables_edit_date"] = datetime.strptime(doc.get("date") or "", "%Y-%m-%d").date()
+                    except Exception:
+                        st.session_state["deliverables_edit_date"] = date.today()
+                    st.session_state["deliverables_edit_project"] = doc.get("project") or ""
+                    st.session_state["deliverables_edit_type"] = doc.get("type") or "reporte"
+                    st.session_state["deliverables_edit_deliverable"] = doc.get("deliverable") or ""
+                    st.session_state["deliverables_edit_path"] = doc.get("url_or_path") or ""
+                    st.session_state["deliverables_edit_commit"] = doc.get("commit_ref") or ""
+                    st.session_state["deliverables_edit_tags"] = ", ".join(doc.get("tags") or [])
+                    st.session_state["deliverables_edit_notes"] = doc.get("notes") or ""
+
+                e1, e2 = st.columns(2)
+                with e1:
+                    e_date = st.date_input("Fecha", key="deliverables_edit_date")
+                    e_project = st.text_input("Proyecto", key="deliverables_edit_project")
+                    e_type = st.selectbox(
+                        "Tipo",
+                        ["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"],
+                        index=["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"].index(st.session_state.get("deliverables_edit_type", "reporte"))
+                        if st.session_state.get("deliverables_edit_type", "reporte") in ["reporte", "codigo", "dataset", "presentacion", "evidencia", "otro"]
+                        else 0,
+                        key="deliverables_edit_type",
+                    )
+                    e_deliv = st.text_input("Deliverable (nombre)", key="deliverables_edit_deliverable")
+                with e2:
+                    e_path = st.text_input("Ruta / URL", key="deliverables_edit_path")
+                    e_commit = st.text_input("Commit ref (opcional)", key="deliverables_edit_commit")
+                    e_tags_csv = st.text_input("Tags (comma-separated)", key="deliverables_edit_tags")
+
+                e_notes = st.text_area("Notas (opcional)", height=140, key="deliverables_edit_notes")
+
+                if st.button("Guardar cambios", key="deliverables_edit_save_btn"):
+                    if not (e_project or "").strip() or not (e_deliv or "").strip() or not (e_path or "").strip():
+                        st.error("❌ Campos requeridos: Proyecto, Deliverable y Ruta / URL.")
+                    else:
+                        now = datetime.utcnow()
+                        upd = {
+                            "date": e_date.strftime("%Y-%m-%d"),
+                            "project": (e_project or "").strip(),
+                            "deliverable": (e_deliv or "").strip(),
+                            "type": e_type,
+                            "url_or_path": (e_path or "").strip(),
+                            "notes": (e_notes or "").strip() or None,
+                            "commit_ref": (e_commit or "").strip() or None,
+                            "linked_commits": [(e_commit or "").strip()] if (e_commit or "").strip() else [],
+                            "tags": [t.strip() for t in (e_tags_csv or "").split(",") if t.strip()],
+                            "updated_at": now,
+                        }
+                        res = _update_one_by_id(deliverables_col, current_id, {"$set": upd})
+                        if res is not None and getattr(res, "matched_count", 0) > 0:
+                            st.success("✅ Entregable actualizado.")
+                            st.rerun()
+                        else:
+                            st.error("❌ No se pudo actualizar (id no encontrado).")
 
 
     with tabs[4]:
@@ -718,10 +2106,16 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
                         if apply_btn and new_status != s:
                             now = datetime.utcnow()
+                            set_doc = {"status": new_status, "updated_at": now}
+                            if (s != "Done") and (new_status == "Done"):
+                                set_doc["done_at"] = now
+                            elif (s == "Done") and (new_status != "Done"):
+                                set_doc["done_at"] = None
+
                             res = _update_one_by_id(
                                 mongo_db["backlog_items"],
                                 _id_str,
-                                {"$set": {"status": new_status, "updated_at": now}},
+                                {"$set": set_doc},
                             )
                             if res is not None and getattr(res, "matched_count", 0) > 0:
                                 st.success("✅ Estado actualizado.")
@@ -734,47 +2128,60 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     with tabs[5]:
         st.subheader("📓 Diario LaTeX (V8)")
         st.caption("Captura y consulta de notas largas en LaTeX. (Sin exportación todavía)")
-
         notes_col = mongo_db["latex_notes"]
 
+
         st.markdown("### ➕ Nueva nota")
-        with st.form("latex_note_create_form", clear_on_submit=False):
-            c1, c2 = st.columns([2, 1])
-            with c1:
-                n_title = st.text_input("Título")
-                n_latex = st.text_area("Contenido LaTeX", height=260)
-            with c2:
-                n_date = st.date_input("Fecha", value=date.today())
-                n_project = st.text_input("Proyecto (opcional)", value="")
-                n_context = st.selectbox(
+        # --- Reset seguro del form "Nueva nota" (antes de instanciar widgets) ---
+        if st.session_state.pop("diary_clear_new_form", False):
+            for _k in ("diary_new_title", "diary_new_date", "diary_new_project", "diary_new_context", "diary_new_tags"):
+                st.session_state.pop(_k, None)
+            _keys = _get_editor_keys("diary_new")
+            st.session_state.pop(_keys["text"], None)
+            st.session_state[_keys["rev"]] = st.session_state.get(_keys["rev"], 0) + 1
+
+
+        c1, c2 = st.columns([2, 1])
+        with c1:
+            n_title = st.text_input("Título", key="diary_new_title")
+        with c2:
+            n_date = st.date_input("Fecha", value=date.today(), key="diary_new_date")
+            n_project = st.text_input("Proyecto (opcional)", value="", key="diary_new_project")
+            n_context = st.selectbox(
                 "Contexto",
-                ["estudio", "debug", "lectura", "idea", "reflexion"],
+                options=["estudio", "debug", "lectura", "idea", "reflexion"],
                 index=0,
-                )
-                n_tags_csv = st.text_input("Tags (comma-separated)", value="")
+                key="diary_new_context",
+            )
+            n_tags_raw = st.text_input("Tags (comma-separated)", value="", key="diary_new_tags")
 
-            save_note = st.form_submit_button("Guardar nota")
+        _render_latex_toolbar(prefix="diary_new")
+        n_latex = _render_latex_ace_editor(prefix="diary_new", initial_text="", height=320)
 
-        if save_note:
+        if st.button("Guardar nota", key="diary_new_save"):
+            tags = _parse_tags_csv(n_tags_raw)
             if not (n_title or "").strip() or not (n_latex or "").strip():
-                st.error("❌ Campos requeridos: Título y Contenido LaTeX.")
+                st.error("⚠️ Título y contenido LaTeX son obligatorios.")
             else:
-                now = datetime.utcnow()
                 doc = {
-                "title": (n_title or "").strip(),
-                "date": n_date.strftime("%Y-%m-%d"),
-                "project": (n_project or "").strip() or None,
-                "context": n_context,
-                "latex_body": (n_latex or "").strip(),
-                "tags": [t.strip() for t in (n_tags_csv or "").split(",") if t.strip()],
-                "created_at": now,
-                "updated_at": now,
-            }
+                    "title": n_title.strip(),
+                    "date": n_date.strftime("%Y-%m-%d"),
+                    "project": (n_project or "").strip(),
+                    "context": n_context,
+                    "tags": tags,
+                    "latex_body": n_latex,
+                    "created_at": datetime.utcnow(),
+                    "updated_at": datetime.utcnow(),
+                }
                 try:
                     notes_col.insert_one(doc)
                     st.success("✅ Nota guardada.")
+                    # Limpieza mínima
+                    # Limpiar el formulario en el siguiente rerun (evita modificar session_state después de instanciar widgets)
+                    st.session_state["diary_clear_new_form"] = True
                     st.rerun()
                 except Exception as e:
+                    st.error(f"❌ Error guardando nota: {e}")
                     st.error(f"❌ Error guardando nota: {e}")
 
         st.divider()
@@ -838,6 +2245,137 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     st.code(n.get("latex_body") or "", language="latex")
 
 
+
+        st.divider()
+        st.markdown("### ✏️ Editar nota")
+
+        if not notes:
+            st.info("No hay notas cargadas para editar con este filtro.")
+        else:
+            opt_map: Dict[str, str] = {}
+            opt_labels: List[str] = []
+            for n in notes:
+                _nid = str(n.get("_id"))
+                label = _note_label(n)
+                opt_labels.append(label)
+                opt_map[label] = _nid
+
+            selected_label = st.selectbox(
+                "Selecciona una nota para editar",
+                options=opt_labels,
+                index=0,
+                key="diary_edit_select",
+            )
+            nid = opt_map.get(selected_label)
+            note_doc = _find_one_by_id(notes_col, nid) if nid else None
+
+            if not note_doc:
+                st.warning("No se pudo cargar la nota seleccionada.")
+            else:
+                # Cargar valores al cambiar de selección
+                edit_prefix = "diary_edit"
+                keys = _get_editor_keys(edit_prefix)
+                if st.session_state.get(keys["loaded_id"]) != str(note_doc.get("_id")):
+                    st.session_state[keys["loaded_id"]] = str(note_doc.get("_id"))
+                    st.session_state["diary_edit_title"] = note_doc.get("title") or ""
+                    # date guardada como string YYYY-MM-DD
+                    try:
+                        st.session_state["diary_edit_date"] = datetime.strptime(note_doc.get("date") or "", "%Y-%m-%d").date()
+                    except Exception:
+                        st.session_state["diary_edit_date"] = date.today()
+                    st.session_state["diary_edit_project"] = note_doc.get("project") or ""
+                    st.session_state["diary_edit_context"] = note_doc.get("context") or "estudio"
+                    st.session_state["diary_edit_tags"] = ", ".join(note_doc.get("tags") or [])
+                    st.session_state[keys["text"]] = note_doc.get("latex_body") or ""
+                    st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
+
+                e1, e2 = st.columns([2, 1])
+                with e1:
+                    e_title = st.text_input("Título", key="diary_edit_title")
+                with e2:
+                    e_date = st.date_input("Fecha", key="diary_edit_date")
+                    e_project = st.text_input("Proyecto (opcional)", key="diary_edit_project")
+                    e_context = st.selectbox(
+                        "Contexto",
+                        options=["estudio", "debug", "lectura", "idea", "reflexion"],
+                        index=["estudio", "debug", "lectura", "idea", "reflexion"].index(st.session_state.get("diary_edit_context", "estudio"))
+                        if st.session_state.get("diary_edit_context", "estudio") in ["estudio", "debug", "lectura", "idea", "reflexion"]
+                        else 0,
+                        key="diary_edit_context",
+                    )
+                    e_tags_raw = st.text_input("Tags (comma-separated)", key="diary_edit_tags")
+
+                _render_latex_toolbar(prefix=edit_prefix)
+                e_latex = _render_latex_ace_editor(prefix=edit_prefix, initial_text=note_doc.get("latex_body") or "", height=420)
+
+                if st.button("Guardar cambios", key="diary_edit_save"):
+                    if not (e_title or "").strip() or not (e_latex or "").strip():
+                        st.error("⚠️ Título y contenido LaTeX son obligatorios.")
+                    else:
+                        tags = _parse_tags_csv(e_tags_raw)
+                        upd = {
+                            "title": e_title.strip(),
+                            "date": e_date.strftime("%Y-%m-%d"),
+                            "project": (e_project or "").strip(),
+                            "context": e_context,
+                            "tags": tags,
+                            "latex_body": e_latex,
+                            "updated_at": datetime.utcnow(),
+                        }
+                        try:
+                            notes_col.update_one({"_id": ObjectId(nid)}, {"$set": upd})
+                            st.success("✅ Nota actualizada.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error actualizando nota: {e}")
+
+        st.divider()
+        st.markdown("### 🗑️ Borrar nota")
+
+        if not notes:
+            st.info("No hay notas cargadas para borrar con este filtro.")
+        else:
+            del_opt_map: Dict[str, str] = {}
+            del_opt_labels: List[str] = []
+            for n in notes:
+                _nid = str(n.get("_id"))
+                label = _note_label(n)
+                del_opt_labels.append(label)
+                del_opt_map[label] = _nid
+
+            del_selected = st.selectbox(
+                "Selecciona una nota para borrar",
+                options=del_opt_labels,
+                index=0,
+                key="diary_delete_select",
+            )
+            del_nid = del_opt_map.get(del_selected)
+            del_doc = _find_one_by_id(notes_col, del_nid) if del_nid else None
+
+            if not del_doc:
+                st.warning("No se pudo cargar la nota seleccionada.")
+            else:
+                st.write(f"**Título:** {del_doc.get('title') or '(sin título)'}")
+                st.write(f"**Fecha:** {del_doc.get('date') or ''}")
+                st.write(f"**Proyecto:** {del_doc.get('project') or '—'}")
+                st.write(f"**Contexto:** {del_doc.get('context') or '—'}")
+                preview = (del_doc.get("latex_body") or "")[:400]
+                if preview:
+                    st.code(preview, language="latex")
+
+                confirm = st.checkbox("Estoy seguro", key="diary_delete_confirm")
+                typed = st.text_input("Escribe BORRAR para confirmar", value="", key="diary_delete_typed")
+
+                if st.button("Borrar definitivamente", key="diary_delete_btn"):
+                    if not confirm or typed.strip().upper() != "BORRAR":
+                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
+                    else:
+                        try:
+                            notes_col.delete_one({"_id": ObjectId(del_nid)})
+                            st.success("✅ Nota borrada.")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error borrando nota: {e}")
         st.markdown("#### 📤 Exportar")
 
         if not notes:

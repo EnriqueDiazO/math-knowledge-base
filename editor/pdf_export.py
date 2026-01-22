@@ -12,6 +12,15 @@ from pathlib import Path
 from typing import Dict, Optional
 import streamlit as st
 
+# Valores constantes
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+
+EXPORTED_NOTES_DIR = PROJECT_ROOT / "exported_notes"
+EXPORTED_NOTES_BUILD_DIR = EXPORTED_NOTES_DIR / "_build"
+TEMPLATES_LATEX_DIR = PROJECT_ROOT / "templates_latex"
+
+EXPORTED_NOTES_DIR.mkdir(parents=True, exist_ok=True)
+EXPORTED_NOTES_BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
 def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> str:
     """
@@ -161,58 +170,24 @@ def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
 
     # Template: "diario" (boxed / nicer layout)
     if template == "diario":
-        latex_doc = r"""\documentclass[12pt,letterpaper]{report}
-\usepackage[utf8]{inputenc}
-\usepackage[T1]{fontenc}
-\usepackage[spanish]{babel}
-\usepackage{amsmath,amsfonts,amssymb}
-\usepackage{enumitem}
-\usepackage[usenames,dvipsnames,svgnames,table]{xcolor}
-\usepackage{graphicx,tikz}
-\usepackage{mdframed}
-\usepackage[left=2cm,right=2cm,top=2cm,bottom=2cm]{geometry}
-\usepackage{hyperref}
-\hypersetup{
-    colorlinks=true,
-    linkcolor=blue,
-    filecolor=blue,
-    urlcolor=red,
-}
-
-% Box style inspired by diario.tex
-\mdfdefinestyle{MyFrame}{%
-    linecolor=black,
-    outerlinewidth=2pt,
-    roundcorner=20pt,
-    innertopmargin=8pt,
-    innerbottommargin=6pt,
-    innerrightmargin=10pt,
-    innerleftmargin=10pt,
-    leftmargin=4pt,
-    rightmargin=4pt,
-    backgroundcolor=gray!12!white
-}
-
+        latex_doc = r"""\documentclass[12pt,letterpaper]{notes}
 \begin{document}
 
 """
-        latex_doc += r"\chapter*{" + _latex_escape_text(title) + r"}" + "\n"
-        latex_doc += r"\addcontentsline{toc}{chapter}{" + _latex_escape_text(title) + r"}" + "\n\n"
+        latex_doc += r"\notetitle{" + _latex_escape_text(title) + r"}" + "\n\n"
 
         if meta_lines:
-            latex_doc += r"\noindent\begin{mdframed}[style=MyFrame,nobreak=true]" + "\n"
-            latex_doc += r"\small" + "\n" + "\n".join(meta_lines) + "\n"
-            latex_doc += r"\normalsize" + "\n"
-            latex_doc += r"\end{mdframed}" + "\n\n"
+            latex_doc += r"\begin{notemeta}" + "\n"
+            latex_doc += "\n".join(meta_lines) + "\n"
+            latex_doc += r"\end{notemeta}" + "\n\n"
 
         if body:
-            latex_doc += r"\begin{mdframed}[style=MyFrame,nobreak=true]" + "\n"
+            latex_doc += r"\begin{notebody}" + "\n"
             latex_doc += body + "\n"
-            latex_doc += r"\end{mdframed}" + "\n\n"
+            latex_doc += r"\end{notebody}" + "\n\n"
 
         latex_doc += r"\end{document}" + "\n"
         return latex_doc
-
     # Default: "simple" (uses existing style files)
     latex_doc = r"""\documentclass[12pt]{article}
 \usepackage{miestilo}
@@ -242,13 +217,16 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
         output_path: Optional destination path.
         template: "simple" (default) or "diario".
     """
-    # Use the same persistent templates directory as concept export
-    temp_dir = Path(__file__).resolve().parent.parent / "templates_latex"
-    temp_path = Path(temp_dir)
+    # Compile into dedicated build directory to keep exported_notes/ clean
+    temp_path = EXPORTED_NOTES_BUILD_DIR
 
     # Only copy style files for "simple"; the "diario" template is self-contained.
     if template == "simple":
         _copiar_archivos_estilo(temp_path)
+    elif template == "diario":
+        _copiar_archivos_estilo(temp_path)   # copia .sty base (miestilo, coloredtheorem, etc.)
+        _copiar_archivos_notas(temp_path)    # copia notes.cls + notes.sty
+
 
     # Build LaTeX document
     latex_content = generar_tex_nota_latex(nota, template=template)
@@ -277,7 +255,7 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
 
     # Copy to final destination
     if output_path is None:
-        pdf_dir = Path(os.path.expanduser("~/math_knowledge_pdfs/latex_notes"))
+        pdf_dir = EXPORTED_NOTES_DIR
         pdf_dir.mkdir(parents=True, exist_ok=True)
         os.chmod(pdf_dir, 0o755)
 
@@ -397,6 +375,22 @@ def _copiar_archivos_estilo(destino: Path) -> None:
             import shutil
             shutil.copy2(src, dst)
             print(f"📄 Plantilla {fname} copiada a {destino}")
+
+
+def _copiar_archivos_notas(destino: Path) -> None:
+    """Copy notes.cls and notes.sty into the LaTeX build directory."""
+    archivos = ("notes.cls", "notes.sty")
+    templates_dir = Path(__file__).parent.parent / "templates_latex"
+    import shutil
+
+    for fname in archivos:
+        src = templates_dir / fname
+        dst = destino / fname
+        if not src.exists():
+            print(f"⚠️  Plantilla no encontrada: {src}")
+            continue
+        shutil.copy2(src, dst)
+        print(f"📄 Plantilla {fname} copiada a {destino}")
 
 
 def abrir_pdf_en_navegador(pdf_path: str) -> bool:
