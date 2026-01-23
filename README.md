@@ -128,6 +128,12 @@ make start
 make run
 ```
 
+If you wish to explore the *Cuaderno* close the app and now  
+```
+# 
+python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db mathmongo
+```
+Then rerun the APP.
 ---
 
 ## 📚 Adding References
