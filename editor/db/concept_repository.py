@@ -22,3 +22,16 @@ def concept_exists(db, concept_id: str, source: str) -> bool:
         {"id": concept_id, "source": source},
         limit=1
     ) > 0
+
+
+def insert_concept_metadata(db, concept_id: str, source: str, concepto_dict: dict) -> None:
+    """
+    Insert concept metadata using insert-only semantics.
+
+    Assumes a preflight check has already ensured (id, source) does not exist.
+    This function does NOT perform upserts.
+    """
+    doc = dict(concepto_dict)
+    doc["id"] = concept_id
+    doc["source"] = source
+    db.concepts.insert_one(doc)
