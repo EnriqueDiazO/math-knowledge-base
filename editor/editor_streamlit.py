@@ -23,11 +23,7 @@ from exporters_quarto.quarto_exporter import QuartoBookExporter
 # Render preview graph using the same renderer as "Knowledge Graph"
 from mathdatabase.mathmongo import MathMongo
 from schemas.schemas import ConceptoBase
-from schemas.schemas import GradoFormalidad
-from schemas.schemas import NivelContexto
-from schemas.schemas import NivelSimbolico
-from schemas.schemas import TipoAplicacion
-from schemas.schemas import TipoPresentacion
+from editor.helpers.tipo_presentacion import TipoPresentacion
 from schemas.schemas import TipoReferencia
 from schemas.schemas import TipoRelacion
 from schemas.schemas import TipoTitulo
