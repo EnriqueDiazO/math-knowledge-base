@@ -26,6 +26,7 @@ from helpers.enums import _TIPO_MAP
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
 from db.concept_repository import insert_concept_with_latex_atomic
+from db.concept_repository import semantic_duplicate_exists
 from editor.helpers.tipo_aplicacion import TipoAplicacion
 from editor.helpers.tipo_contexto import NivelContexto
 from editor.helpers.tipo_formalidad import GradoFormalidad
@@ -1437,6 +1438,11 @@ elif page == "➕ Add Concept":
     if st.button("💾 Save Concept", type="primary"):
         if not concept_id or not source or not contenido_latex:
             st.error("❌ Please fill in all required fields: ID, Source, and LaTeX Content")
+        if titulo and semantic_duplicate_exists(db, titulo, concept_type, source):
+            st.error("❌ Ya existe un concepto con el mismo TÍTULO y ID en este source.")
+            st.info("💡 Usa un ID distinto solo si el concepto es realmente diferente, o edita el existente.")
+            st.stop()
+
         else:
             try:
                 # Build concept data

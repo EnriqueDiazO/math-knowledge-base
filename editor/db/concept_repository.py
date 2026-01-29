@@ -1,3 +1,5 @@
+import re
+
 def upsert_concept_metadata(db, concept_id: str, source: str, concepto_dict: dict) -> None:
     """
     Persist concept metadata using the current upsert behavior.
@@ -71,3 +73,16 @@ def insert_concept_with_latex_atomic(
     except Exception:
         db.concepts.delete_one({"id": concept_id, "source": source})
         raise
+
+
+def semantic_duplicate_exists(db, titulo, tipo, source):
+    if not titulo:
+        return False
+    return db.concepts.find_one({
+        "source": source,
+        "tipo": tipo,
+        "titulo": {
+            "$regex": f"^{re.escape(titulo.strip())}$",
+            "$options": "i"
+        }
+    }) is not None
