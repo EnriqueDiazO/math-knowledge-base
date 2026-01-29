@@ -35,6 +35,8 @@ from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
 from editor.helpers.tipo_simbolico import NivelSimbolico
 from editor.helpers.tipo_titulo import TipoTitulo
+from editor.validators.concept_validator import validate_new_concept_identity
+from editor.validators.concept_validator import validate_semantic_duplicate
 from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_quarto.quarto_exporter import QuartoBookExporter
 
@@ -1436,65 +1438,80 @@ elif page == "➕ Add Concept":
 
     # Submit button
     if st.button("💾 Save Concept", type="primary"):
+        # 1. Campos requeridos (primero)
         if not concept_id or not source or not contenido_latex:
             st.error("❌ Please fill in all required fields: ID, Source, and LaTeX Content")
-        if titulo and semantic_duplicate_exists(db, titulo, concept_type, source):
-            st.error("❌ Ya existe un concepto con el mismo TÍTULO y ID en este source.")
-            st.info("💡 Usa un ID distinto solo si el concepto es realmente diferente, o edita el existente.")
+            st.stop()
+        # 2. Identidad lógica (id, source)
+        errors = validate_new_concept_identity(db, concept_id, source)
+        for err in errors:
+            st.error(err)
+        if errors:
             st.stop()
 
-        else:
-            try:
-                # Build concept data
-                concept_data = {
-                    "id": concept_id,
-                    "tipo": concept_type,
-                    "titulo": titulo if titulo else None,
-                    "tipo_titulo": tipo_titulo,
-                    "categorias": categorias,
-                    "contenido_latex": contenido_latex,
-                    "es_algoritmo": es_algoritmo,
-                    "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
-                    "comentario": comentario if comentario else None,
-                    "source": source,
-                    "fecha_creacion": datetime.now(),
-                    "ultima_actualizacion": datetime.now(),
-                    # NOTE: We keep concept.citekey for backward compatibility with existing exporters.
-                    # The authoritative citekey should live inside concept.referencia.citekey.
-                    "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
+        # 3. Duplicado semántico
+        errors = validate_semantic_duplicate(db, titulo, concept_type, source)
+        for err in errors:
+            st.error(err)
+        if errors:
+            st.stop()
+
+        #if titulo and semantic_duplicate_exists(db, titulo, concept_type, source):
+
+            #st.error("❌ Ya existe un concepto con el mismo TITULO y tipo desde este source.")
+            #st.info("💡 Usa un ID distinto solo si el concepto es realmente diferente, o edita el existente.")
+            #st.stop()
+        # 4. Guardado
+        try:
+            # Build concept data
+            concept_data = {
+                "id": concept_id,
+                "tipo": concept_type,
+                "titulo": titulo if titulo else None,
+                "tipo_titulo": tipo_titulo,
+                "categorias": categorias,
+                "contenido_latex": contenido_latex,
+                "es_algoritmo": es_algoritmo,
+                "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
+                "comentario": comentario if comentario else None,
+                "source": source,
+                "fecha_creacion": datetime.now(),
+                "ultima_actualizacion": datetime.now(),
+                # NOTE: We keep concept.citekey for backward compatibility with existing exporters.
+                # The authoritative citekey should live inside concept.referencia.citekey.
+                "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                 }
 
-                # Add reference if provided
-                if ref_autor or ref_fuente:
-                    concept_data["referencia"] = {
-                        "tipo_referencia": ref_tipo,
-                        "autor": ref_autor if ref_autor else None,
-                        "fuente": ref_fuente if ref_fuente else None,
-                        "anio": ref_anio if ref_anio else None,
-                        "tomo": ref_tomo if ref_tomo else None,
-                        "edicion": ref_edicion if ref_edicion else None,
-                        "paginas": ref_paginas if ref_paginas else None,
-                        "capitulo": ref_capitulo if ref_capitulo else None,
-                        "seccion": ref_seccion if ref_seccion else None,
-                        "editorial": ref_editorial if ref_editorial else None,
-                        "doi": ref_doi if ref_doi else None,
-                        "url": ref_url if ref_url else None,
-                        "issbn": ref_issbn if ref_issbn else None
-                        ,
-                        # NEW: Persist citekey at reference-level (needed for stable Quarto/BibTeX export).
-                        "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
+            # Add reference if provided
+            if ref_autor or ref_fuente:
+                concept_data["referencia"] = {
+                    "tipo_referencia": ref_tipo,
+                    "autor": ref_autor if ref_autor else None,
+                    "fuente": ref_fuente if ref_fuente else None,
+                    "anio": ref_anio if ref_anio else None,
+                    "tomo": ref_tomo if ref_tomo else None,
+                    "edicion": ref_edicion if ref_edicion else None,
+                    "paginas": ref_paginas if ref_paginas else None,
+                    "capitulo": ref_capitulo if ref_capitulo else None,
+                    "seccion": ref_seccion if ref_seccion else None,
+                    "editorial": ref_editorial if ref_editorial else None,
+                    "doi": ref_doi if ref_doi else None,
+                    "url": ref_url if ref_url else None,
+                    "issbn": ref_issbn if ref_issbn else None,
+                    # NEW: Persist citekey at reference-level (needed for stable Quarto/BibTeX export).
+                    "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
 
-                # Add teaching context if provided
-                if nivel_contexto or grado_formalidad:
-                    concept_data["contexto_docente"] = {
-                        "nivel_contexto": nivel_contexto,
-                        "grado_formalidad": grado_formalidad
+            # Add teaching context if provided
+            if nivel_contexto or grado_formalidad:
+                concept_data["contexto_docente"] = {
+                    "nivel_contexto": nivel_contexto,
+                    "grado_formalidad": grado_formalidad
                     }
 
                 # Add technical metadata if provided
-                if usa_notacion_formal is not None or incluye_demostracion is not None:
-                    concept_data["metadatos_tecnicos"] = {
+            if usa_notacion_formal is not None or incluye_demostracion is not None:
+                concept_data["metadatos_tecnicos"] = {
                         "usa_notacion_formal": usa_notacion_formal,
                         "incluye_demostracion": incluye_demostracion,
                         "es_definicion_operativa": es_definicion_operativa,
@@ -1508,21 +1525,21 @@ elif page == "➕ Add Concept":
                     }
 
                 # Create concept object
-                concepto = ConceptoBase(**concept_data)
+            concepto = ConceptoBase(**concept_data)
 
                 # Save to database
-                if concept_exists(db, concepto.id, source):
-                    existing = db.concepts.find_one(
+            if concept_exists(db, concepto.id, source):
+                existing = db.concepts.find_one(
                         {"id": concepto.id, "source": source},
                         {"_id": 1, "id": 1, "source": 1, "titulo": 1, "fecha_creacion": 1, "ultima_actualizacion": 1},
                     )
-                    st.warning("⚠️ Este concepto ya existe. Usa ✏️ Edit Concept o cambia el ID.")
-                    if existing:
-                        st.json(existing)
-                    st.stop()
-                concepto_dict = build_concept_metadata(concepto)
-                now = datetime.now()
-                insert_concept_with_latex_atomic(
+                st.warning("⚠️ Este concepto ya existe. Usa ✏️ Edit Concept o cambia el ID.")
+                if existing:
+                    st.json(existing)
+                st.stop()
+            concepto_dict = build_concept_metadata(concepto)
+            now = datetime.now()
+            insert_concept_with_latex_atomic(
                     db,
                     concepto.id,
                     source,
@@ -1531,11 +1548,11 @@ elif page == "➕ Add Concept":
                     now,
                 )
 
-                st.success(f"✅ Concept '{concept_id}' saved successfully to {current_db}!")
-                st.balloons()
+            st.success(f"✅ Concept '{concept_id}' saved successfully to {current_db}!")
+            st.balloons()
 
-            except Exception as e:
-                st.error(f"❌ Error saving concept: {e}")
+        except Exception as e:
+            st.error(f"❌ Error saving concept: {e}")
 
     # PDF Generation Button
     st.markdown("---")
