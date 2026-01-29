@@ -1508,10 +1508,7 @@ elif page == "➕ Add Concept":
                 # Save to database
                 concepto_dict = build_concept_metadata(concepto)
 
-                db.concepts.update_one(
-                    {"id": concepto.id, "source": source},
-                    {"$set": concepto_dict}, upsert=True
-                )
+                upsert_concept_metadata(db, concepto.id, source, concepto_dict) # REPLACED: 
 
                 # Save LaTeX content
                 now = datetime.now()
