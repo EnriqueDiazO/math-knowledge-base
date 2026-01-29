@@ -24,7 +24,7 @@ from exporters_quarto.quarto_exporter import QuartoBookExporter
 from mathdatabase.mathmongo import MathMongo
 from schemas.schemas import ConceptoBase
 from editor.helpers.tipo_presentacion import TipoPresentacion
-from schemas.schemas import TipoReferencia
+from editor.helpers.tipo_referencia import TipoReferencia
 from schemas.schemas import TipoRelacion
 from schemas.schemas import TipoTitulo
 from visualizations.grafoconocimiento import GrafoConocimiento
