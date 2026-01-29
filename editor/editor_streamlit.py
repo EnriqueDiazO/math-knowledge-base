@@ -1,3 +1,4 @@
+from editor.db.concept_repository import concept_exists
 import os
 import sys
 from datetime import datetime, date, timedelta
@@ -1506,6 +1507,8 @@ elif page == "➕ Add Concept":
                 concepto = ConceptoBase(**concept_data)
 
                 # Save to database
+                if concept_exists(db, concepto.id, source):
+                    return
                 concepto_dict = build_concept_metadata(concepto)
 
                 upsert_concept_metadata(db, concepto.id, source, concepto_dict) # REPLACED: 
