@@ -19,11 +19,20 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from pathlib import Path
 
 import streamlit.components.v1 as components
+from helpers.concept_builders import build_concept_metadata
+
+# OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
+from helpers.enums import _TIPO_MAP
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
+from db.concept_repository import insert_concept_with_latex_atomic
+from editor.helpers.tipo_aplicacion import TipoAplicacion
+from editor.helpers.tipo_contexto import NivelContexto
+from editor.helpers.tipo_formalidad import GradoFormalidad
 from editor.helpers.tipo_presentacion import TipoPresentacion
 from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
+from editor.helpers.tipo_simbolico import NivelSimbolico
 from editor.helpers.tipo_titulo import TipoTitulo
 from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_quarto.quarto_exporter import QuartoBookExporter
@@ -33,21 +42,6 @@ from mathdatabase.mathmongo import MathMongo
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
 
-# OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
-_TIPO_MAP = {
-    "book": "libro",
-    "article": "articulo",
-    "phdthesis": "tesis",
-    "mastersthesis": "tesis",
-    "inproceedings": "articulo",   # o "miscelanea" si prefieres
-    "incollection": "miscelanea",  # capítulo en libro → miscelanea (si no tienes "capitulo" como tipo)
-    "proceedings": "miscelanea",
-    "techreport": "miscelanea",
-    "misc": "miscelanea",
-    "unpublished": "miscelanea",
-    "online": "pagina_web",
-    "www": "pagina_web",
-}
 
 def _bib_to_referencia(entry: dict) -> dict:
     get = entry.get
@@ -105,12 +99,11 @@ def _parse_bibtex(file_bytes: bytes) -> list[dict]:
 # ---------------------------------------------------------
 
 def _normalize_ref_dict(ref: dict) -> dict:
-    """
-    Normaliza la referencia para soportar:
+    """Normaliza la referencia para soportar:
     - esquema nuevo: tipo_referencia, issbn
     - esquema viejo: tipo, isbn
-    - citekey opcional
-    """
+    - citekey opcional.
+    """  # noqa: D205
     if not isinstance(ref, dict):
         return {}
 
@@ -131,7 +124,7 @@ def load_last_reference_by_source(db, source: str) -> dict | None:
     """
     Busca el último concepto (fecha_creacion DESC) del mismo source
     que tenga un campo 'referencia' utilizable.
-    """
+    """  # noqa: D205, D212
     if not source or not isinstance(source, str) or not source.strip():
         return None
 
@@ -2051,7 +2044,7 @@ elif page == "✏️ Edit Concept":
         # Action buttons
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
-        
+
         with col1:
             if st.button("💾 Update Concept", type="primary"):
                 try:
@@ -2071,7 +2064,7 @@ elif page == "✏️ Edit Concept":
                         # Keep concept-level citekey for backward compatibility.
                         "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
-                    
+
                     # Add reference if provided
                     if ref_autor or ref_fuente:
                         concept_data["referencia"] = {
@@ -2091,14 +2084,14 @@ elif page == "✏️ Edit Concept":
                             # NEW: Persist citekey at reference-level (preferred).
                             "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                         }
-                    
+
                     # Add teaching context if provided
                     if nivel_contexto or grado_formalidad:
                         concept_data["contexto_docente"] = {
                             "nivel_contexto": nivel_contexto,
                             "grado_formalidad": grado_formalidad
                         }
-                    
+
                     # Add technical metadata if provided
                     if usa_notacion_formal is not None or incluye_demostracion is not None:
                         concept_data["metadatos_tecnicos"] = {
@@ -2113,7 +2106,7 @@ elif page == "✏️ Edit Concept":
                             "nivel_simbolico": nivel_simbolico,
                             "tipo_aplicacion": tipo_aplicacion if tipo_aplicacion else None
                         }
-                    
+
                     # Update in database
                     db.concepts.update_one(
                         {"id": selected_concept['id'], "source": selected_concept['source']},
@@ -2130,17 +2123,17 @@ elif page == "✏️ Edit Concept":
                             }
                         }
                     )
-                    
+
                     st.success(f"✅ Concept '{concept_id}' updated successfully in {current_db}!")
                     st.balloons()
-                    
+
                 except Exception as e:
                     st.error(f"❌ Error updating concept: {e}")
-        
+
         # PDF Generation Button for Edit Concept
         st.markdown("---")
         st.subheader("📄 Generar PDF")
-        
+
         # Check if we have the minimum required data for PDF generation
         if concept_id and source and contenido_latex:
             if st.button("📄 Generar y abrir PDF", key="edit_pdf_btn", type="secondary"):
@@ -2154,7 +2147,7 @@ elif page == "✏️ Edit Concept":
                     "source": source,
                     "comentario": comentario if comentario else None
                 }
-                
+
                 # Add reference if provided
                 if ref_autor or ref_fuente:
                     pdf_concept_data["referencia"] = {
@@ -2174,16 +2167,16 @@ elif page == "✏️ Edit Concept":
                         # NEW: Persist citekey at reference-level too.
                         "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
-                
+
                 # Generate and open PDF
                 generar_y_abrir_pdf_desde_formulario(pdf_concept_data)
         else:
             st.info("ℹ️ Complete los campos requeridos (ID, Source, LaTeX Content) para generar el PDF")
-        
+
         with col2:
             if st.button("🔄 Reset to Original"):
                 st.rerun()
-        
+
         with col3:
             # Persistent delete confirmation (Streamlit buttons are one-shot per rerun)
             if "delete_armed_edit" not in st.session_state:
@@ -2225,26 +2218,26 @@ elif page == "✏️ Edit Concept":
 # Browse Concepts page
 elif page == "📚 Browse Concepts":
     st.title("📚 Browse Mathematical Concepts")
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     st.info(f"📊 Browsing concepts in: **{current_db}**")
-    
+
     # Filters
     st.subheader("🔍 Filters")
     col1, col2, col3 = st.columns(3)
-    
+
     with col1:
         filter_type = st.selectbox("Type", ["All"] + list(db.concepts.distinct("tipo")))
-    
+
     with col2:
         filter_source = st.selectbox("Source", ["All"] + list(db.concepts.distinct("source")))
-    
+
     with col3:
         search_term = st.text_input("Search", placeholder="Search by title or ID...")
-    
+
     # Build query
     query = {}
     if filter_type != "All":
@@ -2256,10 +2249,10 @@ elif page == "📚 Browse Concepts":
             {"titulo": {"$regex": search_term, "$options": "i"}},
             {"id": {"$regex": search_term, "$options": "i"}}
         ]
-    
+
     # Execute query
     concepts = list(db.concepts.find(query).sort("fecha_creacion", -1))
-    
+
     st.subheader(f"📊 Results ({len(concepts)} concepts)")
 
     # =========================
@@ -3072,7 +3065,7 @@ elif page == "🔗 Manage Relations":
                             st.write(f"• **ID:** {desde_parts[0]}")
                             st.write(f"• **Source:** {desde_parts[1]}")
                             st.warning("⚠️ Concept not found in database")
-                    
+
                     with col2:
                         st.write("**To Concept:**")
                         if hasta_concept:
@@ -3083,12 +3076,12 @@ elif page == "🔗 Manage Relations":
                             st.write(f"• **ID:** {hasta_parts[0]}")
                             st.write(f"• **Source:** {hasta_parts[1]}")
                             st.warning("⚠️ Concept not found in database")
-                    
+
                     st.markdown("---")
-                    
+
                     # Edit relation details
                     st.write("**Edit Relation Details:**")
-                    
+
                     col1, col2 = st.columns(2)
                     with col1:
                         new_tipo = st.selectbox(
@@ -3101,10 +3094,10 @@ elif page == "🔗 Manage Relations":
                             "Description",
                             value=rel.get('descripcion', ''),
                             key=f"edit_desc_{i}")
-                    
+
                     # Action buttons
                     col1, col2, col3 = st.columns(3)
-                    
+
                     with col1:
                         if st.button("💾 Update Relation", key=f"update_rel_{i}"):
                             try:
@@ -3122,11 +3115,11 @@ elif page == "🔗 Manage Relations":
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error updating relation: {e}")
-                    
+
                     with col2:
                         if st.button("🔄 Reset", key=f"reset_rel_{i}"):
                             st.rerun()
-                    
+
                     with col3:
                         if st.button("🗑️ Delete", key=f"delete_rel_{i}"):
                             if st.button("⚠️ Confirm Delete", key=f"confirm_delete_rel_{i}"):
@@ -3138,17 +3131,17 @@ elif page == "🔗 Manage Relations":
                                     st.error(f"❌ Error deleting relation: {e}")
         else:
             st.info("No relations found with the selected filters.")
-    
+
     with tab3:
         st.subheader("📊 View Relations")
-        
+
         # Filter relations for viewing
         col1, col2 = st.columns(2)
         with col1:
             view_filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")), key="view_source_filter")
         with col2:
             view_filter_type = st.selectbox("Filter by Type", ["All"] + [t.value for t in TipoRelacion], key="view_type_filter")
-        
+
         # Build query
         view_query = {}
         if view_filter_source != "All":
@@ -3158,21 +3151,21 @@ elif page == "🔗 Manage Relations":
             ]
         if view_filter_type != "All":
             view_query["tipo"] = view_filter_type
-        
+
         view_relations = list(db.relations.find(view_query))
-        
+
         if view_relations:
             st.write(f"**Found {len(view_relations)} relations:**")
-            
+
             # Create a summary table
             relation_data = []
             for rel in view_relations:
                 desde_parts = rel['desde'].split('@')
                 hasta_parts = rel['hasta'].split('@')
-                
+
                 desde_concept = db.concepts.find_one({"id": desde_parts[0], "source": desde_parts[1]})
                 hasta_concept = db.concepts.find_one({"id": hasta_parts[0], "source": hasta_parts[1]})
-                
+
                 relation_data.append({
                     "From": desde_concept.get('titulo', desde_parts[0]) if desde_concept else desde_parts[0],
                     "From Type": desde_concept['tipo'] if desde_concept else "Unknown",
@@ -3183,22 +3176,22 @@ elif page == "🔗 Manage Relations":
                     "To Source": hasta_parts[1],
                     "Description": rel.get('descripcion', '')
                 })
-            
+
             df = pd.DataFrame(relation_data)
             st.dataframe(df, width='stretch')
-            
+
             # Statistics
             st.subheader("📈 Relation Statistics")
             col1, col2, col3 = st.columns(3)
-            
+
             with col1:
                 st.metric("Total Relations", len(view_relations))
-            
+
             with col2:
                 relation_types = [rel['tipo'] for rel in view_relations]
                 unique_types = len(set(relation_types))
                 st.metric("Unique Types", unique_types)
-            
+
             with col3:
                 sources_involved = set()
                 for rel in view_relations:
@@ -3207,7 +3200,7 @@ elif page == "🔗 Manage Relations":
                     sources_involved.add(desde_parts[1])
                     sources_involved.add(hasta_parts[1])
                 st.metric("Sources Involved", len(sources_involved))
-            
+
             # Type distribution
             if relation_types:
                 type_counts = pd.Series(relation_types).value_counts()
@@ -3219,17 +3212,17 @@ elif page == "🔗 Manage Relations":
 # Knowledge Graph page
 elif page == "📊 Knowledge Graph":
     st.title("📊 Knowledge Graph Visualization")
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     st.info(f"📊 Generating graph from: **{current_db}**")
-    
+
     st.subheader("🔧 Graph Configuration")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         # Filter by source
         selected_sources = st.multiselect(
@@ -3252,9 +3245,9 @@ elif page == "📊 Knowledge Graph":
             [t.value for t in TipoRelacion],
             default=["implica", "deriva_de", "requiere_concepto"]
         )
-        
+
         max_depth = st.slider("Max Depth", 1, 5, 3)
-    
+
     if st.button("🔍 Generate Graph", type="primary"):
         if selected_sources:
             try:
@@ -3262,9 +3255,9 @@ elif page == "📊 Knowledge Graph":
                 concept_query = {"source": {"$in": selected_sources}}
                 if selected_types:
                     concept_query["tipo"] = {"$in": selected_types}
-                
+
                 concepts = list(db.concepts.find(concept_query))
-                
+
                 # Get relations
                 relation_query = {
                     "$or": [
@@ -3274,9 +3267,9 @@ elif page == "📊 Knowledge Graph":
                 }
                 if selected_relations:
                     relation_query["tipo"] = {"$in": selected_relations}
-                
+
                 relations = list(db.relations.find(relation_query))
-                
+
                 if concepts and relations:
                     # Generate graph
                     grafo = GrafoConocimiento(concepts, relations)
@@ -3287,14 +3280,14 @@ elif page == "📊 Knowledge Graph":
                     # Export to HTML
                     html_file = "knowledge_graph.html"
                     grafo.exportar_html(salida=html_file)
-                    
+
                     # Display the graph
                     with open(html_file, 'r', encoding='utf-8') as f:
                         html_content = f.read()
-                    
+
                     st.subheader("🎯 Interactive Knowledge Graph")
                     st.components.v1.html(html_content, height=600)
-                    
+
                     # Download link
                     with open(html_file, 'r', encoding='utf-8') as f:
                         st.download_button(
@@ -3302,7 +3295,7 @@ elif page == "📊 Knowledge Graph":
                             data=f.read(),
                             file_name="knowledge_graph.html",
                             mime="text/html")
-                    
+
                     # Statistics
                     st.subheader("📊 Graph Statistics")
                     col1, col2, col3 = st.columns(3)
@@ -3312,10 +3305,10 @@ elif page == "📊 Knowledge Graph":
                         st.metric("Edges", len(grafo.G.edges))
                     with col3:
                         st.metric("Sources", len(selected_sources))
-                
+
                 else:
                     st.warning("⚠️ No concepts or relations found with the selected filters.")
-            
+
             except Exception as e:
                 st.error(f"❌ Error generating graph: {e}")
         else:
@@ -3324,130 +3317,130 @@ elif page == "📊 Knowledge Graph":
 # Export page
 elif page == "📤 Export":
     st.title("📤 Export Concepts")
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     st.info(f"📊 Exporting from: **{current_db}**")
-    
+
     st.subheader("📄 LaTeX/PDF Export")
-    
+
     # Export options
     col1, col2 = st.columns(2)
-    
+
     with col1:
         export_source = st.selectbox("Select Source", [""] + list(db.concepts.distinct("source")))
         export_type = st.selectbox("Export Type", ["All", "definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"])
-    
+
     with col2:
         export_format = st.selectbox("Export Format", ["PDF", "LaTeX"])
         output_dir = st.text_input("Output Directory", value="./exported")
-    
+
     if st.button("📤 Export", type="primary"):
         if export_source:
             try:
                 exportador = ExportadorLatex()
-                
+
                 # Build query
                 query = {"source": export_source}
                 if export_type != "All":
                     query["tipo"] = export_type
-                
+
                 concepts = list(db.concepts.find(query))
-                
+
                 if concepts:
                     progress_bar = st.progress(0)
                     status_text = st.empty()
-                    
+
                     for i, concept in enumerate(concepts):
                         status_text.text(f"Exporting {concept['id']}...")
-                        
+
                         latex_doc = db.latex_documents.find_one({"id": concept['id'], "source": export_source})
                         if latex_doc:
                             exportador.exportar_concepto(concept, latex_doc['contenido_latex'], salida=output_dir)
-                        
+
                         progress_bar.progress((i + 1) / len(concepts))
-                    
+
                     status_text.text("✅ Export completed!")
                     st.success(f"✅ Exported {len(concepts)} concepts to {output_dir}")
-                    
+
                     # Show exported files
                     if Path(output_dir).exists():
                         st.subheader("📁 Exported Files")
                         files = list(Path(output_dir).glob("*.pdf" if export_format == "PDF" else "*.tex"))
                         for file in files:
                             st.write(f"• {file.name}")
-                
+
                 else:
                     st.warning("⚠️ No concepts found for the selected source and type.")
-            
+
             except Exception as e:
                 st.error(f"❌ Export failed: {e}")
         else:
             st.error("❌ Please select a source to export.")
-    
+
     st.markdown("---")
-    
+
     # Bulk operations
     st.subheader("🔄 Bulk Operations")
-    
+
     if st.button("🔄 Export All Sources"):
         try:
             sources = db.concepts.distinct("source")
             exportador = ExportadorLatex()
-            
+
             progress_bar = st.progress(0)
             status_text = st.empty()
-            
+
             for i, source in enumerate(sources):
                 status_text.text(f"Exporting source: {source}")
                 exportador.exportar_todos_de_source(db.client, source, salida=f"./exported/{source}")
                 progress_bar.progress((i + 1) / len(sources))
-            
+
             status_text.text("✅ Bulk export completed!")
             st.success(f"✅ Exported all {len(sources)} sources")
-        
+
         except Exception as e:
             st.error(f"❌ Bulk export failed: {e}")
 
 # Settings page
 elif page == "⚙️ Settings":
     st.title("⚙️ Settings")
-    
+
     st.subheader("🔧 Database Configuration")
-    
+
     # Database status
     if db is None:
         st.error("❌ No database connection.")
         st.stop()
     else:
         st.success(f"✅ Connected to: **{current_db}**")
-    
+
     # Database statistics
     st.subheader("📊 Database Statistics")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         concept_count = db.concepts.count_documents({})
         st.metric("Total Concepts", concept_count)
-        
+
         relation_count = db.relations.count_documents({})
         st.metric("Total Relations", relation_count)
-    
+
     with col2:
         source_count = len(db.concepts.distinct("source"))
         st.metric("Sources", source_count)
-        
+
         category_count = len(db.concepts.distinct("categorias"))
         st.metric("Categories", category_count)
-    
+
     # Database operations
     st.subheader("🗄️ Database Operations")
-    
+
     col1, col2 = st.columns(2)
-    
+
     with col1:
         if st.button("🧹 Clear All Data", type="secondary"):
             if st.button("⚠️ Confirm Clear All", type="primary"):
@@ -3456,7 +3449,7 @@ elif page == "⚙️ Settings":
                 db.latex_documents.delete_many({})
                 st.success("✅ All data cleared!")
                 st.rerun()
-    
+
     with col2:
         if st.button("📊 Rebuild Indexes"):
             try:
@@ -3466,10 +3459,10 @@ elif page == "⚙️ Settings":
                 st.success("✅ Indexes rebuilt successfully!")
             except Exception as e:
                 st.error(f"❌ Error rebuilding indexes: {e}")
-    
+
     # Application information
     st.subheader("ℹ️ Application Information")
-    
+
     st.write("**Math Knowledge Base** - Version 0.1.0b1")
     st.write("A platform for managing mathematical knowledge with LaTeX support and MongoDB storage.")
     st.write("**Author:** Enrique Díaz Ocampo")
@@ -3483,5 +3476,4 @@ st.markdown(
         Math Knowledge Base - Built with Streamlit and MongoDB
     </div>
     """,
-    unsafe_allow_html=True
-)
+    unsafe_allow_html=True)
