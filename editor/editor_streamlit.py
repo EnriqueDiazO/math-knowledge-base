@@ -1,14 +1,17 @@
-from editor.db.concept_repository import concept_exists
 import os
 import sys
-from datetime import datetime, date, timedelta
+from datetime import date
+from datetime import datetime
+from datetime import timedelta
 from pathlib import Path
 
 import bibtexparser
 import pandas as pd
 import streamlit as st
-from streamlit_ace import st_ace
 from bson import ObjectId
+from streamlit_ace import st_ace
+
+from editor.db.concept_repository import concept_exists
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -18,16 +21,16 @@ from pathlib import Path
 import streamlit.components.v1 as components
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
+from editor.helpers.tipo_presentacion import TipoPresentacion
+from editor.helpers.tipo_referencia import TipoReferencia
+from editor.helpers.tipo_relacion import TipoRelacion
+from editor.helpers.tipo_titulo import TipoTitulo
 from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_quarto.quarto_exporter import QuartoBookExporter
 
 # Render preview graph using the same renderer as "Knowledge Graph"
 from mathdatabase.mathmongo import MathMongo
 from schemas.schemas import ConceptoBase
-from editor.helpers.tipo_presentacion import TipoPresentacion
-from editor.helpers.tipo_referencia import TipoReferencia
-from editor.helpers.tipo_relacion import TipoRelacion
-from editor.helpers.tipo_titulo import TipoTitulo
 from visualizations.grafoconocimiento import GrafoConocimiento
 
 # OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
@@ -162,7 +165,7 @@ st.set_page_config(
     page_icon="🧮",
     layout="wide",
     initial_sidebar_state="expanded"
-
+)
 # Custom CSS for better styling
 st.markdown("""
 <style>
@@ -306,13 +309,15 @@ if 'db_manager' not in st.session_state:
     st.session_state.db_manager.add_connection(
         "MathMongo (Current)",
         "mongodb://localhost:27017",
-        "mathmongo"
+        "mathmongo",
+    )
 
     # Add MathV0 connection
     st.session_state.db_manager.add_connection(
         "MathV0",
         "mongodb://localhost:27017",
-        "MathV0"
+        "MathV0",
+    )
 
     # Set current connection
     st.session_state.db_manager.set_current_connection("MathMongo (Current)")
@@ -354,6 +359,7 @@ if available_dbs:
         "Switch Database",
         available_dbs,
         index=available_dbs.index(current_db) if current_db in available_dbs else 0
+    )
 
     if selected_db != current_db:
         if st.session_state.db_manager.set_current_connection(selected_db):
@@ -412,7 +418,7 @@ def _cuaderno_is_installed(conn) -> bool:
 page = st.sidebar.selectbox(
     "Navigation",
     ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📤 Export", "⚙️ Settings"]
-
+)
 # Experimental navigation (optional)
 _exp_options = ["(none)"]
 if _cuaderno_is_installed(db):
@@ -497,6 +503,7 @@ if page == "🏠 Dashboard":
             available_sources = sorted(
                 [s for s in available_sources if isinstance(s, str) and s.strip()],
                 key=lambda x: x.lower(),
+            )
         except Exception:
             available_sources = []
 
@@ -507,6 +514,7 @@ if page == "🏠 Dashboard":
                 options=available_sources,
                 default=available_sources[:1] if available_sources else [],
                 key="qs_selected_sources",
+            )
             if not selected_sources:
                 st.warning("Select at least one source to filter Quick Stats.")
 
@@ -556,6 +564,7 @@ if page == "🏠 Dashboard":
                 st.caption(
                     "MVP: resume relaciones como flujo Source -> Tipo -> Source. "
                     "Si desactivaste 'All sources' arriba, el grafico se filtra por esas sources."
+                    )
 
                 try:
                     import plotly.graph_objects as go
@@ -624,7 +633,9 @@ if page == "🏠 Dashboard":
                                 go.Sankey(
                                     node=dict(label=labels, pad=12, thickness=12),
                                     link=dict(source=sources, target=targets, value=values),
+                                )
                             ]
+                        )
                         fig.update_layout(height=600, margin=dict(l=10, r=10, t=10, b=10))
                         st.plotly_chart(fig, width='stretch')
 
@@ -635,6 +646,7 @@ if page == "🏠 Dashboard":
                 st.caption(
                     "MVP: resume relaciones como flujo Concept -> Tipo -> Concept. "
                     "Incluye limites para evitar sobrecargar el grafico."
+                )
 
                 # Controles MVP
                 c1, c2 = st.columns(2)
@@ -647,6 +659,7 @@ if page == "🏠 Dashboard":
                         step=50,
                         help="Limite de relaciones (agregadas) que se grafican",
                         key="concept_sankey_max_edges",
+                    )
                 with c2:
                     top_concepts = st.slider(
                         "top_concepts",
@@ -656,6 +669,7 @@ if page == "🏠 Dashboard":
                         step=10,
                         help="Limite de conceptos por frecuencia (nodos)",
                         key="concept_sankey_top_concepts",
+                    )
 
                 try:
                     import plotly.graph_objects as go
@@ -710,6 +724,8 @@ if page == "🏠 Dashboard":
                                     "relation_type": 1,
                                     "type": 1,
                                 },
+                            )
+                        )
                     except Exception as e:
                         st.error(f"❌ Error cargando relaciones: {e}")
                         rels = []
@@ -871,7 +887,9 @@ if page == "🏠 Dashboard":
                                     go.Sankey(
                                         node=dict(label=labels, pad=12, thickness=12),
                                         link=dict(source=sources, target=targets, value=values),
+                                    )
                                 ]
+                            )
                             fig.update_layout(height=650, margin=dict(l=10, r=10, t=10, b=10))
                             st.plotly_chart(fig, width='stretch', key=f"concept_sankey_{key_suffix}")
 
@@ -885,6 +903,7 @@ if page == "🏠 Dashboard":
                                 default=default_dep if default_dep else available_types[: min(3, len(available_types))],
                                 help="Tipos de relación enfocados en prerequisitos y derivación.",
                                 key="concept_sankey_types_dependencies",
+                            )
                             _render_concept_sankey(triples, sel_dep, "dep")
 
                         with tab_log:
@@ -895,6 +914,7 @@ if page == "🏠 Dashboard":
                                 default=default_log if default_log else available_types[: min(5, len(available_types))],
                                 help="Tipos de relación lógicos o críticos (equivalencias, implicaciones, contradicciones, etc.).",
                                 key="concept_sankey_types_logical",
+                                )
                             _render_concept_sankey(triples, sel_log, "log")
             # --- end MVP: concept-level sankey ---
 
@@ -915,7 +935,8 @@ elif page == "➕ Add Concept":
     concept_type = st.selectbox(
         "Concept Type",
         ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"],
-        help="Select the type of mathematical concept you want to add"
+        help="Select the type of mathematical concept you want to add",
+    )
 
     # Basic information
     st.subheader("📋 Basic Information")
@@ -942,7 +963,11 @@ elif page == "➕ Add Concept":
         if source:
             try:
                 docs = list(
-                    db.concepts.find({"source": source},{"id": 1, "titulo": 1, "_id": 0}))
+                    db.concepts.find(
+                        {"source": source},
+                        {"id": 1, "titulo": 1, "_id": 0}
+                    )
+                )
                     # Normaliza y ordena por id
                 items = sorted(
                         [
@@ -952,6 +977,7 @@ elif page == "➕ Add Concept":
                             if isinstance(d.get("id"), str)
                         ],
                         key=lambda x: x["id"]
+                )
             except Exception:
                 items = []
             
@@ -966,11 +992,12 @@ elif page == "➕ Add Concept":
                         lines.append(f"{it['id']}")
                 text = "\n".join(lines)
                 st.text_area(
-        "Existing IDs (latest 10)",
-        value="\n".join(lines),
-        height=220,
-        disabled=True,
-        label_visibility="collapsed"
+                    "Existing IDs (latest 10)",
+                    value="\n".join(lines),
+                    height=220,
+                    disabled=True,
+                    label_visibility="collapsed",
+                )
             else:
                 st.caption("No concepts yet for this source.")
 
@@ -1088,6 +1115,7 @@ elif page == "➕ Add Concept":
                 r"# Comentario" "\n"
                 r"codigo" "\n"
                 r"\end{lstlisting}"
+            )
         if st.button("🌳 Dir Tree", key="btn_dir_tree"):
             st.session_state["latex_insert"] = (
                 r"\dirtree{%" "\n"
@@ -1248,6 +1276,7 @@ elif page == "➕ Add Concept":
         show_gutter=True,
         auto_update=True,
         key=f"latex_editor_{st.session_state['latex_editor_rev']}"
+    )
     # Sincronizar el contenido del editor con el estado
     st.session_state["latex_text"] = contenido_latex or ""
     # Este es el contenido que usarás para guardar en DB
@@ -1320,7 +1349,9 @@ elif page == "➕ Add Concept":
                             "Selecciona entrada",
                             list(range(len(keys))),
                             format_func=lambda i: f"{keys[i][0]} — {keys[i][1]}",
-                            key="bib_choice_edit"
+                            key="bib_choice_edit",
+                    )
+
                     selected_bib_entry_edit = bib_entries[idx]
 
                     if st.button("Usar esta entrada", key="use_bib_edit"):
@@ -1353,13 +1384,15 @@ elif page == "➕ Add Concept":
                     "Reference Type",
                     [t.value for t in TipoReferencia],
                     key="edit_ref_tipo",
+            )
             ref_autor = st.text_input("Author", key="edit_ref_autor")
             ref_fuente = st.text_input("Source/Title", key="edit_ref_fuente")
             ref_anio = st.number_input(
                     "Year",
                     min_value=1800, max_value=3000,
                     value=st.session_state.get("edit_ref_anio"),
-                    key="edit_ref_anio"
+                    key="edit_ref_anio",
+            )
 
         with col2:
             ref_tomo = st.text_input("Volume", key="edit_ref_tomo")
@@ -1482,11 +1515,12 @@ elif page == "➕ Add Concept":
                 if concept_exists(db, concepto.id, source):
                     existing = db.concepts.find_one(
                         {"id": concepto.id, "source": source},
-                        {"_id": 1, "id": 1, "source": 1, "titulo": 1, "fecha_creacion": 1, "ultima_actualizacion": 1}
+                        {"_id": 1, "id": 1, "source": 1, "titulo": 1, "fecha_creacion": 1, "ultima_actualizacion": 1},
+                    )
                     st.warning("⚠️ Este concepto ya existe. Usa ✏️ Edit Concept o cambia el ID.")
                     if existing:
                         st.json(existing)
-                    return
+                    st.stop()
                 concepto_dict = build_concept_metadata(concepto)
                 now = datetime.now()
                 insert_concept_with_latex_atomic(
@@ -1496,7 +1530,7 @@ elif page == "➕ Add Concept":
                     concepto_dict,
                     contenido_latex,
                     now,
-
+                )
 
                 st.success(f"✅ Concept '{concept_id}' saved successfully to {current_db}!")
                 st.balloons()
@@ -1596,7 +1630,7 @@ elif page == "✏️ Edit Concept":
         "Choose Concept to Edit",
         concept_options,
         help="Select the concept you want to edit"
-
+    )
     # Handle concept selection and data loading
     if selected_concept_display:
         selected_concept = concept_map[selected_concept_display]
@@ -1654,6 +1688,7 @@ elif page == "✏️ Edit Concept":
             st.session_state.edit_ref_citekey = (
                 (selected_concept.get("citekey") or "")
                 or (ref.get('citekey') or '')
+            )
 
             # Initialize teaching context fields in session state
             context = selected_concept.get("contexto_docente", {})
@@ -1701,7 +1736,8 @@ elif page == "✏️ Edit Concept":
             tipo_titulo = st.selectbox(
                 "Title Type", 
                 [t.value for t in TipoTitulo],
-                key="edit_tipo_titulo"
+                key="edit_tipo_titulo",
+            )
 
         # Concept type (read-only for now to avoid complications)
         st.info(f"**Concept Type:** {selected_concept['tipo']} (cannot be changed)")
@@ -1718,7 +1754,8 @@ elif page == "✏️ Edit Concept":
         categorias = st.multiselect(
             "Categories",
             all_categories,
-            key="edit_categorias"
+            key="edit_categorias",
+        )
         
         # LaTeX content with helper toolbar
         st.subheader("📝 LaTeX Content")
@@ -1796,6 +1833,7 @@ elif page == "✏️ Edit Concept":
                     r".3 subsubfolder." "\n"
                     r".4 subsubsubfolder." "\n"
                     r"}"
+                )
 
         # Mathematical symbols (abbreviated for edit page)
         st.write("**🔢 Common Symbols:**")
@@ -1905,6 +1943,7 @@ elif page == "✏️ Edit Concept":
             show_gutter=True,
             auto_update=True,
             key=f"edit_latex_editor__{editor_seed}__{st.session_state['edit_latex_editor_rev']}",
+        )
 
         # Sincronizar el contenido del editor con el estado
         st.session_state["edit_latex_text"] = contenido_latex or ""
@@ -1919,11 +1958,11 @@ elif page == "✏️ Edit Concept":
         with col2:
             if es_algoritmo:
                 pasos_algoritmo = st.text_area("Algorithm Steps", key="edit_pasos")
-        
+
         # Reference information
         st.subheader("📚 Reference Information")
         current_ref = st.session_state.edit_referencia
-        
+
         with st.expander("Edit Reference", expanded=bool(current_ref)):
             col1, col2 = st.columns(2)
             with col1:
@@ -1931,16 +1970,17 @@ elif page == "✏️ Edit Concept":
                     "Reference Type", 
                     [t.value for t in TipoReferencia],
                     key="edit_ref_tipo"
+                )
                 ref_autor = st.text_input("Author", key="edit_ref_autor")
                 ref_fuente = st.text_input("Source/Title", key="edit_ref_fuente")
                 ref_anio = st.number_input("Year", min_value=1800, max_value=2030, key="edit_ref_anio")
-            
+
             with col2:
                 ref_tomo = st.text_input("Volume", key="edit_ref_tomo")
                 ref_edicion = st.text_input("Edition", key="edit_ref_edicion")
                 ref_paginas = st.text_input("Pages", key="edit_ref_paginas")
                 ref_capitulo = st.text_input("Chapter", key="edit_ref_capitulo")
-            
+
             ref_seccion = st.text_input("Section", key="edit_ref_seccion")
             ref_editorial = st.text_input("Publisher", key="edit_ref_editorial")
             ref_doi = st.text_input("DOI", key="edit_ref_doi")
@@ -1948,28 +1988,30 @@ elif page == "✏️ Edit Concept":
             ref_issbn = st.text_input("ISBN", key="edit_ref_issbn")
             # Optional citekey used for bibliography export (Quarto/Pandoc).
             st.text_input("Citekey (opcional)", key="edit_ref_citekey")
-        
+
         # Teaching context
         st.subheader("🎓 Teaching Context")
         current_context = st.session_state.edit_contexto_docente
-        
+
         with st.expander("Edit Teaching Context", expanded=bool(current_context)):
             col1, col2 = st.columns(2)
             with col1:
                 nivel_contexto = st.selectbox(
                     "Context Level", 
                     [n.value for n in NivelContexto],
-                    key="edit_nivel"
+                    key="edit_nivel",
+                )
             with col2:
                 grado_formalidad = st.selectbox(
-                    "Formality Degree", 
+                    "Formality Degree",
                     [g.value for g in GradoFormalidad],
-                    key="edit_formalidad"
-        
+                    key="edit_formalidad",
+                )
+
         # Technical metadata
         st.subheader("🔧 Technical Metadata")
         current_meta = st.session_state.edit_metadatos_tecnicos
-        
+
         with st.expander("Edit Technical Metadata", expanded=bool(current_meta)):
             col1, col2 = st.columns(2)
             with col1:
@@ -1977,32 +2019,35 @@ elif page == "✏️ Edit Concept":
                 incluye_demostracion = st.checkbox("Includes Proof", key="edit_demostracion")
                 es_definicion_operativa = st.checkbox("Is Operational Definition", key="edit_operativa")
                 es_concepto_fundamental = st.checkbox("Is Fundamental Concept", key="edit_fundamental")
-            
+
             with col2:
                 requiere_conceptos_previos = st.text_area(
                     "Required Previous Concepts", 
                     key="edit_previos"
+                )
                 incluye_ejemplo = st.checkbox("Includes Example", key="edit_ejemplo")
                 es_autocontenible = st.checkbox("Is Self-Contained", key="edit_autocontenible")
-            
+
             tipo_presentacion = st.selectbox(
                 "Presentation Type", 
                 [t.value for t in TipoPresentacion],
                 key="edit_presentacion"
+            )
             nivel_simbolico = st.selectbox(
                 "Symbolic Level", 
                 [n.value for n in NivelSimbolico],
                 key="edit_simbolico"
+            )
             tipo_aplicacion = st.multiselect(
                 "Application Type", 
                 [t.value for t in TipoAplicacion],
                 key="edit_aplicacion"
-        
+            )
         # Comment
         comentario = st.text_area(
             "Comment", 
             key="edit_comentario"
-        
+        )
         # Action buttons
         st.markdown("---")
         col1, col2, col3 = st.columns(3)
@@ -2073,7 +2118,7 @@ elif page == "✏️ Edit Concept":
                     db.concepts.update_one(
                         {"id": selected_concept['id'], "source": selected_concept['source']},
                         {"$set": concept_data}
-                    
+                    )
                     # Update LaTeX content
                     now = datetime.now()
                     db.latex_documents.update_one(
@@ -2084,6 +2129,7 @@ elif page == "✏️ Edit Concept":
                                 "ultima_actualizacion": now
                             }
                         }
+                    )
                     
                     st.success(f"✅ Concept '{concept_id}' updated successfully in {current_db}!")
                     st.balloons()
@@ -2124,9 +2170,9 @@ elif page == "✏️ Edit Concept":
                         "editorial": ref_editorial if ref_editorial else None,
                         "doi": ref_doi if ref_doi else None,
                         "url": ref_url if ref_url else None,
-                            "issbn": ref_issbn if ref_issbn else None,
-                            # NEW: Persist citekey at reference-level too.
-                            "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
+                        "issbn": ref_issbn if ref_issbn else None,
+                        # NEW: Persist citekey at reference-level too.
+                        "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
                 
                 # Generate and open PDF
@@ -2230,23 +2276,27 @@ elif page == "📚 Browse Concepts":
 
     selected_labels = st.multiselect(
         "Select concepts to export",
-        options=list(concept_id_map.keys())
+        options=list(concept_id_map.keys()),
+    )
 
 
     build_dir = st.text_input(
         "Quarto build directory",
-        value="quarto_book_build"
+        value="quarto_book_build",
+    )
 
 
     force_build = st.checkbox(
         "Overwrite existing build directory",
-        value=True
+        value=True,
+    )
 
     # MVP-B: LaTeX preflight (pdflatex compile check) before export
     preflight_compile = st.checkbox(
         "Preflight LaTeX (pdflatex compile check) before export",
         value=True,
-        help="Compiles each selected concept with pdflatex + miestilo.sty. Blocks export on fatal errors."
+        help="Compiles each selected concept with pdflatex + miestilo.sty. Blocks export on fatal errors.",
+    )
 
     if st.button("🚀 Export selected concepts to Quarto"):
         if not selected_labels:
@@ -2275,6 +2325,7 @@ elif page == "📚 Browse Concepts":
                     if not shutil.which("pdflatex"):
                         raise RuntimeError(
                             "pdflatex not found. Install TeX Live (texlive-latex-base) or disable the preflight checkbox."
+                        )
 
                     #miestilo_src = Path("templates_latex/miestilo.sty")
                     #if not miestilo_src.exists():
@@ -2282,14 +2333,14 @@ elif page == "📚 Browse Concepts":
                     miestilo_src = quarto_styles_dir / "miestilo.sty"
                     if not miestilo_src.exists():
                         raise FileNotFoundError(
-                            "miestilo.sty not found in templates_latex/ or quarto_book/styles/"
+                            "miestilo.sty not found in templates_latex/ or quarto_book/styles/")
 
                     #coloredtheorem_src = Path("templates_latex/coloredtheorem.sty")
                     #if not coloredtheorem_src.exists():
                     coloredtheorem_src = quarto_styles_dir / "coloredtheorem.sty"
                     if not coloredtheorem_src.exists():
                         raise FileNotFoundError(
-                            "coloredtheorem.sty not found in templates_latex/ or quarto_book/styles/"
+                            "coloredtheorem.sty not found in templates_latex/ or quarto_book/styles/")
 
 
                     failures: list[tuple[str, str, str]] = []
@@ -2315,7 +2366,9 @@ elif page == "📚 Browse Concepts":
                                 "\\begin{document}\n"
                                 + latex_body
                                 + "\n\\end{document}\n"
+                            )
                             (td_path / "main.tex").write_text(tex, encoding="utf-8")
+
 
                             proc = subprocess.run(
                                 [
@@ -2332,6 +2385,7 @@ elif page == "📚 Browse Concepts":
                                 encoding="utf-8",
                                 errors="replace",
                                 timeout=25,
+                            )
 
                             if proc.returncode != 0:
                                 log = proc.stdout or ""
@@ -2345,6 +2399,7 @@ elif page == "📚 Browse Concepts":
                     if failures:
                         st.error(
                             f"❌ LaTeX preflight failed for {len(failures)} concept(s). Export blocked."
+                        )
                         for key, title, tail in failures:
                             with st.expander(f"Preflight error: {title or key}"):
                                 st.code(tail)
@@ -2405,7 +2460,7 @@ elif page == "📚 Browse Concepts":
                                 st.write(f"• {rel.tipo}: {rel.hasta_id}@{rel.hasta_source}")
                         else:
                             st.write("No relations found.")
-                    
+
                     if st.button("🗑️ Delete", key=f"delete_{concept['id']}"):
                         if st.button("⚠️ Confirm Delete", key=f"confirm_{concept['id']}"):
                             db.concepts.delete_one({"id": concept['id'], "source": concept['source']})
@@ -2418,17 +2473,17 @@ elif page == "📚 Browse Concepts":
 # Manage Relations page
 elif page == "🔗 Manage Relations":
     st.title("🔗 Manage Concept Relations")
-    
+
     if db is None:
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
-    
+
     st.info(f"📊 Managing relations in: **{current_db}**")
-    
+
     # Import interactive graph manager
     from editor.interactive_graph import InteractiveGraphManager
     graph_manager = InteractiveGraphManager(db)
-    
+
     # Tab navigation for relations
     tab1, tab2, tab3 = st.tabs(["➕ Add New Relation", "✏️ Edit Relations", "📊 View Relations"])
 
@@ -2482,7 +2537,7 @@ elif page == "🔗 Manage Relations":
             # Filter concepts for "to" selection
             hasta_source_filter = st.selectbox("To Source", ["All"] + list(db.concepts.distinct("source")), key="hasta_source_filter")
             hasta_type_filter = st.selectbox("To Type", ["All"] + list(db.concepts.distinct("tipo")), key="hasta_type_filter")
-            
+
             # Build query for "to" concepts
             hasta_query = {}
             if hasta_source_filter != "All":
@@ -2546,6 +2601,7 @@ elif page == "🔗 Manage Relations":
                     <div style="opacity:0.85;margin-top:0.25rem"><b>ID:</b> {desde_id}</div>
                     </div>""",
                     unsafe_allow_html=True
+                )
             with mid_col:
                 st.markdown("**Relation**")
                 rel_symbol = {
@@ -2564,6 +2620,7 @@ elif page == "🔗 Manage Relations":
                     <div style="margin-top:0.25rem"><b>{tipo_relacion}</b></div>
                     </div>""",
                     unsafe_allow_html=True
+                )
             with b_col:
                 st.markdown("**B (To)**")
                 st.markdown(
@@ -2573,6 +2630,7 @@ elif page == "🔗 Manage Relations":
                     <div style="opacity:0.85;margin-top:0.25rem"><b>ID:</b> {hasta_id}</div>
                     </div>""",
                     unsafe_allow_html=True
+                )
 
             # Heuristic warnings
             warnings = []
@@ -2759,6 +2817,7 @@ elif page == "🔗 Manage Relations":
                     disabled=not include_context,
                     help="1 = neighbors, 2 = neighbors of neighbors, 3 = deeper context",
                     key="rel_preview_depth"
+                    )
 
             if include_context:
                 ctx_relations = list(db.relations.find({
@@ -2823,6 +2882,7 @@ elif page == "🔗 Manage Relations":
                                 ["Titles", "IDs", "Both"],
                                 horizontal=True,
                                 key="debug_display_mode"
+                            )
 
                             # 2) Index para resolver id@source -> titulo
                             def _node_key(cid: str, csrc: str) -> str:
@@ -2923,6 +2983,7 @@ elif page == "🔗 Manage Relations":
                             file_name="relation_preview_map.html",
                             mime="text/html",
                             key="download_preview_map_html",
+                        )
                         components.html(html, height=650, scrolling=False)
 
                 except Exception as e:
@@ -2946,6 +3007,7 @@ elif page == "🔗 Manage Relations":
                             hasta_source=hasta_source,
                             tipo=tipo_relacion,
                             descripcion=descripcion
+                        )
                         if relation:
                             st.success("✅ Relation added successfully!")
                             st.balloons()
@@ -3033,12 +3095,12 @@ elif page == "🔗 Manage Relations":
                             "Relation Type",
                             [t.value for t in TipoRelacion],
                             index=[t.value for t in TipoRelacion].index(rel['tipo']),
-                            key=f"edit_type_{i}"
+                            key=f"edit_type_{i}")
                     with col2:
                         new_desc = st.text_area(
                             "Description",
                             value=rel.get('descripcion', ''),
-                            key=f"edit_desc_{i}"
+                            key=f"edit_desc_{i}")
                     
                     # Action buttons
                     col1, col2, col3 = st.columns(3)
@@ -3055,6 +3117,7 @@ elif page == "🔗 Manage Relations":
                                             "descripcion": new_desc
                                         }
                                     }
+                                )
                                 st.success("✅ Relation updated successfully!")
                                 st.rerun()
                             except Exception as e:
@@ -3173,19 +3236,22 @@ elif page == "📊 Knowledge Graph":
             "Select Sources",
             db.concepts.distinct("source"),
             default=db.concepts.distinct("source")[:3] if db.concepts.distinct("source") else []
-        
+        )
+
         # Filter by concept types
         selected_types = st.multiselect(
             "Select Concept Types",
             ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"],
             default=["definicion", "teorema", "proposicion"]
-    
+        )
+
     with col2:
         # Filter by relation types
         selected_relations = st.multiselect(
             "Select Relation Types",
             [t.value for t in TipoRelacion],
             default=["implica", "deriva_de", "requiere_concepto"]
+        )
         
         max_depth = st.slider("Max Depth", 1, 5, 3)
     
@@ -3216,7 +3282,7 @@ elif page == "📊 Knowledge Graph":
                     grafo = GrafoConocimiento(concepts, relations)
                     grafo.construir_grafo(
                         tipos_relacion=selected_relations,
-                        tipos_concepto=selected_types
+                        tipos_concepto=selected_types)
 
                     # Export to HTML
                     html_file = "knowledge_graph.html"
@@ -3235,7 +3301,7 @@ elif page == "📊 Knowledge Graph":
                             label="📥 Download Graph HTML",
                             data=f.read(),
                             file_name="knowledge_graph.html",
-                            mime="text/html"
+                            mime="text/html")
                     
                     # Statistics
                     st.subheader("📊 Graph Statistics")
@@ -3418,3 +3484,4 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True
+)
