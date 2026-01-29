@@ -1506,7 +1506,7 @@ elif page == "➕ Add Concept":
                 concepto = ConceptoBase(**concept_data)
 
                 # Save to database
-                concepto_dict = concepto.model_dump(mode="python", exclude={"contenido_latex"}, exclude_none=True)
+                concepto_dict = build_concept_metadata(concepto)
 
                 db.concepts.update_one(
                     {"id": concepto.id, "source": source},
