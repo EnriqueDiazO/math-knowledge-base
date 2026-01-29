@@ -72,6 +72,23 @@
 }
 
 
+% Para cuadros blancos 
+\mdfdefinestyle{WhiteCard}{%
+  linecolor=black!15,
+  outerlinewidth=0.6pt,
+  roundcorner=8pt,
+  backgroundcolor=white,
+  innertopmargin=8pt,
+  innerbottommargin=8pt,
+  innerleftmargin=10pt,
+  innerrightmargin=10pt,
+  leftmargin=0pt,
+  rightmargin=0pt,
+  skipabove=10pt,
+  skipbelow=10pt
+}
+
+\newenvironment{card}{\begin{mdframed}[style=WhiteCard]}{\end{mdframed}}
 
 % 1. Contexto / Situación
 \newtcolorbox{context}{
