@@ -80,7 +80,6 @@ def _bib_to_referencia(entry: dict) -> dict:
     issbn = get("isbn") or get("issn")  # OJO: en tu modelo el campo se llama "issbn"
 
     return {
-        "tipo_referencia": tipo_ref,
         "autor": autores_str,
         "fuente": fuente,
         "anio": anio,
@@ -1508,10 +1507,17 @@ elif page == "➕ Add Concept":
 
                 # Save to database
                 if concept_exists(db, concepto.id, source):
+                    existing = db.concepts.find_one(
+                        {"id": concepto.id, "source": source},
+                        {"_id": 1, "id": 1, "source": 1, "titulo": 1, "fecha_creacion": 1, "ultima_actualizacion": 1}
+                    )
+                    st.warning("⚠️ Este concepto ya existe. Usa ✏️ Edit Concept o cambia el ID.")
+                    if existing:
+                        st.json(existing)
                     return
                 concepto_dict = build_concept_metadata(concepto)
 
-                upsert_concept_metadata(db, concepto.id, source, concepto_dict) # REPLACED: 
+                upsert_concept_metadata(db, concepto.id, source, concepto_dict) 
 
                 # Save LaTeX content
                 now = datetime.now()
