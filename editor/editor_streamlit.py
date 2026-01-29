@@ -35,6 +35,9 @@ from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
 from editor.helpers.tipo_simbolico import NivelSimbolico
 from editor.helpers.tipo_titulo import TipoTitulo
+from editor.utils.db_export import export_database_to_zip
+from editor.utils.db_import import import_zip_into_database
+from editor.utils.db_import import inspect_export_zip
 from editor.validators.concept_validator import validate_new_concept_identity
 from editor.validators.concept_validator import validate_semantic_duplicate
 from exporters_latex.exportadorlatex import ExportadorLatex
@@ -413,7 +416,7 @@ def _cuaderno_is_installed(conn) -> bool:
 
 page = st.sidebar.selectbox(
     "Navigation",
-    ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📤 Export", "⚙️ Settings"]
+    ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📤 Export", "📦 Database Export","📥 Database Import", "⚙️ Settings"]
 )
 # Experimental navigation (optional)
 _exp_options = ["(none)"]
@@ -3491,6 +3494,84 @@ elif page == "⚙️ Settings":
     st.write("**Author:** Enrique Díaz Ocampo")
     st.write("**License:** MIT")
 
+elif page == "📦 Database Export":
+    st.header("📦 Database Export")
+    st.markdown(
+        """
+        Export the full Math Knowledge Base database as a ZIP archive.
+        This operation is **read-only** and does not modify the database.
+        """
+    )
+    if st.button("📦 Export database"):
+        with st.spinner("Exporting database..."):
+            try:
+                out_dir = Path.home() / "mathkb_backups"
+                out_dir.mkdir(exist_ok=True)
+                zip_path = export_database_to_zip(db, out_dir)
+                st.success("Export completed successfully")
+                with open(zip_path, "rb") as f:
+                    st.download_button(
+                        label="⬇️ Download ZIP",
+                        data=f,
+                        file_name=zip_path.name,
+                        mime="application/zip",
+                    )
+            except Exception as e:
+                st.error(f"Export failed: {e}")
+
+
+elif page == "📥 Database Import":
+    st.header("📥 Database Import")
+
+    uploaded_file = st.file_uploader(
+        "Upload database export (.zip)",
+        type=["zip"]
+    )
+
+    if uploaded_file:
+        tmp_path = Path("/tmp") / uploaded_file.name
+        with open(tmp_path, "wb") as f:
+            f.write(uploaded_file.getbuffer())
+
+        try:
+            info = inspect_export_zip(tmp_path)
+
+            st.subheader("Preview")
+            st.write(f"Exported at: {info['metadata'].get('exported_at')}")
+            st.write("Collections:")
+
+            for coll, count in info["collections"].items():
+                st.write(f"- {coll}: {count}")
+
+            st.success("Export looks valid.")
+
+            st.divider()
+
+            st.subheader("Import")
+
+            new_db_name = st.text_input(
+                "New database name",
+                placeholder="e.g. MathV1"
+            )
+
+            if new_db_name:
+                if st.button("🚀 Import into new database"):
+                    try:
+                        new_mongo = MathMongo(db_name=new_db_name)
+                        import_zip_into_database(tmp_path, new_mongo)
+                        st.success(
+                            f"Database '{new_db_name}' created successfully."
+                        )
+                    except Exception as e:
+                        st.error(f"Import failed: {e}")
+
+
+
+
+        except Exception as e:
+            st.error(f"Invalid export: {e}")
+
+
 # Footer
 st.markdown("---")
 st.markdown(
@@ -3500,3 +3581,4 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True)
+

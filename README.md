@@ -149,6 +149,90 @@ You can add references using standard BibTeX format:
 }
 ```
 
+## 🔁 Database Export & Import (Portability and Versioning)
+
+Math Knowledge Base includes **explicit database export and import capabilities**, designed to support **portability, versioning, backups, and long-term reproducibility**.
+
+These features are intentionally **manual and explicit**: no automatic synchronization or silent overwrites are performed.
+
+---
+
+### 📤 Database Export
+
+The application allows exporting the **entire MongoDB database** used by Math Knowledge Base into a single ZIP archive.
+
+**Key characteristics:**
+
+- Export is **read-only** and does not modify the database.
+- All collections are exported as **JSON files**, one file per collection.
+- MongoDB-specific types are safely normalized:
+  - `ObjectId` → string
+  - `datetime` → ISO 8601 strings
+- A `metadata.json` file is included, containing:
+  - Export timestamp
+  - Collection names and document counts
+
+This makes the export:
+- Fully versionable (e.g. via Git or external storage),
+- Portable across machines,
+- Independent of the runtime environment.
+
+Typical use cases include:
+- Creating snapshots before major refactors,
+- Sharing datasets between machines,
+- Long-term archival of research states.
+
+---
+
+### 📥 Database Import (Create-New-Database Only)
+
+The import mechanism is intentionally conservative.
+
+**Important design rule:**
+> Imports always create or populate a **new MongoDB database**.  
+> Existing databases are never overwritten automatically.
+
+**Import workflow:**
+
+1. Upload a previously exported ZIP archive.
+2. The system **inspects the archive** before importing:
+   - Validates format
+   - Displays collection names and document counts
+3. The user explicitly specifies a **new database name**.
+4. Only after confirmation, the data is imported into that new database.
+
+This design:
+- Prevents accidental data loss,
+- Enables side-by-side comparison of database versions,
+- Supports safe experimentation and rollback.
+
+---
+
+### 🧠 Recommended Naming Convention
+
+While MongoDB allows arbitrary database names, the following convention is recommended:
+
+- `MathV0` — primary active database
+- `MathV0_snapshot_YYYYMMDD` — frozen snapshots
+- `MathV0_import_YYYYMMDD` — imported states
+- `Math_exp_<topic>` — experimental or research-specific databases
+
+Adopting explicit naming conventions improves traceability and reduces cognitive overhead when working with multiple database versions.
+
+---
+
+### 🎯 Design Philosophy
+
+Database export and import are treated as **first-class operations**, not hidden utilities.
+
+The goal is to ensure that:
+- Every database state is explainable,
+- Transitions between states are intentional,
+- Mathematical knowledge remains durable beyond a single machine or session.
+
+This approach favors **correctness, transparency, and reproducibility** over automation.
+
+
 
 
 ## 🆕 Recent Additions to the Math Knowledge Base (January 21, 2026)
