@@ -26,7 +26,7 @@ from schemas.schemas import ConceptoBase
 from editor.helpers.tipo_presentacion import TipoPresentacion
 from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
-from schemas.schemas import TipoTitulo
+from editor.helpers.tipo_titulo import TipoTitulo
 from visualizations.grafoconocimiento import GrafoConocimiento
 
 # OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
