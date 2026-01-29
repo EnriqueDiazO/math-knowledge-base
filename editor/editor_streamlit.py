@@ -1517,7 +1517,7 @@ elif page == "➕ Add Concept":
                     return
                 concepto_dict = build_concept_metadata(concepto)
 
-                upsert_concept_metadata(db, concepto.id, source, concepto_dict) 
+                insert_concept_metadata(db, concepto.id, source, concepto_dict) 
 
                 # Save LaTeX content
                 now = datetime.now()
