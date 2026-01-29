@@ -35,3 +35,39 @@ def insert_concept_metadata(db, concept_id: str, source: str, concepto_dict: dic
     doc["id"] = concept_id
     doc["source"] = source
     db.concepts.insert_one(doc)
+
+
+def insert_concept_with_latex_atomic(
+    db,
+    concept_id: str,
+    source: str,
+    concepto_dict: dict,
+    contenido_latex: str,
+    now,
+) -> None:
+    """
+    Best-effort atomic insert across concepts and latex_documents.
+
+    Strategy:
+    1) Insert metadata into concepts (insert-only)
+    2) Insert LaTeX into latex_documents (insert-only)
+    3) If step (2) fails, rollback step (1)
+    """
+    doc = dict(concepto_dict)
+    doc["id"] = concept_id
+    doc["source"] = source
+
+    try:
+        db.concepts.insert_one(doc)
+        db.latex_documents.insert_one(
+            {
+                "id": concept_id,
+                "source": source,
+                "contenido_latex": contenido_latex,
+                "fecha_creacion": now,
+                "ultima_actualizacion": now,
+            }
+        )
+    except Exception:
+        db.concepts.delete_one({"id": concept_id, "source": source})
+        raise
