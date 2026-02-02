@@ -3138,7 +3138,6 @@ elif page == "🔗 Manage Relations":
                                     }
                                 )
                                 st.success("✅ Relation updated successfully!")
-                                st.rerun()
                             except Exception as e:
                                 st.error(f"❌ Error updating relation: {e}")
 
@@ -3147,11 +3146,25 @@ elif page == "🔗 Manage Relations":
                             st.rerun()
 
                     with col3:
-                        if st.button("🗑️ Delete", key=f"delete_rel_{i}"):
-                            if st.button("⚠️ Confirm Delete", key=f"confirm_delete_rel_{i}"):
+                        delete_btn_key = f"delete_btn_{i}"
+                        confirm_state_key = f"confirm_delete_state_{i}"
+                        confirm_btn_key = f"confirm_delete_btn_{i}"
+
+
+
+                        if confirm_state_key not in st.session_state:
+                            st.session_state[confirm_state_key] = False
+
+                        if st.button("🗑️ Delete", key=delete_btn_key):
+                            st.session_state[confirm_state_key] = True
+
+                        if st.session_state[confirm_state_key]:
+                            st.warning("⚠️ This action is irreversible. Confirm deletion.")
+                            if st.button("❌ Confirm Delete", key=confirm_btn_key):
                                 try:
                                     db.relations.delete_one({"_id": rel["_id"]})
                                     st.success("✅ Relation deleted successfully!")
+                                    st.session_state.pop(confirm_state_key, None)
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"❌ Error deleting relation: {e}")
