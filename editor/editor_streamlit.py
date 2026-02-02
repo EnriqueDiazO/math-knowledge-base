@@ -3312,7 +3312,7 @@ elif page == "📊 Knowledge Graph":
                         html_content = f.read()
 
                     st.subheader("🎯 Interactive Knowledge Graph")
-                    st.components.v1.html(html_content, height=600)
+                    st.components.v1.html(html_content, height=800)
 
                     # Download link
                     with open(html_file, 'r', encoding='utf-8') as f:
