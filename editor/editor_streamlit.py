@@ -929,7 +929,7 @@ elif page == "➕ Add Concept":
         st.stop()
 
     st.info(f"📊 Adding concept to: **{current_db}**")
-
+    st.markdown("### 📘 Concept Type")
     # Concept type selection
     concept_type = st.selectbox(
         "Concept Type",
