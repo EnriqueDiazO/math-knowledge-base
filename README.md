@@ -133,7 +133,7 @@ If you want to add a desktop shortcut, run the following from the repository roo
 ```bash
 chmod +x scripts/make_desktop_shortcut.sh
 ./scripts/make_desktop_shortcut.sh
-
+```
 
 ---
 
