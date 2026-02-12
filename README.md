@@ -128,6 +128,14 @@ make start
 make run
 ```
 
+
+If you want to add a desktop shortcut, run the following from the repository root: 
+
+```bash
+chmod +x scripts/make_desktop_shortcut.sh
+./scripts/make_desktop_shortcut.sh
+```
+
 If you wish to explore the *Cuaderno* close the app and now  
 ```
 # 
