@@ -142,6 +142,26 @@ If you wish to explore the *Cuaderno* close the app and now
 python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db mathmongo
 ```
 Then rerun the APP.
+
+# Updating a Database (MathV0)
+
+To update a database, follow these steps:
+
+1. In the database you want to update, go to **Navigation → Settings**.
+
+2. Select **Clear All Data**.  
+   This will delete all existing content while keeping the database name **MathV0**.
+
+3. Then go to **Database Import** and import the database using the name **MathV0**.  
+   Fill in all required fields, and make sure you use the name **MathV0**.
+
+4. To enable notebook mode, run the following command in your terminal:
+
+   ```bash
+   python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
+   ```
+
+
 ---
 
 ## 📚 Adding References
