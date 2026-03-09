@@ -3465,19 +3465,39 @@ elif page == "⚙️ Settings":
     # Database operations
     st.subheader("🗄️ Database Operations")
 
+    if "confirm_clear_all" not in st.session_state:
+        st.session_state.confirm_clear_all = False
+
     col1, col2 = st.columns(2)
 
     with col1:
-        if st.button("🧹 Clear All Data", type="secondary"):
-            if st.button("⚠️ Confirm Clear All", type="primary"):
-                db.concepts.delete_many({})
-                db.relations.delete_many({})
-                db.latex_documents.delete_many({})
-                st.success("✅ All data cleared!")
+        if not st.session_state.confirm_clear_all:
+            if st.button("🧹 Clear All Data", type="secondary", key="clear_all_data_btn"):
+                st.session_state.confirm_clear_all = True
                 st.rerun()
+        else:
+            st.warning("⚠️ This will permanently delete all concepts, relations, and LaTeX documents from the current database.")
+
+            c1, c2 = st.columns(2)
+
+            with c1:
+                 if st.button("⚠️ Confirm Clear All", type="primary", key="confirm_clear_all_btn"):
+                    try:
+                        db.concepts.delete_many({})
+                        db.relations.delete_many({})
+                        db.latex_documents.delete_many({})
+                        st.session_state.confirm_clear_all = False
+                        st.success("✅ All data cleared!")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error clearing data: {e}")
+            with c2:
+                if st.button("Cancel", key="cancel_clear_all_btn"):
+                    st.session_state.confirm_clear_all = False
+                    st.rerun()
 
     with col2:
-        if st.button("📊 Rebuild Indexes"):
+        if st.button("📊 Rebuild Indexes", key="rebuild_indexes_btn"):
             try:
                 db.concepts.create_index([("id", 1), ("source", 1)], unique=True)
                 db.latex_documents.create_index([("id", 1), ("source", 1)], unique=True)
