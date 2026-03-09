@@ -44,10 +44,10 @@ class GrafoConocimiento:
         self.forma_por_tipo = {
             "definicion": "box",
             "teorema": "ellipse",
-            "proposicion": "diamond_svg",   # <- SVG
+            "proposicion": "box",
             "corolario": "triangleDown_svg",# <- SVG
             "lema": "triangle_svg",         # <- SVG
-            "ejemplo": "box",
+            "ejemplo": "diamond_svg",   # <- SVG
             "nota": "hexagon_svg",          # <- SVG
             "otro": "circle",
             "placeholder": "dot"
@@ -57,7 +57,7 @@ class GrafoConocimiento:
         # Importante: encodear para usarlo como data URI
         return "data:image/svg+xml;charset=utf-8," + urllib.parse.quote(svg)
 
-    def _estimate_text_width_px(self, lines: list[str], font_size: int = 14) -> int:
+    def _estimate_text_width_px(self, lines: list[str], font_size: int = 45) -> int:
         # Estimación razonable sin medir en canvas:
         # ~0.58em por carácter (depende de la fuente, pero funciona bien)
         if not lines:
@@ -70,10 +70,10 @@ class GrafoConocimiento:
         """kind: 'hexagon' | 'diamond' | 'triangle' | 'triangleDown'
         Devuelve un data URI (SVG) con el texto SIEMPRE dentro.
         """  # noqa: D205
-        font_size = 14
-        padding_x = 18
-        padding_y = 14
-        line_gap = 4
+        font_size = 45
+        padding_x = 22
+        padding_y = 18
+        line_gap = 6
 
         lines = wrapped_label.split("\n") if wrapped_label else [""]
         text_w = self._estimate_text_width_px(lines, font_size=font_size)
@@ -84,8 +84,8 @@ class GrafoConocimiento:
         height = text_h + 2 * padding_y
 
         # límites por seguridad (evita nodos gigantes)
-        width = int(max(160, min(620, width)))
-        height = int(max(70, min(360, height)))
+        width = int(max(200, min(620, width)))
+        height = int(max(250, min(360, height)))
 
         stroke = "#6b7280"  # gris neutro
         stroke_w = 2
@@ -293,7 +293,7 @@ class GrafoConocimiento:
         """Genera un archivo HTML interactivo."""
         if size is None:
             size = self.MaxLengthLabel
-        net = Network(height="750px", width="100%", directed=True)
+        net = Network(height="100vh", width="100%", directed=True)
 
         for n, datos in self.G.nodes(data=True):
             raw_label = datos.get("label", n)
@@ -323,7 +323,7 @@ class GrafoConocimiento:
                     label="",
                     font={"size": 0, "color": "rgba(0,0,0,0)"},                # 👈 importante: NO string vacío
                     title=tipo,           # 👈 tooltip con texto humano
-                    size=30,   # ajusta 24–40
+                    size=38,   # ajusta 24–40
                     shapeProperties={"useImageSize": False}
                 )
             else:
@@ -335,7 +335,7 @@ class GrafoConocimiento:
                     title=tipo,
                     color=color,
                     shape=shape,
-                    font={"size": 14})
+                    font={"size": 18})
 
         for u, v, k, d in self.G.edges(keys=True, data=True):
             edge_len = 160
@@ -349,6 +349,173 @@ class GrafoConocimiento:
                          length=edge_len
                          )
 
-        net.show_buttons(filter_=["physics"])  # Panel para mover nodos
+        #net.show_buttons(filter_=["physics"])  # Panel para mover nodos
+        net.set_options("""
+{
+  "configure": {
+    "enabled": false
+  },
+  "physics": {
+    "enabled": true,
+    "stabilization": {
+      "enabled": false
+    },
+    "solver": "forceAtlas2Based",
+    "forceAtlas2Based": {
+      "gravitationalConstant": -50,
+      "centralGravity": 0.005,
+      "springLength": 150,
+      "springConstant": 0.15
+    }
+  },
+  "interaction": {
+    "hover": true,
+    "navigationButtons": false,
+    "keyboard": true,
+    "damping": 0.25
+  }
+}
+""")
+
         net.write_html(salida)
+        with open(salida, "r", encoding="utf-8") as f:
+            html = f.read()
+        
+        overlay = """
+<script>
+(function () {
+  function waitForNetwork() {
+    if (window.network && typeof window.network.setOptions === "function") {
+      window.mmNetwork = network;
+      console.log("✔ Network captured");
+      return;
+    }
+    setTimeout(waitForNetwork, 300);
+  }
+  waitForNetwork();
+})();
+
+
+function enablePhysics() {
+  if (!window.mmNetwork) return;
+  applyCurrentPhysics();
+}
+
+
+function freezePhysics() {
+  if (!window.mmNetwork) return;
+   mmNetwork.setOptions({ physics: { enabled: false } });
+}
+
+function applyCurrentPhysics() {
+  if (!window.mmNetwork) return;
+
+  const opts = {
+    enabled: true,
+    solver: "forceAtlas2Based",
+    forceAtlas2Based: {
+      gravitationalConstant: -Number(grav.value),
+      centralGravity: Number(central.value) / 100,
+      springLength: Number(springLen.value),
+      springConstant: Number(springConst.value) / 1000,
+      damping: Number(damping.value) / 100
+    },
+    maxVelocity: Number(maxVel.value),
+    minVelocity: Number(minVel.value) / 100,
+    timestep: Number(timestep.value) / 100
+  };
+
+  mmNetwork.setOptions({ physics: opts });
+}
+
+
+
+function resetPhysics() {
+  document.getElementById("grav").value = 50;
+  document.getElementById("central").value = 1;
+  document.getElementById("springLen").value = 140;
+  document.getElementById("springConst").value = 80;
+  document.getElementById("damping").value = 9;
+  document.getElementById("maxVel").value = 50;
+  document.getElementById("minVel").value = 10;
+  document.getElementById("timestep").value = 35;
+  applyCurrentPhysics();
+}
+</script>
+
+<style>
+#physics-overlay {
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  z-index: 9999;
+  background: rgba(255,255,255,0.96);
+  border: 1px solid #bbb;
+  border-radius: 10px;
+  padding: 12px;
+  font-family: Arial, sans-serif;
+  width: 240px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+}
+
+#physics-overlay h4 {
+  margin: 4px 0 8px;
+  font-size: 14px;
+  text-align: center;
+}
+
+#physics-overlay label {
+  font-size: 11px;
+  display: block;
+}
+
+#physics-overlay input[type=range] {
+  width: 100%;
+}
+
+#physics-overlay button {
+  width: 100%;
+  margin-top: 6px;
+}
+</style>
+
+<div id="physics-overlay">
+  <h4>🧲 Physics Controls</h4>
+
+  <label>Gravitational Constant</label>
+  <input id="grav" type="range" min="0" max="300" value="50" oninput="applyCurrentPhysics()">
+
+  <label>Central Gravity</label>
+  <input id="central" type="range" min="0" max="10" value="1" oninput="applyCurrentPhysics()">
+
+  <label>Spring Length</label>
+  <input id="springLen" type="range" min="50" max="400" value="20" oninput="applyCurrentPhysics()">
+
+  <label>Spring Constant</label>
+  <input id="springConst" type="range" min="10" max="200" value="20" oninput="applyCurrentPhysics()">
+
+  <label>Damping</label>
+  <input id="damping" type="range" min="0" max="100" value="9" oninput="applyCurrentPhysics()">
+
+  <label>Max Velocity</label>
+  <input id="maxVel" type="range" min="10" max="100" value="50" oninput="applyCurrentPhysics()">
+
+  <label>Min Velocity</label>
+  <input id="minVel" type="range" min="0" max="50" value="10" oninput="applyCurrentPhysics()">
+
+  <label>Timestep</label>
+  <input id="timestep" type="range" min="10" max="100" value="35" oninput="applyCurrentPhysics()">
+
+  <button onclick="enablePhysics()">▶ Activar</button>
+  <button onclick="freezePhysics()">📌 Congelar</button>
+  <button onclick="resetPhysics()">♻ Reset</button>
+</div>
+"""
+
+        
+        # Insert before closing body
+        if "</body>" in html:
+            html = html.replace("</body>", overlay + "\n</body>")
+        with open(salida, "w", encoding="utf-8") as f:
+            f.write(html)
         print(f"✅ Grafo exportado en: {salida}")

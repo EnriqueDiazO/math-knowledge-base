@@ -113,7 +113,7 @@ class InteractiveGraphManager:
         net.force_atlas_2based()
         
         # Enable physics and interaction
-        net.show_buttons(filter_=["physics"])
+        #net.show_buttons(filter_=["physics"])
         
         # For very small graphs, use a simple HTML fallback
         if len(concepts) <= 1 and len(relations) <= 1:
@@ -350,57 +350,37 @@ class InteractiveGraphManager:
         
         # Configure network options for better interactivity
         net.set_options("""
-        {
-          "physics": {
-            "forceAtlas2Based": {
-              "gravitationalConstant": -50,
-              "centralGravity": 0.01,
-              "springLength": 100,
-              "springConstant": 0.08
-            },
-            "maxVelocity": 50,
-            "minVelocity": 0.1,
-            "solver": "forceAtlas2Based",
-            "timestep": 0.35
-          },
-          "interaction": {
-            "hover": true,
-            "navigationButtons": true,
-            "keyboard": true,
-            "tooltipDelay": 200
-          },
-          "edges": {
-            "smooth": {
-              "type": "continuous"
-            },
-            "color": {
-              "inherit": false
-            },
-            "width": 3,
-            "arrows": {
-              "to": {
-                "enabled": true,
-                "scaleFactor": 1
-              }
-            }
-          },
-          "nodes": {
-            "font": {
-              "size": 12,
-              "face": "Arial"
-            },
-            "borderWidth": 2,
-            "borderColor": "#000000",
-            "shadow": {
-              "enabled": true,
-              "color": "rgba(0,0,0,0.3)",
-              "size": 10,
-              "x": 5,
-              "y": 5
-            }
-          }
-        }
-        """)
+{
+  "configure": {
+    "enabled": false
+  },
+
+  "physics": {
+    "enabled": false,
+    "stabilization": {
+      "enabled": false
+    }
+  },
+
+  "interaction": {
+    "hover": true,
+    "navigationButtons": false,
+    "keyboard": true
+  },
+
+  "edges": {
+    "smooth": {
+      "enabled": true,
+      "type": "dynamic"
+    }
+  }
+}
+""")
+
+
+
+
+
         
         # Generate unique filename
         graph_file = self.temp_dir / f"interactive_graph_{len(concepts)}_{len(relations)}.html"
@@ -478,13 +458,18 @@ class InteractiveGraphManager:
                         }}
                         #mynetwork {{
                             width: 100%;
-                            height: 400px;
+                            height: 800px;
                             border: 1px solid lightgray;
                             background: #f9f9f9;
                             display: flex;
                             align-items: center;
                             justify-content: center;
                             flex-direction: column;
+                        }}
+                        #config {{
+                            display: none !important;
+                            width: 0 !important;
+                            height: 0 !important;
                         }}
                     </style>
                 </head>
@@ -598,105 +583,92 @@ class InteractiveGraphManager:
         
         # Add interactive features and styling
         interactive_script = """
-        <script>
-        // Wait for the network to be ready
-        document.addEventListener('DOMContentLoaded', function() {
-            console.log('DOM loaded, looking for network container...');
-            
-            // Find the network container
-            var networkContainer = document.querySelector('#mynetwork');
-            if (networkContainer) {
-                console.log('Network container found');
-                
-                // Wait a bit for vis.js to initialize
-                setTimeout(function() {
-                    if (window.vis && window.vis.Network) {
-                        // Get the network instance
-                        var network = window.vis.Network.getNetwork(networkContainer);
-                        if (network) {
-                            console.log('Network instance found, adding event listeners');
-                            
-                            // Add click event listener
-                            network.on('click', function(params) {
-                                if (params.nodes.length > 0) {
-                                    var nodeId = params.nodes[0];
-                                    var node = network.body.data.nodes.get(nodeId);
-                                    
-                                    // Show tooltip with node info
-                                    showNodeTooltip(node, params.pointer.DOM);
-                                }
-                            });
-                            
-                            // Add hover event listener
-                            network.on('hoverNode', function(params) {
-                                var node = network.body.data.nodes.get(params.node);
-                                showNodeTooltip(node, params.event.center);
-                            });
-                            
-                            // Hide tooltip when not hovering
-                            network.on('blurNode', function(params) {
-                                hideNodeTooltip();
-                            });
-                            
-                            // Log network data for debugging
-                            console.log('Network data:', {
-                                nodes: network.body.data.nodes.length,
-                                edges: network.body.data.edges.length
-                            });
-                        } else {
-                            console.log('Network instance not found');
-                        }
-                    } else {
-                        console.log('vis.js not available');
+<script>
+(function() {
+    console.log("🔗 Injecting MathMongo overlay");
+
+    // Espera a que PyVis cree el objeto `network`
+    function waitForNetwork() {
+        if (typeof network !== "undefined") {
+            console.log("✅ PyVis network detected");
+            window.mmNetwork = network;  // alias seguro
+            initOverlay();
+        } else {
+            setTimeout(waitForNetwork, 300);
+        }
+    }
+
+    function initOverlay() {
+        console.log("🎛 Initializing physics overlay");
+
+        window.enablePhysics = function () {
+            if (!window.mmNetwork) return;
+            window.mmNetwork.setOptions({ physics: { enabled: true } });
+            window.mmNetwork.startSimulation();
+        };
+
+        window.freezeLayout = function () {
+            if (!window.mmNetwork) return;
+            window.mmNetwork.stopSimulation();
+            window.mmNetwork.setOptions({ physics: { enabled: false } });
+        };
+
+        window.setIntensity = function (value) {
+            if (!window.mmNetwork) return;
+            const k = value / 100;
+            window.mmNetwork.setOptions({
+                physics: {
+                    enabled: true,
+                    forceAtlas2Based: {
+                        gravitationalConstant: -20 - 150 * k,
+                        springLength: 250 - 150 * k
                     }
-                }, 1000);
-            } else {
-                console.log('Network container not found');
-            }
-        });
-        
-        // Tooltip functions
-        function showNodeTooltip(node, position) {
-            var tooltip = document.getElementById('node-tooltip');
-            if (!tooltip) {
-                tooltip = document.createElement('div');
-                tooltip.id = 'node-tooltip';
-                tooltip.style.cssText = `
-                    position: fixed;
-                    background: white;
-                    border: 1px solid #ccc;
-                    padding: 10px;
-                    border-radius: 5px;
-                    box-shadow: 0 2px 10px rgba(0,0,0,0.3);
-                    max-width: 300px;
-                    z-index: 1000;
-                    font-family: Arial, sans-serif;
-                    font-size: 12px;
-                    pointer-events: none;
-                `;
-                document.body.appendChild(tooltip);
-            }
-            
-            tooltip.innerHTML = node.title || 'No information available';
-            tooltip.style.left = (position.x + 10) + 'px';
-            tooltip.style.top = (position.y - 10) + 'px';
-            tooltip.style.display = 'block';
-        }
-        
-        function hideNodeTooltip() {
-            var tooltip = document.getElementById('node-tooltip');
-            if (tooltip) {
-                tooltip.style.display = 'none';
-            }
-        }
-        </script>
-        """
-        
+                }
+            });
+            window.mmNetwork.startSimulation();
+        };
+    }
+
+    waitForNetwork();
+})();
+</script>
+"""
+
+
+        physics_overlay_script = """
+<style>
+#physics-overlay {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  z-index: 2000;
+  background: rgba(255,255,255,0.92);
+  border: 1px solid #bbb;
+  border-radius: 6px;
+  padding: 8px;
+  font-family: Arial, sans-serif;
+  width: 160px;
+}
+#physics-overlay button {
+  width: 50%;
+  margin-bottom: 6px;
+}
+</style>
+
+<div id="physics-overlay">
+  <button onclick="enablePhysics()">▶️ Activar físicas</button>
+  <input type="range" min="0" max="100" value="30"
+         oninput="setIntensity(this.value)">
+  <button onclick="freezeLayout()">📌 Congelar</button>
+</div>
+"""
+
+
         # Add interactive features to the HTML
         if '</body>' in html_content:
             html_content = html_content.replace(
                 '</body>',
-                interactive_script + '</body>'
+                 interactive_script + physics_overlay_script + '</body>'
             )
             #st.info("✅ Interactive script added to HTML")
         else:
@@ -705,15 +677,22 @@ class InteractiveGraphManager:
         # Add Streamlit-specific styling and tips
         if '</body>' in html_content:
             html_content = html_content.replace(
-                '</body>',
-                '''
-                <div style="margin-top: 10px; font-size: 12px; color: #666; text-align: center;">
-                </div>
-                </body>
-                ''')
+    "</head>",
+    """
+    <style>
+    #config {
+        display: none !important;
+        width: 0 !important;
+        height: 0 !important;
+        visibility: hidden !important;
+    }
+    </style>
+    </head>
+    """
+)
             #st.info("✅ Tips injected before </body>")
-        else:
-            st.warning("⚠️ Could not find network container to add tips")
+        #else:
+        #    st.warning("⚠️ Could not find network container to add tips")
         
         # Debug: Show final HTML size
         #st.info(f"📄 Final HTML size: {len(html_content)} bytes")

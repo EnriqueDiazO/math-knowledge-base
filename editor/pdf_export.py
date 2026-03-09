@@ -55,7 +55,8 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
         
         # Compile LaTeX to PDF
         try:
-            result = subprocess.run(
+            for _ in range(2):
+                result = subprocess.run(
                 ['pdflatex', '-interaction=nonstopmode', '-output-directory', str(temp_path), str(tex_file)],
                 capture_output=True,
                 text=True,
