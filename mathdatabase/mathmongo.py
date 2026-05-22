@@ -114,6 +114,147 @@ class MathMongo:
             },
             upsert=False,
         )
+
+    def get_notebook_notes(self, query: Optional[dict] = None, limit: int = 100) -> list[dict]:
+        """Return latex diary notes from the experimental Cuaderno module."""
+        return list(
+            self.db["latex_notes"]
+            .find(query or {})
+            .sort([("date", -1), ("updated_at", -1)])
+            .limit(int(limit))
+        )
+
+    def get_notebook_note_by_id(self, note_id) -> Optional[dict]:
+        from bson import ObjectId
+
+        try:
+            doc = self.db["latex_notes"].find_one({"_id": ObjectId(str(note_id))})
+            if doc is not None:
+                return doc
+        except Exception:
+            pass
+        return self.db["latex_notes"].find_one({"_id": str(note_id)})
+
+    def create_notebook_note(self, note_data: dict):
+        now = datetime.now()
+        doc = dict(note_data)
+        doc.setdefault("created_at", now)
+        doc.setdefault("updated_at", now)
+        return self.db["latex_notes"].insert_one(doc)
+
+    def update_notebook_note(self, note_id, note_data: dict):
+        from bson import ObjectId
+
+        update = dict(note_data)
+        update["updated_at"] = datetime.now()
+        try:
+            res = self.db["latex_notes"].update_one({"_id": ObjectId(str(note_id))}, {"$set": update})
+            if getattr(res, "matched_count", 0) > 0:
+                return res
+        except Exception:
+            pass
+        return self.db["latex_notes"].update_one({"_id": str(note_id)}, {"$set": update})
+
+    def delete_notebook_note(self, note_id):
+        from bson import ObjectId
+
+        try:
+            res = self.db["latex_notes"].delete_one({"_id": ObjectId(str(note_id))})
+            if getattr(res, "deleted_count", 0) > 0:
+                return res
+        except Exception:
+            pass
+        return self.db["latex_notes"].delete_one({"_id": str(note_id)})
+
+    def get_notebook_projects(self) -> list[str]:
+        projects = {}
+        for project in self.db["latex_notes"].distinct("project"):
+            if not isinstance(project, str):
+                continue
+            clean = " ".join(project.split())
+            if clean:
+                projects.setdefault(clean.lower(), clean)
+        return sorted(projects.values(), key=str.lower)
+
+    def get_notes_by_project(self, project_name: str) -> list[dict]:
+        clean = " ".join((project_name or "").split())
+        if not clean:
+            query = {"$or": [{"project": ""}, {"project": None}, {"project": {"$exists": False}}]}
+        else:
+            query = {"project": clean}
+        return self.get_notebook_notes(query=query, limit=500)
+
+    def get_project_note_counts(self) -> list[dict]:
+        pipeline = [
+            {
+                "$project": {
+                    "project": {
+                        "$cond": [
+                            {"$or": [{"$eq": ["$project", ""]}, {"$eq": ["$project", None]}]},
+                            "Sin proyecto",
+                            "$project",
+                        ]
+                    },
+                    "updated_at": 1,
+                    "context": 1,
+                    "tags": 1,
+                }
+            },
+            {
+                "$group": {
+                    "_id": "$project",
+                    "count": {"$sum": 1},
+                    "last_updated": {"$max": "$updated_at"},
+                    "contexts": {"$addToSet": "$context"},
+                    "tags": {"$push": "$tags"},
+                }
+            },
+            {"$sort": {"count": -1, "_id": 1}},
+        ]
+        return [
+            {
+                "project": item.get("_id") or "Sin proyecto",
+                "count": item.get("count", 0),
+                "last_updated": item.get("last_updated"),
+                "contexts": item.get("contexts", []),
+                "tags": item.get("tags", []),
+            }
+            for item in self.db["latex_notes"].aggregate(pipeline)
+        ]
+
+    def get_notebook_contexts(self) -> list[str]:
+        return sorted(
+            {
+                c
+                for c in self.db["latex_notes"].distinct("context")
+                if isinstance(c, str) and c.strip()
+            },
+            key=str.lower,
+        )
+
+    def get_notebook_tags(self) -> list[str]:
+        return sorted(
+            {
+                tag
+                for tag in self.db["latex_notes"].distinct("tags")
+                if isinstance(tag, str) and tag.strip()
+            },
+            key=str.lower,
+        )
+
+    def get_notebook_dates_summary(self) -> list[dict]:
+        pipeline = [
+            {"$group": {"_id": "$date", "count": {"$sum": 1}}},
+            {"$sort": {"_id": -1}},
+        ]
+        return [{"date": item.get("_id"), "count": item.get("count", 0)} for item in self.db["latex_notes"].aggregate(pipeline)]
+
+    def get_notebook_notes_by_date(self, date_str: str) -> list[dict]:
+        return self.get_notebook_notes(query={"date": date_str}, limit=500)
+
+    def get_notebook_notes_by_month(self, year: int, month: int) -> list[dict]:
+        prefix = f"{int(year):04d}-{int(month):02d}-"
+        return self.get_notebook_notes(query={"date": {"$regex": f"^{prefix}"}}, limit=1000)
     
     def add_relation(
             self,

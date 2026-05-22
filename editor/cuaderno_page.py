@@ -8,7 +8,9 @@ from __future__ import annotations
 
 import os
 import re
+import calendar
 from collections import Counter
+from collections import defaultdict
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -104,12 +106,612 @@ def _parse_tags_csv(s: str) -> List[str]:
     return [p for p in parts if p]
 
 
+def _normalize_project_name(project: str) -> str:
+    return re.sub(r"\s+", " ", (project or "").strip())
+
+
+def _normalize_tags(tags_raw: str) -> List[str]:
+    seen = set()
+    tags = []
+    for tag in _parse_tags_csv(tags_raw):
+        key = tag.lower()
+        if key not in seen:
+            seen.add(key)
+            tags.append(tag)
+    return tags
+
+
 def _note_label(doc: Dict[str, Any]) -> str:
     d = doc.get("date") or ""
     title = doc.get("title") or "(sin título)"
     proj = doc.get("project") or "—"
     ctx = doc.get("context") or "—"
     return f"{d} — {title}  ·  {proj} / {ctx}"
+
+
+def _note_id(doc: Dict[str, Any]) -> str:
+    return str(doc.get("_id") or "")
+
+
+def _delete_one_by_id(coll, id_value):
+    if id_value is None:
+        return None
+    s = str(id_value)
+    try:
+        oid = ObjectId(s)
+        res = coll.delete_one({"_id": oid})
+        if getattr(res, "deleted_count", 0) > 0:
+            return res
+    except Exception:
+        pass
+    try:
+        return coll.delete_one({"_id": s})
+    except Exception:
+        return None
+
+
+def _existing_note_projects(notes_col) -> List[str]:
+    try:
+        raw = notes_col.distinct("project")
+    except Exception:
+        raw = []
+    normalized: Dict[str, str] = {}
+    for project in raw:
+        if not isinstance(project, str):
+            continue
+        clean = _normalize_project_name(project)
+        if not clean:
+            continue
+        normalized.setdefault(clean.lower(), clean)
+    return sorted(normalized.values(), key=str.lower)
+
+
+def _existing_note_contexts(notes_col) -> List[str]:
+    try:
+        raw = notes_col.distinct("context")
+    except Exception:
+        raw = []
+    defaults = ["estudio", "debug", "lectura", "idea", "reflexion"]
+    values = [v for v in raw if isinstance(v, str) and v.strip()]
+    merged = list(dict.fromkeys(defaults + sorted(values, key=str.lower)))
+    return merged
+
+
+def _existing_note_tags(notes_col) -> List[str]:
+    try:
+        raw = notes_col.distinct("tags")
+    except Exception:
+        raw = []
+    tags = [t for t in raw if isinstance(t, str) and t.strip()]
+    return sorted(set(tags), key=str.lower)
+
+
+def _project_selector(notes_col, key_prefix: str, label: str, default: str = "") -> str:
+    projects = _existing_note_projects(notes_col)
+    clean_default = _normalize_project_name(default)
+    choices = ["(sin proyecto)", "Escribir proyecto nuevo"] + projects
+    default_index = 0
+    if clean_default:
+        matches = [p for p in projects if p.lower() == clean_default.lower()]
+        if matches:
+            default_index = choices.index(matches[0])
+        else:
+            default_index = 1
+
+    choice = st.selectbox(label, choices, index=default_index, key=f"{key_prefix}_project_choice")
+    if choice == "(sin proyecto)":
+        return ""
+    if choice == "Escribir proyecto nuevo":
+        return _normalize_project_name(
+            st.text_input("Proyecto nuevo", value=clean_default, key=f"{key_prefix}_project_new")
+        )
+    return _normalize_project_name(choice)
+
+
+def _build_notes_query(
+    text_q: str = "",
+    project: str = "(all)",
+    context: str = "(all)",
+    tags: Optional[List[str]] = None,
+    start_date: Optional[date] = None,
+    end_date: Optional[date] = None,
+    year: str = "(all)",
+    month: str = "(all)",
+    updated_recently: bool = False,
+) -> Dict[str, Any]:
+    q: Dict[str, Any] = {}
+    and_terms = []
+    if project not in ("(all)", None):
+        if project == "(sin proyecto)":
+            q["$or"] = [{"project": ""}, {"project": {"$exists": False}}, {"project": None}]
+        else:
+            q["project"] = project
+    if context != "(all)":
+        q["context"] = context
+    if tags:
+        q["tags"] = {"$all": tags}
+    if start_date and end_date:
+        q["date"] = {"$gte": start_date.strftime("%Y-%m-%d"), "$lte": end_date.strftime("%Y-%m-%d")}
+    if year != "(all)":
+        and_terms.append({"date": {"$regex": f"^{re.escape(str(year))}-"}})
+    if month != "(all)" and year != "(all)":
+        and_terms.append({"date": {"$regex": f"^{re.escape(str(year))}-{int(month):02d}-"}})
+    if text_q.strip():
+        rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
+        and_terms.append({"$or": [{"title": rx}, {"latex_body": rx}]})
+    if updated_recently:
+        cutoff = datetime.utcnow() - timedelta(days=7)
+        q["updated_at"] = {"$gte": cutoff}
+    if and_terms:
+        q["$and"] = and_terms
+    return q
+
+
+def _load_notes(notes_col, query: Dict[str, Any], limit: int = 50) -> List[Dict[str, Any]]:
+    return list(
+        notes_col.find(query)
+        .sort([("date", -1), ("updated_at", -1)])
+        .limit(int(limit))
+    )
+
+
+def _render_note_summary(note: Dict[str, Any]) -> None:
+    tags = ", ".join(note.get("tags") or [])
+    meta = [
+        note.get("date") or "sin fecha",
+        note.get("project") or "Sin proyecto",
+        note.get("context") or "sin contexto",
+    ]
+    if tags:
+        meta.append(tags)
+    st.caption(" · ".join(meta))
+
+
+def _select_note(note_id: str, mode: str = "read") -> None:
+    st.session_state["diary_selected_note_id"] = note_id
+    st.session_state["diary_selected_mode"] = mode
+
+
+def _render_compact_note_rows(notes_col, notes: List[Dict[str, Any]], key_prefix: str) -> None:
+    if not notes:
+        st.info("No hay notas para este filtro.")
+        return
+    for idx, note in enumerate(notes):
+        nid = _note_id(note)
+        cols = st.columns([2, 5, 2, 2, 1, 1])
+        cols[0].write(note.get("date") or "")
+        cols[1].write(note.get("title") or "(sin título)")
+        cols[2].write(note.get("project") or "Sin proyecto")
+        cols[3].write(note.get("context") or "—")
+        if cols[4].button("Ver", key=f"{key_prefix}_view_{nid}_{idx}"):
+            _select_note(nid, "read")
+            st.rerun()
+        if cols[5].button("Editar", key=f"{key_prefix}_edit_{nid}_{idx}"):
+            _select_note(nid, "edit")
+            st.rerun()
+
+
+def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader") -> None:
+    note = _find_one_by_id(notes_col, note_id)
+    if not note:
+        st.warning("No se pudo cargar la nota seleccionada.")
+        return
+    st.markdown(f"### {note.get('title') or '(sin título)'}")
+    _render_note_summary(note)
+    meta_visible = st.checkbox("Mostrar metadatos", value=False, key=f"{key_prefix}_meta_{note_id}")
+    if meta_visible:
+        st.json(
+            {
+                "id": _note_id(note),
+                "created_at": str(note.get("created_at") or ""),
+                "updated_at": str(note.get("updated_at") or ""),
+                "tags": note.get("tags") or [],
+            }
+        )
+    latex_body = note.get("latex_body") or ""
+    st.code(latex_body, language="latex")
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Editar esta nota", key=f"{key_prefix}_edit_{note_id}"):
+            _select_note(note_id, "edit")
+            st.rerun()
+    with c2:
+        st.download_button(
+            "Copiar/descargar LaTeX",
+            data=latex_body,
+            file_name=f"latex_note_{note_id}.tex",
+            mime="text/x-tex",
+            key=f"{key_prefix}_latex_{note_id}",
+        )
+    with c3:
+        if st.button("Cerrar", key=f"{key_prefix}_close_{note_id}"):
+            st.session_state.pop("diary_selected_note_id", None)
+            st.session_state.pop("diary_selected_mode", None)
+            st.rerun()
+
+
+def _load_note_into_editor(note: Dict[str, Any], prefix: str) -> None:
+    keys = _get_editor_keys(prefix)
+    current_id = str(note.get("_id"))
+    if st.session_state.get(keys["loaded_id"]) == current_id:
+        return
+    st.session_state[keys["loaded_id"]] = current_id
+    st.session_state[f"{prefix}_title"] = note.get("title") or ""
+    try:
+        st.session_state[f"{prefix}_date"] = datetime.strptime(note.get("date") or "", "%Y-%m-%d").date()
+    except Exception:
+        st.session_state[f"{prefix}_date"] = date.today()
+    st.session_state[f"{prefix}_context"] = note.get("context") or "estudio"
+    st.session_state[f"{prefix}_tags"] = ", ".join(note.get("tags") or [])
+    st.session_state.pop(f"{prefix}_project_choice", None)
+    st.session_state.pop(f"{prefix}_project_new", None)
+    st.session_state[keys["text"]] = note.get("latex_body") or ""
+    st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
+
+
+def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor") -> None:
+    note = _find_one_by_id(notes_col, note_id)
+    if not note:
+        st.warning("No se pudo cargar la nota seleccionada.")
+        return
+    safe_note_id = re.sub(r"[^A-Za-z0-9_]+", "_", str(note_id))
+    widget_prefix = f"{key_prefix}_{safe_note_id}"
+    edit_prefix = f"{widget_prefix}_body"
+    _load_note_into_editor(note, edit_prefix)
+    contexts = _existing_note_contexts(notes_col)
+
+    st.markdown(f"### Editar: {note.get('title') or '(sin título)'}")
+    e1, e2 = st.columns([2, 1])
+    with e1:
+        e_title = st.text_input("Título", key=f"{edit_prefix}_title")
+    with e2:
+        e_date = st.date_input("Fecha", key=f"{edit_prefix}_date")
+        e_project = _project_selector(notes_col, edit_prefix, "Proyecto (opcional)", note.get("project") or "")
+        current_context = st.session_state.get(f"{edit_prefix}_context", "estudio")
+        e_context = st.selectbox(
+            "Contexto",
+            options=contexts,
+            index=contexts.index(current_context) if current_context in contexts else 0,
+            key=f"{edit_prefix}_context",
+        )
+        e_tags_raw = st.text_input("Tags (comma-separated)", key=f"{edit_prefix}_tags")
+
+    with st.expander("Herramientas LaTeX", expanded=False):
+        _render_latex_toolbar(prefix=edit_prefix)
+    e_latex = _render_latex_ace_editor(prefix=edit_prefix, initial_text=note.get("latex_body") or "", height=460)
+
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        if st.button("Guardar cambios", key=f"{edit_prefix}_save"):
+            if not (e_title or "").strip():
+                st.error("⚠️ El título es obligatorio.")
+            elif not (e_latex or "").strip():
+                st.warning("El cuerpo LaTeX está vacío.")
+            else:
+                upd = {
+                    "title": e_title.strip(),
+                    "date": e_date.strftime("%Y-%m-%d"),
+                    "project": _normalize_project_name(e_project),
+                    "context": e_context,
+                    "tags": _normalize_tags(e_tags_raw),
+                    "latex_body": e_latex,
+                    "updated_at": datetime.utcnow(),
+                }
+                try:
+                    _update_one_by_id(notes_col, note_id, {"$set": upd})
+                    st.success("✅ Nota actualizada.")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Error actualizando nota: {e}")
+    with c2:
+        if st.button("Cancelar", key=f"{edit_prefix}_cancel"):
+            _select_note(note_id, "read")
+            st.rerun()
+    with c3:
+        with st.popover("Borrar"):
+            confirm = st.checkbox("Estoy seguro", key=f"{edit_prefix}_delete_confirm")
+            typed = st.text_input("Escribe BORRAR", value="", key=f"{edit_prefix}_delete_typed")
+            if st.button("Borrar definitivamente", key=f"{edit_prefix}_delete"):
+                if not confirm or typed.strip().upper() != "BORRAR":
+                    st.error("Confirmación incompleta.")
+                else:
+                    res = _delete_one_by_id(notes_col, note_id)
+                    if res is not None and getattr(res, "deleted_count", 0) > 0:
+                        st.success("✅ Nota borrada.")
+                        st.session_state.pop("diary_selected_note_id", None)
+                        st.session_state.pop("diary_selected_mode", None)
+                        st.rerun()
+                    else:
+                        st.error("❌ No se pudo borrar la nota.")
+
+
+def _render_selected_note_panel(notes_col, key_prefix: str = "diary_selected") -> None:
+    note_id = st.session_state.get("diary_selected_note_id")
+    mode = st.session_state.get("diary_selected_mode", "read")
+    if not note_id:
+        return
+    st.divider()
+    if mode == "edit":
+        _render_note_editor(notes_col, note_id, key_prefix=f"{key_prefix}_editor")
+    else:
+        _render_note_reader(notes_col, note_id, key_prefix=f"{key_prefix}_reader")
+
+
+def _render_diary_new_note(notes_col) -> None:
+    st.markdown("### Nueva nota")
+    if st.session_state.pop("diary_clear_new_form", False):
+        for _k in ("diary_new_title", "diary_new_date", "diary_new_context", "diary_new_tags", "diary_new_project_choice", "diary_new_project_new"):
+            st.session_state.pop(_k, None)
+        _keys = _get_editor_keys("diary_new")
+        st.session_state.pop(_keys["text"], None)
+        st.session_state[_keys["rev"]] = st.session_state.get(_keys["rev"], 0) + 1
+
+    contexts = _existing_note_contexts(notes_col)
+    c1, c2 = st.columns([2, 1])
+    with c1:
+        n_title = st.text_input("Título", key="diary_new_title")
+    with c2:
+        n_date = st.date_input("Fecha", value=date.today(), key="diary_new_date")
+        n_project = _project_selector(notes_col, "diary_new", "Proyecto (opcional)")
+        n_context = st.selectbox("Contexto", options=contexts, index=0, key="diary_new_context")
+        n_tags_raw = st.text_input("Tags (comma-separated)", value="", key="diary_new_tags")
+
+    with st.expander("Herramientas LaTeX", expanded=False):
+        _render_latex_toolbar(prefix="diary_new")
+    n_latex = _render_latex_ace_editor(prefix="diary_new", initial_text="", height=360)
+
+    preview = st.checkbox("Vista previa simple", value=False, key="diary_new_preview")
+    if preview:
+        st.code(n_latex or "", language="latex")
+
+    if st.button("Guardar nota", key="diary_new_save", type="primary"):
+        tags = _normalize_tags(n_tags_raw)
+        if not (n_title or "").strip():
+            st.error("⚠️ El título es obligatorio.")
+        elif not (n_latex or "").strip():
+            st.error("⚠️ El cuerpo LaTeX es obligatorio.")
+        else:
+            doc = {
+                "title": n_title.strip(),
+                "date": n_date.strftime("%Y-%m-%d"),
+                "project": _normalize_project_name(n_project),
+                "context": n_context,
+                "tags": tags,
+                "latex_body": n_latex,
+                "created_at": datetime.utcnow(),
+                "updated_at": datetime.utcnow(),
+            }
+            try:
+                notes_col.insert_one(doc)
+                st.success("✅ Nota guardada.")
+                st.session_state["diary_clear_new_form"] = True
+                st.rerun()
+            except Exception as e:
+                st.error(f"❌ Error guardando nota: {e}")
+
+
+def _render_diary_search(notes_col) -> None:
+    st.markdown("### Buscar / Consultar notas")
+    projects = ["(all)", "(sin proyecto)"] + _existing_note_projects(notes_col)
+    contexts = ["(all)"] + _existing_note_contexts(notes_col)
+    tags = _existing_note_tags(notes_col)
+
+    f1, f2, f3 = st.columns([2, 1, 1])
+    with f1:
+        flt_q = st.text_input("Texto en título o cuerpo", value="", key="diary_search_text")
+    with f2:
+        flt_project = st.selectbox("Proyecto", projects, index=0, key="diary_search_project")
+    with f3:
+        flt_context = st.selectbox("Contexto", contexts, index=0, key="diary_search_context")
+
+    f4, f5, f6, f7 = st.columns(4)
+    with f4:
+        start_d = st.date_input("Desde", value=date.today() - timedelta(days=90), key="diary_search_start")
+    with f5:
+        end_d = st.date_input("Hasta", value=date.today(), key="diary_search_end")
+    with f6:
+        selected_tags = st.multiselect("Tags", tags, default=[], key="diary_search_tags")
+    with f7:
+        limit = st.number_input("Límite", min_value=5, max_value=500, value=50, step=5, key="diary_search_limit")
+
+    f8, f9, f10 = st.columns(3)
+    with f8:
+        years = sorted({(n.get("date") or "")[:4] for n in notes_col.find({}, {"date": 1}) if (n.get("date") or "")[:4].isdigit()}, reverse=True)
+        year = st.selectbox("Año", ["(all)"] + years, index=0, key="diary_search_year")
+    with f9:
+        month = st.selectbox("Mes", ["(all)"] + [str(i) for i in range(1, 13)], index=0, key="diary_search_month")
+    with f10:
+        recent = st.checkbox("Actualizadas recientemente", value=False, key="diary_search_recent")
+
+    query = _build_notes_query(
+        text_q=flt_q,
+        project=flt_project,
+        context=flt_context,
+        tags=selected_tags,
+        start_date=start_d,
+        end_date=end_d,
+        year=year,
+        month=month,
+        updated_recently=recent,
+    )
+    try:
+        notes = _load_notes(notes_col, query, int(limit))
+    except Exception as e:
+        st.error(f"❌ Error cargando notas: {e}")
+        notes = []
+
+    st.caption(f"Resultados: {len(notes)}")
+    _render_compact_note_rows(notes_col, notes, "diary_search")
+
+
+def _render_diary_timeline(notes_col) -> None:
+    st.markdown("### Timeline / Diario")
+    limit = st.number_input("Notas a cargar", min_value=20, max_value=1000, value=200, step=20, key="diary_timeline_limit")
+    notes = list(notes_col.find({}).sort([("date", -1), ("updated_at", -1)]).limit(int(limit)))
+    grouped: Dict[str, Dict[str, Dict[str, List[Dict[str, Any]]]]] = defaultdict(lambda: defaultdict(lambda: defaultdict(list)))
+    for note in notes:
+        d = note.get("date") or "sin-fecha"
+        try:
+            dt = datetime.strptime(d, "%Y-%m-%d").date()
+            y = str(dt.year)
+            m = f"{dt.month:02d} {calendar.month_name[dt.month]}"
+            day = d
+        except Exception:
+            y, m, day = "Sin fecha", "", d
+        grouped[y][m][day].append(note)
+
+    if not notes:
+        st.info("Aún no hay notas en el diario.")
+        return
+
+    for year in sorted(grouped.keys(), reverse=True):
+        with st.expander(year, expanded=True):
+            for month_name in sorted(grouped[year].keys(), reverse=True):
+                st.markdown(f"#### {month_name}")
+                for day in sorted(grouped[year][month_name].keys(), reverse=True):
+                    day_notes = grouped[year][month_name][day]
+                    projects = sorted({n.get("project") or "Sin proyecto" for n in day_notes})
+                    with st.expander(f"{day} · {len(day_notes)} notas · {', '.join(projects[:3])}", expanded=False):
+                        _render_compact_note_rows(notes_col, day_notes, f"diary_timeline_{day}")
+
+
+def _render_diary_calendar(notes_col) -> None:
+    st.markdown("### Calendario")
+    today = date.today()
+    c1, c2, c3 = st.columns(3)
+    with c1:
+        year = st.number_input("Año", min_value=1970, max_value=2100, value=today.year, step=1, key="diary_calendar_year")
+    with c2:
+        month = st.selectbox(
+            "Mes",
+            list(range(1, 13)),
+            index=today.month - 1,
+            format_func=lambda m: calendar.month_name[m],
+            key="diary_calendar_month",
+        )
+
+    prefix = f"{int(year):04d}-{int(month):02d}-"
+    notes = list(notes_col.find({"date": {"$regex": f"^{re.escape(prefix)}"}}).sort([("date", 1), ("updated_at", -1)]))
+    counts = Counter(n.get("date") for n in notes)
+    days_with_notes = sorted([d for d in counts.keys() if d])
+
+    with c3:
+        selected_day = st.selectbox("Día con notas", ["(seleccionar)"] + days_with_notes, key="diary_calendar_day")
+
+    cal = calendar.Calendar(firstweekday=0)
+    rows = []
+    for week in cal.monthdayscalendar(int(year), int(month)):
+        row = {}
+        for idx, day_num in enumerate(week):
+            label = calendar.day_abbr[idx]
+            if day_num == 0:
+                row[label] = ""
+            else:
+                d_str = f"{int(year):04d}-{int(month):02d}-{day_num:02d}"
+                count = counts.get(d_str, 0)
+                row[label] = f"{day_num} ({count})" if count else str(day_num)
+        rows.append(row)
+    st.dataframe(pd.DataFrame(rows), width="stretch", hide_index=True)
+
+    if selected_day != "(seleccionar)":
+        day_notes = [n for n in notes if n.get("date") == selected_day]
+        st.markdown(f"#### Notas de {selected_day}")
+        _render_compact_note_rows(notes_col, day_notes, "diary_calendar")
+
+
+def _project_summaries(notes_col) -> List[Dict[str, Any]]:
+    summaries = []
+    notes = list(notes_col.find({}).sort("updated_at", -1))
+    grouped: Dict[str, List[Dict[str, Any]]] = defaultdict(list)
+    for note in notes:
+        grouped[note.get("project") or "Sin proyecto"].append(note)
+    for project, project_notes in grouped.items():
+        contexts = sorted({n.get("context") or "—" for n in project_notes})
+        tag_counts = Counter(tag for n in project_notes for tag in (n.get("tags") or []))
+        last_updated = max([n.get("updated_at") for n in project_notes if n.get("updated_at")] or [None])
+        summaries.append(
+            {
+                "project": project,
+                "count": len(project_notes),
+                "last_updated": last_updated,
+                "contexts": ", ".join(contexts),
+                "top_tags": ", ".join(tag for tag, _ in tag_counts.most_common(5)),
+            }
+        )
+    return sorted(summaries, key=lambda item: (-item["count"], item["project"].lower()))
+
+
+def _render_diary_projects(notes_col) -> None:
+    st.markdown("### Proyectos")
+    summaries = _project_summaries(notes_col)
+    if not summaries:
+        st.info("Aún no hay proyectos detectados.")
+        return
+    st.dataframe(pd.DataFrame(summaries), width="stretch", hide_index=True)
+    selected_project = st.selectbox(
+        "Ver notas del proyecto",
+        [s["project"] for s in summaries],
+        key="diary_project_selected",
+    )
+    project_query = {"project": ""} if selected_project == "Sin proyecto" else {"project": selected_project}
+    if selected_project == "Sin proyecto":
+        project_query = {"$or": [{"project": ""}, {"project": None}, {"project": {"$exists": False}}]}
+    notes = _load_notes(notes_col, project_query, 200)
+    _render_compact_note_rows(notes_col, notes, "diary_project")
+
+
+def _render_diary_exports(notes_col) -> None:
+    st.markdown("### Exportar nota")
+    notes = list(notes_col.find({}).sort([("date", -1), ("updated_at", -1)]).limit(300))
+    if not notes:
+        st.info("Primero crea una nota para poder exportar.")
+        return
+    opt_map = {_note_label(n): _note_id(n) for n in notes}
+    selected_label = st.selectbox("Selecciona una nota", list(opt_map.keys()), key="latex_notes_export_select")
+    nid = opt_map.get(selected_label)
+    note_doc = _find_one_by_id(notes_col, nid) if nid else None
+    if not note_doc:
+        st.warning("No se pudo cargar la nota seleccionada.")
+        return
+    e1, e2 = st.columns(2)
+    with e1:
+        if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
+            st.session_state[f"note_tex_{nid}"] = generar_tex_nota_latex(note_doc)
+            st.success("✅ TEX listo para descargar.")
+        tex_data = st.session_state.get(f"note_tex_{nid}")
+        if tex_data:
+            st.download_button("Descargar TEX", data=tex_data, file_name=f"latex_note_{nid}.tex", mime="text/x-tex", key=f"note_tex_dl_{nid}")
+    with e2:
+        if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
+            try:
+                pdf_path = generar_pdf_nota_latex(note_doc)
+                st.session_state[f"note_pdf_path_{nid}"] = pdf_path
+                st.success("✅ PDF listo para descargar.")
+            except Exception as e:
+                st.error(f"❌ Error generando PDF: {e}")
+        pdf_path = st.session_state.get(f"note_pdf_path_{nid}")
+        if pdf_path and os.path.exists(pdf_path):
+            with open(pdf_path, "rb") as f:
+                st.download_button("Descargar PDF", data=f.read(), file_name=os.path.basename(pdf_path), mime="application/pdf", key=f"note_pdf_dl_{nid}")
+
+
+def _render_diary_section(notes_col) -> None:
+    st.subheader("📓 Diario LaTeX")
+    st.caption("Notas largas en LaTeX organizadas por creación, búsqueda, tiempo y proyectos.")
+    diary_tabs = st.tabs(["✍️ Nueva nota", "🔎 Buscar", "🗓️ Timeline", "📅 Calendario", "🗂️ Proyectos", "📤 Exportar"])
+    with diary_tabs[0]:
+        _render_diary_new_note(notes_col)
+    with diary_tabs[1]:
+        _render_diary_search(notes_col)
+    with diary_tabs[2]:
+        _render_diary_timeline(notes_col)
+    with diary_tabs[3]:
+        _render_diary_calendar(notes_col)
+    with diary_tabs[4]:
+        _render_diary_projects(notes_col)
+    with diary_tabs[5]:
+        _render_diary_exports(notes_col)
+    _render_selected_note_panel(notes_col, key_prefix="diary_global_selected")
 
 
 def _get_editor_keys(prefix: str) -> Dict[str, str]:
@@ -2126,319 +2728,4 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
 
     with tabs[5]:
-        st.subheader("📓 Diario LaTeX (V8)")
-        st.caption("Captura y consulta de notas largas en LaTeX. (Sin exportación todavía)")
-        notes_col = mongo_db["latex_notes"]
-
-
-        st.markdown("### ➕ Nueva nota")
-        # --- Reset seguro del form "Nueva nota" (antes de instanciar widgets) ---
-        if st.session_state.pop("diary_clear_new_form", False):
-            for _k in ("diary_new_title", "diary_new_date", "diary_new_project", "diary_new_context", "diary_new_tags"):
-                st.session_state.pop(_k, None)
-            _keys = _get_editor_keys("diary_new")
-            st.session_state.pop(_keys["text"], None)
-            st.session_state[_keys["rev"]] = st.session_state.get(_keys["rev"], 0) + 1
-
-
-        c1, c2 = st.columns([2, 1])
-        with c1:
-            n_title = st.text_input("Título", key="diary_new_title")
-        with c2:
-            n_date = st.date_input("Fecha", value=date.today(), key="diary_new_date")
-            n_project = st.text_input("Proyecto (opcional)", value="", key="diary_new_project")
-            n_context = st.selectbox(
-                "Contexto",
-                options=["estudio", "debug", "lectura", "idea", "reflexion"],
-                index=0,
-                key="diary_new_context",
-            )
-            n_tags_raw = st.text_input("Tags (comma-separated)", value="", key="diary_new_tags")
-
-        _render_latex_toolbar(prefix="diary_new")
-        n_latex = _render_latex_ace_editor(prefix="diary_new", initial_text="", height=320)
-
-        if st.button("Guardar nota", key="diary_new_save"):
-            tags = _parse_tags_csv(n_tags_raw)
-            if not (n_title or "").strip() or not (n_latex or "").strip():
-                st.error("⚠️ Título y contenido LaTeX son obligatorios.")
-            else:
-                doc = {
-                    "title": n_title.strip(),
-                    "date": n_date.strftime("%Y-%m-%d"),
-                    "project": (n_project or "").strip(),
-                    "context": n_context,
-                    "tags": tags,
-                    "latex_body": n_latex,
-                    "created_at": datetime.utcnow(),
-                    "updated_at": datetime.utcnow(),
-                }
-                try:
-                    notes_col.insert_one(doc)
-                    st.success("✅ Nota guardada.")
-                    # Limpieza mínima
-                    # Limpiar el formulario en el siguiente rerun (evita modificar session_state después de instanciar widgets)
-                    st.session_state["diary_clear_new_form"] = True
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error guardando nota: {e}")
-                    st.error(f"❌ Error guardando nota: {e}")
-
-        st.divider()
-        st.markdown("### 🔎 Buscar notas")
-
-        f1, f2, f3, f4 = st.columns([2, 1, 1, 1])
-        with f1:
-            flt_q = st.text_input("Texto (título o cuerpo)", value="")
-        with f2:
-            flt_project = st.text_input("Proyecto", value="")
-        with f3:
-            flt_context = st.selectbox(
-            "Contexto",
-            options=["(all)", "estudio", "debug", "lectura", "idea", "reflexion"],
-            index=0,
-        )
-        with f4:
-            limit = st.number_input("Limit", min_value=5, max_value=200, value=30, step=5)
-
-        q = {}
-        if flt_project.strip():
-            q["project"] = {"$regex": re.escape(flt_project.strip()), "$options": "i"}
-        if flt_context != "(all)":
-            q["context"] = flt_context
-        if flt_q.strip():
-            rx = {"$regex": re.escape(flt_q.strip()), "$options": "i"}
-            q["$or"] = [{"title": rx}, {"latex_body": rx}]
-
-        try:
-            notes = list(
-            notes_col.find(q)
-            .sort([("date", -1), ("updated_at", -1)])
-            .limit(int(limit))
-        )
-        except Exception as e:
-            st.error(f"❌ Error cargando notas: {e}")
-            notes = []
-
-        if not notes:
-            st.info("No hay notas para este filtro.")
-        else:
-            for n in notes:
-                nid = str(n.get("_id"))
-                title = n.get("title") or "(sin título)"
-                d = n.get("date") or ""
-                proj = n.get("project") or "—"
-                ctx = n.get("context") or "—"
-                tags = ", ".join(n.get("tags") or [])
-
-                with st.expander(f"{d} — {title}", expanded=False):
-                    meta1, meta2 = st.columns([2, 1])
-                    with meta1:
-                        st.write(f"**Proyecto:** {proj}")
-                        st.write(f"**Contexto:** {ctx}")
-                        if tags:
-                            st.write(f"**Tags:** {tags}")
-                    with meta2:
-                        st.write(f"**Id:** `{nid}`")
-                        st.write(f"**Updated:** {n.get('updated_at') or '—'}")
-
-                    st.code(n.get("latex_body") or "", language="latex")
-
-
-
-        st.divider()
-        st.markdown("### ✏️ Editar nota")
-
-        if not notes:
-            st.info("No hay notas cargadas para editar con este filtro.")
-        else:
-            opt_map: Dict[str, str] = {}
-            opt_labels: List[str] = []
-            for n in notes:
-                _nid = str(n.get("_id"))
-                label = _note_label(n)
-                opt_labels.append(label)
-                opt_map[label] = _nid
-
-            selected_label = st.selectbox(
-                "Selecciona una nota para editar",
-                options=opt_labels,
-                index=0,
-                key="diary_edit_select",
-            )
-            nid = opt_map.get(selected_label)
-            note_doc = _find_one_by_id(notes_col, nid) if nid else None
-
-            if not note_doc:
-                st.warning("No se pudo cargar la nota seleccionada.")
-            else:
-                # Cargar valores al cambiar de selección
-                edit_prefix = "diary_edit"
-                keys = _get_editor_keys(edit_prefix)
-                if st.session_state.get(keys["loaded_id"]) != str(note_doc.get("_id")):
-                    st.session_state[keys["loaded_id"]] = str(note_doc.get("_id"))
-                    st.session_state["diary_edit_title"] = note_doc.get("title") or ""
-                    # date guardada como string YYYY-MM-DD
-                    try:
-                        st.session_state["diary_edit_date"] = datetime.strptime(note_doc.get("date") or "", "%Y-%m-%d").date()
-                    except Exception:
-                        st.session_state["diary_edit_date"] = date.today()
-                    st.session_state["diary_edit_project"] = note_doc.get("project") or ""
-                    st.session_state["diary_edit_context"] = note_doc.get("context") or "estudio"
-                    st.session_state["diary_edit_tags"] = ", ".join(note_doc.get("tags") or [])
-                    st.session_state[keys["text"]] = note_doc.get("latex_body") or ""
-                    st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
-
-                e1, e2 = st.columns([2, 1])
-                with e1:
-                    e_title = st.text_input("Título", key="diary_edit_title")
-                with e2:
-                    e_date = st.date_input("Fecha", key="diary_edit_date")
-                    e_project = st.text_input("Proyecto (opcional)", key="diary_edit_project")
-                    e_context = st.selectbox(
-                        "Contexto",
-                        options=["estudio", "debug", "lectura", "idea", "reflexion"],
-                        index=["estudio", "debug", "lectura", "idea", "reflexion"].index(st.session_state.get("diary_edit_context", "estudio"))
-                        if st.session_state.get("diary_edit_context", "estudio") in ["estudio", "debug", "lectura", "idea", "reflexion"]
-                        else 0,
-                        key="diary_edit_context",
-                    )
-                    e_tags_raw = st.text_input("Tags (comma-separated)", key="diary_edit_tags")
-
-                _render_latex_toolbar(prefix=edit_prefix)
-                e_latex = _render_latex_ace_editor(prefix=edit_prefix, initial_text=note_doc.get("latex_body") or "", height=420)
-
-                if st.button("Guardar cambios", key="diary_edit_save"):
-                    if not (e_title or "").strip() or not (e_latex or "").strip():
-                        st.error("⚠️ Título y contenido LaTeX son obligatorios.")
-                    else:
-                        tags = _parse_tags_csv(e_tags_raw)
-                        upd = {
-                            "title": e_title.strip(),
-                            "date": e_date.strftime("%Y-%m-%d"),
-                            "project": (e_project or "").strip(),
-                            "context": e_context,
-                            "tags": tags,
-                            "latex_body": e_latex,
-                            "updated_at": datetime.utcnow(),
-                        }
-                        try:
-                            notes_col.update_one({"_id": ObjectId(nid)}, {"$set": upd})
-                            st.success("✅ Nota actualizada.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error actualizando nota: {e}")
-
-        st.divider()
-        st.markdown("### 🗑️ Borrar nota")
-
-        if not notes:
-            st.info("No hay notas cargadas para borrar con este filtro.")
-        else:
-            del_opt_map: Dict[str, str] = {}
-            del_opt_labels: List[str] = []
-            for n in notes:
-                _nid = str(n.get("_id"))
-                label = _note_label(n)
-                del_opt_labels.append(label)
-                del_opt_map[label] = _nid
-
-            del_selected = st.selectbox(
-                "Selecciona una nota para borrar",
-                options=del_opt_labels,
-                index=0,
-                key="diary_delete_select",
-            )
-            del_nid = del_opt_map.get(del_selected)
-            del_doc = _find_one_by_id(notes_col, del_nid) if del_nid else None
-
-            if not del_doc:
-                st.warning("No se pudo cargar la nota seleccionada.")
-            else:
-                st.write(f"**Título:** {del_doc.get('title') or '(sin título)'}")
-                st.write(f"**Fecha:** {del_doc.get('date') or ''}")
-                st.write(f"**Proyecto:** {del_doc.get('project') or '—'}")
-                st.write(f"**Contexto:** {del_doc.get('context') or '—'}")
-                preview = (del_doc.get("latex_body") or "")[:400]
-                if preview:
-                    st.code(preview, language="latex")
-
-                confirm = st.checkbox("Estoy seguro", key="diary_delete_confirm")
-                typed = st.text_input("Escribe BORRAR para confirmar", value="", key="diary_delete_typed")
-
-                if st.button("Borrar definitivamente", key="diary_delete_btn"):
-                    if not confirm or typed.strip().upper() != "BORRAR":
-                        st.error("Confirmación incompleta. Marca el checkbox y escribe BORRAR.")
-                    else:
-                        try:
-                            notes_col.delete_one({"_id": ObjectId(del_nid)})
-                            st.success("✅ Nota borrada.")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error borrando nota: {e}")
-        st.markdown("#### 📤 Exportar")
-
-        if not notes:
-            st.info("Primero crea o filtra una nota para poder exportar.")
-        else:
-            # Selección explícita de nota a exportar (evita variables fuera de scope)
-            opt_labels = []
-            opt_map = {}
-            for n in notes:
-                _nid = str(n.get("_id"))
-                _d = n.get("date") or ""
-                _t = n.get("title") or "(sin título)"
-                label = f"{_d} — {_t}"
-                opt_labels.append(label)
-                opt_map[label] = _nid
-
-            selected_label = st.selectbox(
-                "Selecciona una nota",
-                options=opt_labels,
-                index=0,
-                key="latex_notes_export_select",
-            )
-            nid = opt_map.get(selected_label)
-            note_doc = None
-            if nid:
-                note_doc = _find_one_by_id(notes_col, nid)
-
-            if not note_doc:
-                st.warning("No se pudo cargar la nota seleccionada.")
-            else:
-                e1, e2 = st.columns(2)
-
-                with e1:
-                    if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
-                        st.session_state[f"note_tex_{nid}"] = generar_tex_nota_latex(note_doc)
-                        st.success("✅ TEX listo para descargar.")
-
-                    tex_data = st.session_state.get(f"note_tex_{nid}")
-                    if tex_data:
-                        st.download_button(
-                            "Descargar TEX",
-                            data=tex_data,
-                            file_name=f"latex_note_{nid}.tex",
-                            mime="text/x-tex",
-                            key=f"note_tex_dl_{nid}",
-                        )
-
-                with e2:
-                    if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
-                        try:
-                            pdf_path = generar_pdf_nota_latex(note_doc)
-                            st.session_state[f"note_pdf_path_{nid}"] = pdf_path
-                            st.success("✅ PDF listo para descargar.")
-                        except Exception as e:
-                            st.error(f"❌ Error generando PDF: {e}")
-
-                    pdf_path = st.session_state.get(f"note_pdf_path_{nid}")
-                    if pdf_path and os.path.exists(pdf_path):
-                        with open(pdf_path, "rb") as f:
-                            st.download_button(
-                                "Descargar PDF",
-                                data=f.read(),
-                                file_name=os.path.basename(pdf_path),
-                                mime="application/pdf",
-                                key=f"note_pdf_dl_{nid}",
-                            )
+        _render_diary_section(mongo_db["latex_notes"])
