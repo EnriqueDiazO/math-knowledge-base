@@ -30,6 +30,11 @@ SAFE_FIXES = {
     r"\ennd{": r"\end{",
 }
 
+CONCEPT_WRAPPER_PATTERN = re.compile(
+    r"\\begin\{concept\}(?:\{([^{}]*)\})?(.*?)\\end\{concept\}",
+    re.DOTALL,
+)
+
 STANDARD_COMMANDS = {
     "alpha", "beta", "gamma", "delta", "epsilon", "varepsilon", "zeta",
     "eta", "theta", "vartheta", "iota", "kappa", "lambda", "mu", "nu",
@@ -67,6 +72,65 @@ PROJECT_COMMANDS = {
 
 ALLOWED_COMMANDS = STANDARD_COMMANDS | PROJECT_COMMANDS
 
+DEFINED_ENVIRONMENTS = {
+    "document",
+    "definicion",
+    "teorema",
+    "proposicion",
+    "lema",
+    "corolario",
+    "ejemplo",
+    "nota",
+    "observacion",
+    "definition",
+    "theorem",
+    "proposition",
+    "lemma",
+    "corollary",
+    "example",
+    "remark",
+    "proof",
+    "itemize",
+    "enumerate",
+    "description",
+    "center",
+    "flushleft",
+    "flushright",
+    "align",
+    "align*",
+    "equation",
+    "equation*",
+    "gather",
+    "gather*",
+    "multline",
+    "multline*",
+    "split",
+    "matrix",
+    "pmatrix",
+    "bmatrix",
+    "vmatrix",
+    "Vmatrix",
+    "cases",
+    "array",
+    "tabular",
+    "tikzpicture",
+    "lstlisting",
+    "mdframed",
+    "tcolorbox",
+    "card",
+    "notemeta",
+    "context",
+    "reading",
+    "exploration",
+    "hypothesis",
+    "connections",
+    "reflection",
+    "decision",
+    "openquestions",
+    "technical",
+    "nextsteps",
+}
+
 
 @dataclass
 class LatexValidationResult:
@@ -81,6 +145,7 @@ class LatexValidationResult:
     balanced_braces: bool
     balanced_environments: bool
     environment_errors: list[str]
+    undefined_environments: list[dict[str, str]]
     chktex_available: bool
     chktex_warnings: list[str]
     lacheck_available: bool
@@ -93,6 +158,21 @@ class LatexValidationResult:
 def apply_safe_fixes(latex: str) -> tuple[str, list[dict[str, str]]]:
     corrected = latex or ""
     applied: list[dict[str, str]] = []
+    if CONCEPT_WRAPPER_PATTERN.search(corrected):
+        def _remove_concept_wrapper(match: re.Match) -> str:
+            title = (match.group(1) or "").strip()
+            body = (match.group(2) or "").strip()
+            if title:
+                return f"% Concept wrapper removed: {title}\n{body}"
+            return f"% Concept wrapper removed\n{body}"
+
+        corrected = CONCEPT_WRAPPER_PATTERN.sub(_remove_concept_wrapper, corrected)
+        applied.append(
+            {
+                "from": "concept wrapper",
+                "to": "removed concept wrapper",
+            }
+        )
     for old, new in SAFE_FIXES.items():
         if old in corrected:
             corrected = corrected.replace(old, new)
@@ -157,6 +237,32 @@ def check_environment_balance(latex: str) -> tuple[bool, list[str]]:
     for env in reversed(stack):
         errors.append(f"Missing \\end{{{env}}}")
     return not errors, errors
+
+
+def find_undefined_environments(latex: str) -> list[dict[str, str]]:
+    envs = set(re.findall(r"\\(?:begin|end)\{([^}]+)\}", latex or ""))
+    undefined = []
+    for env in sorted(envs):
+        if env in DEFINED_ENVIRONMENTS:
+            continue
+        if env == "concept":
+            undefined.append(
+                {
+                    "environment": "concept",
+                    "message": "El entorno `concept` no está definido en los templates LaTeX del proyecto.",
+                    "suggestion": "Eliminar el wrapper `concept` y usar únicamente los entornos definidos en templates_latex.",
+                }
+            )
+        else:
+            suggestion = get_close_matches(env, sorted(DEFINED_ENVIRONMENTS), n=1, cutoff=0.74)
+            undefined.append(
+                {
+                    "environment": env,
+                    "message": f"Environment `{env}` is not known in the project LaTeX templates.",
+                    "suggestion": suggestion[0] if suggestion else "",
+                }
+            )
+    return undefined
 
 
 def _write_validation_document(latex: str, work_dir: Path) -> Path:
@@ -312,6 +418,9 @@ def validate_latex_fragment(
     unknown_commands = original_unknown_commands or effective_unknown_commands
     balanced_braces = braces_are_balanced(effective_latex)
     balanced_envs, env_errors = check_environment_balance(effective_latex)
+    original_undefined_envs = find_undefined_environments(original)
+    effective_undefined_envs = find_undefined_environments(effective_latex)
+    undefined_envs = original_undefined_envs or effective_undefined_envs
 
     chktex_available = shutil.which("chktex") is not None
     lacheck_available = shutil.which("lacheck") is not None
@@ -367,7 +476,13 @@ def validate_latex_fragment(
 
     has_latex = bool(original.strip())
     status = "ok"
-    if not has_latex or not balanced_braces or not balanced_envs or not compile_success:
+    if (
+        not has_latex
+        or not balanced_braces
+        or not balanced_envs
+        or bool(effective_undefined_envs)
+        or not compile_success
+    ):
         status = "error"
     elif unknown_commands or safe_fixes or chktex_warnings or lacheck_warnings:
         status = "warning"
@@ -384,6 +499,7 @@ def validate_latex_fragment(
         balanced_braces=balanced_braces,
         balanced_environments=balanced_envs,
         environment_errors=env_errors,
+        undefined_environments=undefined_envs,
         chktex_available=chktex_available,
         chktex_warnings=chktex_warnings,
         lacheck_available=lacheck_available,
@@ -541,6 +657,11 @@ def write_markdown_report(report: dict[str, Any], path: str | Path) -> Path:
                 lines.append(f"- Safe fix: `{item.get('from')}` -> `{item.get('to')}`")
             for error in result.get("environment_errors", []):
                 lines.append(f"- Environment error: {error}")
+            for item in result.get("undefined_environments", []):
+                lines.append(
+                    f"- Undefined environment: `{item.get('environment')}`. "
+                    f"{item.get('message')} {item.get('suggestion')}"
+                )
             lines.append("")
     out.write_text("\n".join(lines), encoding="utf-8")
     return out

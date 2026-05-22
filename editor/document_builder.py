@@ -125,11 +125,26 @@ def _validation_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
                 suggestions.append(f"{item.get('command')} -> {item.get('suggestion')}")
             else:
                 suggestions.append(str(item.get("command")))
+        for item in result.get("undefined_environments", []):
+            if item.get("suggestion"):
+                suggestions.append(f"{item.get('environment')}: {item.get('suggestion')}")
+        problems = []
+        if result.get("unknown_commands"):
+            problems.append("comandos desconocidos")
+        if result.get("undefined_environments"):
+            problems.append("entornos no definidos")
+        if result.get("environment_errors"):
+            problems.append("begin/end desbalanceado")
+        if result.get("balanced_braces") is False:
+            problems.append("llaves desbalanceadas")
+        if result.get("compile_success") is False:
+            problems.append("no compila")
         rows.append(
             {
                 "Concepto": result.get("title") or result.get("concept_id"),
                 "Tipo": result.get("type"),
                 "Estado": result.get("status"),
+                "Problema": ", ".join(problems),
                 "Compila": result.get("compile_success"),
                 "Comandos desconocidos": ", ".join(
                     item.get("command", "") for item in result.get("unknown_commands", [])
@@ -334,6 +349,8 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
                 st.write(f"**{result.get('title') or result.get('concept_id')}**")
                 if result.get("environment_errors"):
                     st.write("Errores de entornos:", result.get("environment_errors"))
+                if result.get("undefined_environments"):
+                    st.write("Entornos no definidos:", result.get("undefined_environments"))
                 if result.get("safe_fixes"):
                     st.write("Correcciones seguras:", result.get("safe_fixes"))
                 if result.get("log_excerpt") and result.get("status") == "error":
