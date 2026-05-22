@@ -66,6 +66,54 @@ class MathMongo:
             resultados.append(concepto)
 
         return resultados
+
+    def get_concepts_by_source(self, source: str) -> list[dict]:
+        """Return concept metadata documents for a source."""
+        return list(self.concepts.find({"source": source}))
+
+    def get_latex_document(self, concept_id: str, source: str) -> Optional[dict]:
+        """Return the LaTeX document associated with a concept."""
+        return self.latex_documents.find_one({"id": concept_id, "source": source})
+
+    def get_concepts_with_latex_by_source(self, source: str) -> list[dict]:
+        """Return concept metadata enriched with contenido_latex from latex_documents."""
+        enriched = []
+        for concept in self.get_concepts_by_source(source):
+            doc = dict(concept)
+            latex_doc = self.get_latex_document(doc.get("id"), source) or {}
+            doc["contenido_latex"] = latex_doc.get("contenido_latex", "")
+            enriched.append(doc)
+        return enriched
+
+    def get_relations_by_source(self, source: str) -> list[dict]:
+        """Return relations where either endpoint belongs to source."""
+        return list(
+            self.relations.find(
+                {
+                    "$or": [
+                        {"desde": {"$regex": f"@{source}$"}},
+                        {"hasta": {"$regex": f"@{source}$"}},
+                    ]
+                }
+            )
+        )
+
+    def update_latex_document(self, concept_id: str, source: str, new_latex: str) -> None:
+        """Explicitly update LaTeX content for a concept.
+
+        This method is intentionally not used automatically by validators.
+        Call it only after the user has confirmed they want to write changes.
+        """
+        self.latex_documents.update_one(
+            {"id": concept_id, "source": source},
+            {
+                "$set": {
+                    "contenido_latex": new_latex,
+                    "ultima_actualizacion": datetime.now(),
+                }
+            },
+            upsert=False,
+        )
     
     def add_relation(
             self,
@@ -234,4 +282,3 @@ class MathMongo:
         return LineageResult(root=full_id, path=list(ids))
 
         
-

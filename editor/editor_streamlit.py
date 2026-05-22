@@ -39,6 +39,7 @@ from editor.document_builder import render_document_builder_page
 from editor.utils.db_export import export_database_to_zip
 from editor.utils.db_import import import_zip_into_database
 from editor.utils.db_import import inspect_export_zip
+from exporters_latex.latex_validation import validate_latex_fragment
 from editor.validators.concept_validator import validate_new_concept_identity
 from editor.validators.concept_validator import validate_semantic_duplicate
 from exporters_latex.exportadorlatex import ExportadorLatex
@@ -3382,6 +3383,26 @@ elif page == "📤 Export":
         export_format = st.selectbox("Export Format", ["PDF", "LaTeX"])
         output_dir = st.text_input("Output Directory", value="./exported")
 
+    val_exp_col1, val_exp_col2, val_exp_col3 = st.columns(3)
+    with val_exp_col1:
+        validate_latex_before_export = st.checkbox(
+            "Validar LaTeX antes de exportar",
+            value=True,
+            key="export_validate_latex_before_export",
+        )
+    with val_exp_col2:
+        apply_safe_fixes_export = st.checkbox(
+            "Aplicar fixes seguros solo al export",
+            value=False,
+            key="export_apply_safe_fixes",
+        )
+    with val_exp_col3:
+        export_even_with_errors = st.checkbox(
+            "Exportar aunque haya errores",
+            value=False,
+            key="export_even_with_errors",
+        )
+
     if st.button("📤 Export", type="primary"):
         if export_source:
             try:
@@ -3403,7 +3424,34 @@ elif page == "📤 Export":
 
                         latex_doc = db.latex_documents.find_one({"id": concept['id'], "source": export_source})
                         if latex_doc:
-                            exportador.exportar_concepto(concept, latex_doc['contenido_latex'], salida=output_dir)
+                            contenido_latex = latex_doc['contenido_latex']
+                            if validate_latex_before_export:
+                                validation = validate_latex_fragment(
+                                    contenido_latex,
+                                    concept=concept,
+                                    apply_fixes=apply_safe_fixes_export,
+                                )
+                                if validation.status == "error" and not export_even_with_errors:
+                                    st.error(
+                                        f"Skipping {concept['id']} due to LaTeX errors. "
+                                        "Enable 'Exportar aunque haya errores' to force export."
+                                    )
+                                    if validation.unknown_commands:
+                                        st.write(validation.unknown_commands)
+                                    if validation.log_excerpt:
+                                        with st.expander(f"LaTeX log: {concept['id']}"):
+                                            st.code(validation.log_excerpt)
+                                    progress_bar.progress((i + 1) / len(concepts))
+                                    continue
+                                if validation.status == "warning":
+                                    st.warning(f"LaTeX warnings for {concept['id']}")
+                                if apply_safe_fixes_export and validation.safe_fixes:
+                                    contenido_latex = validation.corrected_latex_preview
+                                    st.warning(
+                                        f"Applied safe fixes only to exported file for {concept['id']}; "
+                                        "MongoDB was not modified."
+                                    )
+                            exportador.exportar_concepto(concept, contenido_latex, salida=output_dir)
 
                         progress_bar.progress((i + 1) / len(concepts))
 
