@@ -6,6 +6,8 @@ import subprocess
 from typing import List, Dict
 from pymongo import MongoClient
 from pathlib import Path
+from exporters_latex.unified_document import export_unified_document_with_inputs
+from exporters_latex.unified_document import render_concept_fragment
 
 class ExportadorLatex:
     """
@@ -84,6 +86,38 @@ class ExportadorLatex:
                 print(f"⚠️  LaTeX no encontrado para {c['id']}")
                 continue
             self.exportar_concepto(c, doc.get("contenido_latex", ""), salida)
+
+    def renderizar_fragmento_concepto(
+        self,
+        concepto: Dict,
+        contenido_latex: str,
+    ) -> str:
+        """Genera un fragmento LaTeX parcial, sin preambulo ni document."""
+        return render_concept_fragment(concepto, contenido_latex)
+
+    def exportar_documento_unificado(
+        self,
+        source: str,
+        conceptos: List[Dict],
+        salida: str = "./exported",
+        titulo: str | None = None,
+        agrupar_por_tipo: bool = False,
+        respetar_orden_manual: bool = True,
+        compilar_pdf: bool = True,
+        sobrescribir: bool = False,
+    ):
+        """Exporta un documento maestro modular con fragments incluidos via \\input."""
+        return export_unified_document_with_inputs(
+            source=source,
+            concepts=conceptos,
+            output_dir=salida,
+            title=titulo or source,
+            agrupar_por_tipo=agrupar_por_tipo,
+            respetar_orden_manual=respetar_orden_manual,
+            compile_pdf=compilar_pdf,
+            overwrite=sobrescribir,
+            templates_dir=self.templates_dir,
+        )
 
     # ------------------------------------------------------------------
     # 3) ρ M É T O D O S   P R I V A D O S

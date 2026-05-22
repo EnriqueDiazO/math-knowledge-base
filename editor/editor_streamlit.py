@@ -35,6 +35,7 @@ from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
 from editor.helpers.tipo_simbolico import NivelSimbolico
 from editor.helpers.tipo_titulo import TipoTitulo
+from editor.document_builder import render_document_builder_page
 from editor.utils.db_export import export_database_to_zip
 from editor.utils.db_import import import_zip_into_database
 from editor.utils.db_import import inspect_export_zip
@@ -416,7 +417,7 @@ def _cuaderno_is_installed(conn) -> bool:
 
 page = st.sidebar.selectbox(
     "Navigation",
-    ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📤 Export", "📦 Database Export","📥 Database Import", "⚙️ Settings"]
+    ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📄 Document Builder", "📤 Export", "📦 Database Export","📥 Database Import", "⚙️ Settings"]
 )
 # Experimental navigation (optional)
 _exp_options = ["(none)"]
@@ -3353,6 +3354,10 @@ elif page == "📊 Knowledge Graph":
         else:
             st.error("❌ Please select at least one source.")
 
+# Document Builder page
+elif page == "📄 Document Builder":
+    render_document_builder_page(db, current_db)
+
 # Export page
 elif page == "📤 Export":
     st.title("📤 Export Concepts")
@@ -3364,6 +3369,7 @@ elif page == "📤 Export":
     st.info(f"📊 Exporting from: **{current_db}**")
 
     st.subheader("📄 LaTeX/PDF Export")
+    st.info("Para construir un unico PDF modular con varios conceptos, usa la pagina 📄 Document Builder.")
 
     # Export options
     col1, col2 = st.columns(2)
@@ -3614,4 +3620,3 @@ st.markdown(
     </div>
     """,
     unsafe_allow_html=True)
-
