@@ -1,3 +1,4 @@
+import html as html_lib
 import urllib.parse
 
 import networkx as nx
@@ -18,11 +19,22 @@ class GrafoConocimiento:
 
         self.color_por_tipo = {
             "definicion": "#b5e8b8",      # green dark
+            "definición": "#b5e8b8",
+            "definition": "#b5e8b8",
             "teorema": "#eceb98",         # blue
+            "theorem": "#eceb98",
             "proposicion": "#00E7EF",     # orange
+            "proposición": "#00E7EF",
+            "proposition": "#00E7EF",
             "corolario": "#D5BFE2",       # purple
+            "corollary": "#D5BFE2",
             "lema": "#F17A7A",            # rose
+            "lemma": "#F17A7A",
             "ejemplo": "#F9A825",         # yellow
+            "example": "#F9A825",
+            "observacion": "#D7CCC8",      # soft brown-gray
+            "observación": "#D7CCC8",
+            "remark": "#D7CCC8",
             "nota": "#B0BEC5",            # blue-gray (nuevo)
             "otro": "#E0E0E0",
             "placeholder": "#F5F5F5"      # aún más tenue
@@ -43,14 +55,47 @@ class GrafoConocimiento:
 
         self.forma_por_tipo = {
             "definicion": "box",
+            "definición": "box",
+            "definition": "box",
             "teorema": "ellipse",
+            "theorem": "ellipse",
             "proposicion": "box",
+            "proposición": "box",
+            "proposition": "box",
             "corolario": "triangleDown_svg",# <- SVG
+            "corollary": "triangleDown_svg",
             "lema": "triangle_svg",         # <- SVG
+            "lemma": "triangle_svg",
             "ejemplo": "diamond_svg",   # <- SVG
+            "example": "diamond_svg",
+            "observacion": "box",
+            "observación": "box",
+            "remark": "box",
             "nota": "hexagon_svg",          # <- SVG
             "otro": "circle",
             "placeholder": "dot"
+        }
+
+        self.abreviatura_por_tipo = {
+            "definicion": "def",
+            "definición": "def",
+            "definition": "def",
+            "teorema": "teo",
+            "theorem": "teo",
+            "proposicion": "prop",
+            "proposición": "prop",
+            "proposition": "prop",
+            "ejemplo": "ejem",
+            "example": "ejem",
+            "corolario": "cor",
+            "corollary": "cor",
+            "lema": "lem",
+            "lemma": "lem",
+            "observacion": "obs",
+            "observación": "obs",
+            "remark": "obs",
+            "nota": "nota",
+            "note": "nota",
         }
 
     def _svg_data_uri(self, svg: str) -> str:
@@ -66,22 +111,26 @@ class GrafoConocimiento:
         return int(max(120, min(520, max_chars * font_size * 0.58)))
 
 
-    def _make_svg_polygon_node(self, wrapped_label: str, fill: str, kind: str) -> str:
+    def _make_svg_polygon_node(self, wrapped_label: str, fill: str, kind: str, type_badge: str = "") -> str:
         """kind: 'hexagon' | 'diamond' | 'triangle' | 'triangleDown'
         Devuelve un data URI (SVG) con el texto SIEMPRE dentro.
         """  # noqa: D205
         font_size = 45
+        badge_font_size = 24
         padding_x = 22
         padding_y = 18
         line_gap = 6
 
         lines = wrapped_label.split("\n") if wrapped_label else [""]
         text_w = self._estimate_text_width_px(lines, font_size=font_size)
+        badge_w = len(type_badge) * badge_font_size * 0.62 + 30 if type_badge else 0
         line_h = font_size + line_gap
         text_h = len(lines) * line_h
 
-        width = text_w + 2 * padding_x
-        height = text_h + 2 * padding_y
+        width = max(text_w, badge_w) + 2 * padding_x
+        badge_h = badge_font_size + 16 if type_badge else 0
+        badge_gap = 8 if type_badge else 0
+        height = text_h + badge_h + badge_gap + 2 * padding_y
 
         # límites por seguridad (evita nodos gigantes)
         width = int(max(200, min(620, width)))
@@ -128,12 +177,26 @@ class GrafoConocimiento:
         # Texto centrado: usamos dominant-baseline para que quede bien
         # Empezamos y centramos verticalmente con un offset calculado.
         total_text_h = len(lines) * line_h
-        start_y = (height - total_text_h) / 2 + font_size  # primera línea
+        content_h = total_text_h + badge_h + badge_gap
+        start_y = (height - content_h) / 2 + badge_h + badge_gap + font_size  # primera línea
 
         # Escapar XML básico
         def esc(s: str) -> str:
             return (s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;"))
         text_items = []
+        if type_badge:
+            badge_x = width / 2
+            badge_y = (height - content_h) / 2
+            badge_width = max(48, badge_w)
+            badge_height = badge_font_size + 10
+            text_items.append(
+                f'<rect x="{badge_x - badge_width / 2:.1f}" y="{badge_y:.1f}" '
+                f'width="{badge_width:.1f}" height="{badge_height:.1f}" rx="8" '
+                f'fill="#ffffff" opacity="0.72" stroke="#6b7280" stroke-width="1" />'
+                f'<text x="{badge_x:.1f}" y="{badge_y + badge_font_size:.1f}" text-anchor="middle" '
+                f'font-family="Arial, sans-serif" font-size="{badge_font_size}" '
+                f'font-weight="700" fill="#374151">{esc(type_badge)}</text>'
+            )
         y = start_y
         for line in lines:
             text_items.append(
@@ -156,19 +219,58 @@ class GrafoConocimiento:
 
     def _node_render_strategy(self, tipo: str) -> str:
         """Decide si renderizamos con vis.js nativo o con SVG."""
-        shape = self.forma_por_tipo.get(tipo, "circle")
+        shape = self.forma_por_tipo.get(str(tipo or "").strip().lower(), "circle")
         if shape.endswith("_svg"):
             return "svg"
         return "native"
 
     def _native_shape(self, tipo: str) -> str:
-        shape = self.forma_por_tipo.get(tipo, "circle")
+        shape = self.forma_por_tipo.get(str(tipo or "").strip().lower(), "circle")
         # Normaliza: si viene 'hexagon_svg' -> 'hexagon' (no lo usaremos en native, pero por limpieza)
         return shape.replace("_svg", "")
 
 
     def _concepto_permitido(self, tipo: str, tipos_concepto: list[str] | None) -> bool:
-        return (not tipos_concepto) or (tipo in tipos_concepto)
+        if not tipos_concepto:
+            return True
+        tipo_key = str(tipo or "").strip().lower()
+        allowed = {str(t or "").strip().lower() for t in tipos_concepto}
+        return tipo_key in allowed
+
+    def _node_type_value(self, node: dict) -> str:
+        metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
+        for value in (
+            node.get("tipo"),
+            node.get("concept_type"),
+            node.get("type"),
+            node.get("node_type"),
+            node.get("category"),
+            node.get("kind"),
+            node.get("label_type"),
+            metadata.get("type"),
+        ):
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        return "otro"
+
+    def _node_type_abbreviation(self, tipo: str) -> str:
+        return self.abreviatura_por_tipo.get(str(tipo or "").strip().lower(), "")
+
+    def _node_label_with_badge(self, wrapped_label: str, type_badge: str) -> str:
+        if not type_badge:
+            return wrapped_label
+        return f"<b>{type_badge}</b>\n{wrapped_label}"
+
+    def _relation_value(self, rel: dict) -> str:
+        for key in ("tipo", "relation", "relationship", "label", "type", "edge_type", "predicate", "title", "kind"):
+            value = rel.get(key)
+            if value is not None and str(value).strip():
+                return str(value).strip()
+        return "relaciona"
+
+    def _relation_label(self, relation_value: str) -> str:
+        label = str(relation_value or "").replace("_", " ").strip()
+        return label or "relaciona"
 
     def _ensure_placeholder(self, node_id: str) -> None:
         if node_id in self.G.nodes:
@@ -233,14 +335,15 @@ class GrafoConocimiento:
 
         # Crear nodos
         for doc in self.conceptos:
-            tipo = doc.get("tipo", "otro")
+            tipo = self._node_type_value(doc)
             if not self._concepto_permitido(tipo, tipos_concepto):
                 continue
 
             etiqueta = f"{doc['id']}@{doc['source']}"
             titulo = doc.get("titulo", etiqueta)
-            color = self.color_por_tipo.get(tipo, "white")
-            self.G.add_node(etiqueta, label=titulo, tipo=tipo, color=color)
+            color = self.color_por_tipo.get(str(tipo or "").strip().lower(), "white")
+            type_badge = self._node_type_abbreviation(tipo)
+            self.G.add_node(etiqueta, label=titulo, tipo=tipo, type_badge=type_badge, color=color)
 
         # Crear aristas
         for rel in self.relaciones:
@@ -252,12 +355,13 @@ class GrafoConocimiento:
                 desde = f"{rel['desde_id']}@{rel['desde_source']}"
                 hasta = f"{rel['hasta_id']}@{rel['hasta_source']}"
 
-            tipo_rel = rel["tipo"]
+            tipo_rel = self._relation_value(rel)
             # 🔎 Filtrar si se pidió solo ciertos tipos
             if tipos_relacion and tipo_rel not in tipos_relacion:
                 continue
 
             color = self.color_por_relacion.get(tipo_rel, "black")
+            relation_label = self._relation_label(tipo_rel)
 
             falta_desde = desde not in self.G.nodes
             falta_hasta = hasta not in self.G.nodes
@@ -275,7 +379,15 @@ class GrafoConocimiento:
                     continue
 
             # agregar SIEMPRE la arista (ya existen los nodos: reales o placeholder)
-            self.G.add_edge(desde, hasta, key=tipo_rel, tipo=tipo_rel, color=color)
+            self.G.add_edge(
+                desde,
+                hasta,
+                key=tipo_rel,
+                tipo=tipo_rel,
+                label=relation_label,
+                color=color,
+                descripcion=rel.get("descripcion", ""),
+            )
         print("DEBUG tipos_concepto:", tipos_concepto, "usar_placeholders:", usar_placeholders)
         print(f"🧠 Nodos creados: {len(self.G.nodes)} | Relaciones creadas: {len(self.G.edges)}")
         if relaciones_omitidas_por_nodos_faltantes > 0:
@@ -298,9 +410,13 @@ class GrafoConocimiento:
         for n, datos in self.G.nodes(data=True):
             raw_label = datos.get("label", n)
             tipo = datos.get("tipo", "otro")
+            type_badge = datos.get("type_badge", "")
             color = datos.get("color", "white")
             wrapped_label = self._wrap_label(raw_label)
             strategy = self._node_render_strategy(tipo)
+            tooltip = f"<b>{html_lib.escape(str(raw_label))}</b><br>Tipo: {html_lib.escape(str(tipo))}"
+            if type_badge:
+                tooltip = f"{tooltip} ({html_lib.escape(str(type_badge))})"
 
             if strategy == "svg":
                 logical_shape = self._native_shape(tipo)  # e.g. "hexagon" de "hexagon_svg"
@@ -313,7 +429,8 @@ class GrafoConocimiento:
                 img_uri = self._make_svg_polygon_node(
                     wrapped_label=wrapped_label,
                     fill=color,
-                    kind=svg_kind
+                    kind=svg_kind,
+                    type_badge=type_badge,
                 )
 
                 net.add_node(
@@ -322,7 +439,7 @@ class GrafoConocimiento:
                     image=img_uri,
                     label="",
                     font={"size": 0, "color": "rgba(0,0,0,0)"},                # 👈 importante: NO string vacío
-                    title=tipo,           # 👈 tooltip con texto humano
+                    title=tooltip,           # 👈 tooltip con texto humano
                     size=38,   # ajusta 24–40
                     shapeProperties={"useImageSize": False}
                 )
@@ -331,23 +448,43 @@ class GrafoConocimiento:
                 shape = self._native_shape(tipo)
                 net.add_node(
                     n,
-                    label=wrapped_label,
-                    title=tipo,
+                    label=self._node_label_with_badge(wrapped_label, type_badge),
+                    title=tooltip,
                     color=color,
                     shape=shape,
-                    font={"size": 18})
+                    font={
+                        "size": 18,
+                        "multi": True,
+                        "bold": {"size": 11, "color": "#374151"},
+                    })
 
         for u, v, k, d in self.G.edges(keys=True, data=True):
-            edge_len = 160
+            edge_len = 260
             # Si alguno de los nodos es nota, alarga la arista
             if self.G.nodes[u].get("tipo") == "nota" or self.G.nodes[v].get("tipo") == "nota":
-                edge_len = 240
+                edge_len = 340
+            edge_color = d.get("color", "black")
             
-            net.add_edge(u, v,
-                         title=d.get("tipo", ""),
-                         color=d.get("color", "black"),
-                         length=edge_len
-                         )
+            net.add_edge(
+                u,
+                v,
+                title=d.get("tipo", ""),
+                label=d.get("label", "relaciona"),
+                color={
+                    "color": edge_color,
+                    "highlight": edge_color,
+                    "hover": edge_color,
+                },
+                arrows="to",
+                font={
+                    "size": 13,
+                    "align": "middle",
+                    "color": edge_color,
+                    "strokeWidth": 4,
+                    "strokeColor": "#ffffff",
+                },
+                length=edge_len,
+            )
 
         #net.show_buttons(filter_=["physics"])  # Panel para mover nodos
         net.set_options("""
@@ -362,17 +499,34 @@ class GrafoConocimiento:
     },
     "solver": "forceAtlas2Based",
     "forceAtlas2Based": {
-      "gravitationalConstant": -50,
-      "centralGravity": 0.005,
-      "springLength": 150,
-      "springConstant": 0.15
-    }
+      "gravitationalConstant": -120,
+      "centralGravity": 0.01,
+      "springLength": 260,
+      "springConstant": 0.04,
+      "avoidOverlap": 0.8
+    },
+    "damping": 0.2,
+    "maxVelocity": 50,
+    "minVelocity": 0.1,
+    "timestep": 0.35
   },
   "interaction": {
     "hover": true,
     "navigationButtons": false,
-    "keyboard": true,
-    "damping": 0.25
+    "keyboard": true
+  },
+  "edges": {
+    "font": {
+      "size": 13,
+      "align": "middle",
+      "color": "#111827",
+      "strokeWidth": 4,
+      "strokeColor": "#ffffff"
+    },
+    "smooth": {
+      "enabled": true,
+      "type": "dynamic"
+    }
   }
 }
 """)
@@ -387,7 +541,6 @@ class GrafoConocimiento:
   function waitForNetwork() {
     if (window.network && typeof window.network.setOptions === "function") {
       window.mmNetwork = network;
-      console.log("✔ Network captured");
       return;
     }
     setTimeout(waitForNetwork, 300);
@@ -395,6 +548,20 @@ class GrafoConocimiento:
   waitForNetwork();
 })();
 
+const DEFAULT_PHYSICS = {
+  grav: 120,
+  central: 1,
+  springLen: 260,
+  springConst: 40,
+  damping: 20,
+  maxVel: 50,
+  minVel: 10,
+  timestep: 35
+};
+
+function physicsValue(id) {
+  return Number(document.getElementById(id).value);
+}
 
 function enablePhysics() {
   if (!window.mmNetwork) return;
@@ -404,7 +571,8 @@ function enablePhysics() {
 
 function freezePhysics() {
   if (!window.mmNetwork) return;
-   mmNetwork.setOptions({ physics: { enabled: false } });
+  window.mmNetwork.stopSimulation();
+  window.mmNetwork.setOptions({ physics: { enabled: false } });
 }
 
 function applyCurrentPhysics() {
@@ -414,31 +582,28 @@ function applyCurrentPhysics() {
     enabled: true,
     solver: "forceAtlas2Based",
     forceAtlas2Based: {
-      gravitationalConstant: -Number(grav.value),
-      centralGravity: Number(central.value) / 100,
-      springLength: Number(springLen.value),
-      springConstant: Number(springConst.value) / 1000,
-      damping: Number(damping.value) / 100
+      gravitationalConstant: -physicsValue("grav"),
+      centralGravity: physicsValue("central") / 100,
+      springLength: physicsValue("springLen"),
+      springConstant: physicsValue("springConst") / 1000,
+      avoidOverlap: 0.8
     },
-    maxVelocity: Number(maxVel.value),
-    minVelocity: Number(minVel.value) / 100,
-    timestep: Number(timestep.value) / 100
+    damping: physicsValue("damping") / 100,
+    maxVelocity: physicsValue("maxVel"),
+    minVelocity: physicsValue("minVel") / 100,
+    timestep: physicsValue("timestep") / 100
   };
 
-  mmNetwork.setOptions({ physics: opts });
+  window.mmNetwork.setOptions({ physics: opts });
+  window.mmNetwork.startSimulation();
 }
 
 
 
 function resetPhysics() {
-  document.getElementById("grav").value = 50;
-  document.getElementById("central").value = 1;
-  document.getElementById("springLen").value = 140;
-  document.getElementById("springConst").value = 80;
-  document.getElementById("damping").value = 9;
-  document.getElementById("maxVel").value = 50;
-  document.getElementById("minVel").value = 10;
-  document.getElementById("timestep").value = 35;
+  for (const [id, value] of Object.entries(DEFAULT_PHYSICS)) {
+    document.getElementById(id).value = value;
+  }
   applyCurrentPhysics();
 }
 </script>
@@ -452,25 +617,47 @@ function resetPhysics() {
   background: rgba(255,255,255,0.96);
   border: 1px solid #bbb;
   border-radius: 10px;
-  padding: 12px;
+  padding: 10px;
   font-family: Arial, sans-serif;
-  width: 240px;
+  width: 268px;
+  max-height: calc(100vh - 28px);
+  overflow-y: auto;
   box-shadow: 0 4px 16px rgba(0,0,0,.2);
 }
 
 #physics-overlay h4 {
-  margin: 4px 0 8px;
+  margin: 2px 0 4px;
   font-size: 14px;
   text-align: center;
 }
 
+#physics-overlay .physics-note {
+  margin: 0 0 8px;
+  color: #4b5563;
+  font-size: 11px;
+  line-height: 1.25;
+}
+
+#physics-overlay .physics-control {
+  margin: 7px 0;
+}
+
 #physics-overlay label {
   font-size: 11px;
+  font-weight: 600;
   display: block;
+}
+
+#physics-overlay .physics-help {
+  color: #4b5563;
+  font-size: 10px;
+  line-height: 1.2;
+  margin: 1px 0 2px;
 }
 
 #physics-overlay input[type=range] {
   width: 100%;
+  margin: 0;
 }
 
 #physics-overlay button {
@@ -481,34 +668,59 @@ function resetPhysics() {
 
 <div id="physics-overlay">
   <h4>🧲 Physics Controls</h4>
+  <p class="physics-note">Ajusta estos controles para separar, compactar o estabilizar el grafo.</p>
 
-  <label>Gravitational Constant</label>
-  <input id="grav" type="range" min="0" max="300" value="50" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Controla la repulsión entre nodos.">
+    <label for="grav">Gravitational Constant</label>
+    <div class="physics-help">Más alto separa más los nodos.</div>
+    <input id="grav" type="range" min="0" max="300" value="120" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Central Gravity</label>
-  <input id="central" type="range" min="0" max="10" value="1" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Atrae los nodos hacia el centro.">
+    <label for="central">Central Gravity</label>
+    <div class="physics-help">Más alto compacta el grafo.</div>
+    <input id="central" type="range" min="0" max="10" value="1" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Spring Length</label>
-  <input id="springLen" type="range" min="50" max="400" value="20" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Define la longitud ideal de las flechas.">
+    <label for="springLen">Spring Length</label>
+    <div class="physics-help">Más alto alarga las flechas.</div>
+    <input id="springLen" type="range" min="50" max="450" value="260" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Spring Constant</label>
-  <input id="springConst" type="range" min="10" max="200" value="20" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Controla la rigidez de las conexiones.">
+    <label for="springConst">Spring Constant</label>
+    <div class="physics-help">Más alto tira más fuerte de los nodos.</div>
+    <input id="springConst" type="range" min="10" max="200" value="40" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Damping</label>
-  <input id="damping" type="range" min="0" max="100" value="9" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Reduce la velocidad del movimiento.">
+    <label for="damping">Damping</label>
+    <div class="physics-help">Más alto estabiliza más rápido.</div>
+    <input id="damping" type="range" min="0" max="100" value="20" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Max Velocity</label>
-  <input id="maxVel" type="range" min="10" max="100" value="50" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Limita la velocidad máxima de movimiento.">
+    <label for="maxVel">Max Velocity</label>
+    <div class="physics-help">Tope de velocidad de los nodos.</div>
+    <input id="maxVel" type="range" min="10" max="100" value="50" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Min Velocity</label>
-  <input id="minVel" type="range" min="0" max="50" value="10" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Define cuándo la simulación se considera estable.">
+    <label for="minVel">Min Velocity</label>
+    <div class="physics-help">Umbral mínimo antes de estabilizar.</div>
+    <input id="minVel" type="range" min="0" max="50" value="10" oninput="applyCurrentPhysics()">
+  </div>
 
-  <label>Timestep</label>
-  <input id="timestep" type="range" min="10" max="100" value="35" oninput="applyCurrentPhysics()">
+  <div class="physics-control" title="Controla el tamaño del paso de simulación.">
+    <label for="timestep">Timestep</label>
+    <div class="physics-help">Más alto mueve más rápido; puede inestabilizar.</div>
+    <input id="timestep" type="range" min="10" max="100" value="35" oninput="applyCurrentPhysics()">
+  </div>
 
-  <button onclick="enablePhysics()">▶ Activar</button>
-  <button onclick="freezePhysics()">📌 Congelar</button>
-  <button onclick="resetPhysics()">♻ Reset</button>
+  <button onclick="enablePhysics()" title="Activa o reanuda la simulación física del grafo.">▶ Activar física</button>
+  <button onclick="freezePhysics()" title="Detiene la simulación y conserva las posiciones actuales.">📌 Congelar posiciones</button>
+  <button onclick="resetPhysics()" title="Restaura los valores iniciales y reactiva la física.">♻ Resetear física</button>
 </div>
 """
 

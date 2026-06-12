@@ -14,6 +14,7 @@ from collections import defaultdict
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
+from datetime import timezone
 from typing import Any
 from typing import Callable
 from typing import Dict
@@ -82,6 +83,40 @@ def _safe_date_from_str(s: str) -> date:
         return datetime.strptime((s or "").strip(), "%Y-%m-%d").date()
     except Exception:
         return date.today()
+
+
+def _normalize_datetime(value: Any) -> Optional[datetime]:
+    """Normalize mixed Mongo/date/string values into comparable UTC datetimes."""
+    if value is None:
+        return None
+
+    if isinstance(value, datetime):
+        dt = value
+    elif isinstance(value, date):
+        dt = datetime.combine(value, datetime.min.time())
+    elif isinstance(value, str):
+        text = value.strip()
+        if not text:
+            return None
+        candidates = [text]
+        if text.endswith(("Z", "z")):
+            candidates = [f"{text[:-1]}+00:00", text[:-1]]
+        for candidate in candidates:
+            try:
+                dt = datetime.fromisoformat(candidate)
+                break
+            except ValueError:
+                continue
+        else:
+            return None
+    else:
+        return None
+
+    if dt.tzinfo is not None and dt.utcoffset() is not None:
+        dt = dt.astimezone(timezone.utc).replace(tzinfo=None)
+    elif dt.tzinfo is not None:
+        dt = dt.replace(tzinfo=None)
+    return dt
 
 
 def _iso_from_date_str(date_str: str) -> Dict[str, int]:
@@ -310,20 +345,47 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
         )
     latex_body = note.get("latex_body") or ""
     st.code(latex_body, language="latex")
-    c1, c2, c3 = st.columns(3)
+    c1, c2, c3, c4 = st.columns(4)
+    pdf_state_key = f"{key_prefix}_pdf_payload_{note_id}"
+    pdf_marker = f"{_note_id(note)}:{note.get('updated_at') or ''}"
+    pdf_payload = st.session_state.get(pdf_state_key)
+    if not pdf_payload or pdf_payload.get("marker") != pdf_marker:
+        pdf_payload = None
     with c1:
         if st.button("Editar esta nota", key=f"{key_prefix}_edit_{note_id}"):
             _select_note(note_id, "edit")
             st.rerun()
     with c2:
         st.download_button(
-            "Copiar/descargar LaTeX",
-            data=latex_body,
+            "Descargar TEX",
+            data=generar_tex_nota_latex(note),
             file_name=f"latex_note_{note_id}.tex",
             mime="text/x-tex",
             key=f"{key_prefix}_latex_{note_id}",
         )
     with c3:
+        if pdf_payload:
+            st.download_button(
+                "Descargar PDF",
+                data=pdf_payload["data"],
+                file_name=pdf_payload["file_name"],
+                mime="application/pdf",
+                key=f"{key_prefix}_pdf_{note_id}",
+            )
+        elif st.button("Descargar PDF", key=f"{key_prefix}_pdf_prepare_{note_id}"):
+            try:
+                pdf_path = generar_pdf_nota_latex(note)
+                with open(pdf_path, "rb") as f:
+                    pdf_data = f.read()
+                st.session_state[pdf_state_key] = {
+                    "marker": pdf_marker,
+                    "data": pdf_data,
+                    "file_name": os.path.basename(pdf_path),
+                }
+                st.rerun()
+            except Exception as exc:
+                st.error(f"No se pudo generar el PDF: {exc}")
+    with c4:
         if st.button("Cerrar", key=f"{key_prefix}_close_{note_id}"):
             st.session_state.pop("diary_selected_note_id", None)
             st.session_state.pop("diary_selected_mode", None)
@@ -333,10 +395,14 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
 def _load_note_into_editor(note: Dict[str, Any], prefix: str) -> None:
     keys = _get_editor_keys(prefix)
     current_id = str(note.get("_id"))
+    title_key = f"{prefix}_title"
+    note_title = note.get("title") or ""
     if st.session_state.get(keys["loaded_id"]) == current_id:
+        if note_title and not (st.session_state.get(title_key) or "").strip():
+            st.session_state[title_key] = note_title
         return
     st.session_state[keys["loaded_id"]] = current_id
-    st.session_state[f"{prefix}_title"] = note.get("title") or ""
+    st.session_state[title_key] = note_title
     try:
         st.session_state[f"{prefix}_date"] = datetime.strptime(note.get("date") or "", "%Y-%m-%d").date()
     except Exception:
@@ -361,6 +427,15 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
     contexts = _existing_note_contexts(notes_col)
 
     st.markdown(f"### Editar: {note.get('title') or '(sin título)'}")
+    message = st.session_state.pop("diary_save_message", None)
+    if message:
+        if message.get("type") == "success":
+            st.success(message.get("text", ""))
+        elif message.get("type") == "error":
+            st.error(message.get("text", ""))
+        elif message.get("type") == "info":
+            st.info(message.get("text", ""))
+
     e1, e2 = st.columns([2, 1])
     with e1:
         e_title = st.text_input("Título", key=f"{edit_prefix}_title")
@@ -383,11 +458,12 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
     c1, c2, c3 = st.columns(3)
     with c1:
         if st.button("Guardar cambios", key=f"{edit_prefix}_save"):
-            if not (e_title or "").strip():
-                st.error("⚠️ El título es obligatorio.")
-            elif not (e_latex or "").strip():
-                st.warning("El cuerpo LaTeX está vacío.")
-            else:
+            try:
+                if not (e_title or "").strip():
+                    raise ValueError("El título es obligatorio.")
+                if not (e_latex or "").strip():
+                    raise ValueError("El cuerpo LaTeX está vacío.")
+
                 upd = {
                     "title": e_title.strip(),
                     "date": e_date.strftime("%Y-%m-%d"),
@@ -397,12 +473,43 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
                     "latex_body": e_latex,
                     "updated_at": datetime.utcnow(),
                 }
-                try:
-                    _update_one_by_id(notes_col, note_id, {"$set": upd})
-                    st.success("✅ Nota actualizada.")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Error actualizando nota: {e}")
+                result = notes_col.update_one({"_id": note.get("_id")}, {"$set": upd})
+
+                if result is None:
+                    st.session_state["diary_save_message"] = {
+                        "type": "error",
+                        "text": "No se pudieron guardar los cambios: MongoDB no devolvió resultado de actualización.",
+                    }
+                elif not getattr(result, "acknowledged", False):
+                    st.session_state["diary_save_message"] = {
+                        "type": "error",
+                        "text": "MongoDB no confirmó la operación de guardado.",
+                    }
+                else:
+                    matched_count = getattr(result, "matched_count", 0)
+                    modified_count = getattr(result, "modified_count", 0)
+                    if matched_count == 0:
+                        st.session_state["diary_save_message"] = {
+                            "type": "error",
+                            "text": "No se encontró la nota que se intentaba actualizar.",
+                        }
+                    elif modified_count == 0:
+                        st.session_state["diary_save_message"] = {
+                            "type": "info",
+                            "text": "No hubo cambios nuevos que guardar.",
+                        }
+                    else:
+                        st.session_state["diary_save_message"] = {
+                            "type": "success",
+                            "text": "Cambios guardados correctamente.",
+                        }
+                st.rerun()
+            except Exception as exc:
+                st.session_state["diary_save_message"] = {
+                    "type": "error",
+                    "text": f"No se pudieron guardar los cambios: {exc}",
+                }
+                st.rerun()
     with c2:
         if st.button("Cancelar", key=f"{edit_prefix}_cancel"):
             _select_note(note_id, "read")
@@ -628,7 +735,13 @@ def _project_summaries(notes_col) -> List[Dict[str, Any]]:
     for project, project_notes in grouped.items():
         contexts = sorted({n.get("context") or "—" for n in project_notes})
         tag_counts = Counter(tag for n in project_notes for tag in (n.get("tags") or []))
-        last_updated = max([n.get("updated_at") for n in project_notes if n.get("updated_at")] or [None])
+        # Legacy notes may store updated_at as strings; normalize before comparing.
+        updated_values = [
+            dt
+            for dt in (_normalize_datetime(n.get("updated_at")) for n in project_notes)
+            if dt is not None
+        ]
+        last_updated = max(updated_values) if updated_values else None
         summaries.append(
             {
                 "project": project,

@@ -416,18 +416,23 @@ def _cuaderno_is_installed(conn) -> bool:
         return False
 
 
-page = st.sidebar.selectbox(
-    "Navigation",
-    ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "📚 Browse Concepts", "🔗 Manage Relations", "📊 Knowledge Graph", "📄 Document Builder", "📤 Export", "📦 Database Export","📥 Database Import", "⚙️ Settings"]
-)
-# Experimental navigation (optional)
-_exp_options = ["(none)"]
+nav_options = [
+    "🏠 Dashboard",
+    "➕ Add Concept",
+    "✏️ Edit Concept",
+    "📚 Browse Concepts",
+    "🔗 Manage Relations",
+    "📊 Knowledge Graph",
+    "📄 Document Builder",
+    "📤 Export",
+    "📦 Database Export",
+    "📥 Database Import",
+    "⚙️ Settings",
+]
 if _cuaderno_is_installed(db):
-    _exp_options.append("🧪 Cuaderno")
+    nav_options.append("🧪 Cuaderno")
 
-exp_page = st.sidebar.selectbox("Experimental", _exp_options, index=0)
-if exp_page == "🧪 Cuaderno":
-    page = "🧪 Cuaderno"
+page = st.sidebar.selectbox("Navigation", nav_options)
 
 
 # Dashboard page
