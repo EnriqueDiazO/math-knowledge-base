@@ -3334,13 +3334,10 @@ elif page == "📊 Knowledge Graph":
                     st.subheader("🎯 Interactive Knowledge Graph")
                     st.components.v1.html(html_content, height=800)
 
-                    # Download link
-                    with open(html_file, 'r', encoding='utf-8') as f:
-                        st.download_button(
-                            label="📥 Download Graph HTML",
-                            data=f.read(),
-                            file_name="knowledge_graph.html",
-                            mime="text/html")
+                    st.caption(
+                        "Usa el botón 💾 Descargar grafo actual dentro del panel del grafo para exportar "
+                        "posiciones, nodos fijados, física y estilos actuales."
+                    )
 
                     # Statistics
                     st.subheader("📊 Graph Statistics")

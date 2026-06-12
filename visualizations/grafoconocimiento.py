@@ -1,4 +1,6 @@
 import html as html_lib
+import json
+import math
 import urllib.parse
 
 import networkx as nx
@@ -261,6 +263,76 @@ class GrafoConocimiento:
             return wrapped_label
         return f"<b>{type_badge}</b>\n{wrapped_label}"
 
+    def _node_source(self, node_id: str) -> str:
+        if "@" not in node_id:
+            return ""
+        return node_id.rsplit("@", 1)[1]
+
+    def _group_centers(self, groups: list[str], radius: int = 620) -> dict[str, dict[str, float]]:
+        if not groups:
+            return {}
+        if len(groups) == 1:
+            return {groups[0]: {"x": 0.0, "y": 0.0}}
+        centers = {}
+        for idx, group in enumerate(groups):
+            angle = (2 * math.pi * idx) / len(groups)
+            centers[group] = {
+                "x": round(math.cos(angle) * radius, 2),
+                "y": round(math.sin(angle) * radius, 2),
+            }
+        return centers
+
+    def _offset_for_index(self, idx: int, count: int, spacing: int = 145) -> tuple[float, float]:
+        cols = max(1, math.ceil(math.sqrt(count)))
+        row = idx // cols
+        col = idx % cols
+        rows = math.ceil(count / cols)
+        x = (col - (cols - 1) / 2) * spacing
+        y = (row - (rows - 1) / 2) * spacing
+        return round(x, 2), round(y, 2)
+
+    def _positions_by_group(self, group_by_node: dict[str, str], radius: int = 620) -> dict[str, dict[str, float]]:
+        grouped: dict[str, list[str]] = {}
+        for node_id, group in group_by_node.items():
+            grouped.setdefault(group or "sin grupo", []).append(node_id)
+
+        centers = self._group_centers(sorted(grouped), radius=radius)
+        positions = {}
+        for group, node_ids in grouped.items():
+            sorted_nodes = sorted(node_ids)
+            center = centers[group]
+            for idx, node_id in enumerate(sorted_nodes):
+                ox, oy = self._offset_for_index(idx, len(sorted_nodes))
+                positions[node_id] = {
+                    "x": round(center["x"] + ox, 2),
+                    "y": round(center["y"] + oy, 2),
+                }
+        return positions
+
+    def _layout_payload(self) -> dict[str, dict]:
+        nodes = sorted(self.G.nodes)
+        type_by_node = {node_id: str(self.G.nodes[node_id].get("tipo", "otro")) for node_id in nodes}
+        source_by_node = {node_id: self._node_source(node_id) for node_id in nodes}
+
+        component_by_node = {}
+        for idx, component in enumerate(nx.connected_components(self.G.to_undirected())):
+            for node_id in component:
+                component_by_node[node_id] = f"componente {idx + 1}"
+
+        return {
+            "byType": self._positions_by_group(type_by_node, radius=680),
+            "byComponent": self._positions_by_group(component_by_node, radius=720),
+            "bySource": self._positions_by_group(source_by_node, radius=680),
+            "meta": {
+                node_id: {
+                    "type": type_by_node.get(node_id, ""),
+                    "source": source_by_node.get(node_id, ""),
+                    "component": component_by_node.get(node_id, ""),
+                }
+                for node_id in nodes
+            },
+        }
+
     def _relation_value(self, rel: dict) -> str:
         for key in ("tipo", "relation", "relationship", "label", "type", "edge_type", "predicate", "title", "kind"):
             value = rel.get(key)
@@ -406,12 +478,15 @@ class GrafoConocimiento:
         if size is None:
             size = self.MaxLengthLabel
         net = Network(height="100vh", width="100%", directed=True)
+        layout_payload = self._layout_payload()
+        initial_positions = layout_payload["byType"]
 
         for n, datos in self.G.nodes(data=True):
             raw_label = datos.get("label", n)
             tipo = datos.get("tipo", "otro")
             type_badge = datos.get("type_badge", "")
             color = datos.get("color", "white")
+            position = initial_positions.get(n, {"x": 0, "y": 0})
             wrapped_label = self._wrap_label(raw_label)
             strategy = self._node_render_strategy(tipo)
             tooltip = f"<b>{html_lib.escape(str(raw_label))}</b><br>Tipo: {html_lib.escape(str(tipo))}"
@@ -440,6 +515,9 @@ class GrafoConocimiento:
                     label="",
                     font={"size": 0, "color": "rgba(0,0,0,0)"},                # 👈 importante: NO string vacío
                     title=tooltip,           # 👈 tooltip con texto humano
+                    x=position["x"],
+                    y=position["y"],
+                    fixed=False,
                     size=38,   # ajusta 24–40
                     shapeProperties={"useImageSize": False}
                 )
@@ -452,6 +530,9 @@ class GrafoConocimiento:
                     title=tooltip,
                     color=color,
                     shape=shape,
+                    x=position["x"],
+                    y=position["y"],
+                    fixed=False,
                     font={
                         "size": 18,
                         "multi": True,
@@ -513,7 +594,13 @@ class GrafoConocimiento:
   "interaction": {
     "hover": true,
     "navigationButtons": false,
-    "keyboard": true
+    "keyboard": true,
+    "multiselect": true,
+    "selectable": true,
+    "selectConnectedEdges": false,
+    "dragNodes": true,
+    "dragView": true,
+    "zoomView": true
   },
   "edges": {
     "font": {
@@ -525,7 +612,8 @@ class GrafoConocimiento:
     },
     "smooth": {
       "enabled": true,
-      "type": "dynamic"
+      "type": "dynamic",
+      "roundness": 0.15
     }
   }
 }
@@ -534,11 +622,22 @@ class GrafoConocimiento:
         net.write_html(salida)
         with open(salida, "r", encoding="utf-8") as f:
             html = f.read()
+        layout_payload_json = json.dumps(layout_payload, ensure_ascii=False)
         
         overlay = """
 <script>
 (function () {
+  function hidePyvisLoadingBar() {
+    const loadingBar = document.getElementById("loadingBar");
+    if (!loadingBar) return;
+    loadingBar.style.display = "none";
+    loadingBar.style.opacity = "0";
+    loadingBar.style.visibility = "hidden";
+    loadingBar.style.pointerEvents = "none";
+  }
+
   function waitForNetwork() {
+    hidePyvisLoadingBar();
     if (window.network && typeof window.network.setOptions === "function") {
       window.mmNetwork = network;
       return;
@@ -546,7 +645,27 @@ class GrafoConocimiento:
     setTimeout(waitForNetwork, 300);
   }
   waitForNetwork();
+  window.addEventListener("load", hidePyvisLoadingBar);
+  setTimeout(hidePyvisLoadingBar, 800);
 })();
+
+const GRAPH_LAYOUTS = __GRAPH_LAYOUTS__;
+
+const GRAPH_UI_STATE = {
+  physics: {
+    mode: "active",
+    enabled: true
+  },
+  edgeControls: {
+    style: "dynamic",
+    roundness: 0.15,
+    smooth: {
+      enabled: true,
+      type: "dynamic",
+      roundness: 0.15
+    }
+  }
+};
 
 const DEFAULT_PHYSICS = {
   grav: 120,
@@ -563,6 +682,25 @@ function physicsValue(id) {
   return Number(document.getElementById(id).value);
 }
 
+function physicsControlState(mode = GRAPH_UI_STATE.physics.mode, enabled = GRAPH_UI_STATE.physics.enabled) {
+  return {
+    mode,
+    enabled,
+    gravitationalConstant: physicsValue("grav"),
+    centralGravity: physicsValue("central"),
+    springLength: physicsValue("springLen"),
+    springConstant: physicsValue("springConst"),
+    damping: physicsValue("damping"),
+    maxVelocity: physicsValue("maxVel"),
+    minVelocity: physicsValue("minVel"),
+    timestep: physicsValue("timestep")
+  };
+}
+
+function setPhysicsState(mode, enabled) {
+  GRAPH_UI_STATE.physics = physicsControlState(mode, enabled);
+}
+
 function enablePhysics() {
   if (!window.mmNetwork) return;
   applyCurrentPhysics();
@@ -573,6 +711,7 @@ function freezePhysics() {
   if (!window.mmNetwork) return;
   window.mmNetwork.stopSimulation();
   window.mmNetwork.setOptions({ physics: { enabled: false } });
+  setPhysicsState("frozen", false);
 }
 
 function applyCurrentPhysics() {
@@ -596,6 +735,7 @@ function applyCurrentPhysics() {
 
   window.mmNetwork.setOptions({ physics: opts });
   window.mmNetwork.startSimulation();
+  setPhysicsState("active", true);
 }
 
 
@@ -605,6 +745,400 @@ function resetPhysics() {
     document.getElementById(id).value = value;
   }
   applyCurrentPhysics();
+}
+
+function graphNodes() {
+  if (!window.mmNetwork || !window.mmNetwork.body || !window.mmNetwork.body.data) return null;
+  return window.mmNetwork.body.data.nodes;
+}
+
+function graphEdges() {
+  if (!window.mmNetwork || !window.mmNetwork.body || !window.mmNetwork.body.data) return null;
+  return window.mmNetwork.body.data.edges;
+}
+
+function setLayoutStatus(text) {
+  const el = document.getElementById("layout-status");
+  if (el) el.textContent = text || "";
+}
+
+function selectedNodeIds() {
+  if (!window.mmNetwork) return [];
+  return window.mmNetwork.getSelectedNodes();
+}
+
+function currentPositionUpdates(nodeIds, fixedValue) {
+  const positions = window.mmNetwork.getPositions(nodeIds);
+  return nodeIds.map((nodeId) => ({
+    id: nodeId,
+    x: positions[nodeId]?.x,
+    y: positions[nodeId]?.y,
+    fixed: { x: fixedValue, y: fixedValue }
+  }));
+}
+
+function fixSelectedNodes() {
+  const nodes = graphNodes();
+  const selected = selectedNodeIds();
+  if (!nodes || selected.length === 0) {
+    setLayoutStatus("Selecciona nodos primero.");
+    return;
+  }
+  nodes.update(currentPositionUpdates(selected, true));
+  setLayoutStatus(`Nodos fijados: ${selected.length}`);
+}
+
+function releaseSelectedNodes() {
+  const nodes = graphNodes();
+  const selected = selectedNodeIds();
+  if (!nodes || selected.length === 0) {
+    setLayoutStatus("Selecciona nodos primero.");
+    return;
+  }
+  nodes.update(currentPositionUpdates(selected, false));
+  setLayoutStatus(`Nodos liberados: ${selected.length}`);
+  applyCurrentPhysics();
+}
+
+function applyLayout(layoutName, options = {}) {
+  const nodes = graphNodes();
+  if (!nodes || !GRAPH_LAYOUTS[layoutName]) return;
+  const updates = Object.entries(GRAPH_LAYOUTS[layoutName]).map(([id, pos]) => ({
+    id,
+    x: pos.x,
+    y: pos.y,
+    fixed: { x: Boolean(options.fixed), y: Boolean(options.fixed) }
+  }));
+  nodes.update(updates);
+  if (options.runPhysics) {
+    applyCurrentPhysics();
+  } else if (window.mmNetwork) {
+    window.mmNetwork.redraw();
+  }
+  setLayoutStatus(options.message || "");
+}
+
+function separateByType() {
+  applyLayout("byType", {
+    runPhysics: true,
+    message: "Separado por tipo de concepto."
+  });
+}
+
+function separateBySource() {
+  applyLayout("bySource", {
+    runPhysics: true,
+    message: "Separado por fuente."
+  });
+}
+
+function separateByComponent() {
+  applyLayout("byComponent", {
+    runPhysics: true,
+    message: "Separado por componente conexa."
+  });
+}
+
+function resetPositions() {
+  applyLayout("byType", {
+    runPhysics: true,
+    message: "Posiciones reiniciadas por tipo."
+  });
+}
+
+function edgeStyleValue() {
+  const select = document.getElementById("edgeStyle");
+  return select ? select.value : "dynamic";
+}
+
+function edgeRoundnessValue() {
+  const input = document.getElementById("edgeRoundness");
+  return input ? Number(input.value) / 100 : 0.15;
+}
+
+function updateEdgeRoundnessLabel() {
+  const label = document.getElementById("edgeRoundnessValue");
+  if (label) label.textContent = edgeRoundnessValue().toFixed(2);
+}
+
+function edgeSmoothConfig(style, roundness) {
+  if (style === "straight") {
+    return false;
+  }
+  if (style === "soft") {
+    return {
+      enabled: true,
+      type: "continuous",
+      roundness
+    };
+  }
+  if (style === "curved") {
+    return {
+      enabled: true,
+      type: "curvedCW",
+      roundness
+    };
+  }
+  return {
+    enabled: true,
+    type: "dynamic",
+    roundness
+  };
+}
+
+function edgeControlState(style = edgeStyleValue(), roundness = edgeRoundnessValue()) {
+  return {
+    style,
+    roundness,
+    smooth: edgeSmoothConfig(style, roundness)
+  };
+}
+
+function preserveCurrentNodePositions(callback) {
+  const nodes = graphNodes();
+  if (!window.mmNetwork || !nodes) return;
+  const nodeIds = nodes.getIds ? nodes.getIds() : nodes.get().map((node) => node.id);
+  const positions = window.mmNetwork.getPositions(nodeIds);
+  const currentNodes = nodes.get(nodeIds);
+  const updates = currentNodes.map((node) => ({
+    id: node.id,
+    x: positions[node.id]?.x,
+    y: positions[node.id]?.y,
+    fixed: node.fixed ?? false
+  }));
+
+  window.mmNetwork.stopSimulation();
+  window.mmNetwork.setOptions({ physics: { enabled: false } });
+  setPhysicsState("paused", false);
+  callback();
+  nodes.update(updates);
+  window.mmNetwork.redraw();
+}
+
+function applyEdgeStyle(options = {}) {
+  if (!window.mmNetwork) return;
+  updateEdgeRoundnessLabel();
+  const style = options.style || edgeStyleValue();
+  const roundness = options.roundness ?? edgeRoundnessValue();
+  const smooth = edgeSmoothConfig(style, roundness);
+  GRAPH_UI_STATE.edgeControls = edgeControlState(style, roundness);
+
+  preserveCurrentNodePositions(() => {
+    window.mmNetwork.setOptions({
+      edges: {
+        smooth,
+        font: {
+          align: "middle",
+          vadjust: 0,
+          strokeWidth: 4,
+          strokeColor: "#ffffff"
+        }
+      }
+    });
+  });
+
+  const status = document.getElementById("edge-status");
+  if (status) status.textContent = options.message || "Enlaces recalculados sin mover nodos.";
+}
+
+function straightenEdges() {
+  const select = document.getElementById("edgeStyle");
+  const roundness = document.getElementById("edgeRoundness");
+  if (select) select.value = "straight";
+  if (roundness) roundness.value = 0;
+  applyEdgeStyle({
+    style: "straight",
+    roundness: 0,
+    message: "Enlaces enderezados sin mover nodos."
+  });
+}
+
+function recalculateEdges() {
+  applyEdgeStyle({
+    message: "Geometría de enlaces recalculada sin mover nodos."
+  });
+}
+
+function alignEdgeLabels() {
+  applyEdgeStyle({
+    message: "Etiquetas alineadas; los colores por relación se conservan."
+  });
+}
+
+function currentNodeSnapshot() {
+  const nodes = graphNodes();
+  if (!window.mmNetwork || !nodes) return [];
+  const nodeIds = nodes.getIds ? nodes.getIds() : nodes.get().map((node) => node.id);
+  const positions = window.mmNetwork.getPositions(nodeIds);
+  return nodes.get(nodeIds).map((node) => ({
+    ...node,
+    x: positions[node.id]?.x ?? node.x,
+    y: positions[node.id]?.y ?? node.y,
+    fixed: node.fixed ?? false
+  }));
+}
+
+function currentGraphState() {
+  const edges = graphEdges();
+  const edgeControls = edgeControlState();
+  GRAPH_UI_STATE.edgeControls = edgeControls;
+  GRAPH_UI_STATE.physics = {
+    ...GRAPH_UI_STATE.physics,
+    ...physicsControlState(GRAPH_UI_STATE.physics.mode, GRAPH_UI_STATE.physics.enabled)
+  };
+
+  return {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    nodes: currentNodeSnapshot(),
+    edges: edges ? edges.get() : [],
+    physics: GRAPH_UI_STATE.physics,
+    edgeControls,
+    selection: selectedNodeIds(),
+    note: "Exported from the interactive graph. It opens frozen to preserve the saved composition; use Activar física to resume simulation."
+  };
+}
+
+function setInputValue(id, value) {
+  const input = document.getElementById(id);
+  if (input && value !== undefined && value !== null) {
+    input.value = value;
+  }
+}
+
+function exportedStateRestoreSource(stateJson) {
+  return `
+window.EXPORTED_GRAPH_STATE = ${stateJson};
+(function () {
+  const state = window.EXPORTED_GRAPH_STATE;
+
+  function setInputValue(id, value) {
+    const input = document.getElementById(id);
+    if (input && value !== undefined && value !== null) input.value = value;
+  }
+
+  function restore() {
+    const net = window.network || window.mmNetwork;
+    if (!net || !net.body || !net.body.data) {
+      setTimeout(restore, 150);
+      return;
+    }
+
+    window.mmNetwork = net;
+    const nodes = net.body.data.nodes;
+    const edges = net.body.data.edges;
+
+    if (Array.isArray(state.nodes)) {
+      nodes.clear();
+      nodes.add(state.nodes);
+    }
+    if (Array.isArray(state.edges)) {
+      edges.clear();
+      edges.add(state.edges);
+    }
+
+    if (state.physics) {
+      setInputValue("grav", state.physics.gravitationalConstant);
+      setInputValue("central", state.physics.centralGravity);
+      setInputValue("springLen", state.physics.springLength);
+      setInputValue("springConst", state.physics.springConstant);
+      setInputValue("damping", state.physics.damping);
+      setInputValue("maxVel", state.physics.maxVelocity);
+      setInputValue("minVel", state.physics.minVelocity);
+      setInputValue("timestep", state.physics.timestep);
+    }
+
+    if (state.edgeControls) {
+      setInputValue("edgeStyle", state.edgeControls.style);
+      setInputValue("edgeRoundness", Math.round((state.edgeControls.roundness ?? 0.15) * 100));
+    }
+
+    if (typeof updateEdgeRoundnessLabel === "function") {
+      updateEdgeRoundnessLabel();
+    }
+    if (typeof GRAPH_UI_STATE !== "undefined") {
+      GRAPH_UI_STATE.physics = {
+        ...(state.physics || {}),
+        enabled: false,
+        mode: state.physics?.mode || "restored"
+      };
+      GRAPH_UI_STATE.edgeControls = state.edgeControls || GRAPH_UI_STATE.edgeControls;
+    }
+
+    net.stopSimulation();
+    net.setOptions({
+      physics: { enabled: false },
+      edges: {
+        smooth: state.edgeControls?.smooth ?? { enabled: true, type: "dynamic", roundness: 0.15 },
+        font: {
+          align: "middle",
+          vadjust: 0,
+          strokeWidth: 4,
+          strokeColor: "#ffffff"
+        }
+      }
+    });
+    net.redraw();
+    if (Array.isArray(state.selection) && state.selection.length > 0) {
+      net.selectNodes(state.selection);
+    }
+
+    const layoutStatus = document.getElementById("layout-status");
+    if (layoutStatus) layoutStatus.textContent = "Estado exportado restaurado; física pausada para conservar posiciones.";
+    const edgeStatus = document.getElementById("edge-status");
+    if (edgeStatus) edgeStatus.textContent = "Estilo de enlaces restaurado.";
+  }
+
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", restore);
+  } else {
+    restore();
+  }
+  window.addEventListener("load", restore);
+})();
+`;
+}
+
+function buildCurrentGraphHtml() {
+  const state = currentGraphState();
+  const clone = document.implementation.createHTMLDocument(document.title || "Knowledge Graph");
+  clone.documentElement.innerHTML = document.documentElement.innerHTML;
+
+  clone.querySelectorAll("#exported-graph-state-script").forEach((script) => script.remove());
+  const networkContainer = clone.getElementById("mynetwork");
+  if (networkContainer) networkContainer.innerHTML = "";
+
+  const safeStateJson = JSON.stringify(state).replace(/</g, "\\u003c");
+  const script = clone.createElement("script");
+  script.id = "exported-graph-state-script";
+  script.textContent = exportedStateRestoreSource(safeStateJson);
+  clone.body.appendChild(script);
+
+  return "<!DOCTYPE html>\\n" + clone.documentElement.outerHTML;
+}
+
+function downloadCurrentGraphHtml() {
+  if (!window.mmNetwork) {
+    const status = document.getElementById("download-status");
+    if (status) status.textContent = "El grafo todavía no está listo para exportar.";
+    return;
+  }
+
+  const html = buildCurrentGraphHtml();
+  const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  link.href = url;
+  link.download = `knowledge_graph_current_${stamp}.html`;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+  const status = document.getElementById("download-status");
+  if (status) status.textContent = "HTML del grafo actual generado.";
 }
 </script>
 
@@ -664,6 +1198,54 @@ function resetPhysics() {
   width: 100%;
   margin-top: 6px;
 }
+
+#physics-overlay select {
+  width: 100%;
+  margin-top: 3px;
+}
+
+#physics-overlay .layout-section {
+  border-top: 1px solid #d1d5db;
+  margin-top: 9px;
+  padding-top: 8px;
+}
+
+#physics-overlay .layout-title {
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 4px;
+}
+
+#physics-overlay .layout-tip,
+#physics-overlay #layout-status,
+#physics-overlay #edge-status,
+#physics-overlay #download-status {
+  color: #4b5563;
+  font-size: 10px;
+  line-height: 1.25;
+}
+
+#physics-overlay #layout-status,
+#physics-overlay #edge-status,
+#physics-overlay #download-status {
+  min-height: 13px;
+  margin-top: 5px;
+}
+
+#physics-overlay .value-row {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+}
+
+#loadingBar,
+#loadingBar *,
+.outerBorder {
+  display: none !important;
+  opacity: 0 !important;
+  visibility: hidden !important;
+  pointer-events: none !important;
+}
 </style>
 
 <div id="physics-overlay">
@@ -721,11 +1303,52 @@ function resetPhysics() {
   <button onclick="enablePhysics()" title="Activa o reanuda la simulación física del grafo.">▶ Activar física</button>
   <button onclick="freezePhysics()" title="Detiene la simulación y conserva las posiciones actuales.">📌 Congelar posiciones</button>
   <button onclick="resetPhysics()" title="Restaura los valores iniciales y reactiva la física.">♻ Resetear física</button>
+
+  <div class="layout-section">
+    <div class="layout-title">Herramientas de organización</div>
+    <div class="layout-tip">Tip: Ctrl/Shift + click selecciona varios nodos; vis-network no incluye selección por caja aquí.</div>
+    <button onclick="fixSelectedNodes()" title="Fija los nodos seleccionados en su posición actual.">📌 Fijar nodos seleccionados</button>
+    <button onclick="releaseSelectedNodes()" title="Libera los nodos seleccionados para que vuelvan a la simulación.">🔓 Liberar nodos seleccionados</button>
+    <button onclick="separateByType()" title="Reubica los nodos por tipo de concepto sin fijarlos.">🧲 Separar por tipo</button>
+    <button onclick="separateBySource()" title="Reubica los nodos por fuente sin fijarlos.">🧭 Separar por fuente</button>
+    <button onclick="separateByComponent()" title="Reubica los nodos por componente conexa sin fijarlos.">🧩 Separar componentes</button>
+    <button onclick="resetPositions()" title="Libera todos los nodos y vuelve a la distribución inicial por tipo.">♻ Resetear posiciones</button>
+    <div id="layout-status"></div>
+  </div>
+
+  <div class="layout-section">
+    <div class="layout-title">Controles de enlaces</div>
+    <div class="layout-tip">Endereza o suaviza flechas sin mover nodos. El ajuste es global; vis-network no edita puntos intermedios manualmente aquí.</div>
+    <label for="edgeStyle">Estilo de enlaces</label>
+    <select id="edgeStyle" onchange="applyEdgeStyle()">
+      <option value="straight">Rectos</option>
+      <option value="soft">Suaves</option>
+      <option value="curved">Curvos</option>
+      <option value="dynamic" selected>Dinámicos</option>
+    </select>
+    <div class="value-row">
+      <label for="edgeRoundness">Curvatura de enlaces</label>
+      <span id="edgeRoundnessValue">0.15</span>
+    </div>
+    <div class="physics-help">Valores bajos hacen las flechas más rectas; valores altos separan flechas paralelas.</div>
+    <input id="edgeRoundness" type="range" min="0" max="60" value="15" oninput="applyEdgeStyle()">
+    <button onclick="straightenEdges()" title="Cambia las aristas a líneas rectas sin mover nodos.">↔ Enderezar enlaces</button>
+    <button onclick="recalculateEdges()" title="Redibuja la geometría actual de enlaces sin recalcular posiciones de nodos.">🔁 Recalcular enlaces</button>
+    <button onclick="alignEdgeLabels()" title="Reaplica alineación de etiquetas de aristas sin cambiar sus colores.">📐 Alinear etiquetas</button>
+    <div id="edge-status"></div>
+  </div>
+
+  <div class="layout-section">
+    <div class="layout-title">Exportar estado</div>
+    <div class="layout-tip">Este botón guarda el estado actual: posiciones, nodos fijados, física y estilos.</div>
+    <button onclick="downloadCurrentGraphHtml()" title="Descarga el HTML con el estado actual del grafo.">💾 Descargar grafo actual</button>
+    <div id="download-status"></div>
+  </div>
 </div>
 """
 
-        
         # Insert before closing body
+        overlay = overlay.replace("__GRAPH_LAYOUTS__", layout_payload_json)
         if "</body>" in html:
             html = html.replace("</body>", overlay + "\n</body>")
         with open(salida, "w", encoding="utf-8") as f:
