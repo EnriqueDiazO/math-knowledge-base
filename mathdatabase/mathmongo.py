@@ -14,6 +14,7 @@ class MathMongo:
         self.concepts = self.db["concepts"]
         self.relations = self.db["relations"]
         self.latex_documents = self.db["latex_documents"]
+        self.knowledge_graph_maps = self.db["knowledge_graph_maps"]
         print(f"✅ Conectado a la base de datos {db_name}")
 
 
@@ -26,6 +27,15 @@ class MathMongo:
         self.relations.create_index([("desde", ASCENDING),
                                       ("hasta", ASCENDING),
                                         ("tipo", ASCENDING)], unique=True)
+        self.knowledge_graph_maps.create_index([("name", ASCENDING)])
+        self.knowledge_graph_maps.create_index([("updated_at", -1)])
+        self.knowledge_graph_maps.create_index([("created_at", -1)])
+        self.knowledge_graph_maps.create_index([("tags", ASCENDING)])
+        self.knowledge_graph_maps.create_index([("filters.sources", ASCENDING)])
+        self.knowledge_graph_maps.create_index([("filters.concept_types", ASCENDING)])
+        self.knowledge_graph_maps.create_index([("filters.relation_types", ASCENDING)])
+        self.knowledge_graph_maps.create_index([("source", ASCENDING)])
+        self.knowledge_graph_maps.create_index([("map_uid", ASCENDING)])
 
 
 

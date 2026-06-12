@@ -6,6 +6,8 @@ Este script crea colecciones, validadores (JSON Schema) e índices mínimos para
   - backlog_items
   - weekly_reviews
   - deliverables
+  - latex_notes
+  - knowledge_graph_maps
 
 Uso:
   python scripts/install_cuaderno_mode.py
@@ -35,6 +37,7 @@ REQUIRED_COLLECTIONS = [
     "weekly_reviews",
     "deliverables",
     "latex_notes",
+    "knowledge_graph_maps",
 ]
 
 
@@ -186,6 +189,36 @@ def _latex_notes_validator() -> Dict[str, Any]:
         }
     }
 
+
+def _knowledge_graph_maps_validator() -> Dict[str, Any]:
+    return {
+        "$jsonSchema": {
+            "bsonType": "object",
+            "required": ["name", "graph_state", "created_at", "updated_at"],
+            "properties": {
+                "map_uid": {"bsonType": ["string", "null"]},
+                "name": {"bsonType": "string"},
+                "description": {"bsonType": ["string", "null"]},
+                "tags": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                "filters": {
+                    "bsonType": ["object", "null"],
+                    "properties": {
+                        "sources": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                        "concept_types": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                        "relation_types": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                        "max_depth": {"bsonType": ["int", "long", "double", "null"]},
+                    },
+                },
+                "graph_state": {"bsonType": "object"},
+                "source": {"bsonType": ["string", "null"]},
+                # JSON exports restore datetimes as ISO strings, so both forms are accepted.
+                "created_at": {"bsonType": ["date", "string"]},
+                "updated_at": {"bsonType": ["date", "string"]},
+            },
+        }
+    }
+
+
 def _ensure_indexes(db) -> None:
     def _safe_create_index(col, keys, *, name: str, unique: bool = False) -> None:
         """Crea un índice de forma idempotente.
@@ -252,18 +285,64 @@ def _ensure_indexes(db) -> None:
         name="date_desc_project",
     )
 
+    # latex notes
+    _safe_create_index(
+        db["latex_notes"],
+        [("date", DESCENDING), ("updated_at", DESCENDING)],
+        name="date_desc_updated_desc",
+    )
+    _safe_create_index(
+        db["latex_notes"],
+        [("project", ASCENDING), ("date", DESCENDING)],
+        name="latex_project_date_desc",
+    )
 
-# latex notes
+    # knowledge graph maps
     _safe_create_index(
-    db["latex_notes"],
-    [("date", DESCENDING), ("updated_at", DESCENDING)],
-    name="date_desc_updated_desc",
-)
+        db["knowledge_graph_maps"],
+        [("name", ASCENDING)],
+        name="kg_maps_name",
+    )
     _safe_create_index(
-    db["latex_notes"],
-    [("project", ASCENDING), ("date", DESCENDING)],
-    name="latex_project_date_desc",
-)
+        db["knowledge_graph_maps"],
+        [("updated_at", DESCENDING)],
+        name="kg_maps_updated_at_desc",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("created_at", DESCENDING)],
+        name="kg_maps_created_at_desc",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("tags", ASCENDING)],
+        name="kg_maps_tags",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("filters.sources", ASCENDING)],
+        name="kg_maps_filter_sources",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("filters.concept_types", ASCENDING)],
+        name="kg_maps_filter_concept_types",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("filters.relation_types", ASCENDING)],
+        name="kg_maps_filter_relation_types",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("source", ASCENDING)],
+        name="kg_maps_source",
+    )
+    _safe_create_index(
+        db["knowledge_graph_maps"],
+        [("map_uid", ASCENDING)],
+        name="kg_maps_map_uid",
+    )
 
 
 def status(db) -> int:
@@ -285,6 +364,7 @@ def install(db) -> int:
     _ensure_collection(db, "weekly_reviews", _weekly_validator())
     _ensure_collection(db, "deliverables", _deliverables_validator())
     _ensure_collection(db, "latex_notes", _latex_notes_validator())
+    _ensure_collection(db, "knowledge_graph_maps", _knowledge_graph_maps_validator())
     _ensure_indexes(db)
     print("✅ Cuaderno instalado (colecciones + validadores + índices).")
     return 0

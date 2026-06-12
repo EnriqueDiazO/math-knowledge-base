@@ -4,6 +4,19 @@ from pathlib import Path
 from typing import Dict
 from mathdatabase.mathmongo import MathMongo
 
+
+DEFAULT_IMPORT_COLLECTIONS = [
+    "backlog_items",
+    "concepts",
+    "deliverables",
+    "knowledge_graph_maps",
+    "latex_documents",
+    "latex_notes",
+    "relations",
+    "weekly_reviews",
+    "worklog_entries",
+]
+
 def inspect_export_zip(zip_path: Path) -> Dict:
     """
     Inspect a Math Knowledge Base export ZIP.
@@ -63,6 +76,7 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> None:
         base_dirs = {p.split("/")[0] for p in names if "/" in p}
         base_dir = base_dirs.pop()
 
+        imported_collections = set()
         for name in names:
             if not name.endswith(".json"):
                 continue
@@ -72,5 +86,16 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> None:
                 continue
 
             docs = json.loads(zf.read(name).decode("utf-8"))
-            if docs:
-                db[coll].insert_many(docs)
+            imported_collections.add(coll)
+            if coll not in db.list_collection_names():
+                db.create_collection(coll)
+
+            for doc in docs:
+                if isinstance(doc, dict) and "_id" in doc:
+                    db[coll].replace_one({"_id": doc["_id"]}, doc, upsert=True)
+                else:
+                    db[coll].insert_one(doc)
+
+        for coll in set(DEFAULT_IMPORT_COLLECTIONS) - imported_collections:
+            if coll not in db.list_collection_names():
+                db.create_collection(coll)

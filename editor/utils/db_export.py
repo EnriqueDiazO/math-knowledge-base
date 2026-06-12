@@ -6,6 +6,19 @@ from pathlib import Path
 from bson import ObjectId
 
 
+DEFAULT_EXPORT_COLLECTIONS = [
+    "backlog_items",
+    "concepts",
+    "deliverables",
+    "knowledge_graph_maps",
+    "latex_documents",
+    "latex_notes",
+    "relations",
+    "weekly_reviews",
+    "worklog_entries",
+]
+
+
 def mongo_to_json_safe(obj):
     """
     Recursively convert MongoDB-specific types into JSON-serializable forms.
@@ -49,8 +62,9 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
         "collections": {},
     }
 
-    # Export each collection
-    for collection_name in db.list_collection_names():
+    # Export existing collections plus expected empty collections.
+    collection_names = sorted(set(db.list_collection_names()) | set(DEFAULT_EXPORT_COLLECTIONS))
+    for collection_name in collection_names:
         raw_docs = list(db[collection_name].find({}))
         metadata["collections"][collection_name] = len(raw_docs)
 

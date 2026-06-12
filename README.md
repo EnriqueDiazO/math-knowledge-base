@@ -138,7 +138,7 @@ chmod +x scripts/make_desktop_shortcut.sh
 
 If you wish to explore the *Cuaderno* close the app and now  
 ```
-# 
+# Creates/updates notebook collections and knowledge graph map indexes for the selected DB.
 python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db mathmongo
 ```
 Then rerun the APP.
@@ -199,6 +199,7 @@ The application allows exporting the **entire MongoDB database** used by Math Kn
 
 - Export is **read-only** and does not modify the database.
 - All collections are exported as **JSON files**, one file per collection.
+- Expected project collections are included even when empty, including `knowledge_graph_maps`.
 - MongoDB-specific types are safely normalized:
   - `ObjectId` → string
   - `datetime` → ISO 8601 strings
@@ -210,6 +211,20 @@ This makes the export:
 - Fully versionable (e.g. via Git or external storage),
 - Portable across machines,
 - Independent of the runtime environment.
+
+### 🗺️ Knowledge graph maps
+
+Concept maps edited from **Knowledge Graph Visualization** are stored in the `knowledge_graph_maps` collection and are included in full database exports/imports.
+
+Each saved map keeps:
+- generation filters (`sources`, concept types, relation types, max depth),
+- nodes and edges,
+- edited node positions and fixed-node state,
+- physics, layout, and edge-control settings,
+- node/edge text sizing,
+- tags and descriptive metadata.
+
+The `graph_state` payload is exported without trimming so restored maps preserve the visual editing state.
 
 Typical use cases include:
 - Creating snapshots before major refactors,

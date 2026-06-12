@@ -1,5 +1,8 @@
 import os
+import json
+import re
 import sys
+from uuid import uuid4
 from datetime import date
 from datetime import datetime
 from datetime import timedelta
@@ -49,6 +52,155 @@ from exporters_quarto.quarto_exporter import QuartoBookExporter
 from mathdatabase.mathmongo import MathMongo
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
+
+
+def _parse_knowledge_graph_state_json(raw: str) -> dict:
+    text = (raw or "").strip()
+    if not text:
+        raise ValueError("Pega primero el JSON del estado actual del grafo.")
+
+    payload = json.loads(text)
+    graph_state = payload.get("graph_state", payload) if isinstance(payload, dict) else None
+    if not isinstance(graph_state, dict):
+        raise ValueError("El JSON debe ser un objeto con el estado del grafo.")
+    if not isinstance(graph_state.get("nodes"), list) or not isinstance(graph_state.get("edges"), list):
+        raise ValueError("El estado debe incluir listas 'nodes' y 'edges'.")
+    return graph_state
+
+
+def _knowledge_graph_map_label(doc: dict) -> str:
+    filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
+    sources = filters.get("sources") or []
+    concept_types = filters.get("concept_types") or []
+    relation_types = filters.get("relation_types") or []
+    updated_at = doc.get("updated_at") or doc.get("created_at")
+    if isinstance(updated_at, datetime):
+        updated_text = updated_at.strftime("%Y-%m-%d %H:%M")
+    else:
+        updated_text = str(updated_at or "sin fecha")
+    return (
+        f"{doc.get('name', 'Mapa sin nombre')} · {updated_text} · "
+        f"{len(sources)} fuentes · {len(concept_types)} tipos · {len(relation_types)} relaciones"
+    )
+
+
+def _knowledge_graph_state_counts(graph_state: dict) -> tuple[int, int]:
+    if not isinstance(graph_state, dict):
+        return 0, 0
+    nodes = graph_state.get("nodes") if isinstance(graph_state.get("nodes"), list) else []
+    edges = graph_state.get("edges") if isinstance(graph_state.get("edges"), list) else []
+    return len(nodes), len(edges)
+
+
+def _knowledge_graph_map_summary(doc: dict) -> dict:
+    filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
+    tags = doc.get("tags", []) if isinstance(doc.get("tags"), list) else []
+    sources = filters.get("sources", []) if isinstance(filters.get("sources"), list) else []
+    concept_types = filters.get("concept_types", []) if isinstance(filters.get("concept_types"), list) else []
+    relation_types = filters.get("relation_types", []) if isinstance(filters.get("relation_types"), list) else []
+    nodes, edges = _knowledge_graph_state_counts(doc.get("graph_state", {}))
+    updated_at = doc.get("updated_at") or doc.get("created_at")
+    updated_text = updated_at.strftime("%Y-%m-%d %H:%M") if isinstance(updated_at, datetime) else str(updated_at or "")
+    description = str(doc.get("description", "") or "")
+    return {
+        "Nombre": doc.get("name", "Mapa sin nombre"),
+        "Descripción": description[:90] + ("..." if len(description) > 90 else ""),
+        "Tags": ", ".join(tags),
+        "Fuentes": ", ".join(sources),
+        "Tipos concepto": ", ".join(concept_types),
+        "Tipos relación": ", ".join(relation_types),
+        "Última actualización": updated_text,
+        "Nodos": nodes,
+        "Aristas": edges,
+    }
+
+
+def _render_knowledge_graph_map_html(graph_state: dict, map_key: str) -> str:
+    html_file = f"knowledge_graph_saved_{map_key}.html"
+    grafo = GrafoConocimiento([], [])
+    grafo.exportar_html(salida=html_file, initial_state=graph_state)
+    with open(html_file, "r", encoding="utf-8") as f:
+        return f.read()
+
+
+def _render_knowledge_graph_map_metadata(doc: dict) -> None:
+    filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
+    tags = doc.get("tags", []) if isinstance(doc.get("tags"), list) else []
+    created_at = doc.get("created_at")
+    updated_at = doc.get("updated_at")
+    st.caption(doc.get("description", "") or "Sin descripción.")
+    st.write(f"**Tags:** {', '.join(tags) if tags else 'Sin tags'}")
+    st.write(f"**Fuentes:** {', '.join(filters.get('sources', []) or []) or 'Sin fuentes'}")
+    st.write(f"**Tipos de concepto:** {', '.join(filters.get('concept_types', []) or []) or 'Sin tipos'}")
+    st.write(f"**Tipos de relación:** {', '.join(filters.get('relation_types', []) or []) or 'Sin relaciones'}")
+    st.write(f"**Max depth:** {filters.get('max_depth', 'N/D')}")
+    if created_at:
+        st.write(f"**Creado:** {created_at}")
+    if updated_at:
+        st.write(f"**Actualizado:** {updated_at}")
+
+
+def _source_from_graph_endpoint(value) -> str | None:
+    if not isinstance(value, str) or "@" not in value:
+        return None
+    source = value.rsplit("@", 1)[1].strip()
+    return source or None
+
+
+def _knowledge_graph_source_options(mongo: MathMongo, saved_maps: list[dict] | None = None) -> list[str]:
+    sources = set()
+
+    for source in mongo.concepts.distinct("source"):
+        if isinstance(source, str) and source.strip():
+            sources.add(source.strip())
+
+    for field in ("desde", "hasta"):
+        for endpoint in mongo.relations.distinct(field):
+            source = _source_from_graph_endpoint(endpoint)
+            if source:
+                sources.add(source)
+
+    for doc in saved_maps or []:
+        filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
+        for source in filters.get("sources", []) or []:
+            if isinstance(source, str) and source.strip():
+                sources.add(source.strip())
+
+    return sorted(sources, key=str.lower)
+
+
+def _build_knowledge_graph_state_from_filters(
+    mongo: MathMongo,
+    sources: list[str],
+    relation_types: list[str],
+    concept_types: list[str],
+    previous_state: dict | None = None,
+) -> dict:
+    clean_sources = [source for source in sources or [] if source]
+    clean_relations = [relation for relation in relation_types or [] if relation]
+    clean_types = [concept_type for concept_type in concept_types or [] if concept_type]
+
+    concept_query = {}
+    if clean_sources:
+        concept_query["source"] = {"$in": clean_sources}
+    if clean_types:
+        concept_query["tipo"] = {"$in": clean_types}
+    concepts = list(mongo.concepts.find(concept_query))
+
+    relation_query = {}
+    if clean_sources:
+        source_pattern = "|".join(re.escape(source) for source in clean_sources)
+        relation_query["$or"] = [
+            {"desde": {"$regex": f"@({source_pattern})$"}},
+            {"hasta": {"$regex": f"@({source_pattern})$"}},
+        ]
+    if clean_relations:
+        relation_query["tipo"] = {"$in": clean_relations}
+    relations = list(mongo.relations.find(relation_query))
+
+    grafo = GrafoConocimiento(concepts, relations)
+    grafo.construir_grafo(tipos_relacion=clean_relations, tipos_concepto=clean_types)
+    return grafo.to_graph_state(previous_state=previous_state)
 
 
 def _bib_to_referencia(entry: dict) -> dict:
@@ -3264,98 +3416,476 @@ elif page == "📊 Knowledge Graph":
         st.stop()
 
     st.info(f"📊 Generating graph from: **{current_db}**")
-
-    st.subheader("🔧 Graph Configuration")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        # Filter by source
-        selected_sources = st.multiselect(
-            "Select Sources",
-            db.concepts.distinct("source"),
-            default=db.concepts.distinct("source")[:3] if db.concepts.distinct("source") else []
-        )
-
-        # Filter by concept types
-        selected_types = st.multiselect(
-            "Select Concept Types",
-            ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"],
-            default=["definicion", "teorema", "proposicion"]
-        )
-
-    with col2:
-        # Filter by relation types
-        selected_relations = st.multiselect(
-            "Select Relation Types",
-            [t.value for t in TipoRelacion],
-            default=["implica", "deriva_de", "requiere_concepto"]
-        )
-
-        max_depth = st.slider("Max Depth", 1, 5, 3)
-
-    if st.button("🔍 Generate Graph", type="primary"):
-        if selected_sources:
-            try:
-                # Get concepts
-                concept_query = {"source": {"$in": selected_sources}}
-                if selected_types:
-                    concept_query["tipo"] = {"$in": selected_types}
-
-                concepts = list(db.concepts.find(concept_query))
-
-                # Get relations
-                relation_query = {
-                    "$or": [
-                        {"desde": {"$regex": f"@({'|'.join(selected_sources)})$"}},
-                        {"hasta": {"$regex": f"@({'|'.join(selected_sources)})$"}}
-                    ]
-                }
-                if selected_relations:
-                    relation_query["tipo"] = {"$in": selected_relations}
-
-                relations = list(db.relations.find(relation_query))
-
-                if concepts and relations:
-                    # Generate graph
-                    grafo = GrafoConocimiento(concepts, relations)
-                    grafo.construir_grafo(
-                        tipos_relacion=selected_relations,
-                        tipos_concepto=selected_types)
-
-                    # Export to HTML
-                    html_file = "knowledge_graph.html"
-                    grafo.exportar_html(salida=html_file)
-
-                    # Display the graph
-                    with open(html_file, 'r', encoding='utf-8') as f:
-                        html_content = f.read()
-
-                    st.subheader("🎯 Interactive Knowledge Graph")
-                    st.components.v1.html(html_content, height=800)
-
-                    st.caption(
-                        "Usa el botón 💾 Descargar grafo actual dentro del panel del grafo para exportar "
-                        "posiciones, nodos fijados, física y estilos actuales."
-                    )
-
-                    # Statistics
-                    st.subheader("📊 Graph Statistics")
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Nodes", len(grafo.G.nodes))
-                    with col2:
-                        st.metric("Edges", len(grafo.G.edges))
-                    with col3:
-                        st.metric("Sources", len(selected_sources))
-
-                else:
-                    st.warning("⚠️ No concepts or relations found with the selected filters.")
-
-            except Exception as e:
-                st.error(f"❌ Error generating graph: {e}")
+    graph_message = st.session_state.pop("knowledge_graph_message", None)
+    if graph_message:
+        message_type, message_text = graph_message
+        if message_type == "success":
+            st.success(message_text)
+        elif message_type == "info":
+            st.info(message_text)
         else:
-            st.error("❌ Please select at least one source.")
+            st.error(message_text)
+
+    maps_col = db.db["knowledge_graph_maps"]
+    try:
+        all_maps = list(maps_col.find({}).sort("updated_at", -1).limit(200))
+    except Exception as exc:
+        all_maps = []
+        st.error(f"No se pudieron listar los mapas guardados: {exc}")
+
+    source_options = _knowledge_graph_source_options(db, all_maps)
+    concept_type_options = ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"]
+    relation_type_options = [t.value for t in TipoRelacion]
+    tabs = st.tabs(["📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"])
+
+    with tabs[0]:
+        st.subheader("📊 Nuevo mapa")
+        col1, col2 = st.columns(2)
+        with col1:
+            selected_sources = st.multiselect(
+                "Select Sources",
+                source_options,
+                default=source_options[:3] if source_options else [],
+                key="kg_new_sources",
+            )
+            selected_types = st.multiselect(
+                "Select Concept Types",
+                concept_type_options,
+                default=["definicion", "teorema", "proposicion"],
+                key="kg_new_concept_types",
+            )
+        with col2:
+            selected_relations = st.multiselect(
+                "Select Relation Types",
+                relation_type_options,
+                default=["implica", "deriva_de", "requiere_concepto"],
+                key="kg_new_relation_types",
+            )
+            max_depth = st.slider("Max Depth", 1, 5, 3, key="kg_new_max_depth")
+
+        if st.button("🔍 Generate Graph", type="primary", key="kg_generate_graph"):
+            if selected_sources:
+                try:
+                    concept_query = {"source": {"$in": selected_sources}}
+                    if selected_types:
+                        concept_query["tipo"] = {"$in": selected_types}
+                    concepts = list(db.concepts.find(concept_query))
+
+                    relation_query = {
+                        "$or": [
+                            {"desde": {"$regex": f"@({'|'.join(selected_sources)})$"}},
+                            {"hasta": {"$regex": f"@({'|'.join(selected_sources)})$"}},
+                        ]
+                    }
+                    if selected_relations:
+                        relation_query["tipo"] = {"$in": selected_relations}
+                    relations = list(db.relations.find(relation_query))
+
+                    if concepts and relations:
+                        grafo = GrafoConocimiento(concepts, relations)
+                        grafo.construir_grafo(
+                            tipos_relacion=selected_relations,
+                            tipos_concepto=selected_types,
+                        )
+                        html_file = "knowledge_graph.html"
+                        grafo.exportar_html(salida=html_file)
+                        with open(html_file, "r", encoding="utf-8") as f:
+                            st.session_state["knowledge_graph_new_html"] = f.read()
+                        st.session_state["knowledge_graph_new_stats"] = {
+                            "nodes": len(grafo.G.nodes),
+                            "edges": len(grafo.G.edges),
+                            "sources": len(selected_sources),
+                        }
+                        st.success("Grafo generado correctamente.")
+                    else:
+                        st.warning("⚠️ No concepts or relations found with the selected filters.")
+                except Exception as e:
+                    st.error(f"❌ Error generating graph: {e}")
+            else:
+                st.error("❌ Please select at least one source.")
+
+        if st.session_state.get("knowledge_graph_new_html"):
+            st.subheader("🎯 Interactive Knowledge Graph")
+            st.components.v1.html(st.session_state["knowledge_graph_new_html"], height=800)
+            st.caption(
+                "Edita el grafo y usa 📋 Copiar estado JSON dentro del panel. "
+                "Pega ese JSON abajo para guardar el mapa generado."
+            )
+            stats = st.session_state.get("knowledge_graph_new_stats", {})
+            stat_col1, stat_col2, stat_col3 = st.columns(3)
+            stat_col1.metric("Nodes", stats.get("nodes", 0))
+            stat_col2.metric("Edges", stats.get("edges", 0))
+            stat_col3.metric("Sources", stats.get("sources", 0))
+
+        with st.form("kg_save_new_map_form"):
+            st.markdown("**Guardar mapa generado**")
+            map_name = st.text_input("Nombre del mapa", key="kg_new_map_name")
+            map_description = st.text_area("Descripción", height=80, key="kg_new_map_description")
+            map_tags = st.text_input("Tags (separados por coma)", key="kg_new_map_tags")
+            graph_state_json = st.text_area(
+                "Estado JSON actual del grafo",
+                height=160,
+                key="kg_new_graph_state_json",
+                placeholder="Pega aquí el JSON copiado con 📋 Copiar estado JSON...",
+            )
+            save_map = st.form_submit_button("💾 Guardar mapa generado")
+
+        if save_map:
+            if not map_name.strip():
+                st.error("El nombre del mapa es obligatorio.")
+            else:
+                try:
+                    graph_state = _parse_knowledge_graph_state_json(graph_state_json)
+                    now = datetime.utcnow()
+                    document = {
+                        "name": map_name.strip(),
+                        "description": map_description.strip(),
+                        "created_at": now,
+                        "updated_at": now,
+                        "filters": {
+                            "sources": list(selected_sources or []),
+                            "relation_types": list(selected_relations or []),
+                            "concept_types": list(selected_types or []),
+                            "max_depth": max_depth,
+                        },
+                        "graph_state": graph_state,
+                        "tags": [tag.strip() for tag in map_tags.split(",") if tag.strip()],
+                        "source": "interactive_knowledge_graph",
+                        "map_uid": str(uuid4()),
+                    }
+                    result = maps_col.insert_one(document)
+                    if result.acknowledged:
+                        st.success("Mapa guardado correctamente.")
+                    else:
+                        st.error("MongoDB no confirmó el guardado del mapa.")
+                except json.JSONDecodeError as exc:
+                    st.error(f"No se pudo leer el JSON del estado: {exc}")
+                except Exception as exc:
+                    st.error(f"No se pudo guardar el mapa: {exc}")
+
+    with tabs[1]:
+        st.subheader("📚 Mapas guardados")
+        if not all_maps:
+            st.info("Todavía no hay mapas guardados en knowledge_graph_maps.")
+        else:
+            filter_col1, filter_col2, filter_col3, filter_col4 = st.columns(4)
+            with filter_col1:
+                search_text = st.text_input("Buscar por nombre", key="kg_maps_search")
+            all_tags = sorted({tag for doc in all_maps for tag in doc.get("tags", []) if isinstance(tag, str)})
+            all_map_sources = sorted(
+                {
+                    source
+                    for doc in all_maps
+                    for source in (doc.get("filters", {}) or {}).get("sources", [])
+                    if isinstance(source, str)
+                }
+            )
+            all_map_types = sorted(
+                {
+                    concept_type
+                    for doc in all_maps
+                    for concept_type in (doc.get("filters", {}) or {}).get("concept_types", [])
+                    if isinstance(concept_type, str)
+                }
+            )
+            with filter_col2:
+                tag_filter = st.selectbox("Filtrar por tag", [""] + all_tags, key="kg_maps_tag_filter")
+            with filter_col3:
+                source_filter = st.selectbox("Filtrar por fuente", [""] + all_map_sources, key="kg_maps_source_filter")
+            with filter_col4:
+                type_filter = st.selectbox("Filtrar por tipo", [""] + all_map_types, key="kg_maps_type_filter")
+
+            filtered_maps = []
+            for doc in all_maps:
+                filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
+                tags = doc.get("tags", []) if isinstance(doc.get("tags"), list) else []
+                if search_text and search_text.lower() not in str(doc.get("name", "")).lower():
+                    continue
+                if tag_filter and tag_filter not in tags:
+                    continue
+                if source_filter and source_filter not in (filters.get("sources") or []):
+                    continue
+                if type_filter and type_filter not in (filters.get("concept_types") or []):
+                    continue
+                filtered_maps.append(doc)
+
+            if not filtered_maps:
+                st.info("No hay mapas que coincidan con los filtros.")
+            else:
+                st.dataframe(
+                    pd.DataFrame([_knowledge_graph_map_summary(doc) for doc in filtered_maps]),
+                    width="stretch",
+                    hide_index=True,
+                )
+                map_options = {_knowledge_graph_map_label(doc): str(doc["_id"]) for doc in filtered_maps}
+                selected_label = st.selectbox("Seleccionar mapa", list(map_options), key="kg_saved_selected_map")
+                selected_map_id = map_options[selected_label]
+                selected_doc = next(doc for doc in filtered_maps if str(doc["_id"]) == selected_map_id)
+
+                action_col1, action_col2, action_col3, action_col4 = st.columns(4)
+                with action_col1:
+                    if st.button("Ver", key="kg_view_map"):
+                        st.session_state["knowledge_graph_active_map_id"] = selected_map_id
+                        st.session_state["knowledge_graph_active_mode"] = "view"
+                with action_col2:
+                    if st.button("Editar", key="kg_edit_map"):
+                        st.session_state["knowledge_graph_active_map_id"] = selected_map_id
+                        st.session_state["knowledge_graph_active_mode"] = "edit"
+                with action_col3:
+                    if st.button("Duplicar", key="kg_duplicate_map"):
+                        try:
+                            now = datetime.utcnow()
+                            duplicate = {k: v for k, v in selected_doc.items() if k != "_id"}
+                            duplicate["name"] = f"Copia de {selected_doc.get('name', 'Mapa sin nombre')}"
+                            duplicate["map_uid"] = str(uuid4())
+                            duplicate["created_at"] = now
+                            duplicate["updated_at"] = now
+                            result = maps_col.insert_one(duplicate)
+                            if result.acknowledged:
+                                st.success("Mapa duplicado correctamente.")
+                            else:
+                                st.error("MongoDB no confirmó la duplicación.")
+                        except Exception as exc:
+                            st.error(f"No se pudo duplicar el mapa: {exc}")
+                with action_col4:
+                    confirm_delete = st.checkbox("Confirmar eliminación", key="kg_saved_confirm_delete")
+                    if st.button("Eliminar", key="kg_delete_map"):
+                        if not confirm_delete:
+                            st.error("Marca la confirmación antes de eliminar el mapa.")
+                        else:
+                            try:
+                                result = maps_col.delete_one({"_id": ObjectId(selected_map_id)})
+                                if result.deleted_count:
+                                    st.success("Mapa eliminado correctamente.")
+                                    if st.session_state.get("knowledge_graph_active_map_id") == selected_map_id:
+                                        st.session_state.pop("knowledge_graph_active_map_id", None)
+                                        st.session_state.pop("knowledge_graph_active_mode", None)
+                                else:
+                                    st.error("No se encontró el mapa que se intentaba eliminar.")
+                            except Exception as exc:
+                                st.error(f"No se pudo eliminar el mapa: {exc}")
+
+                if st.session_state.get("knowledge_graph_active_mode") == "view":
+                    active_id = st.session_state.get("knowledge_graph_active_map_id")
+                    active_doc = maps_col.find_one({"_id": ObjectId(active_id)}) if active_id else None
+                    if active_doc:
+                        st.divider()
+                        st.subheader(active_doc.get("name", "Mapa guardado"))
+                        _render_knowledge_graph_map_metadata(active_doc)
+                        graph_state = active_doc.get("graph_state", {})
+                        nodes, edges = _knowledge_graph_state_counts(graph_state)
+                        metric_col1, metric_col2 = st.columns(2)
+                        metric_col1.metric("Nodos", nodes)
+                        metric_col2.metric("Aristas", edges)
+                        if st.button("✏️ Editar este mapa", key="kg_view_to_edit"):
+                            st.session_state["knowledge_graph_active_mode"] = "edit"
+                        html_content = _render_knowledge_graph_map_html(graph_state, f"view_{active_id}")
+                        st.components.v1.html(html_content, height=800)
+
+    with tabs[2]:
+        st.subheader("✏️ Editar mapa")
+        if not all_maps:
+            st.info("No hay mapas guardados para editar.")
+        else:
+            edit_options = {_knowledge_graph_map_label(doc): str(doc["_id"]) for doc in all_maps}
+            active_id = st.session_state.get("knowledge_graph_active_map_id")
+            default_index = 0
+            if active_id and active_id in edit_options.values():
+                default_index = list(edit_options.values()).index(active_id)
+            edit_label = st.selectbox(
+                "Mapa para editar",
+                list(edit_options),
+                index=default_index,
+                key="kg_edit_selected_map",
+            )
+            edit_map_id = edit_options[edit_label]
+            edit_doc = maps_col.find_one({"_id": ObjectId(edit_map_id)})
+            if not edit_doc:
+                st.error("No se encontró el mapa seleccionado.")
+            else:
+                graph_state = edit_doc.get("graph_state", {})
+                st.markdown(f"**Editando:** {edit_doc.get('name', 'Mapa guardado')}")
+                st.caption("Mueve nodos y ajusta controles; luego copia el JSON desde el panel del grafo y pégalo abajo.")
+                html_content = _render_knowledge_graph_map_html(graph_state, f"edit_{edit_map_id}")
+                st.components.v1.html(html_content, height=800)
+
+                filters = edit_doc.get("filters", {}) if isinstance(edit_doc.get("filters"), dict) else {}
+                with st.form("kg_update_map_form"):
+                    updated_name = st.text_input("Nombre del mapa", value=edit_doc.get("name", ""), key="kg_edit_name")
+                    updated_description = st.text_area(
+                        "Descripción",
+                        value=edit_doc.get("description", ""),
+                        height=80,
+                        key="kg_edit_description",
+                    )
+                    updated_tags = st.text_input(
+                        "Tags (separados por coma)",
+                        value=", ".join(edit_doc.get("tags", []) or []),
+                        key="kg_edit_tags",
+                    )
+                    edit_col1, edit_col2 = st.columns(2)
+                    with edit_col1:
+                        updated_sources = st.multiselect(
+                            "Fuentes",
+                            source_options,
+                            default=[s for s in filters.get("sources", []) if s in source_options],
+                            key="kg_edit_sources",
+                        )
+                        updated_types = st.multiselect(
+                            "Tipos de concepto",
+                            concept_type_options,
+                            default=[t for t in filters.get("concept_types", []) if t in concept_type_options],
+                            key="kg_edit_concept_types",
+                        )
+                    with edit_col2:
+                        updated_relations = st.multiselect(
+                            "Tipos de relación",
+                            relation_type_options,
+                            default=[r for r in filters.get("relation_types", []) if r in relation_type_options],
+                            key="kg_edit_relation_types",
+                        )
+                        updated_max_depth = st.slider(
+                            "Max depth",
+                            1,
+                            5,
+                            min(5, max(1, int(filters.get("max_depth", 3) or 3))),
+                            key="kg_edit_max_depth",
+                        )
+                    updated_state_json = st.text_area(
+                        "Estado JSON actual del grafo",
+                        height=180,
+                        key="kg_edit_graph_state_json",
+                        placeholder=(
+                            "Pega aquí el JSON copiado desde 📋 Copiar estado JSON. "
+                            "El mapa se reconstruye con los filtros actuales y preserva posiciones existentes cuando puede."
+                        ),
+                    )
+                    update_map = st.form_submit_button("💾 Guardar cambios del mapa")
+
+                if update_map:
+                    if not updated_name.strip():
+                        st.error("El nombre del mapa es obligatorio.")
+                    else:
+                        try:
+                            base_graph_state = (
+                                _parse_knowledge_graph_state_json(updated_state_json)
+                                if updated_state_json.strip()
+                                else graph_state
+                            )
+                            new_graph_state = _build_knowledge_graph_state_from_filters(
+                                db,
+                                updated_sources,
+                                updated_relations,
+                                updated_types,
+                                previous_state=base_graph_state,
+                            )
+                            result = maps_col.update_one(
+                                {"_id": ObjectId(edit_map_id)},
+                                {
+                                    "$set": {
+                                        "name": updated_name.strip(),
+                                        "description": updated_description.strip(),
+                                        "tags": [tag.strip() for tag in updated_tags.split(",") if tag.strip()],
+                                        "filters": {
+                                            "sources": list(updated_sources or []),
+                                            "relation_types": list(updated_relations or []),
+                                            "concept_types": list(updated_types or []),
+                                            "max_depth": updated_max_depth,
+                                        },
+                                        "graph_state": new_graph_state,
+                                        "map_uid": edit_doc.get("map_uid") or str(uuid4()),
+                                        "updated_at": datetime.utcnow(),
+                                    }
+                                },
+                            )
+                            if not result.acknowledged:
+                                st.error("MongoDB no confirmó la actualización del mapa.")
+                            elif result.matched_count == 0:
+                                st.error("No se encontró el mapa que se intentaba actualizar.")
+                            elif result.modified_count == 0:
+                                st.info("No hubo cambios nuevos que guardar.")
+                            else:
+                                st.session_state["knowledge_graph_active_map_id"] = edit_map_id
+                                st.session_state["knowledge_graph_active_mode"] = "edit"
+                                st.session_state["knowledge_graph_message"] = (
+                                    "success",
+                                    "Mapa actualizado correctamente. El grafo se reconstruyó con los filtros actuales.",
+                                )
+                                st.rerun()
+                        except json.JSONDecodeError as exc:
+                            st.error(f"No se pudo leer el JSON del estado: {exc}")
+                        except Exception as exc:
+                            st.error(f"No se pudo actualizar el mapa: {exc}")
+
+    with tabs[3]:
+        st.subheader("📤 Exportar / importar")
+        st.info(
+            "El estado visual real vive en JavaScript. Usa 📋 Copiar estado JSON dentro del grafo "
+            "para traer el estado actual a Streamlit y guardarlo o importarlo."
+        )
+        if all_maps:
+            export_options = {_knowledge_graph_map_label(doc): str(doc["_id"]) for doc in all_maps}
+            export_label = st.selectbox("Mapa para exportar", list(export_options), key="kg_export_selected_map")
+            export_doc = maps_col.find_one({"_id": ObjectId(export_options[export_label])})
+            if export_doc:
+                export_state = export_doc.get("graph_state", {})
+                st.download_button(
+                    "📥 Descargar JSON guardado",
+                    data=json.dumps(export_state, ensure_ascii=False, indent=2, default=str),
+                    file_name=f"{export_doc.get('name', 'knowledge_graph_map')}.json",
+                    mime="application/json",
+                )
+                html_content = _render_knowledge_graph_map_html(export_state, f"export_{export_doc['_id']}")
+                st.download_button(
+                    "📥 Descargar HTML restaurado",
+                    data=html_content,
+                    file_name=f"{export_doc.get('name', 'knowledge_graph_map')}.html",
+                    mime="text/html",
+                )
+        else:
+            st.info("No hay mapas guardados para exportar.")
+
+        with st.form("kg_import_state_form"):
+            st.markdown("**Importar estado JSON como mapa nuevo**")
+            import_name = st.text_input("Nombre del mapa importado", key="kg_import_name")
+            import_description = st.text_area("Descripción", height=80, key="kg_import_description")
+            import_tags = st.text_input("Tags (separados por coma)", key="kg_import_tags")
+            import_state_json = st.text_area("Estado JSON", height=180, key="kg_import_state_json")
+            import_map = st.form_submit_button("📥 Importar estado JSON")
+
+        if import_map:
+            if not import_name.strip():
+                st.error("El nombre del mapa es obligatorio.")
+            else:
+                try:
+                    graph_state = _parse_knowledge_graph_state_json(import_state_json)
+                    now = datetime.utcnow()
+                    result = maps_col.insert_one(
+                        {
+                            "name": import_name.strip(),
+                            "description": import_description.strip(),
+                            "created_at": now,
+                            "updated_at": now,
+                            "filters": {
+                                "sources": [],
+                                "relation_types": [],
+                                "concept_types": [],
+                                "max_depth": 3,
+                            },
+                            "graph_state": graph_state,
+                            "tags": [tag.strip() for tag in import_tags.split(",") if tag.strip()],
+                            "source": "interactive_knowledge_graph",
+                            "map_uid": str(uuid4()),
+                        }
+                    )
+                    if result.acknowledged:
+                        st.success("Mapa importado correctamente.")
+                    else:
+                        st.error("MongoDB no confirmó la importación.")
+                except json.JSONDecodeError as exc:
+                    st.error(f"No se pudo leer el JSON del estado: {exc}")
+                except Exception as exc:
+                    st.error(f"No se pudo importar el mapa: {exc}")
 
 # Document Builder page
 elif page == "📄 Document Builder":
@@ -3571,6 +4101,15 @@ elif page == "⚙️ Settings":
                 db.concepts.create_index([("id", 1), ("source", 1)], unique=True)
                 db.latex_documents.create_index([("id", 1), ("source", 1)], unique=True)
                 db.relations.create_index([("desde", 1), ("hasta", 1), ("tipo", 1)], unique=True)
+                db.db["knowledge_graph_maps"].create_index([("name", 1)])
+                db.db["knowledge_graph_maps"].create_index([("updated_at", -1)])
+                db.db["knowledge_graph_maps"].create_index([("created_at", -1)])
+                db.db["knowledge_graph_maps"].create_index([("tags", 1)])
+                db.db["knowledge_graph_maps"].create_index([("filters.sources", 1)])
+                db.db["knowledge_graph_maps"].create_index([("filters.concept_types", 1)])
+                db.db["knowledge_graph_maps"].create_index([("filters.relation_types", 1)])
+                db.db["knowledge_graph_maps"].create_index([("source", 1)])
+                db.db["knowledge_graph_maps"].create_index([("map_uid", 1)])
                 st.success("✅ Indexes rebuilt successfully!")
             except Exception as e:
                 st.error(f"❌ Error rebuilding indexes: {e}")

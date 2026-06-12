@@ -2,6 +2,7 @@ import html as html_lib
 import json
 import math
 import urllib.parse
+from datetime import datetime
 
 import networkx as nx
 from pyvis.network import Network
@@ -473,7 +474,174 @@ class GrafoConocimiento:
                 print(f"   - {d} -({t})-> {h}   [faltan: {', '.join(faltan)}]")
 
 
-    def exportar_html(self, salida="grafo_conceptos.html", size: int | None = None) -> None:
+    def to_graph_state(self, previous_state: dict | None = None) -> dict:
+        """Build a serializable vis-network state, preserving existing layout when possible."""
+        previous_state = previous_state if isinstance(previous_state, dict) else {}
+        previous_nodes = {
+            node.get("id"): node
+            for node in previous_state.get("nodes", [])
+            if isinstance(node, dict) and node.get("id")
+        }
+        previous_edges = {
+            edge.get("id"): edge
+            for edge in previous_state.get("edges", [])
+            if isinstance(edge, dict) and edge.get("id")
+        }
+        node_controls = previous_state.get("nodeControls", {}) if isinstance(previous_state.get("nodeControls"), dict) else {}
+        edge_label_size = int(node_controls.get("edgeLabelSize", 13) or 13)
+        node_label_size = int(node_controls.get("nodeLabelSize", 18) or 18)
+
+        layout_payload = self._layout_payload()
+        initial_positions = layout_payload["byType"]
+        nodes = []
+        for node_id, datos in self.G.nodes(data=True):
+            raw_label = datos.get("label", node_id)
+            tipo = datos.get("tipo", "otro")
+            type_badge = datos.get("type_badge", "")
+            color = datos.get("color", "white")
+            position = initial_positions.get(node_id, {"x": 0, "y": 0})
+            wrapped_label = self._wrap_label(raw_label)
+            tooltip = f"<b>{html_lib.escape(str(raw_label))}</b><br>Tipo: {html_lib.escape(str(tipo))}"
+            if type_badge:
+                tooltip = f"{tooltip} ({html_lib.escape(str(type_badge))})"
+
+            if self._node_render_strategy(tipo) == "svg":
+                svg_kind = self._native_shape(tipo)
+                if svg_kind not in {"hexagon", "diamond", "triangle", "triangleDown"}:
+                    svg_kind = "hexagon"
+                node_data = {
+                    "id": node_id,
+                    "shape": "image",
+                    "image": self._make_svg_polygon_node(
+                        wrapped_label=wrapped_label,
+                        fill=color,
+                        kind=svg_kind,
+                        type_badge=type_badge,
+                    ),
+                    "label": "",
+                    "font": {"size": 0, "color": "rgba(0,0,0,0)"},
+                    "title": tooltip,
+                    "x": position["x"],
+                    "y": position["y"],
+                    "fixed": False,
+                    "size": max(22, round(node_label_size * 2.1)),
+                    "shapeProperties": {"useImageSize": False},
+                }
+            else:
+                node_data = {
+                    "id": node_id,
+                    "label": self._node_label_with_badge(wrapped_label, type_badge),
+                    "title": tooltip,
+                    "color": color,
+                    "shape": self._native_shape(tipo),
+                    "x": position["x"],
+                    "y": position["y"],
+                    "fixed": False,
+                    "font": {
+                        "size": node_label_size,
+                        "multi": True,
+                        "bold": {"size": max(9, round(node_label_size * 0.62)), "color": "#374151"},
+                    },
+                }
+
+            previous_node = previous_nodes.get(node_id, {})
+            for key in ("x", "y", "fixed", "font", "size"):
+                if key in previous_node:
+                    node_data[key] = previous_node[key]
+            nodes.append(node_data)
+
+        edges = []
+        for u, v, k, d in self.G.edges(keys=True, data=True):
+            edge_len = 340 if self.G.nodes[u].get("tipo") == "nota" or self.G.nodes[v].get("tipo") == "nota" else 260
+            edge_color = d.get("color", "black")
+            edge_id = d.get("id") or f"{u}::{k}::{v}"
+            edge_data = {
+                "id": edge_id,
+                "from": u,
+                "to": v,
+                "title": d.get("tipo", ""),
+                "label": d.get("label", "relaciona"),
+                "color": {
+                    "color": edge_color,
+                    "highlight": edge_color,
+                    "hover": edge_color,
+                },
+                "arrows": "to",
+                "font": {
+                    "size": edge_label_size,
+                    "align": "middle",
+                    "color": edge_color,
+                    "strokeWidth": 4,
+                    "strokeColor": "#ffffff",
+                },
+                "length": edge_len,
+            }
+            previous_edge = previous_edges.get(edge_id, {})
+            if isinstance(previous_edge.get("font"), dict):
+                edge_data["font"].update(previous_edge["font"])
+                edge_data["font"]["color"] = edge_color
+            for key in ("smooth", "width", "dashes"):
+                if key in previous_edge:
+                    edge_data[key] = previous_edge[key]
+            edges.append(edge_data)
+
+        return {
+            "version": previous_state.get("version", 1),
+            "exportedAt": datetime.utcnow().isoformat() + "Z",
+            "nodes": nodes,
+            "edges": edges,
+            "physics": previous_state.get("physics", {"mode": "frozen", "enabled": False}),
+            "edgeControls": previous_state.get(
+                "edgeControls",
+                {
+                    "style": "dynamic",
+                    "roundness": 0.15,
+                    "smooth": {"enabled": True, "type": "dynamic", "roundness": 0.15},
+                },
+            ),
+            "nodeControls": {
+                "edgeLabelSize": edge_label_size,
+                "nodeLabelSize": node_label_size,
+            },
+            "layout": layout_payload,
+            "selection": previous_state.get("selection", []),
+            "note": "Generated from filters in Streamlit; existing node positions are preserved when possible.",
+        }
+
+
+    def _restore_state_bootstrap(self, graph_state: dict | None) -> str:
+        if not graph_state:
+            return ""
+        state_json = json.dumps(graph_state, ensure_ascii=False).replace("</script>", "<\\/script>")
+        state_json_literal = json.dumps(state_json, ensure_ascii=False)
+        return f"""
+<script id="exported-graph-state-script">
+(function () {{
+  const stateJson = {state_json_literal};
+
+  function installRestoreScript() {{
+    if (typeof exportedStateRestoreSource !== "function") {{
+      setTimeout(installRestoreScript, 150);
+      return;
+    }}
+    document.querySelectorAll("#exported-graph-state-runner").forEach((script) => script.remove());
+    const script = document.createElement("script");
+    script.id = "exported-graph-state-runner";
+    script.textContent = exportedStateRestoreSource(stateJson);
+    document.body.appendChild(script);
+  }}
+
+  installRestoreScript();
+}})();
+</script>
+"""
+
+    def exportar_html(
+        self,
+        salida="grafo_conceptos.html",
+        size: int | None = None,
+        initial_state: dict | None = None,
+    ) -> None:
         """Genera un archivo HTML interactivo."""
         if size is None:
             size = self.MaxLengthLabel
@@ -545,10 +713,12 @@ class GrafoConocimiento:
             if self.G.nodes[u].get("tipo") == "nota" or self.G.nodes[v].get("tipo") == "nota":
                 edge_len = 340
             edge_color = d.get("color", "black")
+            edge_id = d.get("id") or f"{u}::{k}::{v}"
             
             net.add_edge(
                 u,
                 v,
+                id=edge_id,
                 title=d.get("tipo", ""),
                 label=d.get("label", "relaciona"),
                 color={
@@ -649,7 +819,7 @@ class GrafoConocimiento:
   setTimeout(hidePyvisLoadingBar, 800);
 })();
 
-const GRAPH_LAYOUTS = __GRAPH_LAYOUTS__;
+let GRAPH_LAYOUTS = __GRAPH_LAYOUTS__;
 
 const GRAPH_UI_STATE = {
   physics: {
@@ -664,6 +834,10 @@ const GRAPH_UI_STATE = {
       type: "dynamic",
       roundness: 0.15
     }
+  },
+  nodeControls: {
+    edgeLabelSize: 13,
+    nodeLabelSize: 18
   }
 };
 
@@ -965,6 +1139,75 @@ function alignEdgeLabels() {
   });
 }
 
+function edgeLabelSizeValue() {
+  const input = document.getElementById("edgeLabelSize");
+  return input ? Number(input.value) : 13;
+}
+
+function nodeLabelSizeValue() {
+  const input = document.getElementById("nodeLabelSize");
+  return input ? Number(input.value) : 18;
+}
+
+function updateTextSizeLabels() {
+  const edgeLabel = document.getElementById("edgeLabelSizeValue");
+  const nodeLabel = document.getElementById("nodeLabelSizeValue");
+  if (edgeLabel) edgeLabel.textContent = String(edgeLabelSizeValue());
+  if (nodeLabel) nodeLabel.textContent = String(nodeLabelSizeValue());
+}
+
+function textControlState() {
+  return {
+    edgeLabelSize: edgeLabelSizeValue(),
+    nodeLabelSize: nodeLabelSizeValue()
+  };
+}
+
+function applyTextSizes() {
+  const nodes = graphNodes();
+  const edges = graphEdges();
+  const edgeSize = edgeLabelSizeValue();
+  const nodeSize = nodeLabelSizeValue();
+  updateTextSizeLabels();
+  GRAPH_UI_STATE.nodeControls = textControlState();
+
+  if (edges) {
+    const edgeUpdates = edges.get().map((edge) => ({
+      id: edge.id,
+      font: {
+        ...(edge.font || {}),
+        size: edgeSize
+      }
+    }));
+    edges.update(edgeUpdates);
+  }
+
+  if (nodes) {
+    const nodeUpdates = nodes.get().map((node) => {
+      const update = {
+        id: node.id,
+        font: {
+          ...(node.font || {}),
+          size: nodeSize,
+          bold: {
+            ...((node.font && node.font.bold) || {}),
+            size: Math.max(9, Math.round(nodeSize * 0.62))
+          }
+        }
+      };
+      if (node.shape === "image") {
+        update.size = Math.max(22, Math.round(nodeSize * 2.1));
+      }
+      return update;
+    });
+    nodes.update(nodeUpdates);
+  }
+
+  if (window.mmNetwork) {
+    window.mmNetwork.redraw();
+  }
+}
+
 function currentNodeSnapshot() {
   const nodes = graphNodes();
   if (!window.mmNetwork || !nodes) return [];
@@ -981,7 +1224,9 @@ function currentNodeSnapshot() {
 function currentGraphState() {
   const edges = graphEdges();
   const edgeControls = edgeControlState();
+  const nodeControls = textControlState();
   GRAPH_UI_STATE.edgeControls = edgeControls;
+  GRAPH_UI_STATE.nodeControls = nodeControls;
   GRAPH_UI_STATE.physics = {
     ...GRAPH_UI_STATE.physics,
     ...physicsControlState(GRAPH_UI_STATE.physics.mode, GRAPH_UI_STATE.physics.enabled)
@@ -994,6 +1239,8 @@ function currentGraphState() {
     edges: edges ? edges.get() : [],
     physics: GRAPH_UI_STATE.physics,
     edgeControls,
+    nodeControls,
+    layout: GRAPH_LAYOUTS,
     selection: selectedNodeIds(),
     note: "Exported from the interactive graph. It opens frozen to preserve the saved composition; use Activar física to resume simulation."
   };
@@ -1052,9 +1299,16 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
       setInputValue("edgeStyle", state.edgeControls.style);
       setInputValue("edgeRoundness", Math.round((state.edgeControls.roundness ?? 0.15) * 100));
     }
+    if (state.nodeControls) {
+      setInputValue("edgeLabelSize", state.nodeControls.edgeLabelSize);
+      setInputValue("nodeLabelSize", state.nodeControls.nodeLabelSize);
+    }
 
     if (typeof updateEdgeRoundnessLabel === "function") {
       updateEdgeRoundnessLabel();
+    }
+    if (typeof updateTextSizeLabels === "function") {
+      updateTextSizeLabels();
     }
     if (typeof GRAPH_UI_STATE !== "undefined") {
       GRAPH_UI_STATE.physics = {
@@ -1063,6 +1317,10 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
         mode: state.physics?.mode || "restored"
       };
       GRAPH_UI_STATE.edgeControls = state.edgeControls || GRAPH_UI_STATE.edgeControls;
+      GRAPH_UI_STATE.nodeControls = state.nodeControls || GRAPH_UI_STATE.nodeControls;
+    }
+    if (state.layout) {
+      GRAPH_LAYOUTS = state.layout;
     }
 
     net.stopSimulation();
@@ -1078,6 +1336,9 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
         }
       }
     });
+    if (typeof applyTextSizes === "function") {
+      applyTextSizes();
+    }
     net.redraw();
     if (Array.isArray(state.selection) && state.selection.length > 0) {
       net.selectNodes(state.selection);
@@ -1104,7 +1365,7 @@ function buildCurrentGraphHtml() {
   const clone = document.implementation.createHTMLDocument(document.title || "Knowledge Graph");
   clone.documentElement.innerHTML = document.documentElement.innerHTML;
 
-  clone.querySelectorAll("#exported-graph-state-script").forEach((script) => script.remove());
+  clone.querySelectorAll("#exported-graph-state-script, #exported-graph-state-runner").forEach((script) => script.remove());
   const networkContainer = clone.getElementById("mynetwork");
   if (networkContainer) networkContainer.innerHTML = "";
 
@@ -1139,6 +1400,50 @@ function downloadCurrentGraphHtml() {
 
   const status = document.getElementById("download-status");
   if (status) status.textContent = "HTML del grafo actual generado.";
+}
+
+function currentGraphStateJson() {
+  return JSON.stringify(currentGraphState(), null, 2);
+}
+
+async function copyGraphStateJson() {
+  const status = document.getElementById("download-status");
+  if (!window.mmNetwork) {
+    if (status) status.textContent = "El grafo todavía no está listo para copiar estado.";
+    return;
+  }
+
+  const text = currentGraphStateJson();
+  try {
+    await navigator.clipboard.writeText(text);
+    if (status) status.textContent = "Estado JSON copiado. Pégalo en Streamlit para guardar el mapa.";
+  } catch (err) {
+    downloadGraphStateJson();
+    if (status) status.textContent = "No se pudo copiar; descargué el JSON como respaldo.";
+  }
+}
+
+function downloadGraphStateJson() {
+  if (!window.mmNetwork) {
+    const status = document.getElementById("download-status");
+    if (status) status.textContent = "El grafo todavía no está listo para exportar JSON.";
+    return;
+  }
+
+  const blob = new Blob([currentGraphStateJson()], { type: "application/json;charset=utf-8" });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  link.href = url;
+  link.download = `knowledge_graph_state_${stamp}.json`;
+  link.rel = "noopener";
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 30000);
+
+  const status = document.getElementById("download-status");
+  if (status) status.textContent = "JSON del estado actual generado.";
 }
 </script>
 
@@ -1339,9 +1644,25 @@ function downloadCurrentGraphHtml() {
   </div>
 
   <div class="layout-section">
+    <div class="layout-title">Tamaño de texto</div>
+    <div class="value-row">
+      <label for="edgeLabelSize">Etiquetas de enlaces</label>
+      <span id="edgeLabelSizeValue">13</span>
+    </div>
+    <input id="edgeLabelSize" type="range" min="8" max="100" value="13" oninput="applyTextSizes()">
+    <div class="value-row">
+      <label for="nodeLabelSize">Nombres de nodos</label>
+      <span id="nodeLabelSizeValue">18</span>
+    </div>
+    <input id="nodeLabelSize" type="range" min="10" max="100" value="18" oninput="applyTextSizes()">
+  </div>
+
+  <div class="layout-section">
     <div class="layout-title">Exportar estado</div>
     <div class="layout-tip">Este botón guarda el estado actual: posiciones, nodos fijados, física y estilos.</div>
     <button onclick="downloadCurrentGraphHtml()" title="Descarga el HTML con el estado actual del grafo.">💾 Descargar grafo actual</button>
+    <button onclick="copyGraphStateJson()" title="Copia el JSON actual para guardarlo en MongoDB desde Streamlit.">📋 Copiar estado JSON</button>
+    <button onclick="downloadGraphStateJson()" title="Descarga solo el JSON del estado actual.">📥 Descargar estado JSON</button>
     <div id="download-status"></div>
   </div>
 </div>
@@ -1349,6 +1670,7 @@ function downloadCurrentGraphHtml() {
 
         # Insert before closing body
         overlay = overlay.replace("__GRAPH_LAYOUTS__", layout_payload_json)
+        overlay += self._restore_state_bootstrap(initial_state)
         if "</body>" in html:
             html = html.replace("</body>", overlay + "\n</body>")
         with open(salida, "w", encoding="utf-8") as f:
