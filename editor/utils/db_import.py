@@ -2,6 +2,10 @@ import json
 import zipfile
 from pathlib import Path
 from typing import Dict
+
+from bson import ObjectId
+from bson.errors import InvalidId
+
 from mathdatabase.mathmongo import MathMongo
 
 
@@ -16,6 +20,22 @@ DEFAULT_IMPORT_COLLECTIONS = [
     "weekly_reviews",
     "worklog_entries",
 ]
+
+
+def _restore_mongo_id(doc: dict) -> dict:
+    """Restore ObjectId values exported as strings for top-level document IDs."""
+    if not isinstance(doc, dict):
+        return doc
+
+    doc = dict(doc)
+    raw_id = doc.get("_id")
+    if isinstance(raw_id, str):
+        try:
+            doc["_id"] = ObjectId(raw_id)
+        except InvalidId:
+            pass
+    return doc
+
 
 def inspect_export_zip(zip_path: Path) -> Dict:
     """
@@ -91,6 +111,7 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> None:
                 db.create_collection(coll)
 
             for doc in docs:
+                doc = _restore_mongo_id(doc)
                 if isinstance(doc, dict) and "_id" in doc:
                     db[coll].replace_one({"_id": doc["_id"]}, doc, upsert=True)
                 else:

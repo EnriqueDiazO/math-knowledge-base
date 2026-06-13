@@ -84,6 +84,20 @@ def _knowledge_graph_map_label(doc: dict) -> str:
     )
 
 
+def _knowledge_graph_map_id_query(map_id: object) -> dict:
+    id_text = str(map_id)
+    candidates = [id_text]
+    try:
+        candidates.append(ObjectId(id_text))
+    except Exception:
+        pass
+    return {"_id": {"$in": candidates}}
+
+
+def _find_knowledge_graph_map(maps_col, map_id: object) -> dict | None:
+    return maps_col.find_one(_knowledge_graph_map_id_query(map_id))
+
+
 def _knowledge_graph_state_counts(graph_state: dict) -> tuple[int, int]:
     if not isinstance(graph_state, dict):
         return 0, 0
@@ -3654,7 +3668,7 @@ elif page == "📊 Knowledge Graph":
                             st.error("Marca la confirmación antes de eliminar el mapa.")
                         else:
                             try:
-                                result = maps_col.delete_one({"_id": ObjectId(selected_map_id)})
+                                result = maps_col.delete_one(_knowledge_graph_map_id_query(selected_map_id))
                                 if result.deleted_count:
                                     st.success("Mapa eliminado correctamente.")
                                     if st.session_state.get("knowledge_graph_active_map_id") == selected_map_id:
@@ -3667,7 +3681,7 @@ elif page == "📊 Knowledge Graph":
 
                 if st.session_state.get("knowledge_graph_active_mode") == "view":
                     active_id = st.session_state.get("knowledge_graph_active_map_id")
-                    active_doc = maps_col.find_one({"_id": ObjectId(active_id)}) if active_id else None
+                    active_doc = _find_knowledge_graph_map(maps_col, active_id) if active_id else None
                     if active_doc:
                         st.divider()
                         st.subheader(active_doc.get("name", "Mapa guardado"))
@@ -3699,7 +3713,7 @@ elif page == "📊 Knowledge Graph":
                 key="kg_edit_selected_map",
             )
             edit_map_id = edit_options[edit_label]
-            edit_doc = maps_col.find_one({"_id": ObjectId(edit_map_id)})
+            edit_doc = _find_knowledge_graph_map(maps_col, edit_map_id)
             if not edit_doc:
                 st.error("No se encontró el mapa seleccionado.")
             else:
@@ -3780,7 +3794,7 @@ elif page == "📊 Knowledge Graph":
                                 previous_state=base_graph_state,
                             )
                             result = maps_col.update_one(
-                                {"_id": ObjectId(edit_map_id)},
+                                _knowledge_graph_map_id_query(edit_map_id),
                                 {
                                     "$set": {
                                         "name": updated_name.strip(),
@@ -3826,7 +3840,7 @@ elif page == "📊 Knowledge Graph":
         if all_maps:
             export_options = {_knowledge_graph_map_label(doc): str(doc["_id"]) for doc in all_maps}
             export_label = st.selectbox("Mapa para exportar", list(export_options), key="kg_export_selected_map")
-            export_doc = maps_col.find_one({"_id": ObjectId(export_options[export_label])})
+            export_doc = _find_knowledge_graph_map(maps_col, export_options[export_label])
             if export_doc:
                 export_state = export_doc.get("graph_state", {})
                 st.download_button(
