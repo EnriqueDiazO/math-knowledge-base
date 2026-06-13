@@ -55,11 +55,9 @@ Quarto is used to compile complete mathematical books from the knowledge base, a
 
 This enables:
 
-- Long-form mathematical documents
-
-- Research notes and lecture material
-
-- Thesis-style compilations
+- Long-form mathematical documents.
+- Research notes and lecture material.
+- Thesis-style compilations.
 
 ### ⚙️ Quarto Installation (Mandatory, Script-Based)
 
@@ -73,20 +71,23 @@ scripts/install_quarto.sh
 
 This script:
 
-- Downloads the official Quarto distribution
+- Downloads the official Quarto distribution.
+- Installs it in a controlled manner.
+- Can be verified with `quarto --version` and `quarto check`.
 
-- Installs it in a controlled manner
-
-- Verifies the installation with:
+The complete installation sequence is documented below.
 
 ## 📦 Project Structure
 
-- `editor/` — Streamlit application for data entry and querying (includes PDF generation).
-- `parsers/` — Functions for importing Markdown files into the database.
-- `mathdabase/` — MongoDB connection, database management, and core classes.
-- `exporters/` — Scripts for generating LaTeX/PDF documents, including integration with `miestilo.sty` and `coloredtheorem`.
-- `schemas/` — Schemas used to validate mathematical concept fields.
-- `visualizations/` — Mathematical graph visualizations.
+- `editor/` — Streamlit application for data entry, editing, querying, export/import, and PDF generation.
+- `editor/cuaderno_page.py` — Notebook/Cuaderno workflow: diary notes, worklog, backlog, weekly reviews, deliverables, and Kanban.
+- `editor/utils/` — Database ZIP export/import helpers.
+- `mathdatabase/` — MongoDB connection, database management, and core classes.
+- `parsers/` — Functions for importing Markdown/YAML concept files into the database.
+- `exporters_latex/` — LaTeX/PDF export tools.
+- `exporters_quarto/` and `scripts/export_quarto_book.py` — Quarto book export tools.
+- `schemas/` — Pydantic schemas used to validate mathematical concept fields.
+- `visualizations/` — Interactive mathematical graph visualizations.
 
 ---
 
@@ -102,48 +103,122 @@ This script:
 
 ---
 
-## 🛠️ Quick Installation
+## 🛠️ Installation
+
+The application needs four things before running:
+
+1. MongoDB running locally.
+2. A Python virtual environment with the project dependencies.
+3. LaTeX/Quarto if you want PDF and book exports.
+4. MongoDB collections/indexes initialized for the database you will use.
+
+### 1. Clone the project
 
 ```bash
 git clone https://github.com/EnriqueDiazO/math-knowledge-base.git
 cd math-knowledge-base
+```
 
-python -m venv mathdbmongo
+### 2. Install system dependencies
+
+On Ubuntu/Debian, install MongoDB, Python tooling, Make, Git, and LaTeX. Package names may vary depending on your distro and MongoDB installation method.
+
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip git make texlive-full
+```
+
+Start MongoDB:
+
+```bash
+make start
+```
+
+You can also check it directly:
+
+```bash
+sudo systemctl status mongod
+```
+
+### 3. Create the Python environment
+
+The project convention is to use a virtual environment named `mathdbmongo`.
+
+```bash
+python3 -m venv mathdbmongo
 source mathdbmongo/bin/activate
-
+pip install --upgrade pip
 pip install -r requirements.txt
 pip install -e .
+```
 
-pdflatex --version
+### 4. Install and verify Quarto
 
-# Instala Quarto usando el script oficial del proyecto
+Quarto is used for book-level exports. Install it with the project script:
+
+```bash
 bash scripts/install_quarto.sh
-
-# Verifica instalación
 quarto --version
 quarto check
+```
 
-# Corremos la app
-make start
+Verify LaTeX too:
+
+```bash
+pdflatex --version
+```
+
+### 5. Initialize MongoDB collections and indexes
+
+Run this for every database where you want the full GUI features. The app commonly uses `mathmongo` by default, and imported/active working databases often use names like `MathV0`.
+
+```bash
+python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db mathmongo
+```
+
+For `MathV0`:
+
+```bash
+python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
+```
+
+This command is non-destructive. It creates missing Notebook/graph-map collections and indexes without deleting existing data. Core concept/relation indexes are also created automatically when the app opens a `MathMongo` connection.
+
+The full database flow uses:
+
+- `concepts`
+- `relations`
+- `latex_documents`
+- `latex_notes`
+- `worklog_entries`
+- `backlog_items`
+- `weekly_reviews`
+- `deliverables`
+- `knowledge_graph_maps`
+
+### 6. Run the Streamlit app
+
+```bash
 make run
 ```
 
+Or directly:
 
-If you want to add a desktop shortcut, run the following from the repository root: 
+```bash
+source mathdbmongo/bin/activate
+streamlit run editor/editor_streamlit.py
+```
+
+The app opens at `http://localhost:8501`.
+
+### 7. Optional desktop shortcut
 
 ```bash
 chmod +x scripts/make_desktop_shortcut.sh
 ./scripts/make_desktop_shortcut.sh
 ```
 
-If you wish to explore the *Cuaderno* close the app and now  
-```
-# Creates/updates notebook collections and knowledge graph map indexes for the selected DB.
-python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db mathmongo
-```
-Then rerun the APP.
-
-# Updating a Database (MathV0)
+## 🔁 Updating a Database (MathV0)
 
 To update a database, follow these steps:
 

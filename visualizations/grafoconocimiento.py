@@ -490,6 +490,20 @@ class GrafoConocimiento:
         node_controls = previous_state.get("nodeControls", {}) if isinstance(previous_state.get("nodeControls"), dict) else {}
         edge_label_size = int(node_controls.get("edgeLabelSize", 13) or 13)
         node_label_size = int(node_controls.get("nodeLabelSize", 18) or 18)
+        previous_ui_controls = previous_state.get("uiControls", {})
+        if not isinstance(previous_ui_controls, dict):
+            previous_ui_controls = {}
+        previous_ui = previous_state.get("ui", {})
+        if not isinstance(previous_ui, dict):
+            previous_ui = {}
+        physics_overlay_visible = previous_ui_controls.get("physicsOverlayVisible")
+        if not isinstance(physics_overlay_visible, bool):
+            physics_overlay_visible = previous_ui.get("physicsOverlayVisible")
+        ui_controls = {
+            "physicsOverlayVisible": physics_overlay_visible
+            if isinstance(physics_overlay_visible, bool)
+            else True
+        }
 
         layout_payload = self._layout_payload()
         initial_positions = layout_payload["byType"]
@@ -603,6 +617,7 @@ class GrafoConocimiento:
                 "edgeLabelSize": edge_label_size,
                 "nodeLabelSize": node_label_size,
             },
+            "uiControls": ui_controls,
             "layout": layout_payload,
             "selection": previous_state.get("selection", []),
             "note": "Generated from filters in Streamlit; existing node positions are preserved when possible.",
@@ -838,6 +853,9 @@ const GRAPH_UI_STATE = {
   nodeControls: {
     edgeLabelSize: 13,
     nodeLabelSize: 18
+  },
+  ui: {
+    physicsOverlayVisible: true
   }
 };
 
@@ -934,6 +952,36 @@ function graphEdges() {
 function setLayoutStatus(text) {
   const el = document.getElementById("layout-status");
   if (el) el.textContent = text || "";
+}
+
+function isPhysicsOverlayVisible() {
+  const panel = document.getElementById("physics-overlay");
+  if (!panel) return true;
+  return panel.style.display !== "none";
+}
+
+function setPhysicsOverlayVisible(visible) {
+  const panel = document.getElementById("physics-overlay");
+  const button = document.getElementById("toggle-physics-overlay");
+  const resolvedVisible = Boolean(visible);
+
+  if (typeof GRAPH_UI_STATE !== "undefined") {
+    GRAPH_UI_STATE.ui = {
+      ...(GRAPH_UI_STATE.ui || {}),
+      physicsOverlayVisible: resolvedVisible
+    };
+  }
+
+  if (!panel || !button) return;
+
+  panel.style.display = resolvedVisible ? "block" : "none";
+  button.textContent = resolvedVisible ? "⚙️ Ocultar controles" : "⚙️ Mostrar controles";
+  button.setAttribute("aria-expanded", String(resolvedVisible));
+  button.classList.toggle("panel-hidden", !resolvedVisible);
+}
+
+function togglePhysicsOverlay() {
+  setPhysicsOverlayVisible(!isPhysicsOverlayVisible());
 }
 
 function selectedNodeIds() {
@@ -1225,8 +1273,13 @@ function currentGraphState() {
   const edges = graphEdges();
   const edgeControls = edgeControlState();
   const nodeControls = textControlState();
+  const uiControls = {
+    ...(GRAPH_UI_STATE.ui || {}),
+    physicsOverlayVisible: isPhysicsOverlayVisible()
+  };
   GRAPH_UI_STATE.edgeControls = edgeControls;
   GRAPH_UI_STATE.nodeControls = nodeControls;
+  GRAPH_UI_STATE.ui = uiControls;
   GRAPH_UI_STATE.physics = {
     ...GRAPH_UI_STATE.physics,
     ...physicsControlState(GRAPH_UI_STATE.physics.mode, GRAPH_UI_STATE.physics.enabled)
@@ -1240,6 +1293,7 @@ function currentGraphState() {
     physics: GRAPH_UI_STATE.physics,
     edgeControls,
     nodeControls,
+    uiControls,
     layout: GRAPH_LAYOUTS,
     selection: selectedNodeIds(),
     note: "Exported from the interactive graph. It opens frozen to preserve the saved composition; use Activar física to resume simulation."
@@ -1262,6 +1316,16 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
   function setInputValue(id, value) {
     const input = document.getElementById(id);
     if (input && value !== undefined && value !== null) input.value = value;
+  }
+
+  function restoredPhysicsOverlayVisible() {
+    if (state.uiControls && typeof state.uiControls.physicsOverlayVisible === "boolean") {
+      return state.uiControls.physicsOverlayVisible;
+    }
+    if (state.ui && typeof state.ui.physicsOverlayVisible === "boolean") {
+      return state.ui.physicsOverlayVisible;
+    }
+    return true;
   }
 
   function restore() {
@@ -1311,6 +1375,7 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
       updateTextSizeLabels();
     }
     if (typeof GRAPH_UI_STATE !== "undefined") {
+      const physicsOverlayVisible = restoredPhysicsOverlayVisible();
       GRAPH_UI_STATE.physics = {
         ...(state.physics || {}),
         enabled: false,
@@ -1318,6 +1383,10 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
       };
       GRAPH_UI_STATE.edgeControls = state.edgeControls || GRAPH_UI_STATE.edgeControls;
       GRAPH_UI_STATE.nodeControls = state.nodeControls || GRAPH_UI_STATE.nodeControls;
+      GRAPH_UI_STATE.ui = {
+        ...(state.uiControls || state.ui || GRAPH_UI_STATE.ui || {}),
+        physicsOverlayVisible
+      };
     }
     if (state.layout) {
       GRAPH_LAYOUTS = state.layout;
@@ -1338,6 +1407,9 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
     });
     if (typeof applyTextSizes === "function") {
       applyTextSizes();
+    }
+    if (typeof setPhysicsOverlayVisible === "function") {
+      setPhysicsOverlayVisible(restoredPhysicsOverlayVisible());
     }
     net.redraw();
     if (Array.isArray(state.selection) && state.selection.length > 0) {
@@ -1464,6 +1536,25 @@ function downloadGraphStateJson() {
   box-shadow: 0 4px 16px rgba(0,0,0,.2);
 }
 
+#toggle-physics-overlay {
+  position: fixed;
+  top: 12px;
+  right: 312px;
+  z-index: 10000;
+  background: rgba(255,255,255,0.96);
+  border: 1px solid #bbb;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-family: Arial, sans-serif;
+  font-size: 12px;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+}
+
+#toggle-physics-overlay.panel-hidden {
+  right: 12px;
+}
+
 #physics-overlay h4 {
   margin: 2px 0 4px;
   font-size: 14px;
@@ -1551,7 +1642,28 @@ function downloadGraphStateJson() {
   visibility: hidden !important;
   pointer-events: none !important;
 }
+
+@media (max-width: 700px) {
+  #physics-overlay {
+    top: 48px;
+    right: 8px;
+    width: min(268px, calc(100vw - 38px));
+    max-height: calc(100vh - 64px);
+  }
+
+  #toggle-physics-overlay {
+    right: 8px;
+  }
+}
 </style>
+
+<button
+  id="toggle-physics-overlay"
+  type="button"
+  aria-controls="physics-overlay"
+  aria-expanded="true"
+  onclick="togglePhysicsOverlay()"
+>⚙️ Ocultar controles</button>
 
 <div id="physics-overlay">
   <h4>🧲 Physics Controls</h4>
