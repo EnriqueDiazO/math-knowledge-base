@@ -101,6 +101,30 @@ class GrafoConocimiento:
             "note": "nota",
         }
 
+        self.nombre_corto_por_tipo = {
+            "definicion": "definición",
+            "definición": "definición",
+            "definition": "definición",
+            "teorema": "teorema",
+            "theorem": "teorema",
+            "proposicion": "proposición",
+            "proposición": "proposición",
+            "proposition": "proposición",
+            "ejemplo": "ejemplo",
+            "example": "ejemplo",
+            "corolario": "corolario",
+            "corollary": "corolario",
+            "lema": "lema",
+            "lemma": "lema",
+            "observacion": "observación",
+            "observación": "observación",
+            "remark": "observación",
+            "nota": "nota",
+            "note": "nota",
+            "placeholder": "placeholder",
+            "otro": "otro",
+        }
+
     def _svg_data_uri(self, svg: str) -> str:
         # Importante: encodear para usarlo como data URI
         return "data:image/svg+xml;charset=utf-8," + urllib.parse.quote(svg)
@@ -259,6 +283,10 @@ class GrafoConocimiento:
     def _node_type_abbreviation(self, tipo: str) -> str:
         return self.abreviatura_por_tipo.get(str(tipo or "").strip().lower(), "")
 
+    def _node_type_display_name(self, tipo: str) -> str:
+        key = str(tipo or "").strip().lower()
+        return self.nombre_corto_por_tipo.get(key, str(tipo or "").strip() or "otro")
+
     def _node_label_with_badge(self, wrapped_label: str, type_badge: str) -> str:
         if not type_badge:
             return wrapped_label
@@ -327,8 +355,11 @@ class GrafoConocimiento:
             "meta": {
                 node_id: {
                     "type": type_by_node.get(node_id, ""),
+                    "shortType": self._node_type_abbreviation(type_by_node.get(node_id, "")),
+                    "displayType": self._node_type_display_name(type_by_node.get(node_id, "")),
                     "source": source_by_node.get(node_id, ""),
                     "component": component_by_node.get(node_id, ""),
+                    "categories": self._list_or_empty(self.G.nodes[node_id].get("categorias")),
                 }
                 for node_id in nodes
             },
@@ -344,6 +375,73 @@ class GrafoConocimiento:
     def _relation_label(self, relation_value: str) -> str:
         label = str(relation_value or "").replace("_", " ").strip()
         return label or "relaciona"
+
+    def _text_or_none(self, value) -> str | None:
+        if value is None:
+            return None
+        text = str(value).strip()
+        return text or None
+
+    def _list_or_empty(self, value) -> list[str]:
+        if not isinstance(value, list):
+            return []
+        return [str(item).strip() for item in value if str(item).strip()]
+
+    def _reference_summary(self, reference) -> str:
+        if not isinstance(reference, dict):
+            return self._text_or_none(reference) or ""
+        parts = []
+        for key in ("autor", "fuente", "anio", "capitulo", "seccion", "paginas", "doi", "url"):
+            value = reference.get(key)
+            if value is not None and str(value).strip():
+                parts.append(str(value).strip())
+        return " · ".join(parts)
+
+    def _node_metadata(self, node_id: str, datos: dict) -> dict:
+        tipo = datos.get("tipo", "otro")
+        type_badge = datos.get("type_badge", "") or self._node_type_abbreviation(tipo)
+        raw_label = datos.get("label", node_id)
+        reference = datos.get("referencia")
+        description = (
+            self._text_or_none(datos.get("descripcion"))
+            or self._text_or_none(datos.get("comentario"))
+            or self._text_or_none(datos.get("aclaracion"))
+        )
+        content = self._text_or_none(datos.get("contenido_latex"))
+        source = self._text_or_none(datos.get("source")) or self._node_source(node_id)
+        concept_id = self._text_or_none(datos.get("concept_id")) or node_id.split("@", 1)[0]
+        categories = self._list_or_empty(datos.get("categorias"))
+        reference_text = self._reference_summary(reference)
+        type_display = self._node_type_display_name(tipo)
+
+        return {
+            "type": tipo,
+            "mmType": tipo,
+            "conceptType": tipo,
+            "typeBadge": type_badge,
+            "shortType": type_badge,
+            "displayType": f"{type_badge} - {type_display}" if type_badge else type_display,
+            "rawLabel": raw_label,
+            "source": source,
+            "conceptId": concept_id,
+            "categories": categories,
+            "description": description,
+            "content": content,
+            "referenceText": reference_text,
+            "nodeInfo": {
+                "id": node_id,
+                "conceptId": concept_id,
+                "label": raw_label,
+                "type": tipo,
+                "shortType": type_badge,
+                "displayType": type_display,
+                "source": source,
+                "categories": categories,
+                "description": description,
+                "content": content,
+                "reference": reference_text,
+            },
+        }
 
     def _ensure_placeholder(self, node_id: str) -> None:
         if node_id in self.G.nodes:
@@ -416,7 +514,21 @@ class GrafoConocimiento:
             titulo = doc.get("titulo", etiqueta)
             color = self.color_por_tipo.get(str(tipo or "").strip().lower(), "white")
             type_badge = self._node_type_abbreviation(tipo)
-            self.G.add_node(etiqueta, label=titulo, tipo=tipo, type_badge=type_badge, color=color)
+            self.G.add_node(
+                etiqueta,
+                label=titulo,
+                tipo=tipo,
+                type_badge=type_badge,
+                color=color,
+                source=doc.get("source"),
+                concept_id=doc.get("id"),
+                categorias=doc.get("categorias", []),
+                comentario=doc.get("comentario"),
+                descripcion=doc.get("descripcion"),
+                aclaracion=doc.get("aclaracion"),
+                contenido_latex=doc.get("contenido_latex"),
+                referencia=doc.get("referencia"),
+            )
 
         # Crear aristas
         for rel in self.relaciones:
@@ -477,14 +589,24 @@ class GrafoConocimiento:
     def to_graph_state(self, previous_state: dict | None = None) -> dict:
         """Build a serializable vis-network state, preserving existing layout when possible."""
         previous_state = previous_state if isinstance(previous_state, dict) else {}
+        previous_node_items = []
+        if isinstance(previous_state.get("fullNodes"), list):
+            previous_node_items.extend(previous_state.get("fullNodes", []))
+        if isinstance(previous_state.get("nodes"), list):
+            previous_node_items.extend(previous_state.get("nodes", []))
+        previous_edge_items = []
+        if isinstance(previous_state.get("fullEdges"), list):
+            previous_edge_items.extend(previous_state.get("fullEdges", []))
+        if isinstance(previous_state.get("edges"), list):
+            previous_edge_items.extend(previous_state.get("edges", []))
         previous_nodes = {
             node.get("id"): node
-            for node in previous_state.get("nodes", [])
+            for node in previous_node_items
             if isinstance(node, dict) and node.get("id")
         }
         previous_edges = {
             edge.get("id"): edge
-            for edge in previous_state.get("edges", [])
+            for edge in previous_edge_items
             if isinstance(edge, dict) and edge.get("id")
         }
         node_controls = previous_state.get("nodeControls", {}) if isinstance(previous_state.get("nodeControls"), dict) else {}
@@ -499,10 +621,24 @@ class GrafoConocimiento:
         physics_overlay_visible = previous_ui_controls.get("physicsOverlayVisible")
         if not isinstance(physics_overlay_visible, bool):
             physics_overlay_visible = previous_ui.get("physicsOverlayVisible")
+        left_controls_visible = previous_ui_controls.get("leftControlsVisible")
+        if not isinstance(left_controls_visible, bool):
+            left_controls_visible = previous_ui.get("leftControlsVisible")
         ui_controls = {
             "physicsOverlayVisible": physics_overlay_visible
             if isinstance(physics_overlay_visible, bool)
-            else True
+            else True,
+            "leftControlsVisible": left_controls_visible
+            if isinstance(left_controls_visible, bool)
+            else True,
+            "selectedType": previous_ui_controls.get("selectedType", previous_ui.get("selectedType", "")),
+            "selectedNodeId": previous_ui_controls.get("selectedNodeId", previous_ui.get("selectedNodeId", "")),
+            "visibleNodeIds": previous_ui_controls.get("visibleNodeIds")
+            if isinstance(previous_ui_controls.get("visibleNodeIds"), list)
+            else None,
+            "visibleEdgeIds": previous_ui_controls.get("visibleEdgeIds")
+            if isinstance(previous_ui_controls.get("visibleEdgeIds"), list)
+            else None,
         }
 
         layout_payload = self._layout_payload()
@@ -518,6 +654,7 @@ class GrafoConocimiento:
             tooltip = f"<b>{html_lib.escape(str(raw_label))}</b><br>Tipo: {html_lib.escape(str(tipo))}"
             if type_badge:
                 tooltip = f"{tooltip} ({html_lib.escape(str(type_badge))})"
+            node_metadata = self._node_metadata(node_id, datos)
 
             if self._node_render_strategy(tipo) == "svg":
                 svg_kind = self._native_shape(tipo)
@@ -540,6 +677,7 @@ class GrafoConocimiento:
                     "fixed": False,
                     "size": max(22, round(node_label_size * 2.1)),
                     "shapeProperties": {"useImageSize": False},
+                    **node_metadata,
                 }
             else:
                 node_data = {
@@ -556,6 +694,7 @@ class GrafoConocimiento:
                         "multi": True,
                         "bold": {"size": max(9, round(node_label_size * 0.62)), "color": "#374151"},
                     },
+                    **node_metadata,
                 }
 
             previous_node = previous_nodes.get(node_id, {})
@@ -604,6 +743,8 @@ class GrafoConocimiento:
             "exportedAt": datetime.utcnow().isoformat() + "Z",
             "nodes": nodes,
             "edges": edges,
+            "fullNodes": nodes,
+            "fullEdges": edges,
             "physics": previous_state.get("physics", {"mode": "frozen", "enabled": False}),
             "edgeControls": previous_state.get(
                 "edgeControls",
@@ -675,6 +816,7 @@ class GrafoConocimiento:
             tooltip = f"<b>{html_lib.escape(str(raw_label))}</b><br>Tipo: {html_lib.escape(str(tipo))}"
             if type_badge:
                 tooltip = f"{tooltip} ({html_lib.escape(str(type_badge))})"
+            node_metadata = self._node_metadata(n, datos)
 
             if strategy == "svg":
                 logical_shape = self._native_shape(tipo)  # e.g. "hexagon" de "hexagon_svg"
@@ -702,7 +844,8 @@ class GrafoConocimiento:
                     y=position["y"],
                     fixed=False,
                     size=38,   # ajusta 24–40
-                    shapeProperties={"useImageSize": False}
+                    shapeProperties={"useImageSize": False},
+                    **node_metadata,
                 )
             else:
                 # Nativo (rápido, y queda bien para box/ellipse/circle/dot)
@@ -720,7 +863,9 @@ class GrafoConocimiento:
                         "size": 18,
                         "multi": True,
                         "bold": {"size": 11, "color": "#374151"},
-                    })
+                    },
+                    **node_metadata,
+                )
 
         for u, v, k, d in self.G.edges(keys=True, data=True):
             edge_len = 260
@@ -821,22 +966,126 @@ class GrafoConocimiento:
     loadingBar.style.pointerEvents = "none";
   }
 
-  function waitForNetwork() {
-    hidePyvisLoadingBar();
-    if (window.network && typeof window.network.setOptions === "function") {
-      window.mmNetwork = network;
-      return;
-    }
-    setTimeout(waitForNetwork, 300);
-  }
+	  function waitForNetwork() {
+	    hidePyvisLoadingBar();
+	    if (window.network && typeof window.network.setOptions === "function") {
+	      window.mmNetwork = network;
+	      setTimeout(() => initializeGraphNavigation(), 0);
+	      return;
+	    }
+	    setTimeout(waitForNetwork, 300);
+	  }
   waitForNetwork();
   window.addEventListener("load", hidePyvisLoadingBar);
   setTimeout(hidePyvisLoadingBar, 800);
 })();
 
-let GRAPH_LAYOUTS = __GRAPH_LAYOUTS__;
+	let GRAPH_LAYOUTS = __GRAPH_LAYOUTS__;
+	window.allNodes = window.allNodes || {};
+	window.allEdges = window.allEdges || {};
+	window.originalNodes = window.originalNodes || {};
+	window.originalEdges = window.originalEdges || {};
 
-const GRAPH_UI_STATE = {
+	const ORIGINAL_GRAPH_DATA = {
+	  nodes: [],
+	  edges: []
+	};
+
+	let MM_SUPPRESS_SELECT_HANDLER = false;
+	let MM_PENDING_FIT_FRAME = null;
+
+	const TYPE_ALIASES = {
+	  def: "definicion",
+	  definicion: "definicion",
+	  "definición": "definicion",
+	  definition: "definicion",
+	  teo: "teorema",
+	  teorema: "teorema",
+	  theorem: "teorema",
+	  prop: "proposicion",
+	  proposicion: "proposicion",
+	  "proposición": "proposicion",
+	  proposition: "proposicion",
+	  cor: "corolario",
+	  corolario: "corolario",
+	  corollary: "corolario",
+	  lem: "lema",
+	  lema: "lema",
+	  lemma: "lema",
+	  obs: "observacion",
+	  observacion: "observacion",
+	  "observación": "observacion",
+	  remark: "observacion",
+	  ejem: "ejemplo",
+	  ejemplo: "ejemplo",
+	  example: "ejemplo",
+	  nota: "nota",
+	  note: "nota",
+	  conj: "conj",
+	  conjetura: "conj",
+	  axioma: "axioma",
+	  axiom: "axioma",
+	  preg: "preg",
+	  pregunta: "preg",
+	  question: "preg",
+	  ref: "ref",
+	  referencia: "ref",
+	  placeholder: "placeholder",
+	  otro: "otro"
+	};
+
+	const TYPE_BADGES = {
+	  definicion: "def",
+	  teorema: "teo",
+	  proposicion: "prop",
+	  corolario: "cor",
+	  lema: "lem",
+	  observacion: "obs",
+	  ejemplo: "ejem",
+	  nota: "nota",
+	  conj: "conj",
+	  axioma: "axioma",
+	  preg: "preg",
+	  ref: "ref",
+	  placeholder: "placeholder",
+	  otro: "otro"
+	};
+
+	const TYPE_LABELS = {
+	  definicion: "definición",
+	  teorema: "teorema",
+	  proposicion: "proposición",
+	  corolario: "corolario",
+	  lema: "lema",
+	  observacion: "observación",
+	  ejemplo: "ejemplo",
+	  nota: "nota",
+	  conj: "conjetura",
+	  axioma: "axioma",
+	  preg: "pregunta",
+	  ref: "referencia",
+	  placeholder: "placeholder",
+	  otro: "otro"
+	};
+
+	const TYPE_COLORS = {
+	  definicion: "#b5e8b8",
+	  teorema: "#eceb98",
+	  proposicion: "#00E7EF",
+	  corolario: "#D5BFE2",
+	  lema: "#F17A7A",
+	  observacion: "#D7CCC8",
+	  ejemplo: "#F9A825",
+	  nota: "#B0BEC5",
+	  conj: "#fbcfe8",
+	  axioma: "#ccfbf1",
+	  preg: "#bae6fd",
+	  ref: "#d9f99d",
+	  placeholder: "#F5F5F5",
+	  otro: "#E0E0E0"
+	};
+
+	const GRAPH_UI_STATE = {
   physics: {
     mode: "active",
     enabled: true
@@ -850,14 +1099,19 @@ const GRAPH_UI_STATE = {
       roundness: 0.15
     }
   },
-  nodeControls: {
-    edgeLabelSize: 13,
-    nodeLabelSize: 18
-  },
-  ui: {
-    physicsOverlayVisible: true
-  }
-};
+	  nodeControls: {
+	    edgeLabelSize: 13,
+	    nodeLabelSize: 18
+	  },
+	  ui: {
+	    physicsOverlayVisible: true,
+	    leftControlsVisible: true,
+	    selectedType: "",
+	    selectedNodeId: "",
+	    visibleNodeIds: null,
+	    visibleEdgeIds: null
+	  }
+	};
 
 const DEFAULT_PHYSICS = {
   grav: 120,
@@ -944,15 +1198,640 @@ function graphNodes() {
   return window.mmNetwork.body.data.nodes;
 }
 
-function graphEdges() {
-  if (!window.mmNetwork || !window.mmNetwork.body || !window.mmNetwork.body.data) return null;
-  return window.mmNetwork.body.data.edges;
-}
+	function graphEdges() {
+	  if (!window.mmNetwork || !window.mmNetwork.body || !window.mmNetwork.body.data) return null;
+	  return window.mmNetwork.body.data.edges;
+	}
 
-function setLayoutStatus(text) {
-  const el = document.getElementById("layout-status");
-  if (el) el.textContent = text || "";
-}
+	function cloneGraphItem(item) {
+	  return JSON.parse(JSON.stringify(item || {}));
+	}
+
+	function edgeStableId(edge) {
+	  if (!edge) return "";
+	  if (edge.id !== undefined && edge.id !== null && edge.id !== "") return edge.id;
+	  return `${edge.from}::${edge.to}::${edge.label || edge.title || ""}`;
+	}
+
+	function visibleNodeIds() {
+	  const nodes = graphNodes();
+	  return nodes ? nodes.getIds() : [];
+	}
+
+	function visibleEdgeIds() {
+	  const edges = graphEdges();
+	  return edges ? edges.get().map(edgeStableId) : [];
+	}
+
+	function datasetMap(dataset, keyFn = (item) => item.id) {
+	  const out = {};
+	  if (!dataset) return out;
+	  dataset.get().forEach((item) => {
+	    const key = keyFn(item);
+	    if (key !== undefined && key !== null && key !== "") out[key] = cloneGraphItem(item);
+	  });
+	  return out;
+	}
+
+	function nodeMeta(nodeId) {
+	  return (GRAPH_LAYOUTS && GRAPH_LAYOUTS.meta && GRAPH_LAYOUTS.meta[nodeId]) || {};
+	}
+
+	function cacheOriginalGraphData(force = false) {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!nodes || !edges) return;
+
+	  if (force || ORIGINAL_GRAPH_DATA.nodes.length === 0) {
+	    ORIGINAL_GRAPH_DATA.nodes = nodes.get().map(cloneGraphItem);
+	  }
+	  if (force || ORIGINAL_GRAPH_DATA.edges.length === 0) {
+	    ORIGINAL_GRAPH_DATA.edges = edges.get().map(cloneGraphItem);
+	  }
+
+	  if (force || Object.keys(window.allNodes).length === 0) {
+	    window.allNodes = {};
+	    ORIGINAL_GRAPH_DATA.nodes.forEach((node) => {
+	      if (node && node.id !== undefined) window.allNodes[node.id] = cloneGraphItem(node);
+	    });
+	    window.originalNodes = datasetMap(nodes);
+	  }
+	  if (force || Object.keys(window.allEdges).length === 0) {
+	    window.allEdges = {};
+	    ORIGINAL_GRAPH_DATA.edges.forEach((edge) => {
+	      const id = edgeStableId(edge);
+	      if (id) window.allEdges[id] = cloneGraphItem(edge);
+	    });
+	    window.originalEdges = datasetMap(edges, edgeStableId);
+	  }
+	}
+
+	function ensureFullGraphData() {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!nodes || !edges) return;
+	  if (ORIGINAL_GRAPH_DATA.nodes.length === 0 || ORIGINAL_GRAPH_DATA.edges.length === 0) {
+	    cacheOriginalGraphData(true);
+	  }
+	}
+
+	function mergeCurrentVisibleStateIntoAllData() {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!window.mmNetwork || !nodes || !edges) return;
+	  ensureFullGraphData();
+
+	  const ids = nodes.getIds ? nodes.getIds() : nodes.get().map((node) => node.id);
+	  const positions = window.mmNetwork.getPositions(ids);
+	  nodes.get(ids).forEach((node) => {
+	    const stored = window.allNodes[node.id] || {};
+	    window.allNodes[node.id] = {
+	      ...cloneGraphItem(stored),
+	      ...cloneGraphItem(node),
+	      x: positions[node.id]?.x ?? node.x,
+	      y: positions[node.id]?.y ?? node.y,
+	      fixed: node.fixed ?? stored.fixed ?? false
+	    };
+	  });
+
+	  edges.get().forEach((edge) => {
+	    const edgeId = edgeStableId(edge);
+	    if (edgeId) window.allEdges[edgeId] = cloneGraphItem(edge);
+	  });
+	}
+
+	function stripHtml(value) {
+	  const div = document.createElement("div");
+	  div.innerHTML = String(value || "").replace(/<br\\s*\\/?\\s*>/gi, "\\n");
+	  return div.textContent || div.innerText || "";
+	}
+
+	function escapeHtml(value) {
+	  return String(value ?? "")
+	    .replace(/&/g, "&amp;")
+	    .replace(/</g, "&lt;")
+	    .replace(/>/g, "&gt;")
+	    .replace(/"/g, "&quot;")
+	    .replace(/'/g, "&#39;");
+	}
+
+	function canonicalType(value) {
+	  const normalized = String(value || "").trim().toLowerCase();
+	  return TYPE_ALIASES[normalized] || normalized;
+	}
+
+	function typeBadge(type) {
+	  const canonical = canonicalType(type);
+	  return TYPE_BADGES[canonical] || String(type || "").trim();
+	}
+
+	function typeLabel(type) {
+	  const canonical = canonicalType(type);
+	  const badge = typeBadge(canonical);
+	  const label = TYPE_LABELS[canonical] || canonical || "otro";
+	  return badge && badge !== label ? `${badge} - ${label}` : label;
+	}
+
+	function colorValue(color) {
+	  if (!color) return "";
+	  if (typeof color === "string") return color;
+	  return color.background || color.color || color.border || "";
+	}
+
+	function nodeTypeValue(nodeOrId) {
+	  const node = typeof nodeOrId === "string" ? (window.allNodes[nodeOrId] || {}) : (nodeOrId || {});
+	  const meta = nodeMeta(node.id);
+	  const direct = node.type || node.mmType || node.conceptType || node.node_type || meta.type;
+	  if (direct) return canonicalType(direct);
+
+	  const titleMatch = String(node.title || "").match(/Tipo:\\s*([^<(\\n]+)/i);
+	  if (titleMatch && titleMatch[1]) return canonicalType(titleMatch[1]);
+
+	  const labelMatch = String(node.label || "").match(/<b>([^<]+)<\\/b>/i);
+	  if (labelMatch && labelMatch[1]) return canonicalType(labelMatch[1]);
+
+	  return "otro";
+	}
+
+	function nodeDisplayName(node) {
+	  if (!node) return "";
+	  if (node.rawLabel) return String(node.rawLabel);
+	  if (node.nodeInfo && node.nodeInfo.label) return String(node.nodeInfo.label);
+	  const titleText = stripHtml(node.title || "");
+	  if (titleText) return titleText.split(/Tipo:/i)[0].trim();
+	  const labelText = stripHtml(node.label || "").replace(/\\s+/g, " ").trim();
+	  const badge = typeBadge(nodeTypeValue(node));
+	  if (badge && labelText.toLowerCase().startsWith(`${badge.toLowerCase()} `)) {
+	    return labelText.slice(badge.length).trim();
+	  }
+	  return labelText || String(node.id || "");
+	}
+
+	function nodeSource(node) {
+	  if (!node) return "";
+	  if (node.source) return String(node.source);
+	  if (node.nodeInfo && node.nodeInfo.source) return String(node.nodeInfo.source);
+	  const meta = nodeMeta(node.id);
+	  if (meta.source) return String(meta.source);
+	  const id = String(node.id || "");
+	  return id.includes("@") ? id.split("@").slice(1).join("@") : "";
+	}
+
+	function nodeCategories(node) {
+	  const direct = node.categories || node.categorias || (node.nodeInfo && node.nodeInfo.categories);
+	  if (Array.isArray(direct)) return direct.filter(Boolean).map(String);
+	  const meta = nodeMeta(node.id);
+	  return Array.isArray(meta.categories) ? meta.categories.filter(Boolean).map(String) : [];
+	}
+
+	function originalNodeById(nodeId) {
+	  return ORIGINAL_GRAPH_DATA.nodes.find((node) => node.id === nodeId) || null;
+	}
+
+	function originalEdgeById(edgeId) {
+	  return ORIGINAL_GRAPH_DATA.edges.find((edge) => edgeStableId(edge) === edgeId) || null;
+	}
+
+	function graphNodeDataForSubset(nodeId) {
+	  const original = originalNodeById(nodeId);
+	  const stored = window.allNodes[nodeId] || {};
+	  return {
+	    ...(original ? cloneGraphItem(original) : {}),
+	    ...cloneGraphItem(stored),
+	    id: nodeId
+	  };
+	}
+
+	function graphEdgeDataForSubset(edgeId) {
+	  const original = originalEdgeById(edgeId);
+	  const stored = window.allEdges[edgeId] || {};
+	  const edge = {
+	    ...(original ? cloneGraphItem(original) : {}),
+	    ...cloneGraphItem(stored)
+	  };
+	  if (edge.id === undefined || edge.id === null || edge.id === "") edge.id = edgeId;
+	  return edge;
+	}
+
+	function edgeIdsForVisibleNodes(nodeIds) {
+	  const visible = new Set(nodeIds);
+	  return ORIGINAL_GRAPH_DATA.edges
+	    .filter((edge) => visible.has(edge.from) && visible.has(edge.to))
+	    .map(edgeStableId);
+	}
+
+	function stopGraphMotion() {
+	  if (!window.mmNetwork) return;
+	  window.mmNetwork.stopSimulation();
+	  window.mmNetwork.setOptions({ physics: { enabled: false } });
+	  GRAPH_UI_STATE.physics = {
+	    ...(GRAPH_UI_STATE.physics || {}),
+	    mode: "filtered",
+	    enabled: false
+	  };
+	}
+
+	function safeFitToNodes(nodeIds) {
+	  if (!window.mmNetwork || !Array.isArray(nodeIds)) return;
+	  const ids = Array.from(new Set(nodeIds)).filter(Boolean);
+	  if (ids.length === 0) return;
+
+	  stopGraphMotion();
+	  if (MM_PENDING_FIT_FRAME !== null) {
+	    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(MM_PENDING_FIT_FRAME);
+	    clearTimeout(MM_PENDING_FIT_FRAME);
+	    MM_PENDING_FIT_FRAME = null;
+	  }
+
+	  const fitOnce = () => {
+	    MM_PENDING_FIT_FRAME = null;
+	    if (!window.mmNetwork) return;
+	    stopGraphMotion();
+	    window.mmNetwork.fit({
+	      nodes: ids,
+	      animation: { duration: 250, easingFunction: "easeInOutQuad" }
+	    });
+	    window.mmNetwork.redraw();
+	  };
+
+	  if (typeof requestAnimationFrame === "function") {
+	    MM_PENDING_FIT_FRAME = requestAnimationFrame(fitOnce);
+	  } else {
+	    MM_PENDING_FIT_FRAME = setTimeout(fitOnce, 0);
+	  }
+	}
+
+	function setSelectedNodesQuietly(nodeIds) {
+	  if (!window.mmNetwork || !Array.isArray(nodeIds)) return;
+	  const ids = Array.from(new Set(nodeIds)).filter(Boolean);
+	  MM_SUPPRESS_SELECT_HANDLER = true;
+	  window.mmNetwork.selectNodes(ids);
+	  if (ids.length > 0) {
+	    const selector = document.getElementById("nodeIdSelector");
+	    const input = document.getElementById("nodeSearchInput");
+	    if (selector) selector.value = ids[0];
+	    if (input) input.value = ids[0];
+	    updateNodeInfo(ids[0]);
+	    GRAPH_UI_STATE.ui = {
+	      ...(GRAPH_UI_STATE.ui || {}),
+	      selectedNodeId: ids[0]
+	    };
+	  }
+	  setTimeout(() => {
+	    MM_SUPPRESS_SELECT_HANDLER = false;
+	  }, 0);
+	}
+
+	function renderGraphSubset(nodeIds, edgeIds = null, options = {}) {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!nodes || !edges) return;
+	  ensureFullGraphData();
+	  mergeCurrentVisibleStateIntoAllData();
+
+	  const uniqueNodeIds = Array.from(new Set(nodeIds || []))
+	    .filter((id) => originalNodeById(id) || window.allNodes[id]);
+	  const visible = new Set(uniqueNodeIds);
+	  const requestedEdgeIds = Array.isArray(edgeIds)
+	    ? Array.from(new Set(edgeIds))
+	    : edgeIdsForVisibleNodes(uniqueNodeIds);
+	  const edgeData = requestedEdgeIds
+	    .map(graphEdgeDataForSubset)
+	    .filter((edge) => edge && visible.has(edge.from) && visible.has(edge.to));
+
+	  stopGraphMotion();
+	  nodes.clear();
+	  edges.clear();
+	  nodes.add(uniqueNodeIds.map(graphNodeDataForSubset));
+	  edges.add(edgeData);
+	  GRAPH_UI_STATE.ui = {
+	    ...(GRAPH_UI_STATE.ui || {}),
+	    visibleNodeIds: uniqueNodeIds,
+	    visibleEdgeIds: edgeData.map(edgeStableId)
+	  };
+	  applyTextSizes();
+	  stopGraphMotion();
+	  if (options.focusId && visible.has(options.focusId)) {
+	    setSelectedNodesQuietly([options.focusId]);
+	  }
+	  if (options.fit !== false) safeFitToNodes(uniqueNodeIds);
+	  setLayoutStatus(options.status || `Nodos visibles: ${uniqueNodeIds.length}`);
+	}
+
+	function showAllNodes(fit = true, options = {}) {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!nodes || !edges) return;
+	  ensureFullGraphData();
+	  mergeCurrentVisibleStateIntoAllData();
+
+	  const nodeIds = ORIGINAL_GRAPH_DATA.nodes.map((node) => node.id);
+	  const edgeIds = ORIGINAL_GRAPH_DATA.edges.map(edgeStableId);
+	  stopGraphMotion();
+	  nodes.clear();
+	  edges.clear();
+	  nodes.add(nodeIds.map(graphNodeDataForSubset));
+	  edges.add(edgeIds.map(graphEdgeDataForSubset));
+	  GRAPH_UI_STATE.ui = {
+	    ...(GRAPH_UI_STATE.ui || {}),
+	    selectedType: "",
+	    visibleNodeIds: null,
+	    visibleEdgeIds: null
+	  };
+	  const typeSelector = document.getElementById("nodeTypeSelector");
+	  if (typeSelector && !options.preserveTypeSelector) typeSelector.value = "";
+	  applyTextSizes();
+	  stopGraphMotion();
+	  if (fit && !options.skipFit) safeFitToNodes(nodeIds);
+	  setLayoutStatus("Grafo completo restaurado.");
+	  const info = document.getElementById("node-info");
+	  if (info && !GRAPH_UI_STATE.ui.selectedNodeId) info.textContent = "Selecciona un nodo para ver su ficha.";
+	}
+
+	function filterByType(type) {
+	  ensureFullGraphData();
+	  const selectedType = canonicalType(type);
+	  if (!selectedType) {
+	    showAllNodes(true);
+	    return;
+	  }
+
+	  const ids = ORIGINAL_GRAPH_DATA.nodes
+	    .filter((node) => nodeTypeValue(node) === selectedType)
+	    .map((node) => node.id);
+	  if (ids.length === 0) {
+	    setLayoutStatus(`No hay nodos de tipo ${typeLabel(selectedType)}.`);
+	    return;
+	  }
+
+	  GRAPH_UI_STATE.ui = {
+	    ...(GRAPH_UI_STATE.ui || {}),
+	    selectedType
+	  };
+	  const typeSelector = document.getElementById("nodeTypeSelector");
+	  if (typeSelector) typeSelector.value = selectedType;
+	  renderGraphSubset(ids, edgeIdsForVisibleNodes(ids), {
+	    status: `${typeLabel(selectedType)}: ${ids.length} nodos`,
+	    fit: true
+	  });
+	  const info = document.getElementById("node-info");
+	  if (info) info.textContent = `${typeLabel(selectedType)}: ${ids.length} nodos visibles.`;
+	}
+
+	function resolveNodeId(rawValue) {
+	  ensureFullGraphData();
+	  const raw = String(rawValue || "").trim();
+	  if (!raw) return "";
+	  if (window.allNodes[raw]) return raw;
+	  const lower = raw.toLowerCase();
+	  return Object.keys(window.allNodes).find((id) => {
+	    const node = window.allNodes[id];
+	    return id.toLowerCase() === lower ||
+	      id.toLowerCase().includes(lower) ||
+	      nodeDisplayName(node).toLowerCase() === lower ||
+	      nodeDisplayName(node).toLowerCase().includes(lower);
+	  }) || "";
+	}
+
+	function focusNodeByInput() {
+	  const selector = document.getElementById("nodeIdSelector");
+	  const input = document.getElementById("nodeSearchInput");
+	  const nodeId = resolveNodeId((input && input.value) || (selector && selector.value) || "");
+	  if (!nodeId) {
+	    updateNodeInfo(null);
+	    setLayoutStatus("Selecciona o escribe un nodo valido.");
+	    return;
+	  }
+	  focusNodeById(nodeId);
+	}
+
+	function focusNodeById(nodeId) {
+	  ensureFullGraphData();
+	  const resolvedId = resolveNodeId(nodeId);
+	  if (!resolvedId || !window.allNodes[resolvedId]) {
+	    setLayoutStatus("Nodo no encontrado.");
+	    return;
+	  }
+	  if (!visibleNodeIds().includes(resolvedId)) {
+	    showAllNodes(false, { skipFit: true });
+	  }
+	  stopGraphMotion();
+	  setSelectedNodesQuietly([resolvedId]);
+	  safeFitToNodes([resolvedId]);
+	  updateNodeInfo(resolvedId);
+	  setLayoutStatus(`Nodo enfocado: ${resolvedId}`);
+	}
+
+	function selectedOrInputNodeId() {
+	  const selected = selectedNodeIds();
+	  if (selected.length > 0) return selected[0];
+	  const input = document.getElementById("nodeSearchInput");
+	  const selector = document.getElementById("nodeIdSelector");
+	  return resolveNodeId((input && input.value) || (selector && selector.value) || "");
+	}
+
+	function showSelectedNeighborhood() {
+	  const nodeId = selectedOrInputNodeId();
+	  if (!nodeId) {
+	    setLayoutStatus("Selecciona o escribe un nodo primero.");
+	    return;
+	  }
+	  const ids = new Set([nodeId]);
+	  ensureFullGraphData();
+	  ORIGINAL_GRAPH_DATA.edges.forEach((edge) => {
+	    if (edge.from === nodeId) ids.add(edge.to);
+	    if (edge.to === nodeId) ids.add(edge.from);
+	  });
+	  const visibleIds = Array.from(ids);
+	  renderGraphSubset(visibleIds, edgeIdsForVisibleNodes(visibleIds), {
+	    focusId: nodeId,
+	    status: `Vecinos de ${nodeId}: ${visibleIds.length} nodos`
+	  });
+	}
+
+	function typeNamesInGraph() {
+	  ensureFullGraphData();
+	  return Array.from(new Set(
+	    ORIGINAL_GRAPH_DATA.nodes.map(nodeTypeValue).filter(Boolean)
+	  )).sort((a, b) => typeLabel(a).localeCompare(typeLabel(b)));
+	}
+
+	function populateNodeSelector(attempt = 0) {
+	  const selector = document.getElementById("nodeIdSelector");
+	  const list = document.getElementById("nodeSearchList");
+	  if (!selector || !list) {
+	    if (attempt < 40) setTimeout(() => populateNodeSelector(attempt + 1), 150);
+	    return;
+	  }
+	  ensureFullGraphData();
+	  selector.innerHTML = '<option value="">Seleccionar nodo</option>';
+	  list.innerHTML = "";
+	  Object.values(window.allNodes)
+	    .sort((a, b) => nodeDisplayName(a).localeCompare(nodeDisplayName(b)))
+	    .forEach((node) => {
+	      const name = nodeDisplayName(node);
+	      const option = document.createElement("option");
+	      option.value = node.id;
+	      option.textContent = name && name !== node.id ? `${name} (${node.id})` : node.id;
+	      selector.appendChild(option);
+
+	      const dataOption = document.createElement("option");
+	      dataOption.value = node.id;
+	      dataOption.label = name || node.id;
+	      list.appendChild(dataOption);
+	    });
+	}
+
+	function populateTypeSelector(attempt = 0) {
+	  const selector = document.getElementById("nodeTypeSelector");
+	  if (!selector) {
+	    if (attempt < 40) setTimeout(() => populateTypeSelector(attempt + 1), 150);
+	    return;
+	  }
+	  ensureFullGraphData();
+	  const currentValue = selector.value || GRAPH_UI_STATE.ui.selectedType || "";
+	  selector.innerHTML = '<option value="">Todos los tipos</option>';
+	  typeNamesInGraph().forEach((type) => {
+	    const option = document.createElement("option");
+	    option.value = type;
+	    option.textContent = typeLabel(type);
+	    selector.appendChild(option);
+	  });
+	  if (currentValue && Array.from(selector.options).some((option) => option.value === currentValue)) {
+	    selector.value = currentValue;
+	  }
+	}
+
+	function renderTypeLegend(attempt = 0) {
+	  const legend = document.getElementById("node-type-legend");
+	  if (!legend) {
+	    if (attempt < 40) setTimeout(() => renderTypeLegend(attempt + 1), 150);
+	    return;
+	  }
+	  ensureFullGraphData();
+	  const rows = typeNamesInGraph().map((type) => {
+	    const node = ORIGINAL_GRAPH_DATA.nodes.find((item) => nodeTypeValue(item) === type) || {};
+	    const color = colorValue(node.color) || TYPE_COLORS[type] || "#E0E0E0";
+	    return `<button class="type-legend-row" type="button" onclick="filterByType(${JSON.stringify(type)})">
+	      <span class="type-legend-dot" style="background:${escapeHtml(color)}"></span>
+	      <span>${escapeHtml(typeLabel(type))}</span>
+	    </button>`;
+	  });
+	  legend.innerHTML = rows.length ? rows.join("") : '<div class="left-panel-empty">Sin tipos visibles.</div>';
+	}
+
+	function updateNodeInfo(nodeId) {
+	  const info = document.getElementById("node-info");
+	  if (!info) return;
+	  ensureFullGraphData();
+	  const resolvedId = resolveNodeId(nodeId);
+	  if (!resolvedId) {
+	    info.textContent = "Selecciona un nodo para ver su ficha.";
+	    return;
+	  }
+	  const nodes = graphNodes();
+	  const node = (nodes && nodes.get(resolvedId)) || window.allNodes[resolvedId];
+	  if (!node) {
+	    info.textContent = "Nodo no encontrado.";
+	    return;
+	  }
+	  const incoming = ORIGINAL_GRAPH_DATA.edges.filter((edge) => edge.to === resolvedId).length;
+	  const outgoing = ORIGINAL_GRAPH_DATA.edges.filter((edge) => edge.from === resolvedId).length;
+	  const nodeInfo = node.nodeInfo || {};
+	  const description = node.description || nodeInfo.description || node.content || nodeInfo.content || "";
+	  const shortDescription = String(description || "").replace(/\\s+/g, " ").trim().slice(0, 420);
+	  const categories = nodeCategories(node);
+	  const rows = [
+	    ["Tipo", typeLabel(nodeTypeValue(node))],
+	    ["Area", categories.join(", ")],
+	    ["Fuente", nodeSource(node)],
+	    ["ID", resolvedId],
+	    ["Relaciones entrantes", incoming],
+	    ["Relaciones salientes", outgoing],
+	    ["Referencia", node.referenceText || nodeInfo.reference],
+	    ["Contenido breve", shortDescription]
+	  ].filter((row) => row[1] !== undefined && row[1] !== null && row[1] !== "");
+
+	  info.innerHTML = `<div class="node-info-title">${escapeHtml(nodeDisplayName(node))}</div>` +
+	    rows.map(([key, value]) => `<div><strong>${escapeHtml(key)}:</strong> ${escapeHtml(value)}</div>`).join("");
+	  GRAPH_UI_STATE.ui = {
+	    ...(GRAPH_UI_STATE.ui || {}),
+	    selectedNodeId: resolvedId
+	  };
+	}
+
+	function isLeftControlsVisible() {
+	  return GRAPH_UI_STATE.ui.leftControlsVisible !== false;
+	}
+
+	function setLeftControlsVisible(visible) {
+	  const resolvedVisible = Boolean(visible);
+	  const panel = document.getElementById("left-graph-controls");
+	  const button = document.getElementById("toggle-left-controls");
+	  GRAPH_UI_STATE.ui = {
+	    ...(GRAPH_UI_STATE.ui || {}),
+	    leftControlsVisible: resolvedVisible
+	  };
+	  if (panel) panel.style.display = resolvedVisible ? "block" : "none";
+	  if (button) {
+	    button.textContent = resolvedVisible ? "🎨 Ocultar leyenda" : "🎨 Mostrar leyenda";
+	    button.setAttribute("aria-expanded", String(resolvedVisible));
+	    button.classList.toggle("panel-hidden", !resolvedVisible);
+	  }
+	  if (window.mmNetwork) {
+	    window.mmNetwork.redraw();
+	  }
+	}
+
+	function toggleLeftControls() {
+	  setLeftControlsVisible(!isLeftControlsVisible());
+	}
+
+	function bindGraphNavigationEvents() {
+	  if (!window.mmNetwork || window.mmNavigationEventsBound) return;
+	  window.mmNetwork.on("selectNode", function(params) {
+	    if (MM_SUPPRESS_SELECT_HANDLER) return;
+	    if (params.nodes && params.nodes.length > 0) {
+	      const nodeId = params.nodes[0];
+	      const selector = document.getElementById("nodeIdSelector");
+	      const input = document.getElementById("nodeSearchInput");
+	      if (selector) selector.value = nodeId;
+	      if (input) input.value = nodeId;
+	      updateNodeInfo(nodeId);
+	    }
+	  });
+	  window.mmNetwork.on("deselectNode", function() {
+	    if (MM_SUPPRESS_SELECT_HANDLER) return;
+	    GRAPH_UI_STATE.ui = {
+	      ...(GRAPH_UI_STATE.ui || {}),
+	      selectedNodeId: ""
+	    };
+	  });
+	  window.mmNavigationEventsBound = true;
+	}
+
+	function initializeGraphNavigation(attempt = 0) {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!window.mmNetwork || !nodes || !edges) {
+	    if (attempt < 60) setTimeout(() => initializeGraphNavigation(attempt + 1), 150);
+	    return;
+	  }
+	  cacheOriginalGraphData();
+	  bindGraphNavigationEvents();
+	  populateNodeSelector();
+	  populateTypeSelector();
+	  renderTypeLegend();
+	  const selectedNodeId = GRAPH_UI_STATE.ui.selectedNodeId;
+	  if (selectedNodeId) updateNodeInfo(selectedNodeId);
+	  else updateNodeInfo(null);
+	  setLeftControlsVisible(isLeftControlsVisible());
+	}
+
+	function setLayoutStatus(text) {
+	  const el = document.getElementById("layout-status");
+	  if (el) el.textContent = text || "";
+	}
 
 function isPhysicsOverlayVisible() {
   const panel = document.getElementById("physics-overlay");
@@ -1256,49 +2135,73 @@ function applyTextSizes() {
   }
 }
 
-function currentNodeSnapshot() {
-  const nodes = graphNodes();
-  if (!window.mmNetwork || !nodes) return [];
-  const nodeIds = nodes.getIds ? nodes.getIds() : nodes.get().map((node) => node.id);
-  const positions = window.mmNetwork.getPositions(nodeIds);
-  return nodes.get(nodeIds).map((node) => ({
-    ...node,
-    x: positions[node.id]?.x ?? node.x,
-    y: positions[node.id]?.y ?? node.y,
-    fixed: node.fixed ?? false
-  }));
-}
+	function currentNodeSnapshot() {
+	  const nodes = graphNodes();
+	  if (!window.mmNetwork || !nodes) return [];
+	  const nodeIds = nodes.getIds ? nodes.getIds() : nodes.get().map((node) => node.id);
+	  const positions = window.mmNetwork.getPositions(nodeIds);
+	  return nodes.get(nodeIds).map((node) => ({
+	    ...cloneGraphItem(node),
+	    x: positions[node.id]?.x ?? node.x,
+	    y: positions[node.id]?.y ?? node.y,
+	    fixed: node.fixed ?? false
+	  }));
+	}
 
-function currentGraphState() {
-  const edges = graphEdges();
-  const edgeControls = edgeControlState();
-  const nodeControls = textControlState();
-  const uiControls = {
-    ...(GRAPH_UI_STATE.ui || {}),
-    physicsOverlayVisible: isPhysicsOverlayVisible()
-  };
-  GRAPH_UI_STATE.edgeControls = edgeControls;
-  GRAPH_UI_STATE.nodeControls = nodeControls;
-  GRAPH_UI_STATE.ui = uiControls;
+	function currentEdgeSnapshot() {
+	  const edges = graphEdges();
+	  return edges ? edges.get().map(cloneGraphItem) : [];
+	}
+
+	function currentFullNodeSnapshot() {
+	  ensureFullGraphData();
+	  mergeCurrentVisibleStateIntoAllData();
+	  return Object.values(window.allNodes).map(cloneGraphItem);
+	}
+
+	function currentFullEdgeSnapshot() {
+	  ensureFullGraphData();
+	  mergeCurrentVisibleStateIntoAllData();
+	  return Object.values(window.allEdges).map(cloneGraphItem);
+	}
+
+	function currentGraphState() {
+	  const edgeControls = edgeControlState();
+	  const nodeControls = textControlState();
+	  const selection = selectedNodeIds();
+	  const uiControls = {
+	    ...(GRAPH_UI_STATE.ui || {}),
+	    physicsOverlayVisible: isPhysicsOverlayVisible(),
+	    leftControlsVisible: isLeftControlsVisible(),
+	    selectedType: document.getElementById("nodeTypeSelector")?.value || GRAPH_UI_STATE.ui.selectedType || "",
+	    selectedNodeId: selection[0] || GRAPH_UI_STATE.ui.selectedNodeId || "",
+	    visibleNodeIds: visibleNodeIds(),
+	    visibleEdgeIds: visibleEdgeIds()
+	  };
+	  GRAPH_UI_STATE.edgeControls = edgeControls;
+	  GRAPH_UI_STATE.nodeControls = nodeControls;
+	  GRAPH_UI_STATE.ui = uiControls;
   GRAPH_UI_STATE.physics = {
     ...GRAPH_UI_STATE.physics,
     ...physicsControlState(GRAPH_UI_STATE.physics.mode, GRAPH_UI_STATE.physics.enabled)
   };
 
-  return {
-    version: 1,
-    exportedAt: new Date().toISOString(),
-    nodes: currentNodeSnapshot(),
-    edges: edges ? edges.get() : [],
-    physics: GRAPH_UI_STATE.physics,
-    edgeControls,
-    nodeControls,
-    uiControls,
-    layout: GRAPH_LAYOUTS,
-    selection: selectedNodeIds(),
-    note: "Exported from the interactive graph. It opens frozen to preserve the saved composition; use Activar física to resume simulation."
-  };
-}
+	  return {
+	    version: 1,
+	    exportedAt: new Date().toISOString(),
+	    nodes: currentNodeSnapshot(),
+	    edges: currentEdgeSnapshot(),
+	    fullNodes: currentFullNodeSnapshot(),
+	    fullEdges: currentFullEdgeSnapshot(),
+	    physics: GRAPH_UI_STATE.physics,
+	    edgeControls,
+	    nodeControls,
+	    uiControls,
+	    layout: GRAPH_LAYOUTS,
+	    selection,
+	    note: "Exported from the interactive graph. It opens frozen to preserve the saved composition; use Activar física to resume simulation."
+	  };
+	}
 
 function setInputValue(id, value) {
   const input = document.getElementById(id);
@@ -1318,35 +2221,79 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
     if (input && value !== undefined && value !== null) input.value = value;
   }
 
-  function restoredPhysicsOverlayVisible() {
-    if (state.uiControls && typeof state.uiControls.physicsOverlayVisible === "boolean") {
-      return state.uiControls.physicsOverlayVisible;
-    }
+	  function restoredPhysicsOverlayVisible() {
+	    if (state.uiControls && typeof state.uiControls.physicsOverlayVisible === "boolean") {
+	      return state.uiControls.physicsOverlayVisible;
+	    }
     if (state.ui && typeof state.ui.physicsOverlayVisible === "boolean") {
       return state.ui.physicsOverlayVisible;
     }
-    return true;
-  }
+	    return true;
+	  }
 
-  function restore() {
-    const net = window.network || window.mmNetwork;
-    if (!net || !net.body || !net.body.data) {
+	  function restoredLeftControlsVisible() {
+	    if (state.uiControls && typeof state.uiControls.leftControlsVisible === "boolean") {
+	      return state.uiControls.leftControlsVisible;
+	    }
+	    if (state.ui && typeof state.ui.leftControlsVisible === "boolean") {
+	      return state.ui.leftControlsVisible;
+	    }
+	    return true;
+	  }
+
+	  function exportedFullNodes() {
+	    if (Array.isArray(state.fullNodes) && state.fullNodes.length > 0) {
+	      return state.fullNodes;
+	    }
+	    return Array.isArray(state.nodes) ? state.nodes : [];
+	  }
+
+	  function exportedFullEdges() {
+	    if (Array.isArray(state.fullEdges)) {
+	      return state.fullEdges;
+	    }
+	    return Array.isArray(state.edges) ? state.edges : [];
+	  }
+
+	  function rebuildFullGraphCaches(fullNodes, fullEdges) {
+	    if (typeof ORIGINAL_GRAPH_DATA === "undefined") return;
+	    const copy = (item) => JSON.parse(JSON.stringify(item || {}));
+	    const stableEdgeId = (edge) => {
+	      if (!edge) return "";
+	      if (edge.id !== undefined && edge.id !== null && edge.id !== "") return edge.id;
+	      return String(edge.from || "") + "::" + String(edge.to || "") + "::" + String(edge.label || edge.title || "");
+	    };
+	    ORIGINAL_GRAPH_DATA.nodes = fullNodes.map(copy);
+	    ORIGINAL_GRAPH_DATA.edges = fullEdges.map(copy);
+	    window.allNodes = {};
+	    fullNodes.forEach((node) => {
+	      if (node && node.id !== undefined) window.allNodes[node.id] = copy(node);
+	    });
+	    window.allEdges = {};
+	    fullEdges.forEach((edge) => {
+	      const id = stableEdgeId(edge);
+	      if (id) window.allEdges[id] = copy(edge);
+	    });
+	  }
+
+	  function restore() {
+	    const net = window.network || window.mmNetwork;
+	    if (!net || !net.body || !net.body.data) {
       setTimeout(restore, 150);
       return;
     }
 
-    window.mmNetwork = net;
-    const nodes = net.body.data.nodes;
-    const edges = net.body.data.edges;
+	    window.mmNetwork = net;
+	    const nodes = net.body.data.nodes;
+	    const edges = net.body.data.edges;
+	    const fullNodes = exportedFullNodes();
+	    const fullEdges = exportedFullEdges();
 
-    if (Array.isArray(state.nodes)) {
-      nodes.clear();
-      nodes.add(state.nodes);
-    }
-    if (Array.isArray(state.edges)) {
-      edges.clear();
-      edges.add(state.edges);
-    }
+	    nodes.clear();
+	    edges.clear();
+	    nodes.add(fullNodes);
+	    edges.add(fullEdges);
+	    rebuildFullGraphCaches(fullNodes, fullEdges);
 
     if (state.physics) {
       setInputValue("grav", state.physics.gravitationalConstant);
@@ -1374,20 +2321,22 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
     if (typeof updateTextSizeLabels === "function") {
       updateTextSizeLabels();
     }
-    if (typeof GRAPH_UI_STATE !== "undefined") {
-      const physicsOverlayVisible = restoredPhysicsOverlayVisible();
-      GRAPH_UI_STATE.physics = {
-        ...(state.physics || {}),
-        enabled: false,
-        mode: state.physics?.mode || "restored"
-      };
+	    if (typeof GRAPH_UI_STATE !== "undefined") {
+	      const physicsOverlayVisible = restoredPhysicsOverlayVisible();
+	      const leftControlsVisible = restoredLeftControlsVisible();
+	      GRAPH_UI_STATE.physics = {
+	        ...(state.physics || {}),
+	        enabled: false,
+	        mode: state.physics?.mode || "restored"
+	      };
       GRAPH_UI_STATE.edgeControls = state.edgeControls || GRAPH_UI_STATE.edgeControls;
       GRAPH_UI_STATE.nodeControls = state.nodeControls || GRAPH_UI_STATE.nodeControls;
-      GRAPH_UI_STATE.ui = {
-        ...(state.uiControls || state.ui || GRAPH_UI_STATE.ui || {}),
-        physicsOverlayVisible
-      };
-    }
+	      GRAPH_UI_STATE.ui = {
+	        ...(state.uiControls || state.ui || GRAPH_UI_STATE.ui || {}),
+	        physicsOverlayVisible,
+	        leftControlsVisible
+	      };
+	    }
     if (state.layout) {
       GRAPH_LAYOUTS = state.layout;
     }
@@ -1405,16 +2354,53 @@ window.EXPORTED_GRAPH_STATE = ${stateJson};
         }
       }
     });
-    if (typeof applyTextSizes === "function") {
-      applyTextSizes();
-    }
-    if (typeof setPhysicsOverlayVisible === "function") {
-      setPhysicsOverlayVisible(restoredPhysicsOverlayVisible());
-    }
-    net.redraw();
-    if (Array.isArray(state.selection) && state.selection.length > 0) {
-      net.selectNodes(state.selection);
-    }
+	    if (typeof applyTextSizes === "function") {
+	      applyTextSizes();
+	    }
+	    if (typeof setPhysicsOverlayVisible === "function") {
+	      setPhysicsOverlayVisible(restoredPhysicsOverlayVisible());
+	    }
+	    if (typeof initializeGraphNavigation === "function") {
+	      initializeGraphNavigation();
+	    }
+	    const visibleIds = state.uiControls && Array.isArray(state.uiControls.visibleNodeIds)
+	      ? state.uiControls.visibleNodeIds
+	      : null;
+	    const visibleEdges = state.uiControls && Array.isArray(state.uiControls.visibleEdgeIds)
+	      ? state.uiControls.visibleEdgeIds
+	      : null;
+	    if (
+	      visibleIds &&
+	      visibleIds.length > 0 &&
+	      fullNodes.length > 0 &&
+	      visibleIds.length < fullNodes.length &&
+	      typeof renderGraphSubset === "function"
+	    ) {
+	      renderGraphSubset(visibleIds, visibleEdges, {
+	        status: "Vista exportada restaurada.",
+	        fit: true
+	      });
+	    }
+	    if (typeof populateTypeSelector === "function") populateTypeSelector();
+	    if (typeof populateNodeSelector === "function") populateNodeSelector();
+	    if (typeof renderTypeLegend === "function") renderTypeLegend();
+	    if (state.uiControls && state.uiControls.selectedType) {
+	      const typeSelector = document.getElementById("nodeTypeSelector");
+	      if (typeSelector) typeSelector.value = state.uiControls.selectedType;
+	    }
+	    if (typeof setLeftControlsVisible === "function") {
+	      setLeftControlsVisible(restoredLeftControlsVisible());
+	    }
+	    net.redraw();
+	    if (Array.isArray(state.selection) && state.selection.length > 0) {
+	      if (typeof setSelectedNodesQuietly === "function") {
+	        setSelectedNodesQuietly(state.selection);
+	      } else {
+	        net.selectNodes(state.selection);
+	      }
+	    } else if (state.uiControls && state.uiControls.selectedNodeId && typeof updateNodeInfo === "function") {
+	      updateNodeInfo(state.uiControls.selectedNodeId);
+	    }
 
     const layoutStatus = document.getElementById("layout-status");
     if (layoutStatus) layoutStatus.textContent = "Estado exportado restaurado; física pausada para conservar posiciones.";
@@ -1517,13 +2503,154 @@ function downloadGraphStateJson() {
   const status = document.getElementById("download-status");
   if (status) status.textContent = "JSON del estado actual generado.";
 }
-</script>
+	</script>
 
-<style>
-#physics-overlay {
-  position: fixed;
-  top: 12px;
-  right: 12px;
+	<style>
+	#left-graph-controls {
+	  position: fixed;
+	  top: 50px;
+	  left: 12px;
+	  z-index: 9999;
+	  background: rgba(255,255,255,0.96);
+	  border: 1px solid #bbb;
+	  border-radius: 8px;
+	  padding: 10px;
+	  font-family: Arial, sans-serif;
+	  width: 282px;
+	  max-height: calc(100vh - 66px);
+	  overflow-y: auto;
+	  box-shadow: 0 4px 16px rgba(0,0,0,.2);
+	  box-sizing: border-box;
+	}
+
+	#toggle-left-controls {
+	  position: fixed;
+	  top: 12px;
+	  left: 12px;
+	  z-index: 10000;
+	  background: rgba(255,255,255,0.96);
+	  border: 1px solid #bbb;
+	  border-radius: 8px;
+	  padding: 6px 10px;
+	  font-family: Arial, sans-serif;
+	  font-size: 12px;
+	  cursor: pointer;
+	  box-shadow: 0 2px 8px rgba(0,0,0,.18);
+	}
+
+	#toggle-left-controls.panel-hidden {
+	  background: rgba(255,255,255,0.9);
+	}
+
+	#left-graph-controls .left-panel-title {
+	  font-size: 13px;
+	  font-weight: 700;
+	  margin: 2px 0 7px;
+	  text-align: center;
+	}
+
+	#left-graph-controls .left-panel-section {
+	  border-top: 1px solid #d1d5db;
+	  margin-top: 9px;
+	  padding-top: 8px;
+	}
+
+	#left-graph-controls .left-panel-section:first-of-type {
+	  border-top: 0;
+	  margin-top: 0;
+	  padding-top: 0;
+	}
+
+	#left-graph-controls label {
+	  display: block;
+	  font-size: 11px;
+	  font-weight: 600;
+	  margin-bottom: 3px;
+	}
+
+	#left-graph-controls select,
+	#left-graph-controls input[type=text] {
+	  box-sizing: border-box;
+	  width: 100%;
+	  min-height: 28px;
+	  border: 1px solid #d1d5db;
+	  border-radius: 6px;
+	  background: #ffffff;
+	  font-family: Arial, sans-serif;
+	  font-size: 11px;
+	  margin-bottom: 5px;
+	  padding: 4px 6px;
+	}
+
+	#left-graph-controls button {
+	  width: 100%;
+	  margin-top: 5px;
+	}
+
+	#left-graph-controls button:not(.type-legend-row) {
+	  background: #ffffff;
+	  border: 1px solid #d1d5db;
+	  border-radius: 6px;
+	  color: #111827;
+	  cursor: pointer;
+	  font-family: Arial, sans-serif;
+	  font-size: 11px;
+	  min-height: 28px;
+	  padding: 5px 6px;
+	}
+
+	#left-graph-controls .type-legend-row {
+	  align-items: center;
+	  background: transparent;
+	  border: 0;
+	  color: #374151;
+	  cursor: pointer;
+	  display: flex;
+	  font-size: 11px;
+	  gap: 7px;
+	  justify-content: flex-start;
+	  margin: 3px 0;
+	  padding: 2px 0;
+	  text-align: left;
+	}
+
+	#left-graph-controls .type-legend-dot {
+	  border: 1px solid #6b7280;
+	  border-radius: 999px;
+	  display: inline-block;
+	  flex: 0 0 11px;
+	  height: 11px;
+	  width: 11px;
+	}
+
+	#left-graph-controls #node-info {
+	  background: #f9fafb;
+	  border: 1px solid #e5e7eb;
+	  border-radius: 6px;
+	  color: #4b5563;
+	  font-size: 10px;
+	  line-height: 1.3;
+	  margin-top: 6px;
+	  min-height: 28px;
+	  padding: 7px;
+	}
+
+	#left-graph-controls .node-info-title {
+	  color: #111827;
+	  font-size: 12px;
+	  font-weight: 700;
+	  margin-bottom: 4px;
+	}
+
+	#left-graph-controls .left-panel-empty {
+	  color: #6b7280;
+	  font-size: 10px;
+	}
+
+	#physics-overlay {
+	  position: fixed;
+	  top: 12px;
+	  right: 12px;
   z-index: 9999;
   background: rgba(255,255,255,0.96);
   border: 1px solid #bbb;
@@ -1643,23 +2770,79 @@ function downloadGraphStateJson() {
   pointer-events: none !important;
 }
 
-@media (max-width: 700px) {
-  #physics-overlay {
-    top: 48px;
-    right: 8px;
-    width: min(268px, calc(100vw - 38px));
+	@media (max-width: 700px) {
+	  #left-graph-controls {
+	    top: 46px;
+	    left: 8px;
+	    width: min(282px, calc(100vw - 16px));
+	    max-height: min(46vh, calc(100vh - 60px));
+	  }
+
+	  #toggle-left-controls {
+	    left: 8px;
+	  }
+
+	  #physics-overlay {
+	    top: 48px;
+	    right: 8px;
+	    width: min(268px, calc(100vw - 38px));
     max-height: calc(100vh - 64px);
   }
 
   #toggle-physics-overlay {
     right: 8px;
   }
-}
-</style>
+	}
+	</style>
 
-<button
-  id="toggle-physics-overlay"
-  type="button"
+	<button
+	  id="toggle-left-controls"
+	  type="button"
+	  aria-controls="left-graph-controls"
+	  aria-expanded="true"
+	  onclick="toggleLeftControls()"
+	>🎨 Ocultar leyenda</button>
+
+	<div id="left-graph-controls">
+	  <div class="left-panel-title">Navegación del mapa</div>
+
+	  <div class="left-panel-section">
+	    <label for="nodeIdSelector">Nodo</label>
+	    <select id="nodeIdSelector" onchange="focusNodeByInput()">
+	      <option value="">Seleccionar nodo</option>
+	    </select>
+	    <input id="nodeSearchInput" type="text" list="nodeSearchList" placeholder="id o nombre" oninput="document.getElementById('nodeIdSelector').value = ''">
+	    <datalist id="nodeSearchList"></datalist>
+	    <button onclick="focusNodeByInput()" title="Selecciona y centra el nodo indicado.">🔎 Enfocar nodo</button>
+	    <button onclick="showSelectedNeighborhood()" title="Muestra el nodo seleccionado y sus vecinos directos.">🕸 Mostrar vecinos</button>
+	  </div>
+
+	  <div class="left-panel-section">
+	    <label for="nodeTypeSelector">Tipo matemático</label>
+	    <select id="nodeTypeSelector" onchange="filterByType(this.value)">
+	      <option value="">Todos los tipos</option>
+	    </select>
+	    <button onclick="showAllNodes()" title="Restaura todos los nodos y enlaces del mapa.">🌐 Mostrar todo</button>
+	  </div>
+
+	  <div class="left-panel-section">
+	    <div class="left-panel-title">Leyenda de tipos</div>
+	    <div id="node-type-legend"></div>
+	  </div>
+
+	  <div class="left-panel-section">
+	    <div class="left-panel-title">Ficha del nodo</div>
+	    <div id="node-info">Selecciona un nodo para ver su ficha.</div>
+	  </div>
+	</div>
+
+	<script>
+	  initializeGraphNavigation();
+	</script>
+
+	<button
+	  id="toggle-physics-overlay"
+	  type="button"
   aria-controls="physics-overlay"
   aria-expanded="true"
   onclick="togglePhysicsOverlay()"
