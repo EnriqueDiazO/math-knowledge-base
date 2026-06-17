@@ -4,12 +4,19 @@ from __future__ import annotations
 
 import re
 import shutil
-import subprocess
 import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
+
+from exporters_latex.latex_compile import latex_failure_message
+from exporters_latex.latex_compile import latex_warning_message
+from exporters_latex.latex_compile import output_tail
+from exporters_latex.latex_compile import run_latex_until_stable
+from editor.utils.media_assets import copy_media_tree_for_latex
+from mathkb_config import LATEX_MAX_PASSES
+from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -214,6 +221,7 @@ def build_master_tex(
         "",
         r"\usepackage{miestilo}",
         r"\usepackage{coloredtheorem}",
+        r"\usepackage{graphicx}",
         "",
         r"\title{" + latex_escape_text(title) + "}",
         r"\date{\today}",
@@ -311,6 +319,7 @@ def export_unified_document_with_inputs(
     build_dir.mkdir(parents=True, exist_ok=True)
 
     warnings.extend(copy_latex_styles(output_path, Path(templates_dir)))
+    copy_media_tree_for_latex(output_path)
 
     fragment_names = make_unique_fragment_names(concepts)
     fragment_records: list[dict] = []
@@ -353,35 +362,50 @@ def export_unified_document_with_inputs(
     probable_error_file = None
 
     if compile_pdf and not errors:
+        command = [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            "-output-directory",
+            str(build_dir),
+            master_name,
+        ]
         try:
-            result = subprocess.run(
-                [
-                    "pdflatex",
-                    "-interaction=nonstopmode",
-                    "-halt-on-error",
-                    "-output-directory",
-                    str(build_dir),
-                    master_name,
-                ],
-                cwd=str(output_path),
-                capture_output=True,
-                text=True,
-                timeout=60,
-            )
             built_pdf = build_dir / f"{safe_source}.pdf"
-            if result.returncode != 0 or not built_pdf.exists():
+            compile_info = run_latex_until_stable(
+                command,
+                cwd=str(output_path),
+                tex_file=master_path,
+                pdf_path=built_pdf,
+                log_path=log_path,
+                timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+                max_passes=LATEX_MAX_PASSES,
+            )
+            log_tail = compile_info.get("log_excerpt", "") or read_log_tail(log_path)
+            probable_error_file = detect_probable_error_file(log_tail or compile_info.get("stdout", ""))
+            if compile_info["status"] == "failed":
+                result = compile_info.get("result")
                 success = False
-                errors.append("PDF compilation failed.")
-                log_tail = read_log_tail(log_path)
-                probable_error_file = detect_probable_error_file(log_tail or result.stdout)
+                errors.append(
+                    latex_failure_message(
+                        master_path,
+                        command,
+                        compile_info.get("returncode"),
+                        log_excerpt=log_tail,
+                        stdout=getattr(result, "stdout", "") if result else "",
+                        stderr=getattr(result, "stderr", "") if result else "",
+                    )
+                )
             else:
                 shutil.copy2(built_pdf, pdf_path)
-        except subprocess.TimeoutExpired:
+                if compile_info["status"] == "success_with_warnings":
+                    warnings.append(latex_warning_message(compile_info))
+        except TimeoutError as exc:
             success = False
-            errors.append("LaTeX compilation timed out.")
-        except FileNotFoundError:
+            errors.append(str(exc))
+        except (FileNotFoundError, PermissionError, OSError) as exc:
             success = False
-            errors.append("pdflatex not found. Install a LaTeX distribution to generate PDF.")
+            errors.append(str(exc))
 
         if not log_tail:
             log_tail = read_log_tail(log_path)

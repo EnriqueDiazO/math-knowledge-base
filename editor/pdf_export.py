@@ -5,12 +5,20 @@ Generates PDF files from mathematical concepts using LaTeX compilation.
 """
 
 import os
+import shutil
 import tempfile
-import subprocess
+import unicodedata
 import webbrowser
 from pathlib import Path
 from typing import Dict, Optional
 import streamlit as st
+
+from exporters_latex.latex_compile import latex_failure_message
+from exporters_latex.latex_compile import latex_warning_message
+from exporters_latex.latex_compile import run_latex_until_stable
+from editor.utils.media_assets import copy_media_tree_for_latex
+from mathkb_config import LATEX_MAX_PASSES
+from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 
 # Valores constantes
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -37,13 +45,12 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
         Exception: If LaTeX compilation fails.
     """
     
-    # Create a persistent temporary directory for LaTeX files
-    temp_dir = Path(__file__).resolve().parent.parent / "templates_latex"
-    temp_path = Path(temp_dir)
-    
-    try:
+    with tempfile.TemporaryDirectory(prefix="mathkb_concept_pdf_") as temp_dir:
+        temp_path = Path(temp_dir)
+
         # Copy style files (same as ExportadorLatex)
         _copiar_archivos_estilo(temp_path)
+        copy_media_tree_for_latex(temp_path)
         
         # Generate LaTeX content
         latex_content = _generar_latex_content(concepto)
@@ -53,36 +60,59 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
         with open(tex_file, 'w', encoding='utf-8') as f:
             f.write(latex_content)
         
-        # Compile LaTeX to PDF
+        # Compile LaTeX to PDF. Each pass has its own timeout so references and
+        # aux files can settle without giving a single runaway command forever.
         try:
-            for _ in range(2):
-                result = subprocess.run(
-                ['pdflatex', '-interaction=nonstopmode', '-output-directory', str(temp_path), str(tex_file)],
-                capture_output=True,
-                text=True,
-                timeout=30  # 30 second timeout
+            command = [
+                "pdflatex",
+                "-interaction=nonstopmode",
+                "-output-directory",
+                str(temp_path),
+                str(tex_file),
+            ]
+            pdf_file = temp_path / f"{concepto['id']}.pdf"
+            compile_info = run_latex_until_stable(
+                command,
+                cwd=temp_path,
+                tex_file=tex_file,
+                pdf_path=pdf_file,
+                log_path=tex_file.with_suffix(".log"),
+                timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+                max_passes=LATEX_MAX_PASSES,
             )
-            
-            # Check if PDF was actually generated despite warnings
-            pdf_file = temp_path / f"{concepto['id']}.pdf"
-            
-            if not pdf_file.exists():
-                print(f"❌ LaTeX compilation failed:")
-                print(f"Return code: {result.returncode}")
-                print(f"STDOUT: {result.stdout}")
-                print(f"STDERR: {result.stderr}")
-                st.error(f"❌ LaTeX compilation failed:\n{result.stderr}")
-                raise Exception(f"LaTeX compilation failed: {result.stderr}")
+
+            if compile_info["status"] == "failed":
+                result = compile_info.get("result")
+                raise RuntimeError(
+                    latex_failure_message(
+                        tex_file,
+                        command,
+                        compile_info.get("returncode"),
+                        log_excerpt=compile_info.get("log_excerpt", ""),
+                        stdout=getattr(result, "stdout", "") if result else "",
+                        stderr=getattr(result, "stderr", "") if result else "",
+                    )
+                )
+            if compile_info["status"] == "success_with_warnings":
+                print(latex_warning_message(compile_info))
             else:
-                print(f"✅ PDF generated successfully (return code: {result.returncode})")
-                if result.stderr:
-                    print(f"⚠️ Warnings: {result.stderr}")
-            
-            # Find the generated PDF
-            pdf_file = temp_path / f"{concepto['id']}.pdf"
-            
+                print(
+                    "✅ PDF generated successfully "
+                    f"(return code: {compile_info.get('returncode')}, passes: {compile_info.get('passes')})"
+                )
+
             if not pdf_file.exists():
-                raise Exception("PDF file was not generated")
+                result = compile_info.get("result")
+                raise RuntimeError(
+                    latex_failure_message(
+                        tex_file,
+                        command,
+                        compile_info.get("returncode"),
+                        log_excerpt=compile_info.get("log_excerpt", ""),
+                        stdout=result.stdout if result else "",
+                        stderr=result.stderr if result else "",
+                    )
+                )
             
             # Copy to final destination
             if output_path is None:
@@ -100,7 +130,6 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
                 final_pdf = Path(output_path)
             
             # Copy the PDF to the final location
-            import shutil
             shutil.copy2(pdf_file, final_pdf)
             
             # Set readable permissions for the PDF file
@@ -108,26 +137,8 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
             
             return str(final_pdf)
             
-        except subprocess.TimeoutExpired:
-            raise Exception("LaTeX compilation timed out")
-        except FileNotFoundError:
-            raise Exception("pdflatex not found. Please install LaTeX distribution.")
-    
-    finally:
-        # Clean up temporary directory (but keep the final PDF)
-        import shutil
-        try:
-            #shutil.rmtree(temp_dir)
-            #Extensiones a eliminar
-            extensiones = [".tex",".out",".log",".aux",".pdf"]
-            # Borrar los archivos de las extensiones en temp_dir
-            for archivo in temp_dir.glob("*"):
-                if archivo.suffix in extensiones and archivo.is_file():
-                    archivo.unlink()
-            print("Creación completa del PDF")
-
-        except Exception as e:
-            print(f"⚠️ Warning: Could not clean up temporary directory {temp_dir}: {e}")
+        except (TimeoutError, FileNotFoundError, PermissionError, OSError) as exc:
+            raise RuntimeError(str(exc)) from exc
 
 
 
@@ -142,6 +153,11 @@ def _latex_escape_text(s: str) -> str:
          .replace("{", r"\{")
          .replace("}", r"\}")
     )
+
+
+def _normalize_latex_unicode(latex: str) -> str:
+    """Normalize combining accents so pdfLaTeX sees standard precomposed glyphs."""
+    return unicodedata.normalize("NFC", latex or "")
 
 
 def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
@@ -172,6 +188,8 @@ def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
     # Template: "diario" (boxed / nicer layout)
     if template == "diario":
         latex_doc = r"""\documentclass[12pt,letterpaper]{notes}
+\usepackage{graphicx}
+\providecommand{\Inv}{\mathrm{Inv}}
 \begin{document}
 
 """
@@ -189,11 +207,13 @@ def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
             #latex_doc += r"\end{notebody}" + "\n\n"
 
         latex_doc += r"\end{document}" + "\n"
-        return latex_doc
+        return _normalize_latex_unicode(latex_doc)
     # Default: "simple" (uses existing style files)
     latex_doc = r"""\documentclass[12pt]{article}
 \usepackage{miestilo}
 \usepackage{coloredtheorem}
+\usepackage{graphicx}
+\providecommand{\Inv}{\mathrm{Inv}}
 \begin{document}
 
 """
@@ -208,10 +228,14 @@ def generar_tex_nota_latex(nota: Dict, template: str = "simple") -> str:
         latex_doc += body + "\n\n"
 
     latex_doc += r"\end{document}" + "\n"
-    return latex_doc
+    return _normalize_latex_unicode(latex_doc)
 
 
-def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, template: str = "diario") -> str:
+def generar_pdf_nota_latex_result(
+    nota: Dict,
+    output_path: Optional[str] = None,
+    template: str = "diario",
+) -> dict:
     """Generate a PDF from a diary note using pdflatex, reusing the concept export pipeline.
 
     Args:
@@ -229,6 +253,7 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
         _copiar_archivos_estilo(temp_path)   # copia .sty base (miestilo, coloredtheorem, etc.)
         _copiar_archivos_notas(temp_path)    # copia notes.cls + notes.sty
 
+    copy_media_tree_for_latex(temp_path)
 
     # Build LaTeX document
     latex_content = generar_tex_nota_latex(nota, template=template)
@@ -240,20 +265,39 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
     tex_file.write_text(latex_content, encoding="utf-8")
 
     # Compile
+    command = [
+        "pdflatex",
+        "-interaction=nonstopmode",
+        "-output-directory",
+        str(temp_path),
+        str(tex_file),
+    ]
     try:
-        result = subprocess.run(
-            ["pdflatex", "-interaction=nonstopmode", "-output-directory", str(temp_path), str(tex_file)],
-            capture_output=True,
-            text=True,
-            timeout=30,
+        compile_info = run_latex_until_stable(
+            command,
+            cwd=temp_path,
+            tex_file=tex_file,
+            pdf_path=temp_path / f"{safe_id}.pdf",
+            log_path=tex_file.with_suffix(".log"),
+            timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+            max_passes=LATEX_MAX_PASSES,
         )
-    except subprocess.TimeoutExpired:
-        raise Exception("LaTeX compilation timed out")
+    except (TimeoutError, FileNotFoundError, PermissionError, OSError) as exc:
+        raise RuntimeError(str(exc)) from exc
 
     pdf_file = temp_path / f"{safe_id}.pdf"
-    if not pdf_file.exists():
-        st.error(f"❌ LaTeX compilation failed:\n{result.stderr}")
-        raise Exception(f"LaTeX compilation failed: {result.stderr}")
+    if compile_info["status"] == "failed":
+        result = compile_info.get("result")
+        raise RuntimeError(
+            latex_failure_message(
+                tex_file,
+                command,
+                compile_info.get("returncode"),
+                log_excerpt=compile_info.get("log_excerpt", ""),
+                stdout=getattr(result, "stdout", "") if result else "",
+                stderr=getattr(result, "stderr", "") if result else "",
+            )
+        )
 
     # Copy to final destination
     if output_path is None:
@@ -276,7 +320,17 @@ def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, templa
     import shutil
     shutil.copy2(pdf_file, final_pdf)
     os.chmod(final_pdf, 0o644)
-    return str(final_pdf)
+    compile_info["pdf_path"] = str(final_pdf)
+    return compile_info
+
+
+def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, template: str = "diario") -> str:
+    """Generate a PDF from a diary note and return only the final PDF path."""
+    return generar_pdf_nota_latex_result(
+        nota,
+        output_path=output_path,
+        template=template,
+    )["pdf_path"]
 
 def _generar_latex_content(concepto: Dict) -> str:
     """
@@ -299,6 +353,7 @@ def _generar_latex_content(concepto: Dict) -> str:
     latex_doc = r"""\documentclass[12pt]{article}
 \usepackage{miestilo}
 \usepackage{coloredtheorem}
+\usepackage{graphicx}
 \begin{document}
 
 """
@@ -443,4 +498,4 @@ def generar_y_abrir_pdf_desde_formulario(concept_data: Dict) -> bool:
                 
     except Exception as e:
         st.error(f"❌ Error generando PDF: {e}")
-        return False 
+        return False

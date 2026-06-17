@@ -2,10 +2,9 @@ import os
 import json
 import re
 import sys
+from copy import deepcopy
 from uuid import uuid4
-from datetime import date
 from datetime import datetime
-from datetime import timedelta
 from pathlib import Path
 
 import bibtexparser
@@ -19,17 +18,12 @@ from editor.db.concept_repository import concept_exists
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from pathlib import Path
-
 import streamlit.components.v1 as components
 from helpers.concept_builders import build_concept_metadata
 
-# OJO: mapea a tu Enum TipoReferencia: libro, articulo, tesis, tesina, pagina_web, miscelanea
-from helpers.enums import _TIPO_MAP
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
 from db.concept_repository import insert_concept_with_latex_atomic
-from db.concept_repository import semantic_duplicate_exists
 from editor.helpers.tipo_aplicacion import TipoAplicacion
 from editor.helpers.tipo_contexto import NivelContexto
 from editor.helpers.tipo_formalidad import GradoFormalidad
@@ -42,16 +36,77 @@ from editor.document_builder import render_document_builder_page
 from editor.utils.db_export import export_database_to_zip
 from editor.utils.db_import import import_zip_into_database
 from editor.utils.db_import import inspect_export_zip
+from editor.utils.cleanup_exports import cleanup_old_graph_runtime_files
+from editor.utils.cleanup_exports import delete_files_safely
+from editor.utils.cleanup_exports import empty_directory_contents_safely
+from editor.utils.cleanup_exports import find_legacy_root_graph_files
+from editor.utils.cleanup_exports import format_bytes
+from editor.utils.cleanup_exports import list_deletable_files
+from editor.utils.cleanup_exports import move_legacy_root_graph_files_to_runtime
+from editor.utils.cleanup_exports import scan_cleanup_dirs
+from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
+from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
+from editor.utils.media_assets import detect_heavy_tikz
+from editor.utils.media_assets import detach_media_asset_from_concept
+from editor.utils.media_assets import get_concept_media_assets
+from editor.utils.media_assets import html_image_snippet
+from editor.utils.media_assets import latex_includegraphics_snippet
+from editor.utils.media_assets import media_path_exists
+from editor.utils.media_assets import save_media_asset
+from editor.utils.knowledge_graph_sync import add_concepts_to_graph_state
+from editor.utils.knowledge_graph_sync import concept_key
+from editor.utils.knowledge_graph_sync import concept_graph_node_errors
+from editor.utils.knowledge_graph_sync import concept_graph_node_warnings
+from editor.utils.knowledge_graph_sync import concept_table_rows
+from editor.utils.knowledge_graph_sync import concepts_by_keys
+from editor.utils.knowledge_graph_sync import default_sync_settings
+from editor.utils.knowledge_graph_sync import detect_missing_source_concepts
+from editor.utils.knowledge_graph_sync import find_available_concepts
+from editor.utils.knowledge_graph_sync import graph_state_integrity_issues
+from editor.utils.knowledge_graph_sync import incomplete_node_ids
+from editor.utils.knowledge_graph_sync import infer_concept_types_from_graph_state
+from editor.utils.knowledge_graph_sync import infer_sources_from_graph_state
+from editor.utils.knowledge_graph_sync import isolated_node_ids
+from editor.utils.knowledge_graph_sync import map_node_rows
+from editor.utils.knowledge_graph_sync import merge_ordered_values
+from editor.utils.knowledge_graph_sync import merge_preserved_graph_items
+from editor.utils.knowledge_graph_sync import remove_nodes_from_graph_state
+from editor.utils.knowledge_graph_sync import primary_sources
+from editor.utils.knowledge_graph_sync import repair_incomplete_graph_nodes
+from editor.utils.knowledge_graph_sync import utc_timestamp
+from exporters_latex.latex_compile import latex_timeout_message
+from exporters_latex.latex_compile import output_tail
+from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.latex_validation import validate_latex_fragment
 from editor.validators.concept_validator import validate_new_concept_identity
 from editor.validators.concept_validator import validate_semantic_duplicate
 from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_quarto.quarto_exporter import QuartoBookExporter
+from mathkb_config import EXPORT_COLLECTIONS
+from mathkb_config import CLEANUP_BACKUP_DIR
+from mathkb_config import CLEANUP_LOG_FILE
+from mathkb_config import EXPORT_CLEANUP_DIRS
+from mathkb_config import EXPORT_TIMEOUT_SECONDS
+from mathkb_config import GRAPH_CLEANUP_DIRS
+from mathkb_config import GRAPH_RUNTIME_DIR
+from mathkb_config import IMPORT_TIMEOUT_SECONDS
+from mathkb_config import LATEX_MAX_PASSES
+from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
+from mathkb_config import PROJECT_ROOT
 
 # Render preview graph using the same renderer as "Knowledge Graph"
 from mathdatabase.mathmongo import MathMongo
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
+
+
+DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
+
+
+def _kg_debug(message: str, **kwargs) -> None:
+    if DEBUG_KNOWLEDGE_GRAPH:
+        detail = " ".join(f"{key}={value}" for key, value in kwargs.items())
+        print(f"[KG] {message}" + (f" {detail}" if detail else ""))
 
 
 def _parse_knowledge_graph_state_json(raw: str) -> dict:
@@ -106,6 +161,120 @@ def _knowledge_graph_state_counts(graph_state: dict) -> tuple[int, int]:
     return len(nodes), len(edges)
 
 
+def merge_sources_before_widget_creation(map_id: object, saved_sources: list[str], graph_state: dict) -> list[str]:
+    """Merge saved sources with graph-inferred sources before Streamlit widgets exist."""
+    del map_id
+    return merge_ordered_values(saved_sources, infer_sources_from_graph_state(graph_state))
+
+
+def merge_concept_types_before_widget_creation(
+    map_id: object,
+    saved_types: list[str],
+    graph_state: dict,
+) -> list[str]:
+    """Merge saved concept types with graph-inferred types before widgets exist."""
+    del map_id
+    return merge_ordered_values(saved_types, infer_concept_types_from_graph_state(graph_state))
+
+
+def _kg_edit_form_state_key(map_id: str) -> str:
+    return f"kg_edit_form_state_{map_id}"
+
+
+def _kg_edit_pending_widget_key(map_id: str) -> str:
+    return f"kg_edit_pending_widget_updates_{map_id}"
+
+
+def _kg_edit_widget_keys(map_id: str) -> dict[str, str]:
+    return {
+        "name": f"kg_edit_name_widget_{map_id}",
+        "description": f"kg_edit_description_widget_{map_id}",
+        "tags": f"kg_edit_tags_widget_{map_id}",
+        "sources": f"kg_edit_sources_widget_{map_id}",
+        "concept_types": f"kg_edit_concept_types_widget_{map_id}",
+        "relation_types": f"kg_edit_relation_types_widget_{map_id}",
+        "max_depth": f"kg_edit_max_depth_widget_{map_id}",
+        "use_pasted_state_json": f"kg_edit_use_pasted_state_json_widget_{map_id}",
+        "graph_state_json": f"kg_edit_graph_state_json_widget_{map_id}",
+    }
+
+
+def _kg_edit_form_state_from_doc(map_id: str, edit_doc: dict, graph_state: dict) -> dict:
+    filters = edit_doc.get("filters", {}) if isinstance(edit_doc.get("filters"), dict) else {}
+    return {
+        "name": edit_doc.get("name", ""),
+        "description": edit_doc.get("description", ""),
+        "tags": ", ".join(edit_doc.get("tags", []) or []),
+        "sources": merge_sources_before_widget_creation(map_id, filters.get("sources", []), graph_state),
+        "concept_types": merge_concept_types_before_widget_creation(
+            map_id,
+            filters.get("concept_types", []),
+            graph_state,
+        ),
+        "relation_types": list(filters.get("relation_types", []) or []),
+        "max_depth": min(5, max(1, int(filters.get("max_depth", 3) or 3))),
+        "use_pasted_state_json": False,
+        "graph_state_json": "",
+    }
+
+
+def _queue_kg_edit_widget_update(map_id: str, updates: dict) -> None:
+    pending_key = _kg_edit_pending_widget_key(map_id)
+    pending = st.session_state.get(pending_key, {})
+    if not isinstance(pending, dict):
+        pending = {}
+    pending.update(updates)
+    st.session_state[pending_key] = pending
+
+
+def _sync_kg_edit_form_state_from_graph(map_id: str, graph_state: dict) -> dict:
+    form_state_key = _kg_edit_form_state_key(map_id)
+    form_state = st.session_state.get(form_state_key, {})
+    if not isinstance(form_state, dict):
+        form_state = {}
+    form_state["sources"] = merge_sources_before_widget_creation(
+        map_id,
+        form_state.get("sources", []),
+        graph_state,
+    )
+    form_state["concept_types"] = merge_concept_types_before_widget_creation(
+        map_id,
+        form_state.get("concept_types", []),
+        graph_state,
+    )
+    st.session_state[form_state_key] = form_state
+    return form_state
+
+
+def _apply_kg_edit_widget_updates_before_creation(map_id: str, form_state: dict, graph_state: dict) -> dict:
+    widget_keys = _kg_edit_widget_keys(map_id)
+    pending_key = _kg_edit_pending_widget_key(map_id)
+    pending = st.session_state.pop(pending_key, {})
+    if not isinstance(pending, dict):
+        pending = {}
+
+    for field, key in widget_keys.items():
+        base_value = pending.get(field, form_state.get(field))
+        if field == "sources":
+            current_value = st.session_state.get(key, base_value)
+            value = merge_sources_before_widget_creation(map_id, current_value, graph_state)
+            st.session_state[key] = value
+            form_state[field] = value
+        elif field == "concept_types":
+            current_value = st.session_state.get(key, base_value)
+            value = merge_concept_types_before_widget_creation(map_id, current_value, graph_state)
+            st.session_state[key] = value
+            form_state[field] = value
+        elif key not in st.session_state or field in pending:
+            st.session_state[key] = base_value
+            form_state[field] = base_value
+        else:
+            form_state[field] = st.session_state[key]
+
+    st.session_state[_kg_edit_form_state_key(map_id)] = form_state
+    return widget_keys
+
+
 def _knowledge_graph_map_summary(doc: dict) -> dict:
     filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
     tags = doc.get("tags", []) if isinstance(doc.get("tags"), list) else []
@@ -130,11 +299,9 @@ def _knowledge_graph_map_summary(doc: dict) -> dict:
 
 
 def _render_knowledge_graph_map_html(graph_state: dict, map_key: str) -> str:
-    html_file = f"knowledge_graph_saved_{map_key}.html"
+    del map_key
     grafo = GrafoConocimiento([], [])
-    grafo.exportar_html(salida=html_file, initial_state=graph_state)
-    with open(html_file, "r", encoding="utf-8") as f:
-        return f.read()
+    return grafo.exportar_html(salida=None, initial_state=graph_state)
 
 
 def _render_knowledge_graph_map_metadata(doc: dict) -> None:
@@ -152,6 +319,357 @@ def _render_knowledge_graph_map_metadata(doc: dict) -> None:
         st.write(f"**Creado:** {created_at}")
     if updated_at:
         st.write(f"**Actualizado:** {updated_at}")
+
+
+def _cleanup_display_path(path: str | Path) -> str:
+    target = Path(path).expanduser()
+    try:
+        return str(target.resolve(strict=False).relative_to(PROJECT_ROOT))
+    except ValueError:
+        return str(target)
+
+
+def _cleanup_candidate_size(path: Path) -> int:
+    try:
+        if path.is_dir() and not path.is_symlink():
+            return sum(_cleanup_candidate_size(child) for child in path.iterdir())
+        return path.lstat().st_size
+    except OSError:
+        return 0
+
+
+def _cleanup_candidate_rows(candidates: list[Path], limit: int = 30) -> list[dict]:
+    rows = []
+    for path in candidates[:limit]:
+        rows.append(
+            {
+                "Ruta": _cleanup_display_path(path),
+                "Tipo": "carpeta" if path.is_dir() and not path.is_symlink() else "archivo",
+                "Tamaño": format_bytes(_cleanup_candidate_size(path)),
+            }
+        )
+    return rows
+
+
+def _collect_cleanup_candidates(paths: list[Path], mode: str, older_than_days: int | None = None) -> list[Path]:
+    candidates: list[Path] = []
+    for path in paths:
+        candidates.extend(list_deletable_files(path, mode=mode, older_than_days=older_than_days))
+    return sorted(candidates, key=lambda item: str(item).lower())
+
+
+def _merge_cleanup_results(results: list[dict]) -> dict:
+    merged = {
+        "deleted_files": 0,
+        "deleted_dirs": 0,
+        "moved_files": 0,
+        "moved_dirs": 0,
+        "bytes_freed": 0,
+        "errors": [],
+        "backup_dir": "",
+    }
+    for result in results:
+        for key in ("deleted_files", "deleted_dirs", "moved_files", "moved_dirs", "bytes_freed"):
+            merged[key] += int(result.get(key, 0) or 0)
+        merged["errors"].extend(result.get("errors", []) or [])
+        if result.get("backup_dir"):
+            merged["backup_dir"] = result["backup_dir"]
+    return merged
+
+
+def _render_cleanup_candidates(title: str, candidates: list[Path]) -> None:
+    st.markdown(f"**{title}: {len(candidates)} elementos**")
+    if not candidates:
+        st.info("No hay candidatos para esta acción.")
+        return
+    total_bytes = sum(_cleanup_candidate_size(path) for path in candidates)
+    st.caption(f"Tamaño aproximado: {format_bytes(total_bytes)}")
+    st.dataframe(pd.DataFrame(_cleanup_candidate_rows(candidates)), width="stretch", hide_index=True)
+    if len(candidates) > 30:
+        st.caption(f"Mostrando 30 de {len(candidates)} elementos candidatos.")
+
+
+def _render_cleanup_result(result: dict) -> None:
+    moved = int(result.get("moved_files", 0) or 0)
+    deleted = int(result.get("deleted_files", 0) or 0)
+    dirs = int(result.get("deleted_dirs", 0) or 0) + int(result.get("moved_dirs", 0) or 0)
+    action = "movidos a respaldo" if moved else "eliminados"
+    st.success(
+        f"Limpieza completada. Archivos {action}: {moved or deleted}. "
+        f"Carpetas procesadas: {dirs}. Espacio liberado: {format_bytes(result.get('bytes_freed', 0))}."
+    )
+    if result.get("backup_dir"):
+        st.info(f"Respaldo creado en `{result['backup_dir']}`.")
+    if result.get("errors"):
+        st.warning("Algunos archivos no pudieron procesarse.")
+        st.write(result["errors"][:10])
+
+
+def _render_cleanup_maintenance_page() -> None:
+    st.title("🧹 Mantenimiento / Limpieza de exportaciones")
+    monitored_paths = list(EXPORT_CLEANUP_DIRS) + list(GRAPH_CLEANUP_DIRS)
+
+    st.info(
+        "Estas acciones sólo operan sobre archivos generados en disco. "
+        "No borran conceptos, relaciones ni documentos en MongoDB."
+    )
+    st.caption(f"Respaldos: `{CLEANUP_BACKUP_DIR}` · Log: `{CLEANUP_LOG_FILE}`")
+
+    st.markdown("**Carpetas monitoreadas**")
+    st.write([str(path) for path in monitored_paths])
+
+    if st.button("🔍 Escanear carpetas de exportación", key="cleanup_scan_dirs"):
+        st.session_state["cleanup_scan_results"] = scan_cleanup_dirs(monitored_paths)
+
+    scan_results = st.session_state.get("cleanup_scan_results")
+    if scan_results:
+        stats_rows = [
+            {
+                "Carpeta": _cleanup_display_path(result["path"]),
+                "Existe": "sí" if result["exists"] else "no",
+                "Permitida": "sí" if result["allowed"] else "no",
+                "Archivos": result["files"],
+                "Subcarpetas": result["subdirs"],
+                "Tamaño": result["total_size"],
+                "Última modificación": result["newest_modified"],
+                "Extensiones": ", ".join(
+                    f"{extension}:{count}" for extension, count in result["extensions"].items()
+                ),
+            }
+            for result in scan_results
+        ]
+        st.dataframe(pd.DataFrame(stats_rows), width="stretch", hide_index=True)
+        with st.expander("Vista previa de archivos encontrados", expanded=False):
+            for result in scan_results:
+                st.markdown(f"**{_cleanup_display_path(result['path'])}**")
+                if result["preview"]:
+                    st.write(result["preview"])
+                else:
+                    st.caption("Sin archivos detectados.")
+    else:
+        st.info("Presiona Escanear carpetas para ver conteos, tamaños y una vista previa.")
+
+    move_to_backup = st.checkbox(
+        "📦 Mover a respaldo en vez de borrar",
+        value=True,
+        key="cleanup_move_to_backup",
+    )
+
+    st.divider()
+    st.subheader("🧹 Limpiar temporales de compilación")
+    temp_candidates = _collect_cleanup_candidates(monitored_paths, mode="temp")
+    _render_cleanup_candidates("Temporales detectados", temp_candidates)
+    confirm_temp = st.checkbox(
+        "Entiendo que esto procesará sólo temporales de compilación dentro de las carpetas permitidas.",
+        key="cleanup_confirm_temp",
+    )
+    if st.button("🧹 Limpiar temporales de compilación", key="cleanup_delete_temp"):
+        if not confirm_temp:
+            st.error("Marca la confirmación antes de limpiar temporales.")
+        else:
+            _render_cleanup_result(delete_files_safely(temp_candidates, move_to_backup=move_to_backup))
+            st.session_state["cleanup_scan_results"] = scan_cleanup_dirs(monitored_paths)
+
+    st.divider()
+    st.subheader("🕒 Limpiar exportaciones antiguas")
+    age_options = {"1 día": 1, "7 días": 7, "30 días": 30, "90 días": 90}
+    age_label = st.selectbox(
+        "Borrar archivos con antigüedad mayor a",
+        list(age_options),
+        index=2,
+        key="cleanup_old_age",
+    )
+    old_candidates = _collect_cleanup_candidates(
+        monitored_paths,
+        mode="old_exports",
+        older_than_days=age_options[age_label],
+    )
+    _render_cleanup_candidates("Exportaciones antiguas detectadas", old_candidates)
+    confirm_old = st.checkbox(
+        "Entiendo que esto procesará PDF, HTML, JSON, ZIP y TeX antiguos en carpetas permitidas.",
+        key="cleanup_confirm_old",
+    )
+    if st.button("🧹 Limpiar exportaciones antiguas", key="cleanup_delete_old"):
+        if not confirm_old:
+            st.error("Marca la confirmación antes de limpiar exportaciones antiguas.")
+        else:
+            _render_cleanup_result(delete_files_safely(old_candidates, move_to_backup=move_to_backup))
+            st.session_state["cleanup_scan_results"] = scan_cleanup_dirs(monitored_paths)
+
+    st.divider()
+    st.subheader("🧭 Temporales de grafos")
+    graph_hours = st.number_input(
+        "Eliminar temporales de grafos con más de horas",
+        min_value=1,
+        max_value=24 * 30,
+        value=24,
+        step=1,
+        key="cleanup_graph_runtime_hours",
+    )
+    confirm_graph = st.checkbox(
+        f"Entiendo que esto sólo limpiará HTML/JSON antiguos en `{GRAPH_RUNTIME_DIR}`.",
+        key="cleanup_confirm_graph_runtime",
+    )
+    if st.button("🧹 Limpiar temporales de grafos", key="cleanup_delete_graph_runtime"):
+        if not confirm_graph:
+            st.error("Marca la confirmación antes de limpiar temporales de grafos.")
+        else:
+            _render_cleanup_result(cleanup_old_graph_runtime_files(max_age_hours=int(graph_hours)))
+            st.session_state["cleanup_scan_results"] = scan_cleanup_dirs(monitored_paths)
+
+    legacy_graph_files = find_legacy_root_graph_files()
+    _render_cleanup_candidates("Archivos legacy de grafo en la raíz", legacy_graph_files)
+    confirm_legacy = st.checkbox(
+        "Entiendo que esto moverá sólo archivos legacy de grafo desde la raíz hacia runtime.",
+        key="cleanup_confirm_legacy_graphs",
+    )
+    if st.button("📦 Mover grafos legacy a runtime", key="cleanup_move_legacy_graphs"):
+        if not confirm_legacy:
+            st.error("Marca la confirmación antes de mover archivos legacy.")
+        else:
+            _render_cleanup_result(move_legacy_root_graph_files_to_runtime())
+            st.session_state["cleanup_scan_results"] = scan_cleanup_dirs(monitored_paths)
+
+    st.divider()
+    st.subheader("🗑️ Vaciar carpetas de exportación")
+    st.warning(
+        "Esta acción procesa todo el contenido de las carpetas monitoreadas, preservando las carpetas raíz. "
+        "Requiere checkbox y la palabra LIMPIAR."
+    )
+    all_candidates = _collect_cleanup_candidates(monitored_paths, mode="all")
+    _render_cleanup_candidates("Contenido que se procesaría", all_candidates)
+    confirm_all = st.checkbox(
+        "Entiendo que esto vaciará contenido exportado en disco y no tocará MongoDB.",
+        key="cleanup_confirm_all",
+    )
+    confirm_word = st.text_input("Escribe LIMPIAR para confirmar", key="cleanup_confirm_word")
+    if st.button("🗑️ Vaciar carpetas de exportación", key="cleanup_empty_dirs"):
+        if not confirm_all or confirm_word.strip() != "LIMPIAR":
+            st.error("Activa la confirmación y escribe LIMPIAR exactamente.")
+        else:
+            results = [
+                empty_directory_contents_safely(path, move_to_backup=move_to_backup)
+                for path in monitored_paths
+            ]
+            _render_cleanup_result(_merge_cleanup_results(results))
+            st.session_state["cleanup_scan_results"] = scan_cleanup_dirs(monitored_paths)
+
+
+def _media_tags_from_text(raw: str) -> list[str]:
+    return [tag.strip() for tag in (raw or "").split(",") if tag.strip()]
+
+
+def _render_tikz_weight_warnings(latex: str) -> None:
+    for warning in detect_heavy_tikz(latex):
+        st.warning(warning)
+
+
+def _render_media_asset_preview(asset: dict) -> None:
+    path = Path(asset.get("path") or "")
+    actual_path = PROJECT_ROOT / path
+    suffix = path.suffix.lower()
+    if not media_path_exists(asset):
+        st.error(f"Imagen faltante: {asset.get('path')}")
+        return
+    if suffix == ".pdf":
+        st.write(f"PDF image asset: `{asset.get('path')}`")
+    else:
+        st.image(str(actual_path), caption=asset.get("description") or asset.get("filename"))
+
+
+def _render_concept_media_manager(
+    mongo: MathMongo,
+    concept_id: str,
+    source: str,
+    *,
+    prefix: str,
+    latex_insert_key: str,
+    insert_flag_key: str,
+) -> list[dict]:
+    st.subheader("🖼️ Images")
+    st.caption("Use rutas relativas como `media/images/name.png`; evita rutas absolutas.")
+
+    if not concept_id or not source:
+        st.info("Define ID y source antes de asociar imágenes.")
+        return []
+
+    uploaded_files = st.file_uploader(
+        "Upload image assets",
+        type=[ext.lstrip(".") for ext in ALLOWED_IMAGE_EXTENSIONS],
+        accept_multiple_files=True,
+        key=f"{prefix}_media_upload",
+    )
+    media_description = st.text_input("Image description/caption", key=f"{prefix}_media_description")
+    media_tags = st.text_input("Image tags (comma-separated)", key=f"{prefix}_media_tags")
+
+    if st.button("Guardar imágenes", key=f"{prefix}_save_media"):
+        if not uploaded_files:
+            st.warning("Selecciona al menos una imagen.")
+        else:
+            saved_assets = []
+            for uploaded in uploaded_files:
+                try:
+                    asset = save_media_asset(
+                        mongo,
+                        filename=uploaded.name,
+                        data=uploaded.getvalue(),
+                        mime_type=getattr(uploaded, "type", None),
+                        concept_id=concept_id,
+                        source=source,
+                        tags=_media_tags_from_text(media_tags),
+                        description=media_description,
+                    )
+                    saved_assets.append(asset)
+                except Exception as exc:
+                    st.error(f"No se pudo guardar {uploaded.name}: {exc}")
+            if saved_assets:
+                st.success(f"Guardadas {len(saved_assets)} imagen(es).")
+                for asset in saved_assets:
+                    st.code(latex_includegraphics_snippet(asset, caption=media_description), language="latex")
+
+    assets = get_concept_media_assets(mongo, concept_id, source)
+    if not assets:
+        st.info("Este concepto todavía no tiene imágenes asociadas.")
+        return []
+
+    for asset in assets:
+        label = f"{asset.get('filename', 'image')} · {asset.get('path', '')}"
+        with st.expander(label, expanded=False):
+            _render_media_asset_preview(asset)
+            suffix = Path(asset.get("path") or "").suffix.lower()
+            if suffix == ".svg":
+                st.warning("SVG se puede previsualizar en HTML, pero pdflatex no lo incluye sin conversión.")
+            elif suffix not in LATEX_IMAGE_EXTENSIONS:
+                st.warning("Este formato puede no compilar con pdflatex.")
+            latex_snippet = latex_includegraphics_snippet(
+                asset,
+                caption=asset.get("description") or asset.get("filename") or "",
+            )
+            st.code(latex_snippet, language="latex")
+            st.code(html_image_snippet(asset), language="html")
+            if st.button("Insertar LaTeX", key=f"{prefix}_insert_media_{asset.get('asset_id')}"):
+                st.session_state[latex_insert_key] = latex_snippet
+                st.session_state[insert_flag_key] = True
+                st.rerun()
+            delete_unused = st.checkbox(
+                "Eliminar archivo si queda sin uso",
+                key=f"{prefix}_delete_unused_{asset.get('asset_id')}",
+            )
+            if st.button("Desasociar imagen", key=f"{prefix}_detach_media_{asset.get('asset_id')}"):
+                deleted = detach_media_asset_from_concept(
+                    mongo,
+                    asset_id=asset.get("asset_id"),
+                    concept_id=concept_id,
+                    source=source,
+                    delete_if_unreferenced=delete_unused,
+                )
+                if deleted:
+                    st.success("Imagen desasociada y archivo eliminado porque no tenía más referencias.")
+                else:
+                    st.success("Imagen desasociada del concepto.")
+                st.rerun()
+
+    return assets
 
 
 def _source_from_graph_endpoint(value) -> str | None:
@@ -175,10 +693,17 @@ def _knowledge_graph_source_options(mongo: MathMongo, saved_maps: list[dict] | N
                 sources.add(source)
 
     for doc in saved_maps or []:
+        for field in ("primary_map_source", "primary_source", "map_sources"):
+            value = doc.get(field)
+            for source in value if isinstance(value, list) else [value]:
+                if isinstance(source, str) and source.strip():
+                    sources.add(source.strip())
         filters = doc.get("filters", {}) if isinstance(doc.get("filters"), dict) else {}
         for source in filters.get("sources", []) or []:
             if isinstance(source, str) and source.strip():
                 sources.add(source.strip())
+        for source in infer_sources_from_graph_state(doc.get("graph_state", {})):
+            sources.add(source)
 
     return sorted(sources, key=str.lower)
 
@@ -217,6 +742,59 @@ def _build_knowledge_graph_state_from_filters(
     return grafo.to_graph_state(previous_state=previous_state)
 
 
+def _knowledge_graph_concept_selector(concepts: list[dict], key: str) -> list[dict]:
+    if not concepts:
+        return []
+
+    rows = concept_table_rows(concepts)
+    rows_df = pd.DataFrame(rows)
+    edited_rows = st.data_editor(
+        rows_df,
+        key=key,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "Agregar": st.column_config.CheckboxColumn("Agregar", default=False),
+        },
+        disabled=["Título", "Tipo", "Source", "ID interno", "Actualizado"],
+    )
+    if isinstance(edited_rows, pd.DataFrame):
+        edited_records = edited_rows.to_dict("records")
+    else:
+        edited_records = edited_rows
+    selected_keys = {
+        str(row.get("ID interno"))
+        for row in edited_records
+        if isinstance(row, dict) and row.get("Agregar") and row.get("ID interno")
+    }
+    return concepts_by_keys(concepts, selected_keys)
+
+
+def _knowledge_graph_node_id_selector(rows: list[dict], key: str) -> list[str]:
+    if not rows:
+        return []
+
+    edited_rows = st.data_editor(
+        pd.DataFrame(rows),
+        key=key,
+        hide_index=True,
+        width="stretch",
+        column_config={
+            "Quitar": st.column_config.CheckboxColumn("Quitar", default=False),
+        },
+        disabled=["Título", "Tipo", "Source", "ID interno", "Entrantes", "Salientes", "Estado"],
+    )
+    if isinstance(edited_rows, pd.DataFrame):
+        edited_records = edited_rows.to_dict("records")
+    else:
+        edited_records = edited_rows
+    return [
+        str(row.get("ID interno"))
+        for row in edited_records
+        if isinstance(row, dict) and row.get("Quitar") and row.get("ID interno")
+    ]
+
+
 def _bib_to_referencia(entry: dict) -> dict:
     get = entry.get
 
@@ -226,9 +804,6 @@ def _bib_to_referencia(entry: dict) -> dict:
         for a in get("author").split(" and "):
             autores.append(a.strip())
     autores_str = "; ".join(autores) if autores else None
-
-    # TipoReferencia compatible con tu Enum
-    tipo_ref = _TIPO_MAP.get(get("ENTRYTYPE", "").lower(), "miscelanea")
 
     # Fuente (journal/booktitle/publisher/title como fallback)
     fuente = get("journal") or get("booktitle") or get("publisher") or get("title")
@@ -576,7 +1151,15 @@ def _cuaderno_is_installed(conn) -> bool:
         if mongo_db is None:
             return False
         names = set(mongo_db.list_collection_names())
-        required = {"worklog_entries", "backlog_items", "weekly_reviews", "deliverables"}
+        required = {
+            "worklog_entries",
+            "backlog_items",
+            "weekly_reviews",
+            "deliverables",
+            "latex_notes",
+            "knowledge_graph_maps",
+            "media_assets",
+        }
         return required.issubset(names)
     except Exception:
         return False
@@ -593,6 +1176,7 @@ nav_options = [
     "📤 Export",
     "📦 Database Export",
     "📥 Database Import",
+    "🧹 Maintenance",
     "⚙️ Settings",
 ]
 if _cuaderno_is_installed(db):
@@ -1453,6 +2037,15 @@ elif page == "➕ Add Concept":
     st.session_state["latex_text"] = contenido_latex or ""
     # Este es el contenido que usarás para guardar en DB
     contenido_latex = st.session_state["latex_text"]
+    _render_tikz_weight_warnings(contenido_latex)
+    concept_media_assets = _render_concept_media_manager(
+        db,
+        concept_id,
+        source,
+        prefix="add_concept",
+        latex_insert_key="latex_insert",
+        insert_flag_key="insert_latex",
+    )
     ###----
 
     # Algorithm section
@@ -1651,6 +2244,7 @@ elif page == "➕ Add Concept":
                 "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
                 "comentario": comentario if comentario else None,
                 "source": source,
+                "image_ids": [asset["asset_id"] for asset in concept_media_assets],
                 "fecha_creacion": datetime.now(),
                 "ultima_actualizacion": datetime.now(),
                 # NOTE: We keep concept.citekey for backward compatibility with existing exporters.
@@ -2140,6 +2734,15 @@ elif page == "✏️ Edit Concept":
         # Sincronizar el contenido del editor con el estado
         st.session_state["edit_latex_text"] = contenido_latex or ""
         contenido_latex = st.session_state["edit_latex_text"]  # este es el que se guarda
+        _render_tikz_weight_warnings(contenido_latex)
+        concept_media_assets = _render_concept_media_manager(
+            db,
+            concept_id,
+            source,
+            prefix="edit_concept",
+            latex_insert_key="edit_latex_insert",
+            insert_flag_key="edit_insert_latex",
+        )
 
         ##----------------------------------------
         # Algorithm section
@@ -2259,6 +2862,7 @@ elif page == "✏️ Edit Concept":
                         "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
                         "comentario": comentario if comentario else None,
                         "source": source,
+                        "image_ids": [asset["asset_id"] for asset in concept_media_assets],
                         "ultima_actualizacion": datetime.now(),
                         # Keep concept-level citekey for backward compatibility.
                         "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
@@ -2511,7 +3115,6 @@ elif page == "📚 Browse Concepts":
                 # --- MVP-B: LaTeX preflight (pdflatex compile check) ---
                 if preflight_compile:
                     import shutil
-                    import subprocess
                     import tempfile
 
                     if not shutil.which("pdflatex"):
@@ -2519,20 +3122,23 @@ elif page == "📚 Browse Concepts":
                             "pdflatex not found. Install TeX Live (texlive-latex-base) or disable the preflight checkbox."
                         )
 
-                    #miestilo_src = Path("templates_latex/miestilo.sty")
-                    #if not miestilo_src.exists():
-                    quarto_styles_dir = Path("quarto_book/styles")
-                    miestilo_src = quarto_styles_dir / "miestilo.sty"
-                    if not miestilo_src.exists():
-                        raise FileNotFoundError(
-                            "miestilo.sty not found in templates_latex/ or quarto_book/styles/")
+                    style_dirs = [
+                        Path(build_dir) / "styles",
+                        Path("quarto_book_build/styles"),
+                        Path("quarto_book/styles"),
+                        Path("templates_latex"),
+                    ]
 
-                    #coloredtheorem_src = Path("templates_latex/coloredtheorem.sty")
-                    #if not coloredtheorem_src.exists():
-                    coloredtheorem_src = quarto_styles_dir / "coloredtheorem.sty"
-                    if not coloredtheorem_src.exists():
-                        raise FileNotFoundError(
-                            "coloredtheorem.sty not found in templates_latex/ or quarto_book/styles/")
+                    def _find_style_file(name: str) -> Path:
+                        for style_dir in style_dirs:
+                            candidate = style_dir / name
+                            if candidate.exists():
+                                return candidate
+                        searched = ", ".join(str(path) for path in style_dirs)
+                        raise FileNotFoundError(f"{name} not found in: {searched}")
+
+                    miestilo_src = _find_style_file("miestilo.sty")
+                    coloredtheorem_src = _find_style_file("coloredtheorem.sty")
 
 
                     failures: list[tuple[str, str, str]] = []
@@ -2562,27 +3168,45 @@ elif page == "📚 Browse Concepts":
                             (td_path / "main.tex").write_text(tex, encoding="utf-8")
 
 
-                            proc = subprocess.run(
-                                [
-                                    "pdflatex",
-                                    "-interaction=nonstopmode",
-                                    "-halt-on-error",
-                                    "-file-line-error",
-                                    "main.tex",
-                                ],
-                                cwd=str(td_path),
-                                stdout=subprocess.PIPE,
-                                stderr=subprocess.STDOUT,
-                                text=True,
-                                encoding="utf-8",
-                                errors="replace",
-                                timeout=25,
-                            )
+                            command = [
+                                "pdflatex",
+                                "-interaction=nonstopmode",
+                                "-halt-on-error",
+                                "-file-line-error",
+                                "main.tex",
+                            ]
+                            key = f"{c.get('id')}@{c.get('source')}"
+                            try:
+                                compile_info = run_latex_until_stable(
+                                    command,
+                                    cwd=str(td_path),
+                                    tex_file=td_path / "main.tex",
+                                    pdf_path=td_path / "main.pdf",
+                                    log_path=td_path / "main.log",
+                                    timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+                                    max_passes=LATEX_MAX_PASSES,
+                                )
+                            except TimeoutError:
+                                failures.append(
+                                    (
+                                        key,
+                                        str(c.get("titulo") or ""),
+                                        latex_timeout_message(
+                                            td_path / "main.tex",
+                                            command,
+                                            PDF_COMPILE_TIMEOUT_SECONDS,
+                                        ),
+                                    )
+                                )
+                                progress.progress(int(idx * 100 / total))
+                                continue
 
-                            if proc.returncode != 0:
-                                log = proc.stdout or ""
-                                tail = "\n".join(log.splitlines()[-80:])
-                                key = f"{c.get('id')}@{c.get('source')}"
+                            if compile_info["status"] == "failed":
+                                tail = compile_info.get("log_excerpt") or output_tail(
+                                    compile_info.get("stdout", ""),
+                                    compile_info.get("stderr", ""),
+                                    lines=80,
+                                )
                                 failures.append((key, str(c.get("titulo") or ""), tail))
 
                         progress.progress(int(idx * 100 / total))
@@ -2633,6 +3257,11 @@ elif page == "📚 Browse Concepts":
                     if latex_doc:
                         st.subheader("LaTeX Content")
                         st.code(latex_doc['contenido_latex'], language="latex")
+                    assets = get_concept_media_assets(db, concept["id"], concept["source"])
+                    if assets:
+                        st.subheader("Images")
+                        for asset in assets:
+                            _render_media_asset_preview(asset)
 
                 with col2:
                     # Actions
@@ -3164,11 +3793,7 @@ elif page == "🔗 Manage Relations":
                             tipos_relacion=list({r.get("tipo") for r in relations_clean if r.get("tipo")}),
                             tipos_concepto=list({c.get("tipo") for c in concepts_clean if c.get("tipo")}),)
 
-                        preview_html_file = "relation_preview_graph.html"
-                        grafo.exportar_html(salida=preview_html_file)
-
-                        with open(preview_html_file, "r", encoding="utf-8") as f:
-                            html = f.read()
+                        html = grafo.exportar_html(salida=None)
                         st.download_button(
                             label="⬇️ Download map (HTML)",
                             data=html.encode("utf-8"),
@@ -3448,11 +4073,67 @@ elif page == "📊 Knowledge Graph":
         st.error(f"No se pudieron listar los mapas guardados: {exc}")
 
     source_options = _knowledge_graph_source_options(db, all_maps)
-    concept_type_options = ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"]
-    relation_type_options = [t.value for t in TipoRelacion]
-    tabs = st.tabs(["📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"])
+    default_concept_type_options = ["definicion", "teorema", "proposicion", "corolario", "lema", "ejemplo", "nota"]
+    saved_concept_type_options = {
+        concept_type
+        for doc in all_maps
+        for concept_type in (doc.get("filters", {}) or {}).get("concept_types", [])
+        if isinstance(concept_type, str) and concept_type.strip()
+    }
+    graph_concept_type_options = {
+        concept_type
+        for doc in all_maps
+        for concept_type in infer_concept_types_from_graph_state(doc.get("graph_state", {}))
+        if concept_type
+    }
+    db_concept_type_options = {
+        concept_type
+        for concept_type in db.concepts.distinct("tipo")
+        if isinstance(concept_type, str) and concept_type.strip()
+    }
+    concept_type_options = sorted(
+        set(default_concept_type_options)
+        | saved_concept_type_options
+        | graph_concept_type_options
+        | db_concept_type_options,
+        key=str.lower,
+    )
+    saved_relation_type_options = {
+        relation_type
+        for doc in all_maps
+        for relation_type in (doc.get("filters", {}) or {}).get("relation_types", [])
+        if isinstance(relation_type, str) and relation_type.strip()
+    }
+    db_relation_type_options = {
+        relation_type
+        for relation_type in db.relations.distinct("tipo")
+        if isinstance(relation_type, str) and relation_type.strip()
+    }
+    relation_type_options = sorted(
+        {t.value for t in TipoRelacion} | saved_relation_type_options | db_relation_type_options,
+        key=str.lower,
+    )
+    kg_sections = ["📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"]
+    requested_kg_section = st.session_state.pop("knowledge_graph_section_request", None)
+    if requested_kg_section in kg_sections:
+        st.session_state["knowledge_graph_section"] = requested_kg_section
+    elif "knowledge_graph_section" not in st.session_state:
+        if st.session_state.get("knowledge_graph_active_mode") == "edit":
+            st.session_state["knowledge_graph_section"] = "✏️ Editar mapa"
+        elif st.session_state.get("knowledge_graph_active_mode") == "view":
+            st.session_state["knowledge_graph_section"] = "📚 Mapas guardados"
+        else:
+            st.session_state["knowledge_graph_section"] = "📊 Nuevo mapa"
 
-    with tabs[0]:
+    kg_section = st.radio(
+        "Sección de mapas",
+        kg_sections,
+        horizontal=True,
+        key="knowledge_graph_section",
+        label_visibility="collapsed",
+    )
+
+    if kg_section == "📊 Nuevo mapa":
         st.subheader("📊 Nuevo mapa")
         col1, col2 = st.columns(2)
         with col1:
@@ -3501,10 +4182,7 @@ elif page == "📊 Knowledge Graph":
                             tipos_relacion=selected_relations,
                             tipos_concepto=selected_types,
                         )
-                        html_file = "knowledge_graph.html"
-                        grafo.exportar_html(salida=html_file)
-                        with open(html_file, "r", encoding="utf-8") as f:
-                            st.session_state["knowledge_graph_new_html"] = f.read()
+                        st.session_state["knowledge_graph_new_html"] = grafo.exportar_html(salida=None)
                         st.session_state["knowledge_graph_new_stats"] = {
                             "nodes": len(grafo.G.nodes),
                             "edges": len(grafo.G.edges),
@@ -3550,22 +4228,34 @@ elif page == "📊 Knowledge Graph":
             else:
                 try:
                     graph_state = _parse_knowledge_graph_state_json(graph_state_json)
+                    integrity_issues = graph_state_integrity_issues(graph_state)
+                    if integrity_issues:
+                        st.error("Se detectaron inconsistencias antes de guardar el mapa.")
+                        st.warning("\n".join(f"- {issue}" for issue in integrity_issues[:8]))
+                        st.stop()
                     now = datetime.utcnow()
+                    inferred_sources = infer_sources_from_graph_state(graph_state)
+                    inferred_types = infer_concept_types_from_graph_state(graph_state)
+                    map_sources = merge_ordered_values(selected_sources, inferred_sources)
+                    primary_map_source = map_sources[0] if map_sources else ""
                     document = {
                         "name": map_name.strip(),
                         "description": map_description.strip(),
                         "created_at": now,
                         "updated_at": now,
                         "filters": {
-                            "sources": list(selected_sources or []),
+                            "sources": map_sources,
                             "relation_types": list(selected_relations or []),
-                            "concept_types": list(selected_types or []),
+                            "concept_types": merge_ordered_values(selected_types, inferred_types),
                             "max_depth": max_depth,
                         },
+                        "primary_map_source": primary_map_source,
+                        "map_sources": map_sources,
                         "graph_state": graph_state,
                         "tags": [tag.strip() for tag in map_tags.split(",") if tag.strip()],
                         "source": "interactive_knowledge_graph",
                         "map_uid": str(uuid4()),
+                        "sync_settings": default_sync_settings(),
                     }
                     result = maps_col.insert_one(document)
                     if result.acknowledged:
@@ -3577,7 +4267,7 @@ elif page == "📊 Knowledge Graph":
                 except Exception as exc:
                     st.error(f"No se pudo guardar el mapa: {exc}")
 
-    with tabs[1]:
+    elif kg_section == "📚 Mapas guardados":
         st.subheader("📚 Mapas guardados")
         if not all_maps:
             st.info("Todavía no hay mapas guardados en knowledge_graph_maps.")
@@ -3645,6 +4335,8 @@ elif page == "📊 Knowledge Graph":
                     if st.button("Editar", key="kg_edit_map"):
                         st.session_state["knowledge_graph_active_map_id"] = selected_map_id
                         st.session_state["knowledge_graph_active_mode"] = "edit"
+                        st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                        st.rerun()
                 with action_col3:
                     if st.button("Duplicar", key="kg_duplicate_map"):
                         try:
@@ -3693,10 +4385,13 @@ elif page == "📊 Knowledge Graph":
                         metric_col2.metric("Aristas", edges)
                         if st.button("✏️ Editar este mapa", key="kg_view_to_edit"):
                             st.session_state["knowledge_graph_active_mode"] = "edit"
+                            st.session_state["knowledge_graph_active_map_id"] = active_id
+                            st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                            st.rerun()
                         html_content = _render_knowledge_graph_map_html(graph_state, f"view_{active_id}")
                         st.components.v1.html(html_content, height=800)
 
-    with tabs[2]:
+    elif kg_section == "✏️ Editar mapa":
         st.subheader("✏️ Editar mapa")
         if not all_maps:
             st.info("No hay mapas guardados para editar.")
@@ -3717,82 +4412,740 @@ elif page == "📊 Knowledge Graph":
             if not edit_doc:
                 st.error("No se encontró el mapa seleccionado.")
             else:
-                graph_state = edit_doc.get("graph_state", {})
+                edit_map_id_text = str(edit_map_id)
+                filters = edit_doc.get("filters", {}) if isinstance(edit_doc.get("filters"), dict) else {}
+                form_state_key = _kg_edit_form_state_key(edit_map_id_text)
+                widget_keys = _kg_edit_widget_keys(edit_map_id_text)
+                source_widget_key = widget_keys["sources"]
+                concept_type_widget_key = widget_keys["concept_types"]
+                if st.session_state.get("knowledge_graph_editing_map_id") != edit_map_id_text:
+                    initial_graph_state = deepcopy(edit_doc.get("graph_state", {}))
+                    st.session_state["knowledge_graph_editing_map_id"] = edit_map_id_text
+                    st.session_state["knowledge_graph_edit_graph_state"] = initial_graph_state
+                    st.session_state["knowledge_graph_edit_sync_settings"] = default_sync_settings(
+                        edit_doc.get("sync_settings")
+                    )
+                    form_state = _kg_edit_form_state_from_doc(edit_map_id_text, edit_doc, initial_graph_state)
+                    st.session_state[form_state_key] = form_state
+                    _queue_kg_edit_widget_update(edit_map_id_text, form_state)
+                    st.session_state["knowledge_graph_edit_dirty"] = False
+                    st.session_state["knowledge_graph_render_version"] = 0
+                    st.session_state.pop("knowledge_graph_remove_pending", None)
+                else:
+                    form_state = st.session_state.get(form_state_key, {})
+                    if not isinstance(form_state, dict):
+                        form_state = _kg_edit_form_state_from_doc(edit_map_id_text, edit_doc, edit_doc.get("graph_state", {}))
+                        st.session_state[form_state_key] = form_state
+                st.session_state["knowledge_graph_active_map_id"] = edit_map_id_text
+                st.session_state["knowledge_graph_active_mode"] = "edit"
+
+                graph_state = st.session_state.get("knowledge_graph_edit_graph_state") or edit_doc.get("graph_state", {})
+                current_node_count, current_edge_count = _knowledge_graph_state_counts(graph_state)
+                _kg_debug(
+                    "Loaded edit map",
+                    map_id=edit_map_id_text,
+                    nodes=current_node_count,
+                    edges=current_edge_count,
+                    dirty=st.session_state.get("knowledge_graph_edit_dirty"),
+                )
+                repaired_graph_state, repaired_nodes, unresolved_nodes = repair_incomplete_graph_nodes(
+                    db,
+                    graph_state,
+                )
+                if repaired_nodes:
+                    repair_result = maps_col.update_one(
+                        _knowledge_graph_map_id_query(edit_map_id),
+                        {
+                            "$set": {
+                                "graph_state": repaired_graph_state,
+                                "updated_at": datetime.utcnow(),
+                            }
+                        },
+                    )
+                    if repair_result.acknowledged:
+                        graph_state = repaired_graph_state
+                        st.session_state["knowledge_graph_edit_graph_state"] = repaired_graph_state
+                        st.session_state["knowledge_graph_edit_dirty"] = False
+                        st.session_state["knowledge_graph_render_version"] = (
+                            st.session_state.get("knowledge_graph_render_version", 0) + 1
+                        )
+                        edit_doc["graph_state"] = repaired_graph_state
+                        st.success(
+                            f"Se repararon {repaired_nodes} nodos incompletos usando los metadatos de MongoDB."
+                        )
+                    else:
+                        st.warning("Se detectaron nodos incompletos, pero MongoDB no confirmó la reparación.")
+                elif unresolved_nodes:
+                    st.warning(
+                        f"Hay {unresolved_nodes} nodos incompletos que no pudieron repararse porque no se encontró "
+                        "su concepto en MongoDB."
+                    )
+                current_node_count, current_edge_count = _knowledge_graph_state_counts(graph_state)
+                form_state = _sync_kg_edit_form_state_from_graph(edit_map_id_text, graph_state)
+                map_source_options = merge_ordered_values(
+                    source_options,
+                    filters.get("sources", []),
+                    form_state.get("sources", []),
+                )
+                map_concept_type_options = merge_ordered_values(
+                    concept_type_options,
+                    filters.get("concept_types", []),
+                    form_state.get("concept_types", []),
+                )
                 st.markdown(f"**Editando:** {edit_doc.get('name', 'Mapa guardado')}")
-                st.caption("Mueve nodos y ajusta controles; luego copia el JSON desde el panel del grafo y pégalo abajo.")
-                html_content = _render_knowledge_graph_map_html(graph_state, f"edit_{edit_map_id}")
+                st.caption(
+                    "Los cambios hechos con controles de Streamlit se guardan directamente. "
+                    "Para conservar posiciones movidas dentro del grafo, copia el JSON desde el panel del grafo "
+                    "y pégalo abajo."
+                )
+                st.caption(
+                    f"Nodos actuales: {current_node_count} · Enlaces actuales: {current_edge_count} · "
+                    f"Cambios no guardados: {'sí' if st.session_state.get('knowledge_graph_edit_dirty') else 'no'}"
+                )
+                if st.session_state.get("knowledge_graph_edit_dirty"):
+                    st.warning("Hay cambios no guardados en este mapa.")
+                render_version = st.session_state.get("knowledge_graph_render_version", 0)
+                html_content = _render_knowledge_graph_map_html(graph_state, f"edit_{edit_map_id}_{render_version}")
                 st.components.v1.html(html_content, height=800)
 
+                sync_settings = default_sync_settings(
+                    st.session_state.get("knowledge_graph_edit_sync_settings", edit_doc.get("sync_settings"))
+                )
+                manual_sync_key = f"kg_sync_manual_{edit_map_id}"
+                ignore_sync_key = f"kg_sync_ignore_once_{edit_map_id}"
+
+                def _save_graph_sync_update(
+                    selected_concepts: list[dict],
+                    include_relations: bool,
+                    sync_origin: str,
+                ) -> None:
+                    if not selected_concepts:
+                        if sync_origin == "external_source":
+                            st.session_state[f"kg_import_nodes_expander_open_{edit_map_id}"] = True
+                        st.error("Selecciona al menos un concepto para agregar.")
+                        return
+                    invalid_concepts = []
+                    warning_concepts = []
+                    for concept in selected_concepts:
+                        errors = concept_graph_node_errors(concept)
+                        warnings = concept_graph_node_warnings(concept)
+                        concept_name = concept_key(concept) or str(concept.get("titulo") or concept.get("title") or "")
+                        if errors:
+                            invalid_concepts.append(f"{concept_name or '<sin id>'}: {', '.join(errors)}")
+                        elif warnings:
+                            warning_concepts.append(concept_name or "<sin id>")
+                    if invalid_concepts:
+                        st.error(
+                            "No se pudieron agregar algunos conceptos porque faltan metadatos mínimos:\n"
+                            + "\n".join(f"- {item}" for item in invalid_concepts[:8])
+                        )
+                        return
+                    new_graph_state, added_nodes, added_edges = add_concepts_to_graph_state(
+                        db,
+                        graph_state,
+                        selected_concepts,
+                        include_relations=include_relations,
+                        sync_origin=sync_origin,
+                    )
+                    before_nodes, before_edges = _knowledge_graph_state_counts(graph_state)
+                    after_nodes, after_edges = _knowledge_graph_state_counts(new_graph_state)
+                    _kg_debug(
+                        "Added concepts to edit map",
+                        map_id=edit_map_id_text,
+                        selected=len(selected_concepts),
+                        before_nodes=before_nodes,
+                        after_nodes=after_nodes,
+                        before_edges=before_edges,
+                        after_edges=after_edges,
+                        added_nodes=added_nodes,
+                        added_edges=added_edges,
+                    )
+                    skipped_duplicates = max(0, len(selected_concepts) - added_nodes)
+                    selected_keys = {concept_key(concept) for concept in selected_concepts}
+                    updated_sync_settings = default_sync_settings(
+                        st.session_state.get("knowledge_graph_edit_sync_settings", edit_doc.get("sync_settings"))
+                    )
+                    updated_sync_settings["last_sync_check_at"] = utc_timestamp()
+                    for field in ("removed_node_ids", "manually_removed_node_ids"):
+                        updated_sync_settings[field] = [
+                            node_id for node_id in updated_sync_settings.get(field, []) if node_id not in selected_keys
+                        ]
+                    updated_form_state = _sync_kg_edit_form_state_from_graph(edit_map_id_text, new_graph_state)
+                    updated_form_state["sources"] = merge_ordered_values(
+                        updated_form_state.get("sources", []),
+                        [concept.get("source") for concept in selected_concepts if isinstance(concept, dict)],
+                        infer_sources_from_graph_state(new_graph_state),
+                    )
+                    updated_form_state["concept_types"] = merge_ordered_values(
+                        updated_form_state.get("concept_types", []),
+                        [
+                            concept.get("tipo") or concept.get("type") or concept.get("conceptType")
+                            for concept in selected_concepts
+                            if isinstance(concept, dict)
+                        ],
+                        infer_concept_types_from_graph_state(new_graph_state),
+                    )
+                    st.session_state[form_state_key] = updated_form_state
+                    _queue_kg_edit_widget_update(
+                        edit_map_id_text,
+                        {
+                            "sources": updated_form_state["sources"],
+                            "concept_types": updated_form_state["concept_types"],
+                        },
+                    )
+                    st.session_state["knowledge_graph_edit_graph_state"] = new_graph_state
+                    st.session_state["knowledge_graph_edit_sync_settings"] = updated_sync_settings
+                    st.session_state["knowledge_graph_edit_dirty"] = True
+                    st.session_state["knowledge_graph_render_version"] = (
+                        st.session_state.get("knowledge_graph_render_version", 0) + 1
+                    )
+                    st.session_state[manual_sync_key] = False
+                    st.session_state.pop(ignore_sync_key, None)
+                    st.session_state["knowledge_graph_active_map_id"] = edit_map_id
+                    st.session_state["knowledge_graph_active_mode"] = "edit"
+                    st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                    if sync_origin == "external_source":
+                        st.session_state[f"kg_import_nodes_expander_open_{edit_map_id}"] = True
+                    duplicate_text = (
+                        f" {skipped_duplicates} conceptos ya estaban en el mapa y se omitieron."
+                        if skipped_duplicates
+                        else ""
+                    )
+                    warning_text = (
+                        f" {len(warning_concepts)} conceptos no tenían tipo explícito y se agregaron como `otro`."
+                        if warning_concepts
+                        else ""
+                    )
+                    st.session_state["knowledge_graph_message"] = (
+                        "success" if added_nodes or added_edges else "info",
+                        (
+                            f"Se agregaron {added_nodes} nodos y {added_edges} relaciones al mapa actual. "
+                            f"{duplicate_text}{warning_text} Guarda los cambios para persistirlos."
+                        ),
+                    )
+                    st.rerun()
+
+                sync_col1, sync_col2, sync_col3 = st.columns([1, 1, 2])
+                with sync_col1:
+                    if st.button("🔎 Revisar nuevos nodos del source", key=f"kg_sync_manual_button_{edit_map_id}"):
+                        st.session_state[manual_sync_key] = True
+                        st.session_state.pop(ignore_sync_key, None)
+                        st.rerun()
+                with sync_col2:
+                    if st.button("🧩 Reparar nodos incompletos", key=f"kg_repair_nodes_button_{edit_map_id}"):
+                        repaired_graph_state, repaired_nodes, unresolved_nodes = repair_incomplete_graph_nodes(
+                            db,
+                            graph_state,
+                        )
+                        if repaired_nodes:
+                            repair_result = maps_col.update_one(
+                                _knowledge_graph_map_id_query(edit_map_id),
+                                {
+                                    "$set": {
+                                        "graph_state": repaired_graph_state,
+                                        "updated_at": datetime.utcnow(),
+                                    }
+                                },
+                            )
+                            if repair_result.acknowledged:
+                                st.session_state["knowledge_graph_edit_graph_state"] = repaired_graph_state
+                                st.session_state["knowledge_graph_render_version"] = (
+                                    st.session_state.get("knowledge_graph_render_version", 0) + 1
+                                )
+                                st.session_state["knowledge_graph_message"] = (
+                                    "success",
+                                    f"Se repararon {repaired_nodes} nodos incompletos.",
+                                )
+                                st.rerun()
+                            else:
+                                st.error("MongoDB no confirmó la reparación.")
+                        elif unresolved_nodes:
+                            st.warning(
+                                f"No se reparó ningún nodo; {unresolved_nodes} nodos no tienen concepto local "
+                                "para reconstruirse."
+                            )
+                        else:
+                            st.info("No se encontraron nodos incompletos.")
+                with sync_col3:
+                    primary_source_values = primary_sources(edit_doc)
+                    primary_source_text = primary_source_values[0] if primary_source_values else ""
+                    if primary_source_text:
+                        st.caption(f"Source principal del mapa: {primary_source_text}")
+                    else:
+                        st.caption("Este mapa no tiene source principal declarado en sus filtros.")
+                    map_sources_text = ", ".join(form_state.get("sources", []))
+                    if map_sources_text:
+                        st.caption(f"Fuentes presentes en el mapa: {map_sources_text}")
+                    if sync_settings.get("suppress_new_nodes_prompt"):
+                        st.caption("El aviso automático de nodos nuevos está desactivado para este mapa.")
+
+                include_removed_sync_key = f"kg_sync_include_removed_{edit_map_id}"
+                edit_doc_for_sync = dict(edit_doc)
+                edit_doc_for_sync["sync_settings"] = sync_settings
+                missing_concepts = detect_missing_source_concepts(
+                    db,
+                    edit_doc_for_sync,
+                    graph_state,
+                    include_removed=bool(st.session_state.get(include_removed_sync_key, False)),
+                )
+                show_manual_sync = bool(st.session_state.get(manual_sync_key))
+                show_auto_sync = (
+                    bool(missing_concepts)
+                    and not show_manual_sync
+                    and not sync_settings.get("suppress_new_nodes_prompt")
+                    and not st.session_state.get(ignore_sync_key)
+                )
+
+                if show_manual_sync and not missing_concepts:
+                    st.info("No hay conceptos nuevos pendientes para el source principal del mapa.")
+
+                if missing_concepts and (show_auto_sync or show_manual_sync):
+                    st.warning(
+                        "Se detectaron nuevos conceptos en el source de este mapa que todavía no están incluidos "
+                        "como nodos."
+                    )
+                    st.caption(
+                        f"Conceptos faltantes detectados: {len(missing_concepts)}. "
+                        "Puedes agregarlos todos o seleccionar una lista parcial."
+                    )
+                    include_sync_relations = st.checkbox(
+                        "También agregar relaciones disponibles entre los nodos presentes y seleccionados",
+                        value=True,
+                        key=f"kg_sync_include_relations_{edit_map_id}",
+                    )
+                    st.checkbox(
+                        "Mostrar también nodos removidos manualmente",
+                        value=False,
+                        key=include_removed_sync_key,
+                    )
+                    action_col1, action_col2, action_col3 = st.columns(3)
+                    with action_col1:
+                        if st.button("Agregar todos", key=f"kg_sync_add_all_{edit_map_id}"):
+                            _save_graph_sync_update(
+                                missing_concepts,
+                                include_sync_relations,
+                                sync_origin="source_sync",
+                            )
+                    with action_col2:
+                        if st.button("Ignorar por ahora", key=f"kg_sync_ignore_now_{edit_map_id}"):
+                            st.session_state[ignore_sync_key] = True
+                            st.session_state[manual_sync_key] = False
+                            st.session_state["knowledge_graph_message"] = (
+                                "info",
+                                "Sincronización omitida por ahora. El aviso volverá a aparecer en otra edición.",
+                            )
+                            st.rerun()
+                    with action_col3:
+                        if st.button("No volver a mostrar para este mapa", key=f"kg_sync_suppress_{edit_map_id}"):
+                            updated_sync_settings = default_sync_settings(edit_doc.get("sync_settings"))
+                            updated_sync_settings["suppress_new_nodes_prompt"] = True
+                            updated_sync_settings["last_sync_check_at"] = utc_timestamp()
+                            result = maps_col.update_one(
+                                _knowledge_graph_map_id_query(edit_map_id),
+                                {
+                                    "$set": {
+                                        "sync_settings": updated_sync_settings,
+                                        "updated_at": datetime.utcnow(),
+                                    }
+                                },
+                            )
+                            if result.acknowledged:
+                                st.session_state[manual_sync_key] = False
+                                st.session_state["knowledge_graph_message"] = (
+                                    "info",
+                                    "Aviso automático desactivado para este mapa. La revisión manual seguirá disponible.",
+                                )
+                                st.rerun()
+                            else:
+                                st.error("MongoDB no confirmó el cambio de preferencia.")
+
+                    with st.expander("Seleccionar de una lista", expanded=show_manual_sync):
+                        selected_missing_concepts = _knowledge_graph_concept_selector(
+                            missing_concepts,
+                            key=f"kg_sync_missing_selector_{edit_map_id}",
+                        )
+                        if st.button("Agregar seleccionados", key=f"kg_sync_add_selected_{edit_map_id}"):
+                            _save_graph_sync_update(
+                                selected_missing_concepts,
+                                include_sync_relations,
+                                sync_origin="source_sync",
+                            )
+
+                external_expander_key = f"kg_import_nodes_expander_open_{edit_map_id}"
+                with st.expander(
+                    "Agregar nodos desde otros sources",
+                    expanded=st.session_state.get(external_expander_key, False),
+                ):
+                    current_sources = set(form_state.get("sources", []))
+                    external_source_options = [source for source in source_options if source not in current_sources]
+                    if not external_source_options:
+                        external_source_options = list(source_options)
+                    if not external_source_options:
+                        st.info("No hay sources disponibles para agregar nodos externos.")
+                    else:
+                        external_col1, external_col2 = st.columns(2)
+                        with external_col1:
+                            external_source = st.selectbox(
+                                "Source",
+                                external_source_options,
+                                key=f"kg_external_source_{edit_map_id}",
+                                on_change=lambda: st.session_state.__setitem__(external_expander_key, True),
+                            )
+                        with external_col2:
+                            external_types = st.multiselect(
+                                "Tipos de concepto",
+                                concept_type_options,
+                                key=f"kg_external_types_{edit_map_id}",
+                                on_change=lambda: st.session_state.__setitem__(external_expander_key, True),
+                            )
+                        external_search = st.text_input(
+                            "Buscar por texto",
+                            key=f"kg_external_search_{edit_map_id}",
+                            on_change=lambda: st.session_state.__setitem__(external_expander_key, True),
+                        )
+                        include_external_relations = st.checkbox(
+                            "También agregar relaciones disponibles",
+                            value=True,
+                            key=f"kg_external_include_relations_{edit_map_id}",
+                            on_change=lambda: st.session_state.__setitem__(external_expander_key, True),
+                        )
+                        external_concepts = find_available_concepts(
+                            db,
+                            external_source,
+                            graph_state,
+                            concept_types=list(external_types or []),
+                            search_text=external_search,
+                        )
+                        if not external_concepts:
+                            st.info("No hay conceptos disponibles con esos filtros o todos ya están en el mapa.")
+                        else:
+                            st.caption(
+                                f"Conceptos disponibles para agregar desde `{external_source}`: "
+                                f"{len(external_concepts)}"
+                            )
+                            selected_external_concepts = _knowledge_graph_concept_selector(
+                                external_concepts,
+                                key=f"kg_external_selector_{edit_map_id}",
+                            )
+                            if st.button("Agregar seleccionados al mapa", key=f"kg_external_add_selected_{edit_map_id}"):
+                                _save_graph_sync_update(
+                                    selected_external_concepts,
+                                    include_external_relations,
+                                    sync_origin="external_source",
+                                )
+
+                node_rows = map_node_rows(db, graph_state)
+
+                def _queue_node_removal(node_ids: list[str], reason: str) -> None:
+                    clean_ids = [node_id for node_id in node_ids if node_id]
+                    if not clean_ids:
+                        st.error("Selecciona al menos un nodo para quitar del mapa.")
+                        return
+                    st.session_state["knowledge_graph_remove_pending"] = {
+                        "map_id": edit_map_id_text,
+                        "node_ids": clean_ids,
+                        "reason": reason,
+                    }
+                    st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                    st.rerun()
+
+                pending_removal = st.session_state.get("knowledge_graph_remove_pending")
+                if isinstance(pending_removal, dict) and pending_removal.get("map_id") == edit_map_id_text:
+                    pending_ids = pending_removal.get("node_ids", [])
+                    pending_rows = [row for row in node_rows if row.get("ID interno") in pending_ids]
+                    st.warning(
+                        f"Vas a quitar {len(pending_ids)} nodo(s) del mapa actual. "
+                        "También se quitarán las aristas asociadas. Esto NO borrará los conceptos de MongoDB."
+                    )
+                    if pending_rows:
+                        st.dataframe(
+                            pd.DataFrame(pending_rows).drop(columns=["Quitar"], errors="ignore"),
+                            width="stretch",
+                            hide_index=True,
+                        )
+                    confirm_col1, confirm_col2 = st.columns(2)
+                    with confirm_col1:
+                        if st.button("Sí, quitar del mapa", key=f"kg_confirm_remove_nodes_{edit_map_id}"):
+                            new_graph_state, removed_nodes, removed_edges = remove_nodes_from_graph_state(
+                                graph_state,
+                                pending_ids,
+                            )
+                            before_nodes, before_edges = _knowledge_graph_state_counts(graph_state)
+                            after_nodes, after_edges = _knowledge_graph_state_counts(new_graph_state)
+                            _kg_debug(
+                                "Removed nodes from edit map",
+                                map_id=edit_map_id_text,
+                                requested=len(pending_ids),
+                                removed_nodes=removed_nodes,
+                                removed_edges=removed_edges,
+                                before_nodes=before_nodes,
+                                after_nodes=after_nodes,
+                                before_edges=before_edges,
+                                after_edges=after_edges,
+                            )
+                            updated_sync_settings = default_sync_settings(
+                                st.session_state.get("knowledge_graph_edit_sync_settings", edit_doc.get("sync_settings"))
+                            )
+                            for field in ("removed_node_ids", "manually_removed_node_ids"):
+                                existing_removed = set(updated_sync_settings.get(field, []))
+                                existing_removed.update(pending_ids)
+                                updated_sync_settings[field] = sorted(existing_removed)
+                            updated_form_state = _sync_kg_edit_form_state_from_graph(edit_map_id_text, new_graph_state)
+                            updated_form_state["sources"] = infer_sources_from_graph_state(new_graph_state)
+                            updated_form_state["concept_types"] = infer_concept_types_from_graph_state(new_graph_state)
+                            st.session_state[form_state_key] = updated_form_state
+                            _queue_kg_edit_widget_update(
+                                edit_map_id_text,
+                                {
+                                    "sources": updated_form_state["sources"],
+                                    "concept_types": updated_form_state["concept_types"],
+                                },
+                            )
+                            st.session_state["knowledge_graph_edit_graph_state"] = new_graph_state
+                            st.session_state["knowledge_graph_edit_sync_settings"] = updated_sync_settings
+                            st.session_state["knowledge_graph_edit_dirty"] = True
+                            st.session_state["knowledge_graph_render_version"] = (
+                                st.session_state.get("knowledge_graph_render_version", 0) + 1
+                            )
+                            st.session_state.pop("knowledge_graph_remove_pending", None)
+                            st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                            st.session_state["knowledge_graph_message"] = (
+                                "info",
+                                (
+                                    f"Se quitaron {removed_nodes} nodos y {removed_edges} aristas del mapa actual. "
+                                    "Guarda los cambios para persistirlos."
+                                ),
+                            )
+                            st.rerun()
+                    with confirm_col2:
+                        if st.button("Cancelar", key=f"kg_cancel_remove_nodes_{edit_map_id}"):
+                            st.session_state.pop("knowledge_graph_remove_pending", None)
+                            st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                            st.rerun()
+
+                with st.expander("Administrar nodos del mapa", expanded=False):
+                    if not node_rows:
+                        st.info("Este mapa no tiene nodos administrables.")
+                    else:
+                        node_options = {
+                            f"{row.get('Título') or row.get('ID interno')} · {row.get('Tipo') or 'sin tipo'} · {row.get('ID interno')}": row.get("ID interno")
+                            for row in node_rows
+                        }
+                        selected_node_label = st.selectbox(
+                            "Nodo para quitar",
+                            list(node_options),
+                            key=f"kg_remove_single_node_selector_{edit_map_id}",
+                        )
+                        if st.button("🗑️ Quitar nodo seleccionado del mapa", key=f"kg_remove_single_node_{edit_map_id}"):
+                            _queue_node_removal([node_options[selected_node_label]], "single")
+
+                        st.divider()
+                        selected_node_ids = _knowledge_graph_node_id_selector(
+                            node_rows,
+                            key=f"kg_manage_nodes_selector_{edit_map_id}",
+                        )
+                        if st.button("🗑️ Quitar nodos seleccionados del mapa", key=f"kg_remove_selected_nodes_{edit_map_id}"):
+                            _queue_node_removal(selected_node_ids, "selected")
+
+                        incomplete_ids = incomplete_node_ids(db, graph_state)
+                        if incomplete_ids:
+                            st.divider()
+                            st.caption(f"Nodos incompletos detectados: {len(incomplete_ids)}")
+                            incomplete_rows = [row for row in node_rows if row.get("ID interno") in incomplete_ids]
+                            st.dataframe(
+                                pd.DataFrame(incomplete_rows).drop(columns=["Quitar"], errors="ignore"),
+                                width="stretch",
+                                hide_index=True,
+                            )
+                            if st.button("🧹 Eliminar nodos incompletos", key=f"kg_remove_incomplete_nodes_{edit_map_id}"):
+                                _queue_node_removal(incomplete_ids, "incomplete")
+
+                        isolated_ids = isolated_node_ids(graph_state)
+                        if isolated_ids:
+                            st.divider()
+                            st.caption(f"Nodos aislados detectados: {len(isolated_ids)}")
+                            isolated_rows = [row for row in node_rows if row.get("ID interno") in isolated_ids]
+                            st.dataframe(
+                                pd.DataFrame(isolated_rows).drop(columns=["Quitar"], errors="ignore"),
+                                width="stretch",
+                                hide_index=True,
+                            )
+                            if st.button("🧹 Quitar nodos aislados", key=f"kg_remove_isolated_nodes_{edit_map_id}"):
+                                _queue_node_removal(isolated_ids, "isolated")
+
                 filters = edit_doc.get("filters", {}) if isinstance(edit_doc.get("filters"), dict) else {}
+                state_col1, state_col2, state_col3 = st.columns(3)
+                with state_col1:
+                    st.download_button(
+                        "📥 Descargar estado JSON",
+                        data=json.dumps(graph_state, ensure_ascii=False, indent=2, default=str),
+                        file_name=f"{edit_doc.get('name', 'knowledge_graph_map')}_state.json",
+                        mime="application/json",
+                        key=f"kg_edit_download_state_{edit_map_id}",
+                    )
+                with state_col2:
+                    if st.button("📋 Mostrar estado JSON", key=f"kg_edit_show_state_json_{edit_map_id}"):
+                        st.session_state[f"kg_show_edit_state_json_{edit_map_id}"] = not st.session_state.get(
+                            f"kg_show_edit_state_json_{edit_map_id}",
+                            False,
+                        )
+                with state_col3:
+                    if st.button("↩️ Deshacer cambios no guardados", key=f"kg_discard_unsaved_{edit_map_id}"):
+                        reset_graph_state = deepcopy(edit_doc.get("graph_state", {}))
+                        st.session_state["knowledge_graph_edit_graph_state"] = reset_graph_state
+                        st.session_state["knowledge_graph_edit_sync_settings"] = default_sync_settings(
+                            edit_doc.get("sync_settings")
+                        )
+                        reset_form_state = _kg_edit_form_state_from_doc(edit_map_id_text, edit_doc, reset_graph_state)
+                        st.session_state[form_state_key] = reset_form_state
+                        _queue_kg_edit_widget_update(edit_map_id_text, reset_form_state)
+                        st.session_state["knowledge_graph_edit_dirty"] = False
+                        st.session_state.pop("knowledge_graph_remove_pending", None)
+                        st.session_state["knowledge_graph_render_version"] = (
+                            st.session_state.get("knowledge_graph_render_version", 0) + 1
+                        )
+                        st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
+                        st.rerun()
+
+                if st.session_state.get(f"kg_show_edit_state_json_{edit_map_id}"):
+                    st.code(json.dumps(graph_state, ensure_ascii=False, indent=2, default=str), language="json")
+
+                widget_keys = _apply_kg_edit_widget_updates_before_creation(
+                    edit_map_id_text,
+                    form_state,
+                    graph_state,
+                )
+                source_widget_key = widget_keys["sources"]
+                concept_type_widget_key = widget_keys["concept_types"]
+                relation_type_widget_key = widget_keys["relation_types"]
+                max_depth_widget_key = widget_keys["max_depth"]
+                map_relation_type_options = merge_ordered_values(
+                    relation_type_options,
+                    filters.get("relation_types", []),
+                    form_state.get("relation_types", []),
+                )
+
                 with st.form("kg_update_map_form"):
-                    updated_name = st.text_input("Nombre del mapa", value=edit_doc.get("name", ""), key="kg_edit_name")
+                    updated_name = st.text_input(
+                        "Nombre del mapa",
+                        key=widget_keys["name"],
+                    )
                     updated_description = st.text_area(
                         "Descripción",
-                        value=edit_doc.get("description", ""),
                         height=80,
-                        key="kg_edit_description",
+                        key=widget_keys["description"],
                     )
                     updated_tags = st.text_input(
                         "Tags (separados por coma)",
-                        value=", ".join(edit_doc.get("tags", []) or []),
-                        key="kg_edit_tags",
+                        key=widget_keys["tags"],
                     )
                     edit_col1, edit_col2 = st.columns(2)
                     with edit_col1:
                         updated_sources = st.multiselect(
                             "Fuentes",
-                            source_options,
-                            default=[s for s in filters.get("sources", []) if s in source_options],
-                            key="kg_edit_sources",
+                            map_source_options,
+                            key=source_widget_key,
                         )
                         updated_types = st.multiselect(
                             "Tipos de concepto",
-                            concept_type_options,
-                            default=[t for t in filters.get("concept_types", []) if t in concept_type_options],
-                            key="kg_edit_concept_types",
+                            map_concept_type_options,
+                            key=concept_type_widget_key,
                         )
                     with edit_col2:
                         updated_relations = st.multiselect(
                             "Tipos de relación",
-                            relation_type_options,
-                            default=[r for r in filters.get("relation_types", []) if r in relation_type_options],
-                            key="kg_edit_relation_types",
+                            map_relation_type_options,
+                            key=relation_type_widget_key,
                         )
                         updated_max_depth = st.slider(
                             "Max depth",
                             1,
                             5,
-                            min(5, max(1, int(filters.get("max_depth", 3) or 3))),
-                            key="kg_edit_max_depth",
+                            key=max_depth_widget_key,
                         )
+                    st.info(
+                        "Guardar mapa usa el estado server-side del editor. "
+                        "Para guardar posiciones o física cambiadas dentro del grafo, copia el estado JSON desde el panel "
+                        "del grafo, pégalo aquí y activa la casilla."
+                    )
+                    use_pasted_state_json = st.checkbox(
+                        "Guardar con el JSON visual pegado abajo",
+                        key=widget_keys["use_pasted_state_json"],
+                    )
                     updated_state_json = st.text_area(
                         "Estado JSON actual del grafo",
                         height=180,
-                        key="kg_edit_graph_state_json",
+                        key=widget_keys["graph_state_json"],
                         placeholder=(
                             "Pega aquí el JSON copiado desde 📋 Copiar estado JSON. "
-                            "El mapa se reconstruye con los filtros actuales y preserva posiciones existentes cuando puede."
+                            "Sólo se usará si activas la casilla anterior."
                         ),
                     )
-                    update_map = st.form_submit_button("💾 Guardar cambios del mapa")
+                    update_map = st.form_submit_button("💾 Guardar mapa")
 
                 if update_map:
                     if not updated_name.strip():
                         st.error("El nombre del mapa es obligatorio.")
                     else:
                         try:
+                            current_filter_payload = {
+                                "sources": list(filters.get("sources") or []),
+                                "relation_types": list(filters.get("relation_types") or []),
+                                "concept_types": list(filters.get("concept_types") or []),
+                                "max_depth": min(5, max(1, int(filters.get("max_depth", 3) or 3))),
+                            }
                             base_graph_state = (
                                 _parse_knowledge_graph_state_json(updated_state_json)
-                                if updated_state_json.strip()
+                                if use_pasted_state_json and updated_state_json.strip()
                                 else graph_state
                             )
-                            new_graph_state = _build_knowledge_graph_state_from_filters(
-                                db,
-                                updated_sources,
-                                updated_relations,
-                                updated_types,
-                                previous_state=base_graph_state,
+                            baseline_sources = merge_ordered_values(
+                                current_filter_payload["sources"],
+                                infer_sources_from_graph_state(base_graph_state),
                             )
+                            baseline_types = merge_ordered_values(
+                                current_filter_payload["concept_types"],
+                                infer_concept_types_from_graph_state(base_graph_state),
+                            )
+                            source_filter_changed = set(updated_sources or []) != set(baseline_sources)
+                            concept_type_filter_changed = set(updated_types or []) != set(baseline_types)
+                            filter_changed = (
+                                source_filter_changed
+                                or concept_type_filter_changed
+                                or list(updated_relations or []) != current_filter_payload["relation_types"]
+                                or updated_max_depth != current_filter_payload["max_depth"]
+                            )
+                            if filter_changed:
+                                new_graph_state = _build_knowledge_graph_state_from_filters(
+                                    db,
+                                    updated_sources,
+                                    updated_relations,
+                                    updated_types,
+                                    previous_state=base_graph_state,
+                                )
+                                new_graph_state = merge_preserved_graph_items(new_graph_state, base_graph_state)
+                            else:
+                                new_graph_state = base_graph_state
+                            inferred_sources = infer_sources_from_graph_state(new_graph_state)
+                            inferred_types = infer_concept_types_from_graph_state(new_graph_state)
+                            updated_filter_payload = {
+                                "sources": merge_ordered_values(updated_sources, inferred_sources),
+                                "relation_types": list(updated_relations or []),
+                                "concept_types": merge_ordered_values(updated_types, inferred_types),
+                                "max_depth": updated_max_depth,
+                            }
+                            primary_source_values = primary_sources(edit_doc)
+                            primary_map_source = (
+                                primary_source_values[0]
+                                if primary_source_values
+                                else (updated_filter_payload["sources"][0] if updated_filter_payload["sources"] else "")
+                            )
+                            integrity_issues = graph_state_integrity_issues(new_graph_state)
+                            if integrity_issues:
+                                st.error("Se detectaron inconsistencias antes de guardar; no se guardó el mapa.")
+                                st.warning("\n".join(f"- {issue}" for issue in integrity_issues[:8]))
+                                st.info("Usa Reparar nodos incompletos, elimina los nodos inválidos o pega un JSON reparado.")
+                                st.stop()
                             result = maps_col.update_one(
                                 _knowledge_graph_map_id_query(edit_map_id),
                                 {
@@ -3800,30 +5153,74 @@ elif page == "📊 Knowledge Graph":
                                         "name": updated_name.strip(),
                                         "description": updated_description.strip(),
                                         "tags": [tag.strip() for tag in updated_tags.split(",") if tag.strip()],
-                                        "filters": {
-                                            "sources": list(updated_sources or []),
-                                            "relation_types": list(updated_relations or []),
-                                            "concept_types": list(updated_types or []),
-                                            "max_depth": updated_max_depth,
-                                        },
+                                        "filters": updated_filter_payload,
+                                        "primary_map_source": primary_map_source,
+                                        "map_sources": updated_filter_payload["sources"],
                                         "graph_state": new_graph_state,
+                                        "sync_settings": default_sync_settings(
+                                            st.session_state.get(
+                                                "knowledge_graph_edit_sync_settings",
+                                                edit_doc.get("sync_settings"),
+                                            )
+                                        ),
                                         "map_uid": edit_doc.get("map_uid") or str(uuid4()),
                                         "updated_at": datetime.utcnow(),
                                     }
                                 },
                             )
+                            saved_nodes, saved_edges = _knowledge_graph_state_counts(new_graph_state)
+                            _kg_debug(
+                                "Saving edit map",
+                                map_id=edit_map_id_text,
+                                nodes=saved_nodes,
+                                edges=saved_edges,
+                                filter_changed=filter_changed,
+                                using_pasted_json=bool(use_pasted_state_json and updated_state_json.strip()),
+                            )
+                            saved_form_state = {
+                                "name": updated_name.strip(),
+                                "description": updated_description.strip(),
+                                "tags": updated_tags,
+                                "sources": updated_filter_payload["sources"],
+                                "concept_types": updated_filter_payload["concept_types"],
+                                "relation_types": updated_filter_payload["relation_types"],
+                                "max_depth": updated_filter_payload["max_depth"],
+                                "use_pasted_state_json": False,
+                                "graph_state_json": "",
+                            }
                             if not result.acknowledged:
                                 st.error("MongoDB no confirmó la actualización del mapa.")
                             elif result.matched_count == 0:
                                 st.error("No se encontró el mapa que se intentaba actualizar.")
                             elif result.modified_count == 0:
+                                st.session_state["knowledge_graph_edit_graph_state"] = new_graph_state
+                                st.session_state["knowledge_graph_edit_sync_settings"] = default_sync_settings(
+                                    st.session_state.get(
+                                        "knowledge_graph_edit_sync_settings",
+                                        edit_doc.get("sync_settings"),
+                                    )
+                                )
+                                st.session_state[form_state_key] = saved_form_state
+                                _queue_kg_edit_widget_update(edit_map_id_text, saved_form_state)
+                                st.session_state["knowledge_graph_edit_dirty"] = False
                                 st.info("No hubo cambios nuevos que guardar.")
                             else:
+                                st.session_state["knowledge_graph_edit_graph_state"] = new_graph_state
+                                st.session_state["knowledge_graph_edit_sync_settings"] = default_sync_settings(
+                                    st.session_state.get(
+                                        "knowledge_graph_edit_sync_settings",
+                                        edit_doc.get("sync_settings"),
+                                    )
+                                )
+                                st.session_state[form_state_key] = saved_form_state
+                                _queue_kg_edit_widget_update(edit_map_id_text, saved_form_state)
+                                st.session_state["knowledge_graph_edit_dirty"] = False
                                 st.session_state["knowledge_graph_active_map_id"] = edit_map_id
                                 st.session_state["knowledge_graph_active_mode"] = "edit"
+                                st.session_state["knowledge_graph_section_request"] = "✏️ Editar mapa"
                                 st.session_state["knowledge_graph_message"] = (
                                     "success",
-                                    "Mapa actualizado correctamente. El grafo se reconstruyó con los filtros actuales.",
+                                    "Mapa actualizado correctamente.",
                                 )
                                 st.rerun()
                         except json.JSONDecodeError as exc:
@@ -3831,7 +5228,7 @@ elif page == "📊 Knowledge Graph":
                         except Exception as exc:
                             st.error(f"No se pudo actualizar el mapa: {exc}")
 
-    with tabs[3]:
+    elif kg_section == "📤 Exportar / importar":
         st.subheader("📤 Exportar / importar")
         st.info(
             "El estado visual real vive en JavaScript. Usa 📋 Copiar estado JSON dentro del grafo "
@@ -3843,6 +5240,12 @@ elif page == "📊 Knowledge Graph":
             export_doc = _find_knowledge_graph_map(maps_col, export_options[export_label])
             if export_doc:
                 export_state = export_doc.get("graph_state", {})
+                export_sources = infer_sources_from_graph_state(export_state)
+                export_types = infer_concept_types_from_graph_state(export_state)
+                if export_sources:
+                    st.caption(f"Fuentes inferidas del estado exportado: {', '.join(export_sources)}")
+                if export_types:
+                    st.caption(f"Tipos inferidos del estado exportado: {', '.join(export_types)}")
                 st.download_button(
                     "📥 Descargar JSON guardado",
                     data=json.dumps(export_state, ensure_ascii=False, indent=2, default=str),
@@ -3873,6 +5276,14 @@ elif page == "📊 Knowledge Graph":
             else:
                 try:
                     graph_state = _parse_knowledge_graph_state_json(import_state_json)
+                    integrity_issues = graph_state_integrity_issues(graph_state)
+                    if integrity_issues:
+                        st.error("Se detectaron inconsistencias antes de importar el mapa.")
+                        st.warning("\n".join(f"- {issue}" for issue in integrity_issues[:8]))
+                        st.stop()
+                    inferred_sources = infer_sources_from_graph_state(graph_state)
+                    inferred_types = infer_concept_types_from_graph_state(graph_state)
+                    primary_map_source = inferred_sources[0] if inferred_sources else ""
                     now = datetime.utcnow()
                     result = maps_col.insert_one(
                         {
@@ -3881,15 +5292,18 @@ elif page == "📊 Knowledge Graph":
                             "created_at": now,
                             "updated_at": now,
                             "filters": {
-                                "sources": [],
+                                "sources": inferred_sources,
                                 "relation_types": [],
-                                "concept_types": [],
+                                "concept_types": inferred_types,
                                 "max_depth": 3,
                             },
+                            "primary_map_source": primary_map_source,
+                            "map_sources": inferred_sources,
                             "graph_state": graph_state,
                             "tags": [tag.strip() for tag in import_tags.split(",") if tag.strip()],
                             "source": "interactive_knowledge_graph",
                             "map_uid": str(uuid4()),
+                            "sync_settings": default_sync_settings(),
                         }
                     )
                     if result.acknowledged:
@@ -4043,6 +5457,10 @@ elif page == "📤 Export":
         except Exception as e:
             st.error(f"❌ Bulk export failed: {e}")
 
+# Maintenance page
+elif page == "🧹 Maintenance":
+    _render_cleanup_maintenance_page()
+
 # Settings page
 elif page == "⚙️ Settings":
     st.title("⚙️ Settings")
@@ -4124,6 +5542,15 @@ elif page == "⚙️ Settings":
                 db.db["knowledge_graph_maps"].create_index([("filters.relation_types", 1)])
                 db.db["knowledge_graph_maps"].create_index([("source", 1)])
                 db.db["knowledge_graph_maps"].create_index([("map_uid", 1)])
+                db.db["media_assets"].create_index([("asset_id", 1)], unique=True)
+                db.db["media_assets"].create_index([("path", 1)])
+                db.db["media_assets"].create_index([("filename", 1)])
+                db.db["media_assets"].create_index([("storage_type", 1)])
+                db.db["media_assets"].create_index([("mime_type", 1)])
+                db.db["media_assets"].create_index([("concept_ids", 1)])
+                db.db["media_assets"].create_index([("note_ids", 1)])
+                db.db["media_assets"].create_index([("tags", 1)])
+                db.db["media_assets"].create_index([("created_at", -1)])
                 st.success("✅ Indexes rebuilt successfully!")
             except Exception as e:
                 st.error(f"❌ Error rebuilding indexes: {e}")
@@ -4144,13 +5571,17 @@ elif page == "📦 Database Export":
         This operation is **read-only** and does not modify the database.
         """
     )
+    st.caption(
+        f"Timeout: {EXPORT_TIMEOUT_SECONDS}s · Expected collections: "
+        + ", ".join(EXPORT_COLLECTIONS)
+    )
     if st.button("📦 Export database"):
         with st.spinner("Exporting database..."):
             try:
                 out_dir = Path.home() / "mathkb_backups"
                 out_dir.mkdir(exist_ok=True)
                 zip_path = export_database_to_zip(db, out_dir)
-                st.success("Export completed successfully")
+                st.success(f"Export completed successfully: {zip_path}")
                 with open(zip_path, "rb") as f:
                     st.download_button(
                         label="⬇️ Download ZIP",
@@ -4164,6 +5595,7 @@ elif page == "📦 Database Export":
 
 elif page == "📥 Database Import":
     st.header("📥 Database Import")
+    st.caption(f"Timeout: {IMPORT_TIMEOUT_SECONDS}s")
 
     uploaded_file = st.file_uploader(
         "Upload database export (.zip)",
@@ -4184,6 +5616,12 @@ elif page == "📥 Database Import":
 
             for coll, count in info["collections"].items():
                 st.write(f"- {coll}: {count}")
+
+            if "knowledge_graph_maps" in info["collections"]:
+                st.info(
+                    "Saved graph maps are present in this export through "
+                    "`knowledge_graph_maps`."
+                )
 
             st.success("Export looks valid.")
 

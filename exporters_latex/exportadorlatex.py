@@ -2,12 +2,17 @@
 # -*- coding: utf-8 -*-
 import os
 import shutil
-import subprocess
 from typing import List, Dict
 from pymongo import MongoClient
 from pathlib import Path
+from exporters_latex.latex_compile import latex_warning_message
+from exporters_latex.latex_compile import latex_failure_message
+from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.unified_document import export_unified_document_with_inputs
 from exporters_latex.unified_document import render_concept_fragment
+from editor.utils.media_assets import copy_media_tree_for_latex
+from mathkb_config import LATEX_MAX_PASSES
+from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 
 class ExportadorLatex:
     """
@@ -54,21 +59,47 @@ class ExportadorLatex:
         # ---------- Preparamos carpeta ----------
         os.makedirs(salida, exist_ok=True)
         self._copiar_plantillas(salida)          # ⬅️  nuevo paso
+        copy_media_tree_for_latex(salida)
 
         # ---------- Creamos fichero .tex ----------
         tex_path = os.path.join(salida, f"{nombre_base}.tex")
         self._escribir_tex(tex_path, concepto, contenido_latex)
 
         # ---------- Compilamos ----------
+        command = [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            Path(tex_path).name,
+        ]
         try:
-            subprocess.run(
-                ["pdflatex", "-interaction=nonstopmode",
-                 "-output-directory", salida, tex_path],
-                check=True,
+            pdf_path = Path(salida) / f"{nombre_base}.pdf"
+            compile_info = run_latex_until_stable(
+                command,
+                cwd=Path(salida),
+                tex_file=Path(tex_path).name,
+                pdf_path=pdf_path,
+                log_path=Path(salida) / f"{nombre_base}.log",
+                timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+                max_passes=LATEX_MAX_PASSES,
             )
-            print(f"📄 PDF generado: {os.path.join(salida, nombre_base)}.pdf")
-        except subprocess.CalledProcessError as err:
+            if compile_info["status"] == "failed":
+                result = compile_info.get("result")
+                raise RuntimeError(
+                    latex_failure_message(
+                        tex_path,
+                        command,
+                        compile_info.get("returncode"),
+                        log_excerpt=compile_info.get("log_excerpt", ""),
+                        stdout=getattr(result, "stdout", "") if result else "",
+                        stderr=getattr(result, "stderr", "") if result else "",
+                    )
+                )
+            if compile_info["status"] == "success_with_warnings":
+                print(latex_warning_message(compile_info))
+            print(f"📄 PDF generado: {pdf_path}")
+        except (TimeoutError, FileNotFoundError, PermissionError, OSError, RuntimeError) as err:
             print(f"❌ Error al compilar LaTeX: {err}")
+            raise
 
     def exportar_todos_de_source(
         self,
@@ -147,6 +178,7 @@ class ExportadorLatex:
             f.write(r"\documentclass[12pt]{article}" "\n")
             f.write(r"\usepackage{miestilo}" "\n")
             f.write(r"\usepackage{coloredtheorem}" "\n")  # por si acaso
+            f.write(r"\usepackage{graphicx}" "\n")
             f.write(r"\begin{document}" "\n\n")
 
             # --- título ---

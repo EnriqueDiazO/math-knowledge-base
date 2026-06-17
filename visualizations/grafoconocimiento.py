@@ -1,11 +1,16 @@
 import html as html_lib
 import json
 import math
+import os
 import urllib.parse
 from datetime import datetime
+from pathlib import Path
 
 import networkx as nx
 from pyvis.network import Network
+
+
+DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
 
 
 class GrafoConocimiento:
@@ -39,6 +44,15 @@ class GrafoConocimiento:
             "observación": "#D7CCC8",
             "remark": "#D7CCC8",
             "nota": "#B0BEC5",            # blue-gray (nuevo)
+            "conj": "#fbcfe8",
+            "conjetura": "#fbcfe8",
+            "axioma": "#ccfbf1",
+            "axiom": "#ccfbf1",
+            "preg": "#bae6fd",
+            "pregunta": "#bae6fd",
+            "question": "#bae6fd",
+            "ref": "#d9f99d",
+            "referencia": "#d9f99d",
             "otro": "#E0E0E0",
             "placeholder": "#F5F5F5"      # aún más tenue
         }
@@ -75,8 +89,57 @@ class GrafoConocimiento:
             "observación": "box",
             "remark": "box",
             "nota": "hexagon_svg",          # <- SVG
-            "otro": "circle",
+            "conj": "diamond_svg",
+            "conjetura": "diamond_svg",
+            "axioma": "hexagon_svg",
+            "axiom": "hexagon_svg",
+            "preg": "ellipse",
+            "pregunta": "ellipse",
+            "question": "ellipse",
+            "ref": "box",
+            "referencia": "box",
+            "otro": "box",
             "placeholder": "dot"
+        }
+
+        self.tipo_aliases = {
+            "def": "definicion",
+            "definicion": "definicion",
+            "definición": "definicion",
+            "definition": "definicion",
+            "teo": "teorema",
+            "teorema": "teorema",
+            "theorem": "teorema",
+            "prop": "proposicion",
+            "proposicion": "proposicion",
+            "proposición": "proposicion",
+            "proposition": "proposicion",
+            "cor": "corolario",
+            "corolario": "corolario",
+            "corollary": "corolario",
+            "lem": "lema",
+            "lema": "lema",
+            "lemma": "lema",
+            "obs": "observacion",
+            "observacion": "observacion",
+            "observación": "observacion",
+            "remark": "observacion",
+            "ejem": "ejemplo",
+            "ejemplo": "ejemplo",
+            "example": "ejemplo",
+            "nota": "nota",
+            "note": "nota",
+            "conj": "conj",
+            "conjetura": "conj",
+            "axioma": "axioma",
+            "axiom": "axioma",
+            "preg": "preg",
+            "pregunta": "preg",
+            "question": "preg",
+            "ref": "ref",
+            "referencia": "ref",
+            "placeholder": "placeholder",
+            "otro": "otro",
         }
 
         self.abreviatura_por_tipo = {
@@ -99,6 +162,15 @@ class GrafoConocimiento:
             "remark": "obs",
             "nota": "nota",
             "note": "nota",
+            "conj": "conj",
+            "conjetura": "conj",
+            "axioma": "axioma",
+            "axiom": "axioma",
+            "preg": "preg",
+            "pregunta": "preg",
+            "question": "preg",
+            "ref": "ref",
+            "referencia": "ref",
         }
 
         self.nombre_corto_por_tipo = {
@@ -121,6 +193,15 @@ class GrafoConocimiento:
             "remark": "observación",
             "nota": "nota",
             "note": "nota",
+            "conj": "conjetura",
+            "conjetura": "conjetura",
+            "axioma": "axioma",
+            "axiom": "axioma",
+            "preg": "pregunta",
+            "pregunta": "pregunta",
+            "question": "pregunta",
+            "ref": "referencia",
+            "referencia": "referencia",
             "placeholder": "placeholder",
             "otro": "otro",
         }
@@ -246,13 +327,13 @@ class GrafoConocimiento:
 
     def _node_render_strategy(self, tipo: str) -> str:
         """Decide si renderizamos con vis.js nativo o con SVG."""
-        shape = self.forma_por_tipo.get(str(tipo or "").strip().lower(), "circle")
+        shape = self.forma_por_tipo.get(self._canonical_type(tipo), "box")
         if shape.endswith("_svg"):
             return "svg"
         return "native"
 
     def _native_shape(self, tipo: str) -> str:
-        shape = self.forma_por_tipo.get(str(tipo or "").strip().lower(), "circle")
+        shape = self.forma_por_tipo.get(self._canonical_type(tipo), "box")
         # Normaliza: si viene 'hexagon_svg' -> 'hexagon' (no lo usaremos en native, pero por limpieza)
         return shape.replace("_svg", "")
 
@@ -260,9 +341,13 @@ class GrafoConocimiento:
     def _concepto_permitido(self, tipo: str, tipos_concepto: list[str] | None) -> bool:
         if not tipos_concepto:
             return True
-        tipo_key = str(tipo or "").strip().lower()
-        allowed = {str(t or "").strip().lower() for t in tipos_concepto}
+        tipo_key = self._canonical_type(tipo)
+        allowed = {self._canonical_type(t) for t in tipos_concepto}
         return tipo_key in allowed
+
+    def _canonical_type(self, tipo: str) -> str:
+        key = str(tipo or "").strip().lower()
+        return self.tipo_aliases.get(key, key or "otro")
 
     def _node_type_value(self, node: dict) -> str:
         metadata = node.get("metadata") if isinstance(node.get("metadata"), dict) else {}
@@ -277,14 +362,14 @@ class GrafoConocimiento:
             metadata.get("type"),
         ):
             if value is not None and str(value).strip():
-                return str(value).strip()
+                return self._canonical_type(str(value).strip())
         return "otro"
 
     def _node_type_abbreviation(self, tipo: str) -> str:
-        return self.abreviatura_por_tipo.get(str(tipo or "").strip().lower(), "")
+        return self.abreviatura_por_tipo.get(self._canonical_type(tipo), "")
 
     def _node_type_display_name(self, tipo: str) -> str:
-        key = str(tipo or "").strip().lower()
+        key = self._canonical_type(tipo)
         return self.nombre_corto_por_tipo.get(key, str(tipo or "").strip() or "otro")
 
     def _node_label_with_badge(self, wrapped_label: str, type_badge: str) -> str:
@@ -349,9 +434,7 @@ class GrafoConocimiento:
                 component_by_node[node_id] = f"componente {idx + 1}"
 
         return {
-            "byType": self._positions_by_group(type_by_node, radius=680),
-            "byComponent": self._positions_by_group(component_by_node, radius=720),
-            "bySource": self._positions_by_group(source_by_node, radius=680),
+            "initial": self._positions_by_group(type_by_node, radius=680),
             "meta": {
                 node_id: {
                     "type": type_by_node.get(node_id, ""),
@@ -512,7 +595,7 @@ class GrafoConocimiento:
 
             etiqueta = f"{doc['id']}@{doc['source']}"
             titulo = doc.get("titulo", etiqueta)
-            color = self.color_por_tipo.get(str(tipo or "").strip().lower(), "white")
+            color = self.color_por_tipo.get(self._canonical_type(tipo), self.color_por_tipo["otro"])
             type_badge = self._node_type_abbreviation(tipo)
             self.G.add_node(
                 etiqueta,
@@ -573,17 +656,23 @@ class GrafoConocimiento:
                 color=color,
                 descripcion=rel.get("descripcion", ""),
             )
-        print("DEBUG tipos_concepto:", tipos_concepto, "usar_placeholders:", usar_placeholders)
-        print(f"🧠 Nodos creados: {len(self.G.nodes)} | Relaciones creadas: {len(self.G.edges)}")
-        if relaciones_omitidas_por_nodos_faltantes > 0:
-            print(f"⚠️  Relaciones con placeholders por nodos faltantes: {relaciones_omitidas_por_nodos_faltantes}")
-            if ejemplos_omitidos:
-                print("⚠️  Ejemplos (placeholders usados):")
-            for d, t, h, fd, fh in ejemplos_omitidos:
-                faltan = []
-                if fd: faltan.append("desde")
-                if fh: faltan.append("hasta")
-                print(f"   - {d} -({t})-> {h}   [faltan: {', '.join(faltan)}]")
+        if DEBUG_KNOWLEDGE_GRAPH:
+            print("DEBUG tipos_concepto:", tipos_concepto, "usar_placeholders:", usar_placeholders)
+            print(f"🧠 Nodos creados: {len(self.G.nodes)} | Relaciones creadas: {len(self.G.edges)}")
+            if relaciones_omitidas_por_nodos_faltantes > 0:
+                print(
+                    "⚠️  Relaciones con placeholders por nodos faltantes: "
+                    f"{relaciones_omitidas_por_nodos_faltantes}"
+                )
+                if ejemplos_omitidos:
+                    print("⚠️  Ejemplos (placeholders usados):")
+                for d, t, h, fd, fh in ejemplos_omitidos:
+                    faltan = []
+                    if fd:
+                        faltan.append("desde")
+                    if fh:
+                        faltan.append("hasta")
+                    print(f"   - {d} -({t})-> {h}   [faltan: {', '.join(faltan)}]")
 
 
     def to_graph_state(self, previous_state: dict | None = None) -> dict:
@@ -642,7 +731,7 @@ class GrafoConocimiento:
         }
 
         layout_payload = self._layout_payload()
-        initial_positions = layout_payload["byType"]
+        initial_positions = layout_payload["initial"]
         nodes = []
         for node_id, datos in self.G.nodes(data=True):
             raw_label = datos.get("label", node_id)
@@ -794,16 +883,16 @@ class GrafoConocimiento:
 
     def exportar_html(
         self,
-        salida="grafo_conceptos.html",
+        salida: str | Path | None = "grafo_conceptos.html",
         size: int | None = None,
         initial_state: dict | None = None,
-    ) -> None:
-        """Genera un archivo HTML interactivo."""
+    ) -> str:
+        """Genera HTML interactivo; si `salida` existe, también lo escribe a disco."""
         if size is None:
             size = self.MaxLengthLabel
-        net = Network(height="100vh", width="100%", directed=True)
+        net = Network(height="100vh", width="100%", directed=True, cdn_resources="in_line")
         layout_payload = self._layout_payload()
-        initial_positions = layout_payload["byType"]
+        initial_positions = layout_payload["initial"]
 
         for n, datos in self.G.nodes(data=True):
             raw_label = datos.get("label", n)
@@ -949,9 +1038,7 @@ class GrafoConocimiento:
 }
 """)
 
-        net.write_html(salida)
-        with open(salida, "r", encoding="utf-8") as f:
-            html = f.read()
+        html = net.generate_html(name=str(salida or "knowledge_graph.html"), local=True, notebook=False)
         layout_payload_json = json.dumps(layout_payload, ensure_ascii=False)
         
         overlay = """
@@ -1605,6 +1692,19 @@ function graphNodes() {
 	  focusNodeById(nodeId);
 	}
 
+	function focusNodeFromSelector() {
+	  const selector = document.getElementById("nodeIdSelector");
+	  const input = document.getElementById("nodeSearchInput");
+	  const nodeId = resolveNodeId((selector && selector.value) || "");
+	  if (input) input.value = nodeId || "";
+	  if (!nodeId) {
+	    updateNodeInfo(null);
+	    setLayoutStatus("Selecciona un nodo valido.");
+	    return;
+	  }
+	  focusNodeById(nodeId);
+	}
+
 	function focusNodeById(nodeId) {
 	  ensureFullGraphData();
 	  const resolvedId = resolveNodeId(nodeId);
@@ -1901,51 +2001,636 @@ function releaseSelectedNodes() {
   applyCurrentPhysics();
 }
 
-function applyLayout(layoutName, options = {}) {
-  const nodes = graphNodes();
-  if (!nodes || !GRAPH_LAYOUTS[layoutName]) return;
-  const updates = Object.entries(GRAPH_LAYOUTS[layoutName]).map(([id, pos]) => ({
-    id,
-    x: pos.x,
-    y: pos.y,
-    fixed: { x: Boolean(options.fixed), y: Boolean(options.fixed) }
-  }));
-  nodes.update(updates);
-  if (options.runPhysics) {
-    applyCurrentPhysics();
-  } else if (window.mmNetwork) {
-    window.mmNetwork.redraw();
-  }
-  setLayoutStatus(options.message || "");
-}
+	let MM_ACTIVE_LAYOUT_FRAME = null;
+	let MM_ACTIVE_LAYOUT_TIMER = null;
 
-function separateByType() {
-  applyLayout("byType", {
-    runPhysics: true,
-    message: "Separado por tipo de concepto."
-  });
-}
+	function visibleLayoutContext() {
+	  const nodes = graphNodes();
+	  const edges = graphEdges();
+	  if (!window.mmNetwork || !nodes || !edges) return null;
+	  ensureFullGraphData();
+	  mergeCurrentVisibleStateIntoAllData();
+	  const nodeItems = nodes.get().map(cloneGraphItem);
+	  const nodeIds = nodeItems.map((node) => node.id).filter(Boolean);
+	  const nodeSet = new Set(nodeIds);
+	  const edgeItems = edges.get()
+	    .map(cloneGraphItem)
+	    .filter((edge) => nodeSet.has(edge.from) && nodeSet.has(edge.to));
+	  const positions = window.mmNetwork.getPositions(nodeIds);
+	  return { nodes, edges, nodeItems, nodeIds, nodeSet, edgeItems, positions };
+	}
 
-function separateBySource() {
-  applyLayout("bySource", {
-    runPhysics: true,
-    message: "Separado por fuente."
-  });
-}
+	function stableNodeKey(node) {
+	  return nodeDisplayName(node).toLowerCase() || String(node.id || "").toLowerCase();
+	}
 
-function separateByComponent() {
-  applyLayout("byComponent", {
-    runPhysics: true,
-    message: "Separado por componente conexa."
-  });
-}
+	function degreeMapFor(nodeIds, edges) {
+	  const degree = {};
+	  nodeIds.forEach((id) => { degree[id] = 0; });
+	  edges.forEach((edge) => {
+	    if (degree[edge.from] !== undefined) degree[edge.from] += 1;
+	    if (degree[edge.to] !== undefined) degree[edge.to] += 1;
+	  });
+	  return degree;
+	}
 
-function resetPositions() {
-  applyLayout("byType", {
-    runPhysics: true,
-    message: "Posiciones reiniciadas por tipo."
-  });
-}
+	function groupNodesBy(nodeItems, groupFn) {
+	  const groups = new Map();
+	  nodeItems.forEach((node) => {
+	    const rawGroup = groupFn(node) || "sin grupo";
+	    const group = String(rawGroup).trim() || "sin grupo";
+	    if (!groups.has(group)) groups.set(group, []);
+	    groups.get(group).push(node.id);
+	  });
+	  for (const ids of groups.values()) {
+	    ids.sort((a, b) => String(a).localeCompare(String(b)));
+	  }
+	  return groups;
+	}
+
+	function groupRadius(count, spacing = 170) {
+	  if (count <= 1) return 170;
+	  return Math.max(220, Math.sqrt(count) * spacing);
+	}
+
+	function edgeSubsetFor(nodeIds, edges) {
+	  const nodeSet = new Set(nodeIds);
+	  return edges.filter((edge) => nodeSet.has(edge.from) && nodeSet.has(edge.to));
+	}
+
+	function localForceLayout(nodeIds, edges, options = {}) {
+	  const count = nodeIds.length;
+	  if (count === 0) return {};
+	  if (count === 1) return { [nodeIds[0]]: { x: 0, y: 0 } };
+
+	  const degree = degreeMapFor(nodeIds, edges);
+	  const sortedIds = [...nodeIds].sort((a, b) => {
+	    const degreeDelta = (degree[b] || 0) - (degree[a] || 0);
+	    return degreeDelta || String(a).localeCompare(String(b));
+	  });
+	  const positions = {};
+	  const baseSpacing = options.spacing || 175;
+	  const goldenAngle = Math.PI * (3 - Math.sqrt(5));
+	  sortedIds.forEach((id, index) => {
+	    if (index === 0 && (degree[id] || 0) > 0) {
+	      positions[id] = { x: 0, y: 0 };
+	      return;
+	    }
+	    const adjusted = index + 0.35;
+	    const radius = baseSpacing * Math.sqrt(adjusted) * 0.82;
+	    const angle = adjusted * goldenAngle;
+	    positions[id] = {
+	      x: Math.cos(angle) * radius,
+	      y: Math.sin(angle) * radius
+	    };
+	  });
+
+	  const nodeSet = new Set(nodeIds);
+	  const internalEdges = edges.filter((edge) => nodeSet.has(edge.from) && nodeSet.has(edge.to));
+	  const iterations = options.iterations || 85;
+	  const repulsion = options.repulsion || 5400;
+	  const springLength = options.springLength || Math.max(180, Math.min(310, baseSpacing * 1.25));
+	  const springStrength = options.springStrength || 0.018;
+	  const gravity = options.gravity || 0.018;
+	  const maxStep = options.maxStep || 28;
+
+	  for (let iter = 0; iter < iterations; iter += 1) {
+	    const delta = {};
+	    nodeIds.forEach((id) => { delta[id] = { x: 0, y: 0 }; });
+
+	    for (let i = 0; i < nodeIds.length; i += 1) {
+	      for (let j = i + 1; j < nodeIds.length; j += 1) {
+	        const a = nodeIds[i];
+	        const b = nodeIds[j];
+	        const pa = positions[a];
+	        const pb = positions[b];
+	        let dx = pa.x - pb.x;
+	        let dy = pa.y - pb.y;
+	        let distanceSq = dx * dx + dy * dy;
+	        if (distanceSq < 25) {
+	          dx = (i + 1) * 0.17;
+	          dy = (j + 1) * 0.19;
+	          distanceSq = dx * dx + dy * dy;
+	        }
+	        const distance = Math.sqrt(distanceSq);
+	        const force = repulsion / distanceSq;
+	        const fx = (dx / distance) * force;
+	        const fy = (dy / distance) * force;
+	        delta[a].x += fx;
+	        delta[a].y += fy;
+	        delta[b].x -= fx;
+	        delta[b].y -= fy;
+	      }
+	    }
+
+	    internalEdges.forEach((edge) => {
+	      const a = edge.from;
+	      const b = edge.to;
+	      const pa = positions[a];
+	      const pb = positions[b];
+	      if (!pa || !pb) return;
+	      const dx = pb.x - pa.x;
+	      const dy = pb.y - pa.y;
+	      const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+	      const force = (distance - springLength) * springStrength;
+	      const fx = (dx / distance) * force;
+	      const fy = (dy / distance) * force;
+	      delta[a].x += fx;
+	      delta[a].y += fy;
+	      delta[b].x -= fx;
+	      delta[b].y -= fy;
+	    });
+
+	    nodeIds.forEach((id) => {
+	      delta[id].x -= positions[id].x * gravity;
+	      delta[id].y -= positions[id].y * gravity;
+	      const step = Math.sqrt(delta[id].x * delta[id].x + delta[id].y * delta[id].y);
+	      const scale = step > maxStep ? maxStep / step : 1;
+	      positions[id].x += delta[id].x * scale;
+	      positions[id].y += delta[id].y * scale;
+	    });
+	  }
+
+	  const centroid = nodeIds.reduce((acc, id) => {
+	    acc.x += positions[id].x;
+	    acc.y += positions[id].y;
+	    return acc;
+	  }, { x: 0, y: 0 });
+	  centroid.x /= count;
+	  centroid.y /= count;
+	  nodeIds.forEach((id) => {
+	    positions[id].x = Math.round((positions[id].x - centroid.x) * 100) / 100;
+	    positions[id].y = Math.round((positions[id].y - centroid.y) * 100) / 100;
+	  });
+	  return positions;
+	}
+
+	function componentGroupsFromContext(ctx) {
+	  const adjacency = {};
+	  ctx.nodeIds.forEach((id) => { adjacency[id] = new Set(); });
+	  ctx.edgeItems.forEach((edge) => {
+	    if (!adjacency[edge.from] || !adjacency[edge.to]) return;
+	    adjacency[edge.from].add(edge.to);
+	    adjacency[edge.to].add(edge.from);
+	  });
+
+	  const visited = new Set();
+	  const components = [];
+	  ctx.nodeIds.forEach((start) => {
+	    if (visited.has(start)) return;
+	    const queue = [start];
+	    const component = [];
+	    visited.add(start);
+	    while (queue.length > 0) {
+	      const current = queue.shift();
+	      component.push(current);
+	      adjacency[current].forEach((next) => {
+	        if (visited.has(next)) return;
+	        visited.add(next);
+	        queue.push(next);
+	      });
+	    }
+	    component.sort((a, b) => String(a).localeCompare(String(b)));
+	    components.push(component);
+	  });
+	  components.sort((a, b) => b.length - a.length || String(a[0]).localeCompare(String(b[0])));
+	  return components;
+	}
+
+	function sourceGroupCenters(groups) {
+	  const entries = [...groups.entries()].sort((a, b) => a[0].localeCompare(b[0]));
+	  const maxRadius = Math.max(...entries.map(([, ids]) => groupRadius(ids.length, 180)), 240);
+	  const columns = Math.max(1, Math.ceil(Math.sqrt(entries.length)));
+	  const xGap = Math.max(900, maxRadius * 2 + 520);
+	  const yGap = Math.max(680, maxRadius * 2 + 380);
+	  const centers = {};
+	  entries.forEach(([group], index) => {
+	    const row = Math.floor(index / columns);
+	    const col = index % columns;
+	    const rowOffset = row % 2 === 1 ? xGap * 0.22 : 0;
+	    centers[group] = {
+	      x: (col - (columns - 1) / 2) * xGap + rowOffset,
+	      y: (row - Math.floor((entries.length - 1) / columns) / 2) * yGap
+	    };
+	  });
+	  return centers;
+	}
+
+	function typeGroupCenters(groups) {
+	  const canonicalOrder = [
+	    "definicion",
+	    "lema",
+	    "teorema",
+	    "proposicion",
+	    "corolario",
+	    "ejemplo",
+	    "nota",
+	    "observacion",
+	    "otro",
+	    "placeholder"
+	  ];
+	  const maxRadius = Math.max(...[...groups.values()].map((ids) => groupRadius(ids.length, 165)), 240);
+	  const scale = Math.max(1, maxRadius / 360);
+	  const template = {
+	    definicion: { x: -1250, y: -420 },
+	    lema: { x: -470, y: -700 },
+	    teorema: { x: 350, y: -720 },
+	    proposicion: { x: -250, y: -30 },
+	    corolario: { x: 720, y: -20 },
+	    ejemplo: { x: -520, y: 680 },
+	    nota: { x: 520, y: 680 },
+	    observacion: { x: 1180, y: 620 },
+	    otro: { x: 0, y: 1180 },
+	    placeholder: { x: 1220, y: -680 }
+	  };
+	  const centers = {};
+	  const present = [...groups.keys()];
+	  present.forEach((group) => {
+	    const canonical = canonicalType(group);
+	    if (template[canonical]) {
+	      centers[group] = {
+	        x: template[canonical].x * scale,
+	        y: template[canonical].y * scale
+	      };
+	    }
+	  });
+	  const extras = present
+	    .filter((group) => !centers[group])
+	    .sort((a, b) => a.localeCompare(b));
+	  const extraRadius = 1250 * scale;
+	  extras.forEach((group, index) => {
+	    const angle = (Math.PI * 2 * index) / Math.max(1, extras.length) + Math.PI / 8;
+	    centers[group] = {
+	      x: Math.cos(angle) * extraRadius,
+	      y: Math.sin(angle) * extraRadius + 1200 * scale
+	    };
+	  });
+
+	  const orderedPresent = canonicalOrder.filter((type) => present.some((group) => canonicalType(group) === type));
+	  if (orderedPresent.length <= 2 && extras.length === 0) {
+	    present.forEach((group, index) => {
+	      centers[group].x = (index - (present.length - 1) / 2) * 1050 * scale;
+	      centers[group].y = centers[group].y * 0.35;
+	    });
+	  }
+	  return centers;
+	}
+
+	function componentGroupCenters(components) {
+	  const maxRadius = Math.max(...components.map((ids) => groupRadius(ids.length, 190)), 260);
+	  const columns = Math.min(3, Math.max(1, Math.ceil(Math.sqrt(components.length))));
+	  const xGap = Math.max(1250, maxRadius * 2 + 900);
+	  const yGap = Math.max(950, maxRadius * 2 + 650);
+	  const rows = Math.ceil(components.length / columns);
+	  const centers = {};
+	  components.forEach((ids, index) => {
+	    const row = Math.floor(index / columns);
+	    const col = index % columns;
+	    centers[`component:${index}`] = {
+	      x: (col - (columns - 1) / 2) * xGap,
+	      y: (row - (rows - 1) / 2) * yGap
+	    };
+	  });
+	  return centers;
+	}
+
+	function edgeAwareOffsets(groupByNode, centersByGroup, edges, strength = 0.16) {
+	  const offsets = {};
+	  Object.keys(groupByNode).forEach((id) => { offsets[id] = { x: 0, y: 0, count: 0 }; });
+	  edges.forEach((edge) => {
+	    const fromGroup = groupByNode[edge.from];
+	    const toGroup = groupByNode[edge.to];
+	    if (!fromGroup || !toGroup || fromGroup === toGroup) return;
+	    const fromCenter = centersByGroup[fromGroup];
+	    const toCenter = centersByGroup[toGroup];
+	    if (!fromCenter || !toCenter) return;
+	    const dx = toCenter.x - fromCenter.x;
+	    const dy = toCenter.y - fromCenter.y;
+	    const distance = Math.max(1, Math.sqrt(dx * dx + dy * dy));
+	    const pushX = (dx / distance) * 130 * strength;
+	    const pushY = (dy / distance) * 130 * strength;
+	    offsets[edge.from].x += pushX;
+	    offsets[edge.from].y += pushY;
+	    offsets[edge.from].count += 1;
+	    offsets[edge.to].x -= pushX;
+	    offsets[edge.to].y -= pushY;
+	    offsets[edge.to].count += 1;
+	  });
+	  const normalized = {};
+	  Object.entries(offsets).forEach(([id, offset]) => {
+	    if (!offset.count) {
+	      normalized[id] = { x: 0, y: 0 };
+	      return;
+	    }
+	    const x = offset.x / Math.sqrt(offset.count);
+	    const y = offset.y / Math.sqrt(offset.count);
+	    const magnitude = Math.sqrt(x * x + y * y);
+	    const maxOffset = 155;
+	    const scale = magnitude > maxOffset ? maxOffset / magnitude : 1;
+	    normalized[id] = { x: x * scale, y: y * scale };
+	  });
+	  return normalized;
+	}
+
+	function composeGroupedLayout(ctx, groups, centers, options = {}) {
+	  const groupByNode = {};
+	  for (const [group, ids] of groups.entries()) {
+	    ids.forEach((id) => { groupByNode[id] = group; });
+	  }
+	  const offsets = options.crossEdgeOffsets
+	    ? edgeAwareOffsets(groupByNode, centers, ctx.edgeItems, options.crossEdgeStrength || 0.16)
+	    : {};
+	  const targetPositions = {};
+	  for (const [group, ids] of groups.entries()) {
+	    const center = centers[group] || { x: 0, y: 0 };
+	    const localEdges = options.localEdges === false ? [] : edgeSubsetFor(ids, ctx.edgeItems);
+	    const local = localForceLayout(ids, localEdges, options.local || {});
+	    ids.forEach((id) => {
+	      const offset = offsets[id] || { x: 0, y: 0 };
+	      targetPositions[id] = {
+	        x: center.x + (local[id]?.x || 0) + offset.x,
+	        y: center.y + (local[id]?.y || 0) + offset.y
+	      };
+	    });
+	  }
+	  return targetPositions;
+	}
+
+	function buildSourceLayout(ctx) {
+	  const groups = groupNodesBy(ctx.nodeItems, nodeSource);
+	  const centers = sourceGroupCenters(groups);
+	  return composeGroupedLayout(ctx, groups, centers, {
+	    crossEdgeOffsets: true,
+	    crossEdgeStrength: 0.22,
+	    local: {
+	      spacing: 180,
+	      iterations: 95,
+	      repulsion: 6600,
+	      springLength: 215,
+	      springStrength: 0.02,
+	      gravity: 0.02
+	    }
+	  });
+	}
+
+	function buildTypeLayout(ctx) {
+	  const groups = groupNodesBy(ctx.nodeItems, nodeTypeValue);
+	  const centers = typeGroupCenters(groups);
+	  return composeGroupedLayout(ctx, groups, centers, {
+	    crossEdgeOffsets: true,
+	    crossEdgeStrength: 0.12,
+	    local: {
+	      spacing: 165,
+	      iterations: 90,
+	      repulsion: 5600,
+	      springLength: 205,
+	      springStrength: 0.018,
+	      gravity: 0.022
+	    }
+	  });
+	}
+
+	function buildComponentLayout(ctx) {
+	  const components = componentGroupsFromContext(ctx);
+	  const centers = componentGroupCenters(components);
+	  const groups = new Map();
+	  components.forEach((ids, index) => {
+	    groups.set(`component:${index}`, ids);
+	  });
+	  return composeGroupedLayout(ctx, groups, centers, {
+	    crossEdgeOffsets: false,
+	    local: {
+	      spacing: 190,
+	      iterations: 120,
+	      repulsion: 7200,
+	      springLength: 230,
+	      springStrength: 0.024,
+	      gravity: 0.016
+	    }
+	  });
+	}
+
+	const GRAPH_LAYOUT_STRATEGIES = {
+	  type: {
+	    label: "tipo de concepto",
+	    build: buildTypeLayout,
+	    status: "Separado por tipo: cada tipo ocupa una zona semantica propia.",
+	    physics: {
+	      gravitationalConstant: -95,
+	      centralGravity: 0.0008,
+	      springLength: 245,
+	      springConstant: 0.004,
+	      damping: 0.33,
+	      maxVelocity: 26,
+	      minVelocity: 0.18,
+	      timestep: 0.28,
+	      duration: 900
+	    }
+	  },
+	  source: {
+	    label: "fuente",
+	    build: buildSourceLayout,
+	    status: "Separado por fuente: sources en islas con espacio visible entre grupos.",
+	    physics: {
+	      gravitationalConstant: -110,
+	      centralGravity: 0.0006,
+	      springLength: 265,
+	      springConstant: 0.003,
+	      damping: 0.36,
+	      maxVelocity: 24,
+	      minVelocity: 0.16,
+	      timestep: 0.26,
+	      duration: 850
+	    }
+	  },
+	  component: {
+	    label: "componente conexa",
+	    build: buildComponentLayout,
+	    status: "Separado por componentes: las partes desconectadas quedan en islas lejanas.",
+	    physics: {
+	      gravitationalConstant: -125,
+	      centralGravity: 0.0008,
+	      springLength: 260,
+	      springConstant: 0.02,
+	      damping: 0.38,
+	      maxVelocity: 22,
+	      minVelocity: 0.14,
+	      timestep: 0.24,
+	      duration: 1900
+	    }
+	  }
+	};
+
+	function cancelActiveLayoutAnimation() {
+	  if (MM_ACTIVE_LAYOUT_FRAME !== null) {
+	    if (typeof cancelAnimationFrame === "function") cancelAnimationFrame(MM_ACTIVE_LAYOUT_FRAME);
+	    clearTimeout(MM_ACTIVE_LAYOUT_FRAME);
+	    MM_ACTIVE_LAYOUT_FRAME = null;
+	  }
+	  if (MM_ACTIVE_LAYOUT_TIMER !== null) {
+	    clearTimeout(MM_ACTIVE_LAYOUT_TIMER);
+	    MM_ACTIVE_LAYOUT_TIMER = null;
+	  }
+	}
+
+	function easeInOutCubic(t) {
+	  return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+	}
+
+	function layoutPhysicsOptions(profile) {
+	  return {
+	    enabled: true,
+	    solver: "forceAtlas2Based",
+	    stabilization: {
+	      enabled: true,
+	      iterations: 120,
+	      updateInterval: 20,
+	      fit: false
+	    },
+	    forceAtlas2Based: {
+	      gravitationalConstant: profile.gravitationalConstant,
+	      centralGravity: profile.centralGravity,
+	      springLength: profile.springLength,
+	      springConstant: profile.springConstant,
+	      avoidOverlap: 0.95
+	    },
+	    damping: profile.damping,
+	    maxVelocity: profile.maxVelocity,
+	    minVelocity: profile.minVelocity,
+	    timestep: profile.timestep,
+	    adaptiveTimestep: true
+	  };
+	}
+
+	function settleLayoutWithPhysics(strategy, ids, targetPositions) {
+	  if (!window.mmNetwork) return;
+	  const profile = strategy.physics;
+	  window.mmNetwork.setOptions({ physics: layoutPhysicsOptions(profile) });
+	  GRAPH_UI_STATE.physics = {
+	    mode: `layout:${strategy.label}`,
+	    enabled: true,
+	    gravitationalConstant: Math.abs(profile.gravitationalConstant),
+	    centralGravity: Math.round(profile.centralGravity * 100),
+	    springLength: profile.springLength,
+	    springConstant: Math.round(profile.springConstant * 1000),
+	    damping: Math.round(profile.damping * 100),
+	    maxVelocity: profile.maxVelocity,
+	    minVelocity: Math.round(profile.minVelocity * 100),
+	    timestep: Math.round(profile.timestep * 100)
+	  };
+	  window.mmNetwork.startSimulation();
+	  MM_ACTIVE_LAYOUT_TIMER = setTimeout(() => {
+	    MM_ACTIVE_LAYOUT_TIMER = null;
+	    if (!window.mmNetwork) return;
+	    window.mmNetwork.stopSimulation();
+	    window.mmNetwork.setOptions({ physics: { enabled: false } });
+	    const settledPositions = window.mmNetwork.getPositions(ids);
+	    const corrected = ids.map((id) => {
+	      const target = targetPositions[id];
+	      const settled = settledPositions[id] || target;
+	      return {
+	        id,
+	        x: target.x * 0.82 + settled.x * 0.18,
+	        y: target.y * 0.82 + settled.y * 0.18,
+	        fixed: { x: false, y: false }
+	      };
+	    });
+	    graphNodes().update(corrected);
+	    GRAPH_UI_STATE.physics = {
+	      ...(GRAPH_UI_STATE.physics || {}),
+	      enabled: false,
+	      mode: `layout:${strategy.label}:stable`
+	    };
+	    mergeCurrentVisibleStateIntoAllData();
+	    window.mmNetwork.fit({
+	      nodes: ids,
+	      animation: { duration: 450, easingFunction: "easeInOutQuad" }
+	    });
+	    setLayoutStatus(`${strategy.status} Fisica estabilizada.`);
+	  }, profile.duration || 1700);
+	}
+
+	function animateNodePositions(targetPositions, strategy) {
+	  const nodes = graphNodes();
+	  if (!window.mmNetwork || !nodes) return;
+	  const ids = Object.keys(targetPositions).filter((id) => ctxNodeExists(nodes, id));
+	  if (ids.length === 0) return;
+	  const currentPositions = window.mmNetwork.getPositions(ids);
+	  cancelActiveLayoutAnimation();
+	  window.mmNetwork.stopSimulation();
+	  window.mmNetwork.setOptions({ physics: { enabled: false } });
+
+	  const start = performance.now();
+	  const duration = 1050;
+	  const frame = (now) => {
+	    const t = Math.min(1, (now - start) / duration);
+	    const eased = easeInOutCubic(t);
+	    const updates = ids.map((id) => {
+	      const from = currentPositions[id] || { x: 0, y: 0 };
+	      const to = targetPositions[id];
+	      return {
+	        id,
+	        x: from.x + (to.x - from.x) * eased,
+	        y: from.y + (to.y - from.y) * eased,
+	        fixed: { x: true, y: true }
+	      };
+	    });
+	    nodes.update(updates);
+	    if (t < 1) {
+	      MM_ACTIVE_LAYOUT_FRAME = requestAnimationFrame(frame);
+	      return;
+	    }
+	    MM_ACTIVE_LAYOUT_FRAME = null;
+	    nodes.update(ids.map((id) => ({
+	      id,
+	      x: targetPositions[id].x,
+	      y: targetPositions[id].y,
+	      fixed: { x: false, y: false }
+	    })));
+	    window.mmNetwork.fit({
+	      nodes: ids,
+	      animation: { duration: 500, easingFunction: "easeInOutQuad" }
+	    });
+	    settleLayoutWithPhysics(strategy, ids, targetPositions);
+	  };
+	  MM_ACTIVE_LAYOUT_FRAME = requestAnimationFrame(frame);
+	}
+
+	function ctxNodeExists(nodes, id) {
+	  try {
+	    return Boolean(nodes.get(id));
+	  } catch (err) {
+	    return false;
+	  }
+	}
+
+	function runGraphLayoutStrategy(strategyName) {
+	  const strategy = GRAPH_LAYOUT_STRATEGIES[strategyName];
+	  const ctx = visibleLayoutContext();
+	  if (!strategy || !ctx || ctx.nodeIds.length === 0) {
+	    setLayoutStatus("No hay nodos visibles para organizar.");
+	    return;
+	  }
+	  setLayoutStatus(`Calculando layout por ${strategy.label}...`);
+	  const targetPositions = strategy.build(ctx);
+	  animateNodePositions(targetPositions, strategy);
+	}
+
+	function separateByType() {
+	  runGraphLayoutStrategy("type");
+	}
+
+	function separateBySource() {
+	  runGraphLayoutStrategy("source");
+	}
+
+	function separateByComponent() {
+	  runGraphLayoutStrategy("component");
+	}
+
+	function resetPositions() {
+	  runGraphLayoutStrategy("type");
+	}
 
 function edgeStyleValue() {
   const select = document.getElementById("edgeStyle");
@@ -2808,7 +3493,7 @@ function downloadGraphStateJson() {
 
 	  <div class="left-panel-section">
 	    <label for="nodeIdSelector">Nodo</label>
-	    <select id="nodeIdSelector" onchange="focusNodeByInput()">
+	    <select id="nodeIdSelector" onchange="focusNodeFromSelector()">
 	      <option value="">Seleccionar nodo</option>
 	    </select>
 	    <input id="nodeSearchInput" type="text" list="nodeSearchList" placeholder="id o nombre" oninput="document.getElementById('nodeIdSelector').value = ''">
@@ -2968,6 +3653,10 @@ function downloadGraphStateJson() {
         overlay += self._restore_state_bootstrap(initial_state)
         if "</body>" in html:
             html = html.replace("</body>", overlay + "\n</body>")
-        with open(salida, "w", encoding="utf-8") as f:
-            f.write(html)
-        print(f"✅ Grafo exportado en: {salida}")
+        if salida:
+            salida_path = Path(salida)
+            salida_path.parent.mkdir(parents=True, exist_ok=True)
+            salida_path.write_text(html, encoding="utf-8")
+            if DEBUG_KNOWLEDGE_GRAPH:
+                print(f"✅ Grafo exportado en: {salida_path}")
+        return html

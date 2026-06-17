@@ -11,8 +11,16 @@ from pathlib import Path
 from typing import Any
 from difflib import get_close_matches
 
+from exporters_latex.latex_compile import latex_command_not_found_message
+from exporters_latex.latex_compile import latex_timeout_message
+from exporters_latex.latex_compile import output_tail
+from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.unified_document import copy_latex_styles
 from exporters_latex.unified_document import sanitize_source_name
+from editor.utils.media_assets import copy_media_tree_for_latex
+from mathkb_config import LATEX_MAX_PASSES
+from mathkb_config import LATEX_LINTER_TIMEOUT_SECONDS
+from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -267,6 +275,7 @@ def find_undefined_environments(latex: str) -> list[dict[str, str]]:
 
 def _write_validation_document(latex: str, work_dir: Path) -> Path:
     copy_latex_styles(work_dir, TEMPLATES_LATEX_DIR)
+    copy_media_tree_for_latex(work_dir)
     test_path = work_dir / "fragment_test.tex"
     test_path.write_text(
         "\n".join(
@@ -274,6 +283,7 @@ def _write_validation_document(latex: str, work_dir: Path) -> Path:
                 r"\documentclass[12pt]{article}",
                 r"\usepackage{miestilo}",
                 r"\usepackage{coloredtheorem}",
+                r"\usepackage{graphicx}",
                 r"\begin{document}",
                 "",
                 latex or "",
@@ -287,7 +297,11 @@ def _write_validation_document(latex: str, work_dir: Path) -> Path:
     return test_path
 
 
-def _run_tool(command: list[str], cwd: Path, timeout: int = 30) -> tuple[bool, list[str]]:
+def _run_tool(
+    command: list[str],
+    cwd: Path,
+    timeout: int = LATEX_LINTER_TIMEOUT_SECONDS,
+) -> tuple[bool, list[str]]:
     if shutil.which(command[0]) is None:
         return False, []
     try:
@@ -298,6 +312,8 @@ def _run_tool(command: list[str], cwd: Path, timeout: int = 30) -> tuple[bool, l
             text=True,
             timeout=timeout,
         )
+    except subprocess.TimeoutExpired:
+        return True, [f"{command[0]} timed out after {timeout} seconds."]
     except Exception as exc:
         return True, [str(exc)]
     output = "\n".join(filter(None, [result.stdout, result.stderr]))
@@ -327,27 +343,31 @@ def compile_latex_fragment(latex: str, work_dir: Path | None = None) -> tuple[bo
     test_path = _write_validation_document(latex, work_path)
     log_path = work_path / "fragment_test.log"
     try:
-        result = subprocess.run(
-            [
-                "pdflatex",
-                "-interaction=nonstopmode",
-                "-halt-on-error",
-                test_path.name,
-            ],
+        command = [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            test_path.name,
+        ]
+        compile_info = run_latex_until_stable(
+            command,
             cwd=str(work_path),
-            capture_output=True,
-            text=True,
-            timeout=45,
+            tex_file=test_path.name,
+            pdf_path=work_path / "fragment_test.pdf",
+            log_path=log_path,
+            timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+            max_passes=LATEX_MAX_PASSES,
         )
-        log_excerpt = _read_tail(log_path)
-        if not log_excerpt:
-            log_excerpt = "\n".join(filter(None, [result.stdout, result.stderr])).splitlines()
-            log_excerpt = "\n".join(log_excerpt[-60:])
-        return result.returncode == 0 and (work_path / "fragment_test.pdf").exists(), log_excerpt
+        log_excerpt = compile_info.get("log_excerpt") or output_tail(
+            compile_info.get("stdout", ""),
+            compile_info.get("stderr", ""),
+            lines=60,
+        )
+        return compile_info["status"] != "failed", log_excerpt
     except FileNotFoundError:
-        return False, "pdflatex not found. Install a LaTeX distribution to validate compilation."
+        return False, latex_command_not_found_message(["pdflatex"])
     except subprocess.TimeoutExpired:
-        return False, "pdflatex validation timed out."
+        return False, latex_timeout_message(test_path, command, PDF_COMPILE_TIMEOUT_SECONDS)
     finally:
         if owned_tmp is not None:
             owned_tmp.cleanup()
@@ -364,29 +384,51 @@ def validate_latex_document(tex_path: str | Path) -> dict[str, Any]:
     tex_path = Path(tex_path)
     chktex_available, chktex_warnings = run_chktex(tex_path)
     lacheck_available, lacheck_warnings = run_lacheck(tex_path)
+    if not tex_path.exists():
+        return {
+            "status": "error",
+            "compile_success": False,
+            "chktex_available": chktex_available,
+            "chktex_warnings": chktex_warnings,
+            "lacheck_available": lacheck_available,
+            "lacheck_warnings": lacheck_warnings,
+            "log_excerpt": f"LaTeX source file not found: {tex_path}",
+        }
     try:
-        result = subprocess.run(
-            [
-                "pdflatex",
-                "-interaction=nonstopmode",
-                "-halt-on-error",
-                tex_path.name,
-            ],
+        command = [
+            "pdflatex",
+            "-interaction=nonstopmode",
+            "-halt-on-error",
+            tex_path.name,
+        ]
+        compile_info = run_latex_until_stable(
+            command,
             cwd=str(tex_path.parent),
-            capture_output=True,
-            text=True,
-            timeout=60,
+            tex_file=tex_path.name,
+            pdf_path=tex_path.with_suffix(".pdf"),
+            log_path=tex_path.with_suffix(".log"),
+            timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+            max_passes=LATEX_MAX_PASSES,
         )
         pdf_path = tex_path.with_suffix(".pdf")
-        compile_success = result.returncode == 0 and pdf_path.exists()
+        compile_success = compile_info["status"] != "failed" and pdf_path.exists()
+        log_excerpt = compile_info.get("log_excerpt") or output_tail(
+            compile_info.get("stdout", ""),
+            compile_info.get("stderr", ""),
+            lines=60,
+        )
         return {
-            "status": "ok" if compile_success else "error",
+            "status": (
+                "warning"
+                if compile_info.get("status") == "success_with_warnings"
+                else "ok" if compile_success else "error"
+            ),
             "compile_success": compile_success,
             "chktex_available": chktex_available,
             "chktex_warnings": chktex_warnings,
             "lacheck_available": lacheck_available,
             "lacheck_warnings": lacheck_warnings,
-            "log_excerpt": _read_tail(tex_path.with_suffix(".log")),
+            "log_excerpt": log_excerpt,
         }
     except FileNotFoundError:
         return {
@@ -396,7 +438,21 @@ def validate_latex_document(tex_path: str | Path) -> dict[str, Any]:
             "chktex_warnings": chktex_warnings,
             "lacheck_available": lacheck_available,
             "lacheck_warnings": lacheck_warnings,
-            "log_excerpt": "pdflatex not found.",
+            "log_excerpt": latex_command_not_found_message(["pdflatex"]),
+        }
+    except subprocess.TimeoutExpired:
+        return {
+            "status": "error",
+            "compile_success": False,
+            "chktex_available": chktex_available,
+            "chktex_warnings": chktex_warnings,
+            "lacheck_available": lacheck_available,
+            "lacheck_warnings": lacheck_warnings,
+            "log_excerpt": latex_timeout_message(
+                tex_path,
+                command,
+                PDF_COMPILE_TIMEOUT_SECONDS,
+            ),
         }
 
 
@@ -445,32 +501,40 @@ def validate_latex_fragment(
             _available, lacheck_warnings = _run_tool(["lacheck", test_path.name], validation_dir)
         if run_compile:
             try:
-                result = subprocess.run(
-                    [
-                        "pdflatex",
-                        "-interaction=nonstopmode",
-                        "-halt-on-error",
-                        test_path.name,
-                    ],
+                command = [
+                    "pdflatex",
+                    "-interaction=nonstopmode",
+                    "-halt-on-error",
+                    test_path.name,
+                ]
+                compile_info = run_latex_until_stable(
+                    command,
                     cwd=str(validation_dir),
-                    capture_output=True,
-                    text=True,
-                    timeout=45,
+                    tex_file=test_path.name,
+                    pdf_path=validation_dir / "fragment_test.pdf",
+                    log_path=validation_dir / "fragment_test.log",
+                    timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
+                    max_passes=LATEX_MAX_PASSES,
                 )
                 compile_success = (
-                    result.returncode == 0
+                    compile_info["status"] != "failed"
                     and (validation_dir / "fragment_test.pdf").exists()
                 )
-                log_excerpt = _read_tail(validation_dir / "fragment_test.log")
-                if not log_excerpt:
-                    raw = "\n".join(filter(None, [result.stdout, result.stderr]))
-                    log_excerpt = "\n".join(raw.splitlines()[-60:])
+                log_excerpt = compile_info.get("log_excerpt") or output_tail(
+                    compile_info.get("stdout", ""),
+                    compile_info.get("stderr", ""),
+                    lines=60,
+                )
             except FileNotFoundError:
                 compile_success = False
-                log_excerpt = "pdflatex not found. Install a LaTeX distribution to validate compilation."
+                log_excerpt = latex_command_not_found_message(["pdflatex"])
             except subprocess.TimeoutExpired:
                 compile_success = False
-                log_excerpt = "pdflatex validation timed out."
+                log_excerpt = latex_timeout_message(
+                    test_path,
+                    command,
+                    PDF_COMPILE_TIMEOUT_SECONDS,
+                )
         if owned_tmp is not None:
             owned_tmp.cleanup()
 

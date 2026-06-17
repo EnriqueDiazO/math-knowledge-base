@@ -195,6 +195,13 @@ The full database flow uses:
 - `weekly_reviews`
 - `deliverables`
 - `knowledge_graph_maps`
+- `media_assets`
+
+The installer also creates the portable media directory:
+
+- `media/images`
+
+Images uploaded from concepts or Cuaderno notes are stored as local files under `media/images` and referenced from MongoDB with relative paths such as `media/images/figure.png`. Database export/import includes both the `media_assets` collection and the `media/` tree, so backups remain portable across machines and database names.
 
 ### 6. Run the Streamlit app
 

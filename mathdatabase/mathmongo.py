@@ -6,6 +6,7 @@ from schemas.schemas import DocumentoLatex
 from typing import List, Optional
 from parsers.yaml_latex_parser import YamlLatexParser
 from datetime import datetime
+from mathkb_config import MEDIA_ASSETS_COLLECTION
 
 class MathMongo:
     def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="mathmongo"):
@@ -15,6 +16,7 @@ class MathMongo:
         self.relations = self.db["relations"]
         self.latex_documents = self.db["latex_documents"]
         self.knowledge_graph_maps = self.db["knowledge_graph_maps"]
+        self.media_assets = self.db[MEDIA_ASSETS_COLLECTION]
         print(f"✅ Conectado a la base de datos {db_name}")
 
 
@@ -36,6 +38,15 @@ class MathMongo:
         self.knowledge_graph_maps.create_index([("filters.relation_types", ASCENDING)])
         self.knowledge_graph_maps.create_index([("source", ASCENDING)])
         self.knowledge_graph_maps.create_index([("map_uid", ASCENDING)])
+        self.media_assets.create_index([("asset_id", ASCENDING)], unique=True)
+        self.media_assets.create_index([("path", ASCENDING)])
+        self.media_assets.create_index([("filename", ASCENDING)])
+        self.media_assets.create_index([("storage_type", ASCENDING)])
+        self.media_assets.create_index([("mime_type", ASCENDING)])
+        self.media_assets.create_index([("concept_ids", ASCENDING)])
+        self.media_assets.create_index([("note_ids", ASCENDING)])
+        self.media_assets.create_index([("tags", ASCENDING)])
+        self.media_assets.create_index([("created_at", -1)])
 
 
 

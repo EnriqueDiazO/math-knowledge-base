@@ -337,7 +337,7 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
         shown_results = [
             r for r in validation_results if filter_status == "todos" or r.get("status") == filter_status
         ]
-        st.dataframe(_validation_rows(shown_results), use_container_width=True)
+        st.dataframe(_validation_rows(shown_results), width="stretch")
         error_results = [r for r in validation_results if r.get("status") == "error"]
         warning_results = [r for r in validation_results if r.get("status") == "warning"]
         st.caption(
@@ -446,7 +446,7 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
                 return
             if errors and stop_on_errors:
                 st.error("Hay errores críticos de LaTeX. Corrige, excluye o desactiva detener si hay errores.")
-                st.dataframe(_validation_rows(errors), use_container_width=True)
+                st.dataframe(_validation_rows(errors), width="stretch")
                 return
 
         export_only_valid = st.session_state.get(_builder_state_key("export_only_valid"), False)
