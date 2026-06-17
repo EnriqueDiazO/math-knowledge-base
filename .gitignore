@@ -87,7 +87,16 @@ exportados/*.tex
 # ───── Directorios de salida ─────
 exported/
 exportados/
+exported_notes/
+runtime/
+exports/knowledge_graphs/*.html
+exports/knowledge_graphs/*.json
 test/output/
+
+# ───── Grafos generados ─────
+knowledge_graph_saved_*.html
+knowledge_graph_state_*.json
+knowledge_graph_current_*.html
 
 # Generated HTML only (Quarto + exports)
 quarto_book_build/**/*.html

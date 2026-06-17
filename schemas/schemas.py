@@ -154,6 +154,7 @@ class ConceptoBase(BaseModel):
 
     source: str = Field(..., description="Nombre de la carpeta contenedora de los conceptos")
     alias_previos_pendientes: Optional[List[str]] = None
+    image_ids: Optional[List[str]] = None
 
     model_config = ConfigDict(from_attributes=True)
 

@@ -12,6 +12,8 @@ from typing import List
 
 import yaml
 
+from editor.utils.media_assets import copy_media_tree_for_latex
+
 
 # -----------------------------
 # Helpers
@@ -319,6 +321,7 @@ class QuartoBookExporter:
             shutil.rmtree(self.build_dir)
 
         shutil.copytree(self.template_dir, self.build_dir)
+        copy_media_tree_for_latex(self.build_dir)
 
     def export_concepts(self, concepts: Iterable[Dict[str, Any]]) -> QuartoExportResult:
         written: List[Path] = []

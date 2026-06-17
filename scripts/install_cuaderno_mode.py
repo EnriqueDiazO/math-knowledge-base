@@ -8,6 +8,7 @@ Este script crea colecciones, validadores (JSON Schema) e índices mínimos para
   - deliverables
   - latex_notes
   - knowledge_graph_maps
+  - media_assets
 
 Uso:
   python scripts/install_cuaderno_mode.py
@@ -25,10 +26,20 @@ import argparse
 import os
 import sys
 from datetime import datetime
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 
 from pymongo import MongoClient, ASCENDING, DESCENDING
 from pymongo.errors import PyMongoError, OperationFailure
+
+PROJECT_ROOT_PATH = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT_PATH) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT_PATH))
+
+from mathkb_config import MEDIA_ASSETS_COLLECTION
+from mathkb_config import MEDIA_IMAGES_DIR
+from mathkb_config import MEDIA_ROOT
+from mathkb_config import PROJECT_ROOT
 
 
 REQUIRED_COLLECTIONS = [
@@ -38,6 +49,7 @@ REQUIRED_COLLECTIONS = [
     "deliverables",
     "latex_notes",
     "knowledge_graph_maps",
+    MEDIA_ASSETS_COLLECTION,
 ]
 
 
@@ -51,6 +63,26 @@ def _env_first(*keys: str) -> Optional[str]:
 
 def _get_client(uri: str) -> MongoClient:
     return MongoClient(uri, serverSelectionTimeoutMS=3000)
+
+
+def _ensure_media_directories() -> None:
+    media_root = PROJECT_ROOT / MEDIA_ROOT
+    media_images_dir = PROJECT_ROOT / MEDIA_IMAGES_DIR
+    media_images_dir.mkdir(parents=True, exist_ok=True)
+
+    gitkeep = media_images_dir / ".gitkeep"
+    if not gitkeep.exists():
+        gitkeep.write_text("", encoding="utf-8")
+
+    gitignore = media_images_dir / ".gitignore"
+    if not gitignore.exists():
+        gitignore.write_text("*\n!.gitignore\n!.gitkeep\n", encoding="utf-8")
+
+    try:
+        display_path = media_root.relative_to(PROJECT_ROOT).as_posix()
+    except ValueError:
+        display_path = media_root.as_posix()
+    print(f"✅ Directorio de medios listo: {display_path}")
 
 
 def _ensure_collection(db, name: str, validator: Dict[str, Any]) -> None:
@@ -182,6 +214,7 @@ def _latex_notes_validator() -> Dict[str, Any]:
                 "project": {"bsonType": ["string", "null"]},
                 "context": {"enum": ["estudio", "debug", "lectura", "idea", "reflexion"]},
                 "latex_body": {"bsonType": "string"},
+                "image_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
                 "tags": {"bsonType": ["array"], "items": {"bsonType": "string"}},
                 "created_at": {"bsonType": "date"},
                 "updated_at": {"bsonType": "date"},
@@ -210,8 +243,44 @@ def _knowledge_graph_maps_validator() -> Dict[str, Any]:
                     },
                 },
                 "graph_state": {"bsonType": "object"},
+                "sync_settings": {
+                    "bsonType": ["object", "null"],
+                    "properties": {
+                        "suppress_new_nodes_prompt": {"bsonType": ["bool", "null"]},
+                        "ignored_concept_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                        "removed_node_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                        "manually_removed_node_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                        "last_sync_check_at": {"bsonType": ["date", "string", "null"]},
+                        "auto_include_source_new_nodes": {"bsonType": ["bool", "null"]},
+                    },
+                },
                 "source": {"bsonType": ["string", "null"]},
                 # JSON exports restore datetimes as ISO strings, so both forms are accepted.
+                "created_at": {"bsonType": ["date", "string"]},
+                "updated_at": {"bsonType": ["date", "string"]},
+            },
+        }
+    }
+
+
+def _media_assets_validator() -> Dict[str, Any]:
+    return {
+        "$jsonSchema": {
+            "bsonType": "object",
+            "required": ["asset_id", "filename", "storage_type", "path", "created_at", "updated_at"],
+            "properties": {
+                "asset_id": {"bsonType": "string"},
+                "filename": {"bsonType": "string"},
+                "original_filename": {"bsonType": ["string", "null"]},
+                "mime_type": {"bsonType": ["string", "null"]},
+                "storage_type": {"enum": ["local"]},
+                "path": {"bsonType": "string"},
+                "size_bytes": {"bsonType": ["int", "long"]},
+                "sha256": {"bsonType": ["string", "null"]},
+                "concept_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                "note_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                "tags": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+                "description": {"bsonType": ["string", "null"]},
                 "created_at": {"bsonType": ["date", "string"]},
                 "updated_at": {"bsonType": ["date", "string"]},
             },
@@ -343,6 +412,52 @@ def _ensure_indexes(db) -> None:
         [("map_uid", ASCENDING)],
         name="kg_maps_map_uid",
     )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("asset_id", ASCENDING)],
+        name="media_assets_asset_id",
+        unique=True,
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("path", ASCENDING)],
+        name="media_assets_path",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("filename", ASCENDING)],
+        name="media_assets_filename",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("storage_type", ASCENDING)],
+        name="media_assets_storage_type",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("mime_type", ASCENDING)],
+        name="media_assets_mime_type",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("concept_ids", ASCENDING)],
+        name="media_assets_concept_ids",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("note_ids", ASCENDING)],
+        name="media_assets_note_ids",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("tags", ASCENDING)],
+        name="media_assets_tags",
+    )
+    _safe_create_index(
+        db[MEDIA_ASSETS_COLLECTION],
+        [("created_at", DESCENDING)],
+        name="media_assets_created_at_desc",
+    )
 
 
 def status(db) -> int:
@@ -355,18 +470,27 @@ def status(db) -> int:
         else:
             print(f"  - {c}: MISSING")
             ok = False
+    print("Medios:")
+    media_images_dir = PROJECT_ROOT / MEDIA_IMAGES_DIR
+    if media_images_dir.exists():
+        print(f"  - {MEDIA_IMAGES_DIR.as_posix()}: OK")
+    else:
+        print(f"  - {MEDIA_IMAGES_DIR.as_posix()}: MISSING")
+        ok = False
     return 0 if ok else 2
 
 
 def install(db) -> int:
+    _ensure_media_directories()
     _ensure_collection(db, "worklog_entries", _worklog_validator())
     _ensure_collection(db, "backlog_items", _backlog_validator())
     _ensure_collection(db, "weekly_reviews", _weekly_validator())
     _ensure_collection(db, "deliverables", _deliverables_validator())
     _ensure_collection(db, "latex_notes", _latex_notes_validator())
     _ensure_collection(db, "knowledge_graph_maps", _knowledge_graph_maps_validator())
+    _ensure_collection(db, MEDIA_ASSETS_COLLECTION, _media_assets_validator())
     _ensure_indexes(db)
-    print("✅ Cuaderno instalado (colecciones + validadores + índices).")
+    print("✅ Cuaderno instalado (colecciones + validadores + índices + media/images).")
     return 0
 
 

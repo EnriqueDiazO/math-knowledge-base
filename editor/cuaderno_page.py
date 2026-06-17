@@ -15,16 +15,28 @@ from datetime import date
 from datetime import datetime
 from datetime import timedelta
 from datetime import timezone
+from pathlib import Path
 from typing import Any
 from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
 from bson import ObjectId
-from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex
+from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex_result
 import streamlit as st
 import pandas as pd
 from streamlit_ace import st_ace
+
+from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
+from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
+from editor.utils.media_assets import detach_media_asset_from_note
+from editor.utils.media_assets import get_note_media_assets
+from editor.utils.media_assets import html_image_snippet
+from editor.utils.media_assets import latex_includegraphics_snippet
+from editor.utils.media_assets import markdown_image_snippet
+from editor.utils.media_assets import media_path_exists
+from editor.utils.media_assets import save_media_asset
+from mathkb_config import PROJECT_ROOT
 
 def _find_one_by_id(coll, id_value):
     """Find a document by _id supporting both ObjectId and string ids."""
@@ -168,6 +180,127 @@ def _note_id(doc: Dict[str, Any]) -> str:
     return str(doc.get("_id") or "")
 
 
+def _media_tags_from_text(raw: str) -> List[str]:
+    return [tag.strip() for tag in (raw or "").split(",") if tag.strip()]
+
+
+def _render_media_asset_preview(asset: dict) -> None:
+    path = Path(asset.get("path") or "")
+    actual_path = PROJECT_ROOT / path
+    suffix = path.suffix.lower()
+    if not media_path_exists(asset):
+        st.error(f"Imagen faltante: {asset.get('path')}")
+        return
+    if suffix == ".pdf":
+        st.write(f"PDF image asset: `{asset.get('path')}`")
+    else:
+        st.image(str(actual_path), caption=asset.get("description") or asset.get("filename"))
+
+
+def _render_note_media_manager(
+    notes_col,
+    note_id: str,
+    *,
+    prefix: str,
+    editor_prefix: Optional[str] = None,
+    allow_upload: bool = True,
+) -> List[dict]:
+    mongo_db = getattr(notes_col, "database", None)
+    if mongo_db is None:
+        return []
+
+    note_key = str(note_id or "")
+    if not note_key:
+        return []
+
+    with st.expander("Imágenes", expanded=False):
+        if allow_upload:
+            uploaded_files = st.file_uploader(
+                "Subir imágenes",
+                type=[ext.lstrip(".") for ext in ALLOWED_IMAGE_EXTENSIONS],
+                accept_multiple_files=True,
+                key=f"{prefix}_media_upload",
+            )
+            media_description = st.text_input("Descripción / caption", key=f"{prefix}_media_description")
+            media_tags = st.text_input("Tags", key=f"{prefix}_media_tags")
+
+            if st.button("Guardar imágenes", key=f"{prefix}_save_media"):
+                if not uploaded_files:
+                    st.warning("Selecciona al menos una imagen.")
+                else:
+                    saved_assets = []
+                    for uploaded in uploaded_files:
+                        try:
+                            asset = save_media_asset(
+                                mongo_db,
+                                filename=uploaded.name,
+                                data=uploaded.getvalue(),
+                                mime_type=getattr(uploaded, "type", None),
+                                note_id=note_key,
+                                tags=_media_tags_from_text(media_tags),
+                                description=media_description,
+                            )
+                            saved_assets.append(asset)
+                        except Exception as exc:
+                            st.error(f"No se pudo guardar {uploaded.name}: {exc}")
+                    if saved_assets:
+                        st.success(f"Guardadas {len(saved_assets)} imagen(es).")
+
+        try:
+            assets = get_note_media_assets(mongo_db, note_key)
+        except Exception as exc:
+            st.error(f"No se pudieron cargar las imágenes: {exc}")
+            return []
+
+        if not assets:
+            st.info("Esta nota todavía no tiene imágenes asociadas.")
+            return []
+
+        for index, asset in enumerate(assets):
+            asset_id = asset.get("asset_id") or ""
+            label = f"{asset.get('filename', 'image')} · {asset.get('path', '')}"
+            st.markdown(f"**{label}**")
+            _render_media_asset_preview(asset)
+            suffix = Path(asset.get("path") or "").suffix.lower()
+            if suffix == ".svg":
+                st.warning("SVG se previsualiza en HTML, pero pdflatex no lo incluye sin conversión.")
+            elif suffix not in LATEX_IMAGE_EXTENSIONS:
+                st.warning("Este formato puede no compilar con pdflatex.")
+
+            latex_snippet = latex_includegraphics_snippet(
+                asset,
+                caption=asset.get("description") or asset.get("filename") or "",
+            )
+            st.code(latex_snippet, language="latex")
+            st.code(markdown_image_snippet(asset), language="markdown")
+            st.code(html_image_snippet(asset), language="html")
+
+            if editor_prefix and st.button("Insertar LaTeX", key=f"{prefix}_insert_media_{asset_id}"):
+                _queue_insert(editor_prefix, latex_snippet)
+                st.rerun()
+
+            delete_unused = st.checkbox(
+                "Eliminar archivo si queda sin uso",
+                key=f"{prefix}_delete_unused_{asset_id}",
+            )
+            if st.button("Desasociar imagen", key=f"{prefix}_detach_media_{asset_id}"):
+                deleted = detach_media_asset_from_note(
+                    mongo_db,
+                    asset_id=asset_id,
+                    note_id=note_key,
+                    delete_if_unreferenced=delete_unused,
+                )
+                if deleted:
+                    st.success("Imagen desasociada y archivo eliminado porque no tenía más referencias.")
+                else:
+                    st.success("Imagen desasociada de la nota.")
+                st.rerun()
+            if index < len(assets) - 1:
+                st.divider()
+
+        return assets
+
+
 def _delete_one_by_id(coll, id_value):
     if id_value is None:
         return None
@@ -302,6 +435,27 @@ def _render_note_summary(note: Dict[str, Any]) -> None:
     st.caption(" · ".join(meta))
 
 
+def _render_pdf_diagnostics(diagnostics: Optional[dict]) -> None:
+    if not diagnostics:
+        return
+    status = diagnostics.get("status")
+    if status == "success_with_warnings":
+        st.warning("PDF generado con advertencias. El archivo existe y se puede descargar.")
+    elif status == "success":
+        st.success("PDF generado correctamente.")
+    elif status == "failed":
+        st.error("PDF no generado por error fatal de LaTeX.")
+
+    undefined = diagnostics.get("undefined_references") or []
+    if undefined:
+        st.info("Referencias indefinidas: " + ", ".join(undefined))
+    warnings = diagnostics.get("warnings") or []
+    if warnings:
+        with st.expander("Advertencias LaTeX", expanded=False):
+            for warning in warnings[:20]:
+                st.write(f"- {warning}")
+
+
 def _select_note(note_id: str, mode: str = "read") -> None:
     st.session_state["diary_selected_note_id"] = note_id
     st.session_state["diary_selected_mode"] = mode
@@ -341,10 +495,17 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
                 "created_at": str(note.get("created_at") or ""),
                 "updated_at": str(note.get("updated_at") or ""),
                 "tags": note.get("tags") or [],
+                "image_ids": note.get("image_ids") or [],
             }
         )
     latex_body = note.get("latex_body") or ""
     st.code(latex_body, language="latex")
+    _render_note_media_manager(
+        notes_col,
+        note_id,
+        prefix=f"{key_prefix}_media_{re.sub(r'[^A-Za-z0-9_]+', '_', str(note_id))}",
+        allow_upload=False,
+    )
     c1, c2, c3, c4 = st.columns(4)
     pdf_state_key = f"{key_prefix}_pdf_payload_{note_id}"
     pdf_marker = f"{_note_id(note)}:{note.get('updated_at') or ''}"
@@ -365,6 +526,7 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
         )
     with c3:
         if pdf_payload:
+            _render_pdf_diagnostics(pdf_payload.get("diagnostics"))
             st.download_button(
                 "Descargar PDF",
                 data=pdf_payload["data"],
@@ -374,13 +536,15 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
             )
         elif st.button("Descargar PDF", key=f"{key_prefix}_pdf_prepare_{note_id}"):
             try:
-                pdf_path = generar_pdf_nota_latex(note)
+                pdf_result = generar_pdf_nota_latex_result(note)
+                pdf_path = pdf_result["pdf_path"]
                 with open(pdf_path, "rb") as f:
                     pdf_data = f.read()
                 st.session_state[pdf_state_key] = {
                     "marker": pdf_marker,
                     "data": pdf_data,
                     "file_name": os.path.basename(pdf_path),
+                    "diagnostics": pdf_result,
                 }
                 st.rerun()
             except Exception as exc:
@@ -454,6 +618,13 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
     with st.expander("Herramientas LaTeX", expanded=False):
         _render_latex_toolbar(prefix=edit_prefix)
     e_latex = _render_latex_ace_editor(prefix=edit_prefix, initial_text=note.get("latex_body") or "", height=460)
+    _render_note_media_manager(
+        notes_col,
+        note_id,
+        prefix=f"{edit_prefix}_media",
+        editor_prefix=edit_prefix,
+        allow_upload=True,
+    )
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -522,6 +693,16 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
                 if not confirm or typed.strip().upper() != "BORRAR":
                     st.error("Confirmación incompleta.")
                 else:
+                    try:
+                        for asset in get_note_media_assets(notes_col.database, note_id):
+                            detach_media_asset_from_note(
+                                notes_col.database,
+                                asset_id=asset.get("asset_id") or "",
+                                note_id=note_id,
+                                delete_if_unreferenced=False,
+                            )
+                    except Exception:
+                        pass
                     res = _delete_one_by_id(notes_col, note_id)
                     if res is not None and getattr(res, "deleted_count", 0) > 0:
                         st.success("✅ Nota borrada.")
@@ -585,12 +766,17 @@ def _render_diary_new_note(notes_col) -> None:
                 "context": n_context,
                 "tags": tags,
                 "latex_body": n_latex,
+                "image_ids": [],
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
             }
             try:
-                notes_col.insert_one(doc)
-                st.success("✅ Nota guardada.")
+                result = notes_col.insert_one(doc)
+                _select_note(str(result.inserted_id), "edit")
+                st.session_state["diary_save_message"] = {
+                    "type": "success",
+                    "text": "Nota guardada correctamente.",
+                }
                 st.session_state["diary_clear_new_form"] = True
                 st.rerun()
             except Exception as e:
@@ -797,13 +983,15 @@ def _render_diary_exports(notes_col) -> None:
     with e2:
         if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
             try:
-                pdf_path = generar_pdf_nota_latex(note_doc)
-                st.session_state[f"note_pdf_path_{nid}"] = pdf_path
+                pdf_result = generar_pdf_nota_latex_result(note_doc)
+                st.session_state[f"note_pdf_path_{nid}"] = pdf_result["pdf_path"]
+                st.session_state[f"note_pdf_diagnostics_{nid}"] = pdf_result
                 st.success("✅ PDF listo para descargar.")
             except Exception as e:
                 st.error(f"❌ Error generando PDF: {e}")
         pdf_path = st.session_state.get(f"note_pdf_path_{nid}")
         if pdf_path and os.path.exists(pdf_path):
+            _render_pdf_diagnostics(st.session_state.get(f"note_pdf_diagnostics_{nid}"))
             with open(pdf_path, "rb") as f:
                 st.download_button("Descargar PDF", data=f.read(), file_name=os.path.basename(pdf_path), mime="application/pdf", key=f"note_pdf_dl_{nid}")
 
@@ -1206,7 +1394,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
             edited_df = st.data_editor(
                 export_df,
-                use_container_width=True,
+                width="stretch",
                 num_rows="fixed",
                 key="worklog_export_editor",
             )
@@ -1733,7 +1921,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
                 edited_df = st.data_editor(
                     export_df,
-                    use_container_width=True,
+                    width="stretch",
                     num_rows="fixed",
                     key="backlog_export_editor",
                 )
@@ -2392,7 +2580,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
             edited_df = st.data_editor(
                 export_df,
-                use_container_width=True,
+                width="stretch",
                 num_rows="fixed",
                 key="weekly_export_editor",
             )
@@ -2597,7 +2785,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
             edited_df = st.data_editor(
                 export_df,
-                use_container_width=True,
+                width="stretch",
                 num_rows="fixed",
                 key="deliverables_export_editor",
             )
