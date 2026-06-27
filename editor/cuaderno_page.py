@@ -9,6 +9,9 @@ from __future__ import annotations
 import os
 import re
 import calendar
+import base64
+import hashlib
+import unicodedata
 from collections import Counter
 from collections import defaultdict
 from datetime import date
@@ -25,8 +28,11 @@ from bson import ObjectId
 from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex_result
 import streamlit as st
 import pandas as pd
+import streamlit.components.v1 as components
 from streamlit_ace import st_ace
 
+from editor.db.concept_repository import insert_concept_with_latex_atomic
+from editor.helpers.concept_builders import build_concept_metadata
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
 from editor.utils.media_assets import detach_media_asset_from_note
@@ -36,7 +42,17 @@ from editor.utils.media_assets import latex_includegraphics_snippet
 from editor.utils.media_assets import markdown_image_snippet
 from editor.utils.media_assets import media_path_exists
 from editor.utils.media_assets import save_media_asset
+from editor.validators.concept_validator import validate_new_concept_identity
+from editor.validators.concept_validator import validate_semantic_duplicate
 from mathkb_config import PROJECT_ROOT
+from schemas.schemas import ConceptoBase
+from schemas.schemas import GradoFormalidad
+from schemas.schemas import NivelContexto
+from schemas.schemas import NivelSimbolico
+from schemas.schemas import TipoAplicacion
+from schemas.schemas import TipoPresentacion
+from schemas.schemas import TipoReferencia
+from schemas.schemas import TipoTitulo
 
 def _find_one_by_id(coll, id_value):
     """Find a document by _id supporting both ObjectId and string ids."""
@@ -178,6 +194,131 @@ def _note_label(doc: Dict[str, Any]) -> str:
 
 def _note_id(doc: Dict[str, Any]) -> str:
     return str(doc.get("_id") or "")
+
+
+PROMOTABLE_CONCEPT_TYPES = [
+    "nota",
+    "definicion",
+    "proposicion",
+    "teorema",
+    "corolario",
+    "ejemplo",
+    "lema",
+]
+
+
+def _slugify_for_concept_id(value: str) -> str:
+    normalized = unicodedata.normalize("NFKD", value or "")
+    ascii_text = normalized.encode("ascii", "ignore").decode("ascii")
+    slug = re.sub(r"[^A-Za-z0-9]+", "_", ascii_text).strip("_").lower()
+    return slug or "nota"
+
+
+def _suggest_promoted_concept_id(note: Dict[str, Any]) -> str:
+    return f"note:{_slugify_for_concept_id(note.get('title') or 'nota')}"
+
+
+def _serialize_note_datetime(value: Any) -> str:
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    return str(value or "")
+
+
+def _build_note_provenance(note: Dict[str, Any], fragment: str) -> Dict[str, Any]:
+    return {
+        "source_type": "latex_note",
+        "note_id": _note_id(note),
+        "note_title": note.get("title") or "",
+        "note_project": note.get("project") or "",
+        "note_context": note.get("context") or "",
+        "note_updated_at_at_promotion": _serialize_note_datetime(note.get("updated_at")),
+        "fragment_hash": hashlib.sha256((fragment or "").encode("utf-8")).hexdigest(),
+        "promotion_mode": "manual",
+    }
+
+
+def _generate_promoted_fragment_pdf_payload(note: Dict[str, Any], fragment: str) -> Dict[str, Any]:
+    fragment_hash = hashlib.sha256((fragment or "").encode("utf-8")).hexdigest()
+    safe_id = f"promote_preview_{fragment_hash[:16]}"
+    preview_note = {
+        "_id": safe_id,
+        "title": f"Preview: {note.get('title') or 'nota'}",
+        "date": note.get("date") or date.today().strftime("%Y-%m-%d"),
+        "project": note.get("project") or "",
+        "context": note.get("context") or "",
+        "tags": note.get("tags") or [],
+        "latex_body": fragment,
+        "updated_at": note.get("updated_at"),
+    }
+    output_path = Path("/tmp") / f"mathkb_{safe_id}.pdf"
+    diagnostics = generar_pdf_nota_latex_result(
+        preview_note,
+        output_path=str(output_path),
+        template="diario",
+    )
+    pdf_path = Path(diagnostics["pdf_path"])
+    return {
+        "data": pdf_path.read_bytes(),
+        "file_name": pdf_path.name,
+        "pdf_path": str(pdf_path),
+        "diagnostics": diagnostics,
+        "fragment_hash": fragment_hash,
+    }
+
+
+def _render_promoted_fragment_pdf_preview(payload: Dict[str, Any], *, key_prefix: str) -> None:
+    data = payload.get("data") or b""
+    if not data:
+        st.warning("No hay PDF generado para previsualizar.")
+        return
+    st.markdown("#### Vista previa PDF del fragmento")
+    _render_pdf_diagnostics(payload.get("diagnostics"))
+    encoded_pdf = base64.b64encode(data).decode("ascii")
+    components.html(
+        f"""
+        <iframe
+            src="data:application/pdf;base64,{encoded_pdf}"
+            width="100%"
+            height="760"
+            style="border: 1px solid #d7e0ee; border-radius: 6px; background: white;"
+        ></iframe>
+        """,
+        height=780,
+        scrolling=True,
+    )
+    st.download_button(
+        "Descargar preview PDF",
+        data=data,
+        file_name=payload.get("file_name") or "preview.pdf",
+        mime="application/pdf",
+        key=f"{key_prefix}_download_pdf_preview",
+    )
+
+
+def _reference_has_content(reference: Dict[str, Any]) -> bool:
+    return any(
+        reference.get(key)
+        for key in (
+            "autor",
+            "fuente",
+            "tomo",
+            "edicion",
+            "paginas",
+            "capitulo",
+            "seccion",
+            "editorial",
+            "doi",
+            "url",
+            "issbn",
+            "citekey",
+        )
+    )
+
+
+def _split_csv_values(raw: str) -> List[str]:
+    return [item.strip() for item in (raw or "").split(",") if item.strip()]
 
 
 def _media_tags_from_text(raw: str) -> List[str]:
@@ -996,10 +1137,379 @@ def _render_diary_exports(notes_col) -> None:
                 st.download_button("Descargar PDF", data=f.read(), file_name=os.path.basename(pdf_path), mime="application/pdf", key=f"note_pdf_dl_{nid}")
 
 
+def _render_diary_promote_note(notes_col) -> None:
+    st.markdown("### Promover nota a concepto")
+    st.caption(
+        "Crea un concepto estructurado a partir de una nota del Diario LaTeX. "
+        "La nota permanece como incubadora; `concepts` y `latex_documents` son la fuente canónica del concepto promovido."
+    )
+    st.info("Las relaciones sugeridas desde esta nota se implementarán en una etapa posterior.")
+
+    notes = list(notes_col.find({}).sort([("date", -1), ("updated_at", -1)]).limit(500))
+    if not notes:
+        st.info("Primero crea una nota en el Diario LaTeX.")
+        return
+
+    opt_map = {_note_label(note): _note_id(note) for note in notes}
+    selected_label = st.selectbox("Nota a promover", list(opt_map.keys()), key="diary_promote_note_select")
+    note_id = opt_map.get(selected_label)
+    note = _find_one_by_id(notes_col, note_id) if note_id else None
+    if not note:
+        st.warning("No se pudo cargar la nota seleccionada.")
+        return
+
+    st.markdown(f"#### {note.get('title') or '(sin título)'}")
+    _render_note_summary(note)
+    st.json(
+        {
+            "note_id": _note_id(note),
+            "date": note.get("date") or "",
+            "project": note.get("project") or "",
+            "context": note.get("context") or "",
+            "tags": note.get("tags") or [],
+            "updated_at": _serialize_note_datetime(note.get("updated_at")),
+        }
+    )
+
+    original_body = note.get("latex_body") or ""
+    with st.expander("Cuerpo LaTeX original", expanded=False):
+        st.code(original_body, language="latex")
+
+    safe_note_key = re.sub(r"[^A-Za-z0-9_]+", "_", _note_id(note) or "note")
+    default_title = note.get("title") or ""
+    default_source = _normalize_project_name(note.get("project") or "") or "Diario LaTeX"
+    default_categories = ", ".join(note.get("tags") or []) or "diario"
+    default_comment = f"Promovido desde nota: {default_title or _note_id(note)}"
+
+    st.markdown("#### Fragmento LaTeX")
+    contenido_latex = st.text_area(
+        "Fragmento LaTeX a promover",
+        value=original_body,
+        height=360,
+        key=f"diary_promote_latex_{safe_note_key}",
+        help="Puedes recortar manualmente el cuerpo de la nota antes de crear el concepto.",
+    )
+    preview_key = f"diary_promote_preview_{safe_note_key}"
+    if st.button("Generar preview PDF del fragmento", key=f"diary_promote_preview_btn_{safe_note_key}"):
+        if not (contenido_latex or "").strip():
+            st.warning("No hay fragmento LaTeX para generar el PDF.")
+        else:
+            try:
+                with st.spinner("Generando preview PDF..."):
+                    st.session_state[preview_key] = _generate_promoted_fragment_pdf_payload(note, contenido_latex)
+                st.success("Preview PDF generado.")
+            except Exception as exc:
+                st.session_state.pop(preview_key, None)
+                st.error(f"No se pudo generar el preview PDF: {exc}")
+    if st.session_state.get(preview_key):
+        _render_promoted_fragment_pdf_preview(
+            st.session_state[preview_key],
+            key_prefix=f"diary_promote_{safe_note_key}",
+        )
+
+    st.markdown("#### Datos básicos del concepto")
+    c1, c2 = st.columns([1, 1])
+    with c1:
+        concept_id = st.text_input(
+            "ID del concepto",
+            value=_suggest_promoted_concept_id(note),
+            key=f"diary_promote_id_{safe_note_key}",
+        )
+        titulo = st.text_input(
+            "Título",
+            value=default_title,
+            key=f"diary_promote_title_{safe_note_key}",
+        )
+        concept_type = st.selectbox(
+            "Tipo",
+            PROMOTABLE_CONCEPT_TYPES,
+            index=0,
+            key=f"diary_promote_type_{safe_note_key}",
+        )
+        title_type_values = [item.value for item in TipoTitulo]
+        tipo_titulo = st.selectbox(
+            "Tipo de título",
+            title_type_values,
+            index=title_type_values.index("descripcion"),
+            key=f"diary_promote_title_type_{safe_note_key}",
+        )
+    with c2:
+        source = st.text_input(
+            "Source",
+            value=default_source,
+            key=f"diary_promote_source_{safe_note_key}",
+        )
+        categorias_raw = st.text_input(
+            "Categorías (comma-separated)",
+            value=default_categories,
+            key=f"diary_promote_categories_{safe_note_key}",
+        )
+        comentario = st.text_area(
+            "Comentario",
+            value=default_comment,
+            height=100,
+            key=f"diary_promote_comment_{safe_note_key}",
+        )
+
+    st.markdown("#### Reference Information")
+    with st.expander("Add / Edit Reference", expanded=False):
+        ref_cols = st.columns(2)
+        with ref_cols[0]:
+            ref_tipo = st.selectbox(
+                "Reference Type",
+                [item.value for item in TipoReferencia],
+                key=f"diary_promote_ref_tipo_{safe_note_key}",
+            )
+            ref_autor = st.text_input("Author", key=f"diary_promote_ref_autor_{safe_note_key}")
+            ref_fuente = st.text_input("Source/Title", key=f"diary_promote_ref_fuente_{safe_note_key}")
+            ref_anio = st.number_input(
+                "Year",
+                min_value=1800,
+                max_value=3000,
+                value=datetime.utcnow().year,
+                key=f"diary_promote_ref_anio_{safe_note_key}",
+            )
+        with ref_cols[1]:
+            ref_tomo = st.text_input("Volume", key=f"diary_promote_ref_tomo_{safe_note_key}")
+            ref_edicion = st.text_input("Edition", key=f"diary_promote_ref_edicion_{safe_note_key}")
+            ref_paginas = st.text_input("Pages", key=f"diary_promote_ref_paginas_{safe_note_key}")
+            ref_capitulo = st.text_input("Chapter", key=f"diary_promote_ref_capitulo_{safe_note_key}")
+        ref_seccion = st.text_input("Section", key=f"diary_promote_ref_seccion_{safe_note_key}")
+        ref_editorial = st.text_input("Publisher", key=f"diary_promote_ref_editorial_{safe_note_key}")
+        ref_doi = st.text_input("DOI", key=f"diary_promote_ref_doi_{safe_note_key}")
+        ref_url = st.text_input("URL", key=f"diary_promote_ref_url_{safe_note_key}")
+        ref_issbn = st.text_input("ISBN/ISSN", key=f"diary_promote_ref_issbn_{safe_note_key}")
+        ref_citekey = st.text_input("Citekey (opcional)", key=f"diary_promote_ref_citekey_{safe_note_key}")
+
+    st.markdown("#### Teaching Context")
+    with st.expander("Add Teaching Context", expanded=False):
+        include_teaching_context = st.checkbox(
+            "Agregar contexto docente",
+            value=False,
+            key=f"diary_promote_include_teaching_{safe_note_key}",
+        )
+        teach_cols = st.columns(2)
+        with teach_cols[0]:
+            nivel_contexto = st.selectbox(
+                "Context Level",
+                [item.value for item in NivelContexto],
+                key=f"diary_promote_nivel_contexto_{safe_note_key}",
+            )
+        with teach_cols[1]:
+            grado_formalidad = st.selectbox(
+                "Formality Degree",
+                [item.value for item in GradoFormalidad],
+                key=f"diary_promote_grado_formalidad_{safe_note_key}",
+            )
+
+    st.markdown("#### Technical Metadata")
+    with st.expander("Add Technical Metadata", expanded=True):
+        st.caption("La procedencia de la nota se combina con estos metadatos y no se reemplaza.")
+        meta_cols = st.columns(2)
+        with meta_cols[0]:
+            usa_notacion_formal = st.checkbox(
+                "Uses Formal Notation",
+                value=True,
+                key=f"diary_promote_usa_notacion_{safe_note_key}",
+            )
+            incluye_demostracion = st.checkbox(
+                "Includes Proof",
+                value=False,
+                key=f"diary_promote_incluye_demostracion_{safe_note_key}",
+            )
+            es_definicion_operativa = st.checkbox(
+                "Is Operational Definition",
+                value=False,
+                key=f"diary_promote_es_operativa_{safe_note_key}",
+            )
+            es_concepto_fundamental = st.checkbox(
+                "Is Fundamental Concept",
+                value=False,
+                key=f"diary_promote_es_fundamental_{safe_note_key}",
+            )
+        with meta_cols[1]:
+            requiere_conceptos_previos = st.text_area(
+                "Required Previous Concepts",
+                placeholder="Enter concepts separated by commas",
+                key=f"diary_promote_previos_{safe_note_key}",
+            )
+            incluye_ejemplo = st.checkbox(
+                "Includes Example",
+                value=False,
+                key=f"diary_promote_incluye_ejemplo_{safe_note_key}",
+            )
+            es_autocontenible = st.checkbox(
+                "Is Self-Contained",
+                value=True,
+                key=f"diary_promote_autocontenible_{safe_note_key}",
+            )
+        tipo_presentacion = st.selectbox(
+            "Presentation Type",
+            [item.value for item in TipoPresentacion],
+            key=f"diary_promote_presentacion_{safe_note_key}",
+        )
+        simbolico_values = [item.value for item in NivelSimbolico]
+        nivel_simbolico = st.selectbox(
+            "Symbolic Level",
+            simbolico_values,
+            index=simbolico_values.index("moderado"),
+            key=f"diary_promote_simbolico_{safe_note_key}",
+        )
+        tipo_aplicacion = st.multiselect(
+            "Application Type",
+            [item.value for item in TipoAplicacion],
+            default=["teorico"],
+            key=f"diary_promote_aplicacion_{safe_note_key}",
+        )
+
+    st.markdown("#### Algorithm Information")
+    algo_cols = st.columns(2)
+    with algo_cols[0]:
+        es_algoritmo = st.checkbox("Is this an algorithm?", key=f"diary_promote_es_algoritmo_{safe_note_key}")
+    with algo_cols[1]:
+        pasos_algoritmo = ""
+        if es_algoritmo:
+            pasos_algoritmo = st.text_area(
+                "Algorithm Steps",
+                placeholder="Enter algorithm steps...",
+                key=f"diary_promote_pasos_algoritmo_{safe_note_key}",
+            )
+
+    st.markdown("#### Images")
+    with st.expander("Images", expanded=False):
+        st.info(
+            "La asociación directa de nuevas imágenes al concepto promovido queda para una etapa posterior. "
+            "Para evitar referencias inconsistentes, primero crea el concepto y luego usa Edit Concept para asociarlas."
+        )
+        note_assets = get_note_media_assets(notes_col.database, _note_id(note))
+        if note_assets:
+            st.caption("Imágenes actualmente asociadas a la nota seleccionada:")
+            for asset in note_assets:
+                label = f"{asset.get('filename', 'image')} · {asset.get('path', '')}"
+                with st.expander(label, expanded=False):
+                    _render_media_asset_preview(asset)
+                    st.code(
+                        latex_includegraphics_snippet(
+                            asset,
+                            caption=asset.get("description") or asset.get("filename") or "",
+                        ),
+                        language="latex",
+                    )
+        else:
+            st.caption("La nota seleccionada no tiene imágenes asociadas.")
+
+    submitted = st.button("Crear concepto desde nota", type="primary", key=f"diary_promote_create_{safe_note_key}")
+
+    if not submitted:
+        return
+
+    concept_id = (concept_id or "").strip()
+    source = (source or "").strip()
+    titulo = (titulo or "").strip()
+    contenido_latex = (contenido_latex or "").strip()
+    categorias = _normalize_tags(categorias_raw)
+    comentario = (comentario or "").strip()
+
+    reference_data = {
+        "tipo_referencia": ref_tipo,
+        "autor": ref_autor.strip() or None,
+        "fuente": ref_fuente.strip() or None,
+        "anio": int(ref_anio) if ref_anio else None,
+        "tomo": ref_tomo.strip() or None,
+        "edicion": ref_edicion.strip() or None,
+        "paginas": ref_paginas.strip() or None,
+        "capitulo": ref_capitulo.strip() or None,
+        "seccion": ref_seccion.strip() or None,
+        "editorial": ref_editorial.strip() or None,
+        "doi": ref_doi.strip() or None,
+        "url": ref_url.strip() or None,
+        "issbn": ref_issbn.strip() or None,
+        "citekey": ref_citekey.strip() or None,
+    }
+
+    technical_metadata = {
+        "usa_notacion_formal": usa_notacion_formal,
+        "incluye_demostracion": incluye_demostracion,
+        "es_definicion_operativa": es_definicion_operativa,
+        "es_concepto_fundamental": es_concepto_fundamental,
+        "requiere_conceptos_previos": _split_csv_values(requiere_conceptos_previos) or None,
+        "incluye_ejemplo": incluye_ejemplo,
+        "es_autocontenible": es_autocontenible,
+        "tipo_presentacion": tipo_presentacion,
+        "nivel_simbolico": nivel_simbolico,
+        "tipo_aplicacion": tipo_aplicacion or None,
+    }
+
+    if not concept_id or not source or not contenido_latex:
+        st.error("Completa los campos requeridos: ID, Source y Fragmento LaTeX.")
+        return
+
+    mongo_db = notes_col.database
+    validation_errors = []
+    validation_errors.extend(validate_new_concept_identity(mongo_db, concept_id, source))
+    validation_errors.extend(validate_semantic_duplicate(mongo_db, titulo, concept_type, source))
+    if validation_errors:
+        for error in validation_errors:
+            st.error(error)
+        st.info("No se sobrescribió ningún dato. Cambia el ID, source, título o tipo, o edita el concepto existente.")
+        return
+
+    now = datetime.now()
+    concept_data = {
+        "id": concept_id,
+        "tipo": concept_type,
+        "titulo": titulo or None,
+        "tipo_titulo": tipo_titulo,
+        "contenido_latex": contenido_latex,
+        "categorias": categorias,
+        "es_algoritmo": es_algoritmo,
+        "pasos_algoritmo": pasos_algoritmo.split("\n") if es_algoritmo and pasos_algoritmo else None,
+        "comentario": comentario or None,
+        "source": source,
+        "image_ids": [],
+        "fecha_creacion": now,
+        "ultima_actualizacion": now,
+        "metadatos_tecnicos": technical_metadata,
+    }
+    if _reference_has_content(reference_data):
+        concept_data["referencia"] = reference_data
+    if include_teaching_context:
+        concept_data["contexto_docente"] = {
+            "nivel_contexto": nivel_contexto,
+            "grado_formalidad": grado_formalidad,
+        }
+
+    try:
+        concepto = ConceptoBase(**concept_data)
+        concept_metadata = build_concept_metadata(concepto)
+        if reference_data.get("citekey"):
+            concept_metadata["citekey"] = reference_data["citekey"]
+            if "referencia" in concept_metadata:
+                concept_metadata["referencia"]["citekey"] = reference_data["citekey"]
+        concept_metadata.setdefault("metadatos_tecnicos", {})["provenance"] = _build_note_provenance(
+            note,
+            contenido_latex,
+        )
+        insert_concept_with_latex_atomic(
+            mongo_db,
+            concepto.id,
+            source,
+            concept_metadata,
+            contenido_latex,
+            now,
+        )
+    except Exception as exc:
+        st.error(f"No se pudo promover la nota a concepto: {exc}")
+        return
+
+    st.success(f"Concepto `{concept_id}` creado desde la nota `{note.get('title') or _note_id(note)}`.")
+    st.caption("El Diario LaTeX no se modificó; la trazabilidad quedó guardada en `metadatos_tecnicos.provenance`.")
+
+
 def _render_diary_section(notes_col) -> None:
     st.subheader("📓 Diario LaTeX")
     st.caption("Notas largas en LaTeX organizadas por creación, búsqueda, tiempo y proyectos.")
-    diary_tabs = st.tabs(["✍️ Nueva nota", "🔎 Buscar", "🗓️ Timeline", "📅 Calendario", "🗂️ Proyectos", "📤 Exportar"])
+    diary_tabs = st.tabs(["✍️ Nueva nota", "🔎 Buscar", "🗓️ Timeline", "📅 Calendario", "🗂️ Proyectos", "📤 Exportar", "Promover"])
     with diary_tabs[0]:
         _render_diary_new_note(notes_col)
     with diary_tabs[1]:
@@ -1012,6 +1522,8 @@ def _render_diary_section(notes_col) -> None:
         _render_diary_projects(notes_col)
     with diary_tabs[5]:
         _render_diary_exports(notes_col)
+    with diary_tabs[6]:
+        _render_diary_promote_note(notes_col)
     _render_selected_note_panel(notes_col, key_prefix="diary_global_selected")
 
 
