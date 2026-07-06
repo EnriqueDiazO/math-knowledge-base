@@ -98,6 +98,20 @@ def _update_one_by_id(coll, id_value, update_doc):
         return None
 
 
+def _canonical_doc_id(doc: dict[str, Any]) -> str:
+    """Return a stable logical id for Mongo documents that may mix ObjectId and string ids."""
+    return str(doc.get("_id"))
+
+
+def _prefer_canonical_doc(current: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Prefer ObjectId-backed documents when a string duplicate has the same logical id."""
+    current_id = current.get("_id")
+    candidate_id = candidate.get("_id")
+    if isinstance(candidate_id, ObjectId) and not isinstance(current_id, ObjectId):
+        return candidate
+    return current
+
+
 
 
 def _worklog_label(doc: Dict[str, Any]) -> str:
@@ -3743,6 +3757,28 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             st.error(f"❌ Error cargando backlog (kanban): {e}")
             k_items = []
 
+        k_items_by_id: dict[str, dict[str, Any]] = {}
+        duplicate_kanban_ids: Counter[str] = Counter()
+        for item in k_items:
+            item_key = _canonical_doc_id(item)
+            if item_key in k_items_by_id:
+                duplicate_kanban_ids[item_key] += 1
+                k_items_by_id[item_key] = _prefer_canonical_doc(k_items_by_id[item_key], item)
+            else:
+                k_items_by_id[item_key] = item
+
+        if duplicate_kanban_ids:
+            duplicate_summary = ", ".join(
+                f"{item_id} ({count + 1} copias)"
+                for item_id, count in duplicate_kanban_ids.most_common(5)
+            )
+            st.warning(
+                "Se detectaron documentos duplicados lógicos en backlog_items. "
+                f"Kanban renderiza una sola tarjeta por identidad: {duplicate_summary}"
+            )
+
+        k_items = list(k_items_by_id.values())
+
         statuses = ["Todo", "Doing", "Blocked", "Done"]
         grouped = {s: [] for s in statuses}
         for it in k_items:
@@ -3769,7 +3805,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     continue
 
                 for it in grouped[s][:50]:
-                    _id_str = str(it.get("_id"))
+                    _id_str = _canonical_doc_id(it)
                     title = f"{it.get('project','')} — {it.get('task','')}"
                     with st.expander(title, expanded=False):
                         meta_left, meta_right = st.columns([2, 1])
