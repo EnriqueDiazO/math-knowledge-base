@@ -25,7 +25,12 @@ from typing import Dict
 from typing import List
 from typing import Optional
 from bson import ObjectId
-from pdf_export import generar_tex_nota_latex, generar_pdf_nota_latex_result
+from pdf_export import analizar_tex_nota_latex_con_chktex
+from pdf_export import generar_pdf_nota_latex_result
+from pdf_export import generar_tex_nota_latex
+from pdf_export import generar_y_abrir_pdf_nota_latex_desde_formulario
+from pdf_export import render_chktex_result
+from pdf_export import render_pdf_export_error
 import streamlit as st
 import pandas as pd
 import streamlit.components.v1 as components
@@ -237,6 +242,179 @@ def _build_note_provenance(note: Dict[str, Any], fragment: str) -> Dict[str, Any
         "fragment_hash": hashlib.sha256((fragment or "").encode("utf-8")).hexdigest(),
         "promotion_mode": "manual",
     }
+
+
+def _note_pdf_date(value: Any) -> str:
+    if hasattr(value, "strftime"):
+        return value.strftime("%Y-%m-%d")
+    return str(value or "").strip()
+
+
+def _pdf_value_present(value: Any) -> bool:
+    if isinstance(value, bool):
+        return True
+    if isinstance(value, (list, tuple, set)):
+        return any(str(item).strip() for item in value)
+    return bool(str(value or "").strip())
+
+
+def _pdf_rows(*rows: tuple[str, Any]) -> List[Dict[str, Any]]:
+    return [
+        {"label": label, "value": value}
+        for label, value in rows
+        if _pdf_value_present(value)
+    ]
+
+
+def _current_note_pdf_doc(
+    *,
+    note_id: str,
+    title: str,
+    date_value: Any,
+    project: str,
+    context: str,
+    tags: List[str],
+    latex_body: str,
+    pdf_sections: Optional[List[Dict[str, Any]]] = None,
+) -> Dict[str, Any]:
+    date_text = _note_pdf_date(date_value)
+    body = latex_body or ""
+    digest = hashlib.sha256(
+        "\n".join(
+            [
+                note_id or "",
+                title or "",
+                date_text,
+                project or "",
+                context or "",
+                ",".join(tags or []),
+                body,
+                str(pdf_sections or []),
+            ]
+        ).encode("utf-8")
+    ).hexdigest()[:16]
+    return {
+        "_id": note_id or f"note_pdf_preview_{digest}",
+        "title": (title or "").strip() or "Nota sin título",
+        "date": date_text,
+        "project": _normalize_project_name(project),
+        "context": (context or "").strip(),
+        "tags": tags or [],
+        "latex_body": body,
+        "pdf_sections": pdf_sections or [],
+    }
+
+
+def _promote_note_pdf_sections(
+    note: Dict[str, Any],
+    *,
+    concept_id: str,
+    source: str,
+    concept_type: str,
+    tipo_titulo: str,
+    categorias: List[str],
+    comentario: str,
+    reference_data: Dict[str, Any],
+    include_teaching_context: bool,
+    nivel_contexto: str,
+    grado_formalidad: str,
+    technical_metadata: Dict[str, Any],
+    es_algoritmo: bool,
+    pasos_algoritmo: str,
+) -> List[Dict[str, Any]]:
+    sections: List[Dict[str, Any]] = [
+        {
+            "title": "Procedencia de la nota",
+            "rows": _pdf_rows(
+                ("ID de nota", _note_id(note)),
+                ("Título original", note.get("title") or ""),
+                ("Fecha de nota", note.get("date") or ""),
+                ("Proyecto de nota", note.get("project") or ""),
+                ("Contexto de nota", note.get("context") or ""),
+                ("Tags de nota", note.get("tags") or []),
+                ("Última actualización", _serialize_note_datetime(note.get("updated_at"))),
+            ),
+        },
+        {
+            "title": "Datos de promoción",
+            "rows": _pdf_rows(
+                ("ID de concepto", concept_id),
+                ("Source", source),
+                ("Tipo", concept_type),
+                ("Tipo de título", tipo_titulo),
+                ("Categorías", categorias),
+                ("Comentario", comentario),
+            ),
+        },
+    ]
+
+    if _reference_has_content(reference_data):
+        sections.append(
+            {
+                "title": "Referencia",
+                "rows": _pdf_rows(
+                    ("Tipo", reference_data.get("tipo_referencia")),
+                    ("Autor", reference_data.get("autor")),
+                    ("Fuente", reference_data.get("fuente")),
+                    ("Año", reference_data.get("anio")),
+                    ("Tomo", reference_data.get("tomo")),
+                    ("Edición", reference_data.get("edicion")),
+                    ("Páginas", reference_data.get("paginas")),
+                    ("Capítulo", reference_data.get("capitulo")),
+                    ("Sección", reference_data.get("seccion")),
+                    ("Editorial", reference_data.get("editorial")),
+                    ("DOI", reference_data.get("doi")),
+                    ("URL", reference_data.get("url")),
+                    ("ISBN/ISSN", reference_data.get("issbn")),
+                    ("Citekey", reference_data.get("citekey")),
+                ),
+            }
+        )
+
+    if include_teaching_context:
+        sections.append(
+            {
+                "title": "Contexto docente",
+                "rows": _pdf_rows(
+                    ("Nivel de contexto", nivel_contexto),
+                    ("Grado de formalidad", grado_formalidad),
+                ),
+            }
+        )
+
+    sections.append(
+        {
+            "title": "Metadatos técnicos",
+            "rows": _pdf_rows(
+                ("Usa notación formal", technical_metadata.get("usa_notacion_formal")),
+                ("Incluye demostración", technical_metadata.get("incluye_demostracion")),
+                ("Es definición operativa", technical_metadata.get("es_definicion_operativa")),
+                ("Es concepto fundamental", technical_metadata.get("es_concepto_fundamental")),
+                (
+                    "Requiere conceptos previos",
+                    technical_metadata.get("requiere_conceptos_previos") or [],
+                ),
+                ("Incluye ejemplo", technical_metadata.get("incluye_ejemplo")),
+                ("Es autocontenible", technical_metadata.get("es_autocontenible")),
+                ("Tipo de presentación", technical_metadata.get("tipo_presentacion")),
+                ("Nivel simbólico", technical_metadata.get("nivel_simbolico")),
+                ("Tipo de aplicación", technical_metadata.get("tipo_aplicacion") or []),
+            ),
+        }
+    )
+
+    if es_algoritmo:
+        sections.append(
+            {
+                "title": "Información de algoritmo",
+                "rows": _pdf_rows(
+                    ("Es algoritmo", es_algoritmo),
+                    ("Pasos", pasos_algoritmo),
+                ),
+            }
+        )
+
+    return [section for section in sections if section.get("rows")]
 
 
 def _generate_promoted_fragment_pdf_payload(note: Dict[str, Any], fragment: str) -> Dict[str, Any]:
@@ -689,7 +867,12 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
                 }
                 st.rerun()
             except Exception as exc:
-                st.error(f"No se pudo generar el PDF: {exc}")
+                render_pdf_export_error(
+                    exc,
+                    main_message="❌ No se pudo generar el PDF.",
+                    fallback_stage="Exportar nota a PDF",
+                    fallback_operation="Preparar descarga PDF",
+                )
     with c4:
         if st.button("Cerrar", key=f"{key_prefix}_close_{note_id}"):
             st.session_state.pop("diary_selected_note_id", None)
@@ -893,8 +1076,30 @@ def _render_diary_new_note(notes_col) -> None:
     if preview:
         st.code(n_latex or "", language="latex")
 
-    if st.button("Guardar nota", key="diary_new_save", type="primary"):
-        tags = _normalize_tags(n_tags_raw)
+    tags = _normalize_tags(n_tags_raw)
+    action_cols = st.columns([1, 1, 2])
+    with action_cols[0]:
+        save_clicked = st.button("Guardar nota", key="diary_new_save", type="primary")
+    with action_cols[1]:
+        pdf_clicked = st.button(
+            "📄 Generar y abrir PDF",
+            key="diary_new_generate_open_pdf",
+            type="secondary",
+        )
+
+    if pdf_clicked:
+        pdf_note = _current_note_pdf_doc(
+            note_id="",
+            title=n_title,
+            date_value=n_date,
+            project=n_project,
+            context=n_context,
+            tags=tags,
+            latex_body=n_latex,
+        )
+        generar_y_abrir_pdf_nota_latex_desde_formulario(pdf_note)
+
+    if save_clicked:
         if not (n_title or "").strip():
             st.error("⚠️ El título es obligatorio.")
         elif not (n_latex or "").strip():
@@ -1113,23 +1318,53 @@ def _render_diary_exports(notes_col) -> None:
     if not note_doc:
         st.warning("No se pudo cargar la nota seleccionada.")
         return
-    e1, e2 = st.columns(2)
+    e1, e2, e3 = st.columns(3)
     with e1:
+        if st.button("🔍 Analizar TEX", key=f"note_chktex_gen_{nid}"):
+            try:
+                chktex_result = analizar_tex_nota_latex_con_chktex(note_doc)
+                st.session_state[f"note_chktex_{nid}"] = chktex_result
+            except Exception as exc:
+                render_pdf_export_error(
+                    exc,
+                    main_message="❌ No se pudo analizar el TEX.",
+                    fallback_stage="Analizar TEX con ChkTeX",
+                    fallback_operation="Ejecutar ChkTeX",
+                )
+        chktex_data = st.session_state.get(f"note_chktex_{nid}")
+        if chktex_data:
+            render_chktex_result(chktex_data, expanded=True)
+    with e2:
         if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
-            st.session_state[f"note_tex_{nid}"] = generar_tex_nota_latex(note_doc)
-            st.success("✅ TEX listo para descargar.")
+            try:
+                st.session_state[f"note_tex_{nid}"] = generar_tex_nota_latex(note_doc)
+                st.success("✅ TEX listo para descargar.")
+            except Exception as exc:
+                render_pdf_export_error(
+                    exc,
+                    main_message="❌ No se pudo generar el TEX.",
+                    fallback_stage="Generar contenido LaTeX",
+                    fallback_operation="Construcción de documento TEX",
+                )
         tex_data = st.session_state.get(f"note_tex_{nid}")
         if tex_data:
             st.download_button("Descargar TEX", data=tex_data, file_name=f"latex_note_{nid}.tex", mime="text/x-tex", key=f"note_tex_dl_{nid}")
-    with e2:
+    with e3:
         if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
             try:
                 pdf_result = generar_pdf_nota_latex_result(note_doc)
                 st.session_state[f"note_pdf_path_{nid}"] = pdf_result["pdf_path"]
                 st.session_state[f"note_pdf_diagnostics_{nid}"] = pdf_result
+                st.session_state[f"note_chktex_{nid}"] = pdf_result.get("chktex")
+                render_chktex_result(pdf_result.get("chktex"), expanded=False)
                 st.success("✅ PDF listo para descargar.")
-            except Exception as e:
-                st.error(f"❌ Error generando PDF: {e}")
+            except Exception as exc:
+                render_pdf_export_error(
+                    exc,
+                    main_message="❌ No se pudo generar el PDF.",
+                    fallback_stage="Exportar nota a PDF",
+                    fallback_operation="Generar PDF",
+                )
         pdf_path = st.session_state.get(f"note_pdf_path_{nid}")
         if pdf_path and os.path.exists(pdf_path):
             _render_pdf_diagnostics(st.session_state.get(f"note_pdf_diagnostics_{nid}"))
@@ -1398,18 +1633,6 @@ def _render_diary_promote_note(notes_col) -> None:
         else:
             st.caption("La nota seleccionada no tiene imágenes asociadas.")
 
-    submitted = st.button("Crear concepto desde nota", type="primary", key=f"diary_promote_create_{safe_note_key}")
-
-    if not submitted:
-        return
-
-    concept_id = (concept_id or "").strip()
-    source = (source or "").strip()
-    titulo = (titulo or "").strip()
-    contenido_latex = (contenido_latex or "").strip()
-    categorias = _normalize_tags(categorias_raw)
-    comentario = (comentario or "").strip()
-
     reference_data = {
         "tipo_referencia": ref_tipo,
         "autor": ref_autor.strip() or None,
@@ -1439,6 +1662,60 @@ def _render_diary_promote_note(notes_col) -> None:
         "nivel_simbolico": nivel_simbolico,
         "tipo_aplicacion": tipo_aplicacion or None,
     }
+
+    categorias = _normalize_tags(categorias_raw)
+    pdf_sections = _promote_note_pdf_sections(
+        note,
+        concept_id=concept_id,
+        source=source,
+        concept_type=concept_type,
+        tipo_titulo=tipo_titulo,
+        categorias=categorias,
+        comentario=comentario,
+        reference_data=reference_data,
+        include_teaching_context=include_teaching_context,
+        nivel_contexto=nivel_contexto,
+        grado_formalidad=grado_formalidad,
+        technical_metadata=technical_metadata,
+        es_algoritmo=es_algoritmo,
+        pasos_algoritmo=pasos_algoritmo,
+    )
+    promote_pdf_note = _current_note_pdf_doc(
+        note_id="",
+        title=titulo or note.get("title") or "",
+        date_value=note.get("date") or "",
+        project=note.get("project") or "",
+        context=note.get("context") or "",
+        tags=note.get("tags") or [],
+        latex_body=contenido_latex,
+        pdf_sections=pdf_sections,
+    )
+
+    action_cols = st.columns([1, 1, 2])
+    with action_cols[0]:
+        pdf_clicked = st.button(
+            "📄 Generar y abrir PDF",
+            type="secondary",
+            key=f"diary_promote_generate_open_pdf_{safe_note_key}",
+        )
+    with action_cols[1]:
+        submitted = st.button(
+            "Crear concepto desde nota",
+            type="primary",
+            key=f"diary_promote_create_{safe_note_key}",
+        )
+
+    if pdf_clicked:
+        generar_y_abrir_pdf_nota_latex_desde_formulario(promote_pdf_note)
+
+    if not submitted:
+        return
+
+    concept_id = (concept_id or "").strip()
+    source = (source or "").strip()
+    titulo = (titulo or "").strip()
+    contenido_latex = (contenido_latex or "").strip()
+    comentario = (comentario or "").strip()
 
     if not concept_id or not source or not contenido_latex:
         st.error("Completa los campos requeridos: ID, Source y Fragmento LaTeX.")
