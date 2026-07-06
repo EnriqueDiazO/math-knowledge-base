@@ -97,6 +97,7 @@ The complete installation sequence is documented below.
 - Python 3.10+ (recommended: 3.10.14 or 3.11.6).
 - MongoDB installed and running.
 - Full LaTeX installation (`texlive-full`) for correct PDF export.
+- ChkTeX (`chktex`) for static LaTeX analysis in notebook exports.
 - `make`, Git, pip.
 
 > ⚠️ Not yet intended for native Windows use; WSL is recommended.
@@ -152,7 +153,7 @@ pip install -r requirements.txt
 pip install -e .
 ```
 
-### 4. Install and verify Quarto
+### 4. Install and verify Quarto and ChkTeX
 
 Quarto is used for book-level exports. Install it with the project script:
 
@@ -162,10 +163,24 @@ quarto --version
 quarto check
 ```
 
-Verify LaTeX too:
+ChkTeX is used for static LaTeX analysis in notebook exports. Install it with the project script:
+
+```bash
+./scripts/install_chktex.sh
+```
+
+Manual Ubuntu/Debian alternative:
+
+```bash
+sudo apt install -y chktex
+```
+
+Verify LaTeX and ChkTeX too:
 
 ```bash
 pdflatex --version
+command -v chktex
+chktex --version
 ```
 
 ### 5. Initialize MongoDB collections and indexes

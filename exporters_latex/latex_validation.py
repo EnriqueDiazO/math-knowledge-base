@@ -5,12 +5,15 @@ import re
 import shutil
 import subprocess
 import tempfile
+import time
 from dataclasses import asdict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from difflib import get_close_matches
 
+from exporters_latex.latex_compile import command_to_text
+from exporters_latex.latex_compile import decode_diagnostic_bytes
 from exporters_latex.latex_compile import latex_command_not_found_message
 from exporters_latex.latex_compile import latex_timeout_message
 from exporters_latex.latex_compile import output_tail
@@ -161,6 +164,35 @@ class LatexValidationResult:
     compile_success: bool
     log_excerpt: str
     corrected_latex_preview: str
+
+
+@dataclass
+class ChktexIssue:
+    severity: str
+    warning_number: str
+    filename: str
+    line: int | None
+    column: int | None
+    message: str
+    note_line: int | None
+    context: list[dict[str, Any]]
+
+
+@dataclass
+class ChktexResult:
+    tool_available: bool
+    executable: str
+    version: str
+    command: str
+    return_code: int | None
+    issues: list[ChktexIssue]
+    stdout: str
+    stderr: str
+    duration: float
+    timed_out: bool
+    error: str
+    tex_path: str
+    decode_diagnostics: list[dict[str, Any]]
 
 
 def apply_safe_fixes(latex: str) -> tuple[str, list[dict[str, str]]]:
@@ -321,9 +353,251 @@ def _run_tool(
     return True, lines
 
 
-def run_chktex(tex_path: str | Path) -> tuple[bool, list[str]]:
+CHKTEX_OUTPUT_FORMAT = "%f\t%l\t%c\t%n\t%m\n"
+
+
+def _decode_tool_output(data: bytes | None, source: str) -> tuple[str, dict[str, Any] | None]:
+    text, diagnostic = decode_diagnostic_bytes(data, source=source)
+    return text, diagnostic if diagnostic.get("had_decode_error") else None
+
+
+def _chktex_version(executable: str) -> str:
+    try:
+        result = subprocess.run(
+            [executable, "--version"],
+            capture_output=True,
+            text=False,
+            timeout=10,
+        )
+    except Exception:
+        return ""
+    stdout, _stdout_diag = decode_diagnostic_bytes(result.stdout, source="stdout")
+    stderr, _stderr_diag = decode_diagnostic_bytes(result.stderr, source="stderr")
+    text = "\n".join(part for part in (stdout, stderr) if part).strip()
+    return text.splitlines()[0] if text else ""
+
+
+def _context_for_line(
+    latex_source: str,
+    line_number: int | None,
+    *,
+    note_body_start_line: int | None = None,
+    radius: int = 3,
+) -> tuple[list[dict[str, Any]], int | None]:
+    if line_number is None or line_number <= 0:
+        return [], None
+    lines = (latex_source or "").splitlines()
+    if not lines or line_number > len(lines):
+        return [], None
+
+    start = max(1, line_number - radius)
+    end = min(len(lines), line_number + radius)
+    context = []
+    for number in range(start, end + 1):
+        note_line = None
+        if note_body_start_line and number >= note_body_start_line:
+            note_line = number - note_body_start_line + 1
+        context.append(
+            {
+                "line": number,
+                "note_line": note_line,
+                "text": lines[number - 1],
+                "is_target": number == line_number,
+            }
+        )
+
+    note_line = None
+    if note_body_start_line and line_number >= note_body_start_line:
+        note_line = line_number - note_body_start_line + 1
+    return context, note_line
+
+
+def _parse_chktex_issue_line(
+    line: str,
+    *,
+    latex_source: str,
+    note_body_start_line: int | None = None,
+) -> ChktexIssue | None:
+    parts = line.split("\t", 4)
+    if len(parts) != 5:
+        return None
+    filename, raw_line, raw_column, warning_number, message = parts
+    try:
+        tex_line = int(raw_line)
+    except ValueError:
+        tex_line = None
+    try:
+        column = int(raw_column)
+    except ValueError:
+        column = None
+
+    context, note_line = _context_for_line(
+        latex_source,
+        tex_line,
+        note_body_start_line=note_body_start_line,
+    )
+    return ChktexIssue(
+        severity="warning",
+        warning_number=str(warning_number),
+        filename=filename,
+        line=tex_line,
+        column=column,
+        message=message.strip(),
+        note_line=note_line,
+        context=context,
+    )
+
+
+def run_chktex_analysis(
+    tex_path: str | Path,
+    *,
+    latex_source: str | None = None,
+    note_body_start_line: int | None = None,
+    executable: str = "chktex",
+    timeout: int = LATEX_LINTER_TIMEOUT_SECONDS,
+) -> ChktexResult:
     tex_path = Path(tex_path)
-    return _run_tool(["chktex", tex_path.name], tex_path.parent)
+    started = time.monotonic()
+    executable_path = shutil.which(executable)
+    command = [
+        executable_path or executable,
+        "-q",
+        "-f",
+        CHKTEX_OUTPUT_FORMAT,
+        tex_path.name,
+    ]
+
+    if executable_path is None:
+        return ChktexResult(
+            tool_available=False,
+            executable="",
+            version="",
+            command=command_to_text(command),
+            return_code=None,
+            issues=[],
+            stdout="",
+            stderr="",
+            duration=0.0,
+            timed_out=False,
+            error="ChkTeX no está disponible.",
+            tex_path=str(tex_path),
+            decode_diagnostics=[],
+        )
+
+    if latex_source is None:
+        latex_source = tex_path.read_text(encoding="utf-8")
+
+    try:
+        result = subprocess.run(
+            command,
+            cwd=str(tex_path.parent),
+            capture_output=True,
+            text=False,
+            timeout=timeout,
+        )
+    except subprocess.TimeoutExpired as exc:
+        return ChktexResult(
+            tool_available=True,
+            executable=executable_path,
+            version=_chktex_version(executable_path),
+            command=command_to_text(command),
+            return_code=None,
+            issues=[],
+            stdout="",
+            stderr="",
+            duration=time.monotonic() - started,
+            timed_out=True,
+            error=f"ChkTeX timed out after {timeout} seconds.",
+            tex_path=str(tex_path),
+            decode_diagnostics=[
+                {
+                    "source": "timeout",
+                    "exception_type": type(exc).__name__,
+                    "exception_message": str(exc),
+                }
+            ],
+        )
+    except FileNotFoundError as exc:
+        return ChktexResult(
+            tool_available=False,
+            executable="",
+            version="",
+            command=command_to_text(command),
+            return_code=None,
+            issues=[],
+            stdout="",
+            stderr="",
+            duration=time.monotonic() - started,
+            timed_out=False,
+            error=str(exc),
+            tex_path=str(tex_path),
+            decode_diagnostics=[],
+        )
+
+    stdout, stdout_diag = _decode_tool_output(result.stdout, "stdout")
+    stderr, stderr_diag = _decode_tool_output(result.stderr, "stderr")
+    issues = [
+        issue
+        for issue in (
+            _parse_chktex_issue_line(
+                output_line,
+                latex_source=latex_source,
+                note_body_start_line=note_body_start_line,
+            )
+            for output_line in stdout.splitlines()
+            if output_line.strip()
+        )
+        if issue is not None
+    ]
+    decode_diagnostics = [
+        diagnostic
+        for diagnostic in (stdout_diag, stderr_diag)
+        if diagnostic is not None
+    ]
+    unparsed = [
+        line
+        for line in stdout.splitlines()
+        if line.strip() and _parse_chktex_issue_line(
+            line,
+            latex_source=latex_source,
+            note_body_start_line=note_body_start_line,
+        ) is None
+    ]
+    error = ""
+    if result.returncode not in (0, 2) and not issues:
+        error = stderr.strip() or stdout.strip() or f"ChkTeX returned code {result.returncode}."
+    if unparsed:
+        error = (error + "\n" if error else "") + "Unparsed ChkTeX output:\n" + "\n".join(unparsed)
+
+    return ChktexResult(
+        tool_available=True,
+        executable=executable_path,
+        version=_chktex_version(executable_path),
+        command=command_to_text(command),
+        return_code=result.returncode,
+        issues=issues,
+        stdout=stdout,
+        stderr=stderr,
+        duration=time.monotonic() - started,
+        timed_out=False,
+        error=error,
+        tex_path=str(tex_path),
+        decode_diagnostics=decode_diagnostics,
+    )
+
+
+def run_chktex(tex_path: str | Path) -> tuple[bool, list[str]]:
+    result = run_chktex_analysis(tex_path)
+    if not result.tool_available:
+        return False, []
+    lines = [
+        f"{issue.filename}:{issue.line}:{issue.column}: "
+        f"Warning {issue.warning_number}: {issue.message}"
+        for issue in result.issues
+    ]
+    if result.error:
+        lines.append(result.error)
+    return True, lines
 
 
 def run_lacheck(tex_path: str | Path) -> tuple[bool, list[str]]:

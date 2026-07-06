@@ -40,6 +40,7 @@ RERUN_PATTERNS = (
     "File `.out' has changed",
     "There were undefined references",
 )
+DIAGNOSTIC_FALLBACK_ENCODING = "latin-1"
 
 
 def command_to_text(command: Sequence[str | Path]) -> str:
@@ -50,7 +51,8 @@ def read_text_tail(path: str | Path, lines: int = 80) -> str:
     path = Path(path)
     if not path.exists():
         return ""
-    content = path.read_text(encoding="utf-8", errors="replace").splitlines()
+    content, _diagnostic = read_diagnostic_text(path)
+    content = content.splitlines()
     return "\n".join(content[-lines:])
 
 
@@ -58,7 +60,74 @@ def read_text(path: str | Path) -> str:
     path = Path(path)
     if not path.exists():
         return ""
-    return path.read_text(encoding="utf-8", errors="replace")
+    content, _diagnostic = read_diagnostic_text(path)
+    return content
+
+
+def _byte_window(data: bytes, start: int, end: int, radius: int = 24) -> bytes:
+    left = max(0, start - radius)
+    right = min(len(data), end + radius)
+    return data[left:right]
+
+
+def _hex_bytes(data: bytes, limit: int = 96) -> str:
+    return " ".join(f"0x{byte:02x}" for byte in data[:limit])
+
+
+def decode_diagnostic_bytes(
+    data: bytes | None,
+    *,
+    source: str,
+    attempted_encoding: str = "utf-8",
+) -> tuple[str, dict]:
+    """Decode diagnostic output without silently discarding undecodable bytes."""
+    raw = data or b""
+    base = {
+        "source": source,
+        "attempted_encoding": attempted_encoding,
+        "byte_length": len(raw),
+    }
+    try:
+        text = raw.decode(attempted_encoding)
+        return text, {
+            **base,
+            "encoding_used": attempted_encoding,
+            "had_decode_error": False,
+        }
+    except UnicodeDecodeError as exc:
+        problem = bytes(raw[exc.start:exc.end])
+        context = _byte_window(raw, exc.start, exc.end)
+        text = raw.decode(DIAGNOSTIC_FALLBACK_ENCODING)
+        return text, {
+            **base,
+            "encoding_used": DIAGNOSTIC_FALLBACK_ENCODING,
+            "fallback_encoding": DIAGNOSTIC_FALLBACK_ENCODING,
+            "had_decode_error": True,
+            "exception_type": type(exc).__name__,
+            "exception_message": str(exc),
+            "reason": exc.reason,
+            "start": exc.start,
+            "end": exc.end,
+            "problematic_bytes": _hex_bytes(problem),
+            "byte_context_hex": _hex_bytes(context),
+            "byte_context_decoded": context.decode(DIAGNOSTIC_FALLBACK_ENCODING),
+        }
+
+
+def read_diagnostic_text(path: str | Path) -> tuple[str, dict]:
+    path = Path(path)
+    if not path.exists():
+        return "", {
+            "source": "file",
+            "path": str(path),
+            "exists": False,
+        }
+    raw = path.read_bytes()
+    text, diagnostic = decode_diagnostic_bytes(raw, source="file")
+    diagnostic["path"] = str(path)
+    diagnostic["operation"] = "Lectura de archivo de texto"
+    diagnostic["exists"] = True
+    return text, diagnostic
 
 
 def output_tail(stdout: str | None = "", stderr: str | None = "", lines: int = 80) -> str:
@@ -300,13 +369,34 @@ def run_latex_command(
     validate_includegraphics_paths(tex_file, cwd_path)
 
     try:
-        return subprocess.run(
+        raw_result = subprocess.run(
             command_text,
             cwd=str(cwd_path),
             capture_output=True,
-            text=True,
+            text=False,
             timeout=timeout_seconds,
         )
+        stdout_text, stdout_decode = decode_diagnostic_bytes(
+            raw_result.stdout,
+            source="stdout",
+        )
+        stderr_text, stderr_decode = decode_diagnostic_bytes(
+            raw_result.stderr,
+            source="stderr",
+        )
+        result = subprocess.CompletedProcess(
+            raw_result.args,
+            raw_result.returncode,
+            stdout=stdout_text,
+            stderr=stderr_text,
+        )
+        result.diagnostics = {
+            "command": command_to_text(command_text),
+            "cwd": str(cwd_path),
+            "stdout_decode": stdout_decode,
+            "stderr_decode": stderr_decode,
+        }
+        return result
     except subprocess.TimeoutExpired as exc:
         raise TimeoutError(latex_timeout_message(tex_file, command_text, timeout_seconds)) from exc
     except (FileNotFoundError, PermissionError, OSError) as exc:
@@ -334,7 +424,7 @@ def run_latex_until_stable(
             tex_file=tex_file,
             timeout_seconds=timeout_seconds,
         )
-        log_text = read_text(log_file)
+        log_text, log_decode = read_diagnostic_text(log_file)
         if not log_text:
             log_text = "\n".join(part for part in (result.stdout or "", result.stderr or "") if part)
         classification = classify_latex_result(result.returncode, log_text, pdf_path)
@@ -344,6 +434,15 @@ def run_latex_until_stable(
         classification["log_excerpt"] = "\n".join(log_text.splitlines()[-80:])
         classification["stdout"] = result.stdout or ""
         classification["stderr"] = result.stderr or ""
+        classification["command"] = command_to_text(command)
+        classification["cwd"] = str(Path(cwd))
+        classification["tex_file"] = str(Path(tex_file))
+        classification["pdf_path"] = str(Path(pdf_path))
+        classification["log_path"] = str(log_file)
+        classification["log_decode"] = log_decode
+        result_diagnostics = getattr(result, "diagnostics", {}) or {}
+        classification["stdout_decode"] = result_diagnostics.get("stdout_decode")
+        classification["stderr_decode"] = result_diagnostics.get("stderr_decode")
 
         if classification["status"] == "failed":
             break
@@ -358,6 +457,18 @@ def run_latex_until_stable(
         classification["log_excerpt"] = ""
         classification["stdout"] = ""
         classification["stderr"] = ""
+        classification["command"] = command_to_text(command)
+        classification["cwd"] = str(Path(cwd))
+        classification["tex_file"] = str(Path(tex_file))
+        classification["pdf_path"] = str(Path(pdf_path))
+        classification["log_path"] = str(log_file)
+        classification["log_decode"] = {
+            "source": "file",
+            "path": str(log_file),
+            "exists": log_file.exists(),
+        }
+        classification["stdout_decode"] = None
+        classification["stderr_decode"] = None
 
     classification["result"] = result
     return classification
