@@ -112,6 +112,27 @@ def _prefer_canonical_doc(current: dict[str, Any], candidate: dict[str, Any]) ->
     return current
 
 
+def _streamlit_table_value(value: Any) -> Any:
+    """Convert Mongo/Python mixed values into Arrow-friendly table values."""
+    if value is None:
+        return ""
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, dict):
+        return str(value)
+    return value
+
+
+def _streamlit_table_row(doc: dict[str, Any]) -> dict[str, Any]:
+    return {key: _streamlit_table_value(value) for key, value in doc.items()}
+
+
 
 
 def _worklog_label(doc: Dict[str, Any]) -> str:
@@ -2105,7 +2126,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for r in rows:
                     rr = dict(r)
                     rr["_id"] = str(rr.get("_id"))
-                    df_rows.append(rr)
+                    df_rows.append(_streamlit_table_row(rr))
                 df = pd.DataFrame(df_rows)
                 st.dataframe(df, width='stretch')
         except Exception as e:
@@ -2179,7 +2200,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for d in docs:
                     dd = dict(d)
                     dd["_id"] = str(dd.get("_id"))
-                    norm.append(dd)
+                    norm.append(_streamlit_table_row(dd))
                 export_df = pd.DataFrame(norm)
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
@@ -2600,7 +2621,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             rows = []
             for it in items:
                 rows.append(
-                    {
+                    _streamlit_table_row({
                         "_id": str(it.get("_id")),
                         "project": it.get("project", ""),
                         "module": it.get("module", ""),
@@ -2610,7 +2631,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                         "owner": it.get("owner", ""),
                         "target_date": it.get("target_date", ""),
                         "updated_at": it.get("updated_at", ""),
-                    }
+                    })
                 )
 
             df = pd.DataFrame(rows)
@@ -2699,7 +2720,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     rows2 = []
                     for it in docs:
                         rows2.append(
-                            {
+                            _streamlit_table_row({
                                 "_id": str(it.get("_id")),
                                 "project": it.get("project", ""),
                                 "module": it.get("module", ""),
@@ -2709,7 +2730,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                                 "owner": it.get("owner", ""),
                                 "target_date": it.get("target_date", ""),
                                 "updated_at": it.get("updated_at", ""),
-                            }
+                            })
                         )
                     export_df = pd.DataFrame(rows2)
                 except Exception as e:
@@ -3291,7 +3312,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     for d in docs:
                         dd = dict(d)
                         dd["_id"] = str(dd.get("_id"))
-                        norm.append(dd)
+                        norm.append(_streamlit_table_row(dd))
                     export_df = pd.DataFrame(norm)
                 except Exception as e:
                     st.error(f"❌ Error preparando exportación (recientes): {e}")
@@ -3356,7 +3377,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for d in docs:
                     dd = dict(d)
                     dd["_id"] = str(dd.get("_id"))
-                    norm.append(dd)
+                    norm.append(_streamlit_table_row(dd))
                 export_df = pd.DataFrame(norm)
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
@@ -3496,7 +3517,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for r in rows:
                     rr = dict(r)
                     rr["_id"] = str(rr.get("_id"))
-                    norm.append(rr)
+                    norm.append(_streamlit_table_row(rr))
                 df_deliv_recent = pd.DataFrame(norm)
                 st.dataframe(df_deliv_recent, width='stretch')
         except Exception as e:
@@ -3571,7 +3592,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for d in docs:
                     dd = dict(d)
                     dd["_id"] = str(dd.get("_id"))
-                    norm.append(dd)
+                    norm.append(_streamlit_table_row(dd))
                 export_df = pd.DataFrame(norm)
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
