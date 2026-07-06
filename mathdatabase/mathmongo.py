@@ -1,12 +1,49 @@
 from pymongo import MongoClient, ASCENDING
+from pymongo.errors import OperationFailure
 from pathlib import Path
 from pydantic import ValidationError
 from schemas.schemas import ConceptoBase, Relation, TipoRelacion, RelationEnriched, Referencia, LineageResult
-from schemas.schemas import DocumentoLatex
 from typing import List, Optional
 from parsers.yaml_latex_parser import YamlLatexParser
 from datetime import datetime
 from mathkb_config import MEDIA_ASSETS_COLLECTION
+
+
+class MongoIndexInitializationError(RuntimeError):
+    """Raised when MongoDB is reachable but index initialization is unsafe."""
+
+
+def _index_key(items) -> list[tuple[str, int]]:
+    return [(field, direction) for field, direction in items]
+
+
+def _index_options(index_doc: dict) -> dict:
+    return {
+        "unique": bool(index_doc.get("unique", False)),
+        "sparse": bool(index_doc.get("sparse", False)),
+        "partialFilterExpression": index_doc.get("partialFilterExpression"),
+        "collation": index_doc.get("collation"),
+        "expireAfterSeconds": index_doc.get("expireAfterSeconds"),
+    }
+
+
+def _expected_index_options(*, unique: bool = False, sparse: bool = False, **kwargs) -> dict:
+    return {
+        "unique": bool(unique),
+        "sparse": bool(sparse),
+        "partialFilterExpression": kwargs.get("partialFilterExpression"),
+        "collation": kwargs.get("collation"),
+        "expireAfterSeconds": kwargs.get("expireAfterSeconds"),
+    }
+
+
+def _format_index_spec(spec: dict) -> str:
+    return (
+        f"name={spec.get('name')!r}, "
+        f"key={list(spec.get('key', {}).items())}, "
+        f"options={_index_options(spec)}"
+    )
+
 
 class MathMongo:
     def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="mathmongo"):
@@ -19,34 +56,110 @@ class MathMongo:
         self.media_assets = self.db[MEDIA_ASSETS_COLLECTION]
         print(f"✅ Conectado a la base de datos {db_name}")
 
+        self.ensure_indexes()
 
-        self.concepts.create_index([("id", ASCENDING),
-                                     ("source", ASCENDING)],
-                                       unique=True)
-        self.latex_documents.create_index([("id", ASCENDING),
-                                            ("source", ASCENDING)], 
-                                            unique=True)
-        self.relations.create_index([("desde", ASCENDING),
-                                      ("hasta", ASCENDING),
-                                        ("tipo", ASCENDING)], unique=True)
-        self.knowledge_graph_maps.create_index([("name", ASCENDING)])
-        self.knowledge_graph_maps.create_index([("updated_at", -1)])
-        self.knowledge_graph_maps.create_index([("created_at", -1)])
-        self.knowledge_graph_maps.create_index([("tags", ASCENDING)])
-        self.knowledge_graph_maps.create_index([("filters.sources", ASCENDING)])
-        self.knowledge_graph_maps.create_index([("filters.concept_types", ASCENDING)])
-        self.knowledge_graph_maps.create_index([("filters.relation_types", ASCENDING)])
-        self.knowledge_graph_maps.create_index([("source", ASCENDING)])
-        self.knowledge_graph_maps.create_index([("map_uid", ASCENDING)])
-        self.media_assets.create_index([("asset_id", ASCENDING)], unique=True)
-        self.media_assets.create_index([("path", ASCENDING)])
-        self.media_assets.create_index([("filename", ASCENDING)])
-        self.media_assets.create_index([("storage_type", ASCENDING)])
-        self.media_assets.create_index([("mime_type", ASCENDING)])
-        self.media_assets.create_index([("concept_ids", ASCENDING)])
-        self.media_assets.create_index([("note_ids", ASCENDING)])
-        self.media_assets.create_index([("tags", ASCENDING)])
-        self.media_assets.create_index([("created_at", -1)])
+    def _ensure_index(self, collection, keys, *, name: str | None = None, **options) -> str:
+        expected_key = _index_key(keys)
+        expected_options = _expected_index_options(**options)
+        for index_doc in collection.list_indexes():
+            existing_key = _index_key(index_doc.get("key", {}).items())
+            if existing_key != expected_key:
+                continue
+
+            existing_options = _index_options(index_doc)
+            if existing_options == expected_options:
+                return index_doc["name"]
+
+            raise MongoIndexInitializationError(
+                "MongoDB está conectado, pero falló la inicialización de índices.\n"
+                f"Colección: {collection.full_name}\n"
+                f"Índice existente incompatible: {_format_index_spec(index_doc)}\n"
+                f"Índice esperado: name={name!r}, key={expected_key}, options={expected_options}"
+            )
+
+        try:
+            return collection.create_index(keys, name=name, **options)
+        except OperationFailure as exc:
+            if getattr(exc, "code", None) == 85:
+                raise MongoIndexInitializationError(
+                    "MongoDB está conectado, pero falló la inicialización de índices.\n"
+                    f"Colección: {collection.full_name}\n"
+                    f"Índice esperado: name={name!r}, key={expected_key}, options={expected_options}\n"
+                    f"MongoDB respondió: {exc}"
+                ) from exc
+            raise
+
+    def ensure_indexes(self) -> None:
+        self._ensure_index(
+            self.concepts,
+            [("id", ASCENDING), ("source", ASCENDING)],
+            unique=True,
+        )
+        self._ensure_index(
+            self.latex_documents,
+            [("id", ASCENDING), ("source", ASCENDING)],
+            unique=True,
+        )
+        self._ensure_index(
+            self.relations,
+            [("desde", ASCENDING), ("hasta", ASCENDING), ("tipo", ASCENDING)],
+            unique=True,
+        )
+        self._ensure_index(self.knowledge_graph_maps, [("name", ASCENDING)], name="kg_maps_name")
+        self._ensure_index(
+            self.knowledge_graph_maps,
+            [("updated_at", -1)],
+            name="kg_maps_updated_at_desc",
+        )
+        self._ensure_index(
+            self.knowledge_graph_maps,
+            [("created_at", -1)],
+            name="kg_maps_created_at_desc",
+        )
+        self._ensure_index(self.knowledge_graph_maps, [("tags", ASCENDING)], name="kg_maps_tags")
+        self._ensure_index(
+            self.knowledge_graph_maps,
+            [("filters.sources", ASCENDING)],
+            name="kg_maps_filter_sources",
+        )
+        self._ensure_index(
+            self.knowledge_graph_maps,
+            [("filters.concept_types", ASCENDING)],
+            name="kg_maps_filter_concept_types",
+        )
+        self._ensure_index(
+            self.knowledge_graph_maps,
+            [("filters.relation_types", ASCENDING)],
+            name="kg_maps_filter_relation_types",
+        )
+        self._ensure_index(self.knowledge_graph_maps, [("source", ASCENDING)], name="kg_maps_source")
+        self._ensure_index(self.knowledge_graph_maps, [("map_uid", ASCENDING)], name="kg_maps_map_uid")
+        self._ensure_index(
+            self.media_assets,
+            [("asset_id", ASCENDING)],
+            name="media_assets_asset_id",
+            unique=True,
+        )
+        self._ensure_index(self.media_assets, [("path", ASCENDING)], name="media_assets_path")
+        self._ensure_index(self.media_assets, [("filename", ASCENDING)], name="media_assets_filename")
+        self._ensure_index(
+            self.media_assets,
+            [("storage_type", ASCENDING)],
+            name="media_assets_storage_type",
+        )
+        self._ensure_index(self.media_assets, [("mime_type", ASCENDING)], name="media_assets_mime_type")
+        self._ensure_index(
+            self.media_assets,
+            [("concept_ids", ASCENDING)],
+            name="media_assets_concept_ids",
+        )
+        self._ensure_index(self.media_assets, [("note_ids", ASCENDING)], name="media_assets_note_ids")
+        self._ensure_index(self.media_assets, [("tags", ASCENDING)], name="media_assets_tags")
+        self._ensure_index(
+            self.media_assets,
+            [("created_at", -1)],
+            name="media_assets_created_at_desc",
+        )
 
 
 

@@ -96,6 +96,7 @@ from mathkb_config import PROJECT_ROOT
 
 # Render preview graph using the same renderer as "Knowledge Graph"
 from mathdatabase.mathmongo import MathMongo
+from mathdatabase.mathmongo import MongoIndexInitializationError
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
 
@@ -1020,8 +1021,13 @@ class DatabaseManager:
                 'status': 'connected'
             }
             return True
+        except MongoIndexInitializationError as e:
+            st.error(
+                f"MongoDB conectado para {name}, pero falló la inicialización de índices:\n\n{e}"
+            )
+            return False
         except Exception as e:
-            st.error(f"Failed to connect to {name}: {e}")
+            st.error(f"No se pudo conectar a MongoDB para {name}: {e}")
             return False
 
     def get_connection(self, name):
@@ -5530,28 +5536,10 @@ elif page == "⚙️ Settings":
     with col2:
         if st.button("📊 Rebuild Indexes", key="rebuild_indexes_btn"):
             try:
-                db.concepts.create_index([("id", 1), ("source", 1)], unique=True)
-                db.latex_documents.create_index([("id", 1), ("source", 1)], unique=True)
-                db.relations.create_index([("desde", 1), ("hasta", 1), ("tipo", 1)], unique=True)
-                db.db["knowledge_graph_maps"].create_index([("name", 1)])
-                db.db["knowledge_graph_maps"].create_index([("updated_at", -1)])
-                db.db["knowledge_graph_maps"].create_index([("created_at", -1)])
-                db.db["knowledge_graph_maps"].create_index([("tags", 1)])
-                db.db["knowledge_graph_maps"].create_index([("filters.sources", 1)])
-                db.db["knowledge_graph_maps"].create_index([("filters.concept_types", 1)])
-                db.db["knowledge_graph_maps"].create_index([("filters.relation_types", 1)])
-                db.db["knowledge_graph_maps"].create_index([("source", 1)])
-                db.db["knowledge_graph_maps"].create_index([("map_uid", 1)])
-                db.db["media_assets"].create_index([("asset_id", 1)], unique=True)
-                db.db["media_assets"].create_index([("path", 1)])
-                db.db["media_assets"].create_index([("filename", 1)])
-                db.db["media_assets"].create_index([("storage_type", 1)])
-                db.db["media_assets"].create_index([("mime_type", 1)])
-                db.db["media_assets"].create_index([("concept_ids", 1)])
-                db.db["media_assets"].create_index([("note_ids", 1)])
-                db.db["media_assets"].create_index([("tags", 1)])
-                db.db["media_assets"].create_index([("created_at", -1)])
+                db.ensure_indexes()
                 st.success("✅ Indexes rebuilt successfully!")
+            except MongoIndexInitializationError as e:
+                st.error(f"❌ MongoDB está conectado, pero falló la inicialización de índices: {e}")
             except Exception as e:
                 st.error(f"❌ Error rebuilding indexes: {e}")
 

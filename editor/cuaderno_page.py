@@ -98,6 +98,41 @@ def _update_one_by_id(coll, id_value, update_doc):
         return None
 
 
+def _canonical_doc_id(doc: dict[str, Any]) -> str:
+    """Return a stable logical id for Mongo documents that may mix ObjectId and string ids."""
+    return str(doc.get("_id"))
+
+
+def _prefer_canonical_doc(current: dict[str, Any], candidate: dict[str, Any]) -> dict[str, Any]:
+    """Prefer ObjectId-backed documents when a string duplicate has the same logical id."""
+    current_id = current.get("_id")
+    candidate_id = candidate.get("_id")
+    if isinstance(candidate_id, ObjectId) and not isinstance(current_id, ObjectId):
+        return candidate
+    return current
+
+
+def _streamlit_table_value(value: Any) -> Any:
+    """Convert Mongo/Python mixed values into Arrow-friendly table values."""
+    if value is None:
+        return ""
+    if isinstance(value, ObjectId):
+        return str(value)
+    if isinstance(value, datetime):
+        return value.isoformat()
+    if isinstance(value, date):
+        return value.isoformat()
+    if isinstance(value, list):
+        return ", ".join(str(item) for item in value)
+    if isinstance(value, dict):
+        return str(value)
+    return value
+
+
+def _streamlit_table_row(doc: dict[str, Any]) -> dict[str, Any]:
+    return {key: _streamlit_table_value(value) for key, value in doc.items()}
+
+
 
 
 def _worklog_label(doc: Dict[str, Any]) -> str:
@@ -2091,7 +2126,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for r in rows:
                     rr = dict(r)
                     rr["_id"] = str(rr.get("_id"))
-                    df_rows.append(rr)
+                    df_rows.append(_streamlit_table_row(rr))
                 df = pd.DataFrame(df_rows)
                 st.dataframe(df, width='stretch')
         except Exception as e:
@@ -2165,7 +2200,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for d in docs:
                     dd = dict(d)
                     dd["_id"] = str(dd.get("_id"))
-                    norm.append(dd)
+                    norm.append(_streamlit_table_row(dd))
                 export_df = pd.DataFrame(norm)
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
@@ -2586,7 +2621,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             rows = []
             for it in items:
                 rows.append(
-                    {
+                    _streamlit_table_row({
                         "_id": str(it.get("_id")),
                         "project": it.get("project", ""),
                         "module": it.get("module", ""),
@@ -2596,7 +2631,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                         "owner": it.get("owner", ""),
                         "target_date": it.get("target_date", ""),
                         "updated_at": it.get("updated_at", ""),
-                    }
+                    })
                 )
 
             df = pd.DataFrame(rows)
@@ -2685,7 +2720,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     rows2 = []
                     for it in docs:
                         rows2.append(
-                            {
+                            _streamlit_table_row({
                                 "_id": str(it.get("_id")),
                                 "project": it.get("project", ""),
                                 "module": it.get("module", ""),
@@ -2695,7 +2730,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                                 "owner": it.get("owner", ""),
                                 "target_date": it.get("target_date", ""),
                                 "updated_at": it.get("updated_at", ""),
-                            }
+                            })
                         )
                     export_df = pd.DataFrame(rows2)
                 except Exception as e:
@@ -3277,7 +3312,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     for d in docs:
                         dd = dict(d)
                         dd["_id"] = str(dd.get("_id"))
-                        norm.append(dd)
+                        norm.append(_streamlit_table_row(dd))
                     export_df = pd.DataFrame(norm)
                 except Exception as e:
                     st.error(f"❌ Error preparando exportación (recientes): {e}")
@@ -3342,7 +3377,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for d in docs:
                     dd = dict(d)
                     dd["_id"] = str(dd.get("_id"))
-                    norm.append(dd)
+                    norm.append(_streamlit_table_row(dd))
                 export_df = pd.DataFrame(norm)
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
@@ -3482,7 +3517,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for r in rows:
                     rr = dict(r)
                     rr["_id"] = str(rr.get("_id"))
-                    norm.append(rr)
+                    norm.append(_streamlit_table_row(rr))
                 df_deliv_recent = pd.DataFrame(norm)
                 st.dataframe(df_deliv_recent, width='stretch')
         except Exception as e:
@@ -3557,7 +3592,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 for d in docs:
                     dd = dict(d)
                     dd["_id"] = str(dd.get("_id"))
-                    norm.append(dd)
+                    norm.append(_streamlit_table_row(dd))
                 export_df = pd.DataFrame(norm)
             except Exception as e:
                 st.error(f"❌ Error preparando exportación: {e}")
@@ -3743,6 +3778,28 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             st.error(f"❌ Error cargando backlog (kanban): {e}")
             k_items = []
 
+        k_items_by_id: dict[str, dict[str, Any]] = {}
+        duplicate_kanban_ids: Counter[str] = Counter()
+        for item in k_items:
+            item_key = _canonical_doc_id(item)
+            if item_key in k_items_by_id:
+                duplicate_kanban_ids[item_key] += 1
+                k_items_by_id[item_key] = _prefer_canonical_doc(k_items_by_id[item_key], item)
+            else:
+                k_items_by_id[item_key] = item
+
+        if duplicate_kanban_ids:
+            duplicate_summary = ", ".join(
+                f"{item_id} ({count + 1} copias)"
+                for item_id, count in duplicate_kanban_ids.most_common(5)
+            )
+            st.warning(
+                "Se detectaron documentos duplicados lógicos en backlog_items. "
+                f"Kanban renderiza una sola tarjeta por identidad: {duplicate_summary}"
+            )
+
+        k_items = list(k_items_by_id.values())
+
         statuses = ["Todo", "Doing", "Blocked", "Done"]
         grouped = {s: [] for s in statuses}
         for it in k_items:
@@ -3769,7 +3826,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     continue
 
                 for it in grouped[s][:50]:
-                    _id_str = str(it.get("_id"))
+                    _id_str = _canonical_doc_id(it)
                     title = f"{it.get('project','')} — {it.get('task','')}"
                     with st.expander(title, expanded=False):
                         meta_left, meta_right = st.columns([2, 1])
