@@ -4,14 +4,44 @@
 
 from __future__ import annotations
 
+from datetime import date
+
 from editor.cornell.models import DEFAULT_TEMPLATE_ID
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.streamlit_page import SESSION_DIRTY
+from editor.cornell.streamlit_page import SESSION_DOCUMENT
+from editor.cornell.streamlit_page import SESSION_NOTE_ID
+from editor.cornell.streamlit_page import SESSION_PAGE_INDEX
+from editor.cornell.streamlit_page import SESSION_PENDING_NOTE_ID
+from editor.cornell.streamlit_page import SESSION_PENDING_VIEW
+from editor.cornell.streamlit_page import SESSION_RENDERED_PAGE_ID
+from editor.cornell.streamlit_page import SESSION_VIEW
+from editor.cornell.streamlit_page import SESSION_VIEW_SELECTOR
+from editor.cornell.streamlit_page import VIEW_EDIT_NOTES
+from editor.cornell.streamlit_page import VIEW_EXPLORE_NOTES
+from editor.cornell.streamlit_page import VIEW_NEW_NOTE
 from editor.cornell.streamlit_page import add_page
+from editor.cornell.streamlit_page import apply_loaded_note_state
+from editor.cornell.streamlit_page import apply_pending_view_state
+from editor.cornell.streamlit_page import consume_pending_note_id
 from editor.cornell.streamlit_page import delete_page
 from editor.cornell.streamlit_page import duplicate_page
 from editor.cornell.streamlit_page import normalize_page_orders
+from editor.cornell.streamlit_page import queue_cornell_navigation
+from editor.cornell.streamlit_page import valid_page_index
+from editor.cornell.ui_helpers import ALL_LABEL
+from editor.cornell.ui_helpers import DEFAULT_NOTE_CONTEXTS
+from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
+from editor.cornell.ui_helpers import NEW_PROJECT_LABEL
+from editor.cornell.ui_helpers import NO_PROJECT_LABEL
+from editor.cornell.ui_helpers import append_latex_snippet
+from editor.cornell.ui_helpers import existing_note_contexts_from_values
+from editor.cornell.ui_helpers import filter_cornell_notes_for_explorer
+from editor.cornell.ui_helpers import note_page_count
+from editor.cornell.ui_helpers import project_selector_choices
+from editor.cornell.ui_helpers import resolve_project_choice
 
 
 def page(page_id: str, order: int, heading: str | None = None) -> CornellPage:
@@ -94,3 +124,243 @@ def test_delete_only_page_keeps_one_page() -> None:
 
     assert selected == 0
     assert updated == original
+
+
+def test_queue_open_note_does_not_modify_widget_selector_key() -> None:
+    state = {
+        SESSION_VIEW: VIEW_EXPLORE_NOTES,
+        SESSION_VIEW_SELECTOR: VIEW_EXPLORE_NOTES,
+    }
+
+    queue_cornell_navigation(state, view=VIEW_EDIT_NOTES, note_id="note-1")
+
+    assert state[SESSION_VIEW_SELECTOR] == VIEW_EXPLORE_NOTES
+    assert state[SESSION_VIEW] == VIEW_EXPLORE_NOTES
+    assert state[SESSION_PENDING_VIEW] == VIEW_EDIT_NOTES
+    assert state[SESSION_PENDING_NOTE_ID] == "note-1"
+
+
+def test_pending_navigation_is_applied_before_selector() -> None:
+    state = {
+        SESSION_VIEW: VIEW_EXPLORE_NOTES,
+        SESSION_VIEW_SELECTOR: VIEW_EXPLORE_NOTES,
+        SESSION_PENDING_VIEW: VIEW_EDIT_NOTES,
+    }
+
+    applied = apply_pending_view_state(state)
+
+    assert applied == VIEW_EDIT_NOTES
+    assert state[SESSION_VIEW] == VIEW_EDIT_NOTES
+    assert state[SESSION_VIEW_SELECTOR] == VIEW_EDIT_NOTES
+    assert SESSION_PENDING_VIEW not in state
+
+
+def test_open_note_pending_id_is_consumed_once() -> None:
+    state = {SESSION_PENDING_NOTE_ID: "note-2"}
+
+    assert consume_pending_note_id(state) == "note-2"
+    assert consume_pending_note_id(state) is None
+
+
+def test_edit_navigation_targets_edit_view() -> None:
+    state = {}
+
+    queue_cornell_navigation(state, view=VIEW_EDIT_NOTES, note_id="note-3")
+
+    assert apply_pending_view_state(state) == VIEW_EDIT_NOTES
+
+
+def test_invalid_pending_navigation_falls_back_to_new_note() -> None:
+    state = {SESSION_PENDING_VIEW: "Vista inexistente"}
+
+    assert apply_pending_view_state(state) == VIEW_NEW_NOTE
+    assert state[SESSION_VIEW] == VIEW_NEW_NOTE
+
+
+def test_valid_page_index_clamps_out_of_range_values() -> None:
+    doc = document(page("p1", 1), page("p2", 2))
+
+    assert valid_page_index(doc, -10) == 0
+    assert valid_page_index(doc, 99) == 1
+    assert valid_page_index(doc, "bad") == 0
+
+
+def test_loading_note_clears_previous_note_state() -> None:
+    state = {
+        SESSION_NOTE_ID: "old",
+        SESSION_PAGE_INDEX: 99,
+        SESSION_DIRTY: True,
+        "cornell_title": "Vieja",
+        "cornell_main_latex": "contenido anterior",
+    }
+    note = {
+        "_id": "new",
+        "title": "Nueva",
+        "date": "2026-07-07",
+        "project": "Algebra",
+        "context": "estudio",
+        "tags": ["matrices"],
+    }
+    doc = document(page("new-p1", 1, "nueva"), page("new-p2", 2, "segunda"))
+
+    apply_loaded_note_state(state, note_id="new", note=note, document=doc)
+
+    assert state[SESSION_NOTE_ID] == "new"
+    assert state[SESSION_PAGE_INDEX] == 0
+    assert state[SESSION_DIRTY] is False
+    assert state[SESSION_RENDERED_PAGE_ID] == "new-p1"
+    assert state["cornell_title"] == "Nueva"
+    assert state["cornell_main_latex"] == "Main body nueva"
+
+
+def test_loading_second_note_does_not_mix_documents() -> None:
+    state = {}
+    first = document(page("first-p1", 1, "first"))
+    second = document(page("second-p1", 1, "second"))
+
+    apply_loaded_note_state(state, note_id="first", note={"title": "First"}, document=first)
+    apply_loaded_note_state(state, note_id="second", note={"title": "Second"}, document=second)
+
+    current = state[SESSION_DOCUMENT]
+    assert state[SESSION_NOTE_ID] == "second"
+    assert [page.page_id for page in current.ordered_pages()] == ["second-p1"]
+    assert state["cornell_cue_latex"] == "Cue body second"
+
+
+def test_project_selector_uses_history_and_no_project_option() -> None:
+    choices, index = project_selector_choices([" Algebra ", "Geometry", "algebra"], "")
+
+    assert choices == [NO_PROJECT_LABEL, NEW_PROJECT_LABEL, "Algebra", "Geometry"]
+    assert index == 0
+
+
+def test_project_selector_selects_existing_project() -> None:
+    choices, index = project_selector_choices(["Algebra", "Geometry"], "geometry")
+
+    assert choices[index] == "Geometry"
+
+
+def test_project_selector_supports_new_project() -> None:
+    choices, index = project_selector_choices(["Algebra"], "Topology")
+
+    assert choices[index] == NEW_PROJECT_LABEL
+    assert resolve_project_choice(NEW_PROJECT_LABEL, "  Topology  Seminar ") == "Topology Seminar"
+
+
+def test_resolve_no_project_choice() -> None:
+    assert resolve_project_choice(NO_PROJECT_LABEL, "Ignored") == ""
+
+
+def test_contexts_are_compatible_with_diario_defaults() -> None:
+    contexts = existing_note_contexts_from_values(["seminario", "estudio"])
+
+    assert list(DEFAULT_NOTE_CONTEXTS) == contexts[: len(DEFAULT_NOTE_CONTEXTS)]
+    assert "seminario" in contexts
+
+
+def test_date_string_persists_as_iso_format() -> None:
+    selected = date(2026, 7, 7)
+
+    assert selected.isoformat() == "2026-07-07"
+
+
+def test_insert_snippet_in_cue_preserves_existing_content() -> None:
+    snippet = LATEX_SNIPPET_GROUPS[0].snippets[0].snippet
+
+    assert append_latex_snippet("cue previo", snippet).startswith("cue previo\n\\begin{definition}")
+
+
+def test_insert_snippet_in_main_preserves_existing_content() -> None:
+    snippet = LATEX_SNIPPET_GROUPS[1].snippets[2].snippet
+
+    assert append_latex_snippet("main previo\n", snippet) == "main previo\n" + snippet
+
+
+def test_insert_snippet_in_summary_preserves_existing_content() -> None:
+    snippet = LATEX_SNIPPET_GROUPS[4].snippets[0].snippet
+
+    assert "summary previo" in append_latex_snippet("summary previo", snippet)
+
+
+def test_insert_snippet_does_not_erase_empty_region() -> None:
+    snippet = LATEX_SNIPPET_GROUPS[3].snippets[0].snippet
+
+    assert append_latex_snippet("", snippet) == snippet + "\n"
+
+
+def cornell_note(
+    note_id: str,
+    *,
+    title: str,
+    project: str,
+    context: str,
+    date_value: str = "2026-07-07",
+) -> dict:
+    doc = document(page("p1", 1), page("p2", 2))
+    return {
+        "_id": note_id,
+        "note_format": "cornell_math_v1",
+        "title": title,
+        "date": date_value,
+        "project": project,
+        "context": context,
+        "latex_body": f"{title} body",
+        "cornell": doc.to_dict(),
+    }
+
+
+def test_explorer_filters_only_cornell_notes() -> None:
+    notes = [
+        cornell_note("1", title="Cornell Algebra", project="Algebra", context="estudio"),
+        {"_id": "legacy", "title": "Legacy", "latex_body": "Legacy body"},
+    ]
+
+    filtered = filter_cornell_notes_for_explorer(notes)
+
+    assert [note["_id"] for note in filtered] == ["1"]
+    assert note_page_count(filtered[0]) == 2
+
+
+def test_explorer_filters_by_project_and_context() -> None:
+    notes = [
+        cornell_note("1", title="Algebra", project="Algebra", context="estudio"),
+        cornell_note("2", title="Debug", project="Algebra", context="debug"),
+        cornell_note("3", title="Geometry", project="Geometry", context="estudio"),
+    ]
+
+    filtered = filter_cornell_notes_for_explorer(
+        notes,
+        project="Algebra",
+        context="estudio",
+    )
+
+    assert [note["_id"] for note in filtered] == ["1"]
+
+
+def test_explorer_filters_text_and_date() -> None:
+    notes = [
+        cornell_note("1", title="Matrices", project="", context="estudio", date_value="2026-07-07"),
+        cornell_note("2", title="Topologia", project="", context="estudio", date_value="2026-07-08"),
+    ]
+
+    filtered = filter_cornell_notes_for_explorer(
+        notes,
+        text="matrices",
+        project=ALL_LABEL,
+        context=ALL_LABEL,
+        start_date=date(2026, 7, 1),
+        end_date=date(2026, 7, 7),
+    )
+
+    assert [note["_id"] for note in filtered] == ["1"]
+
+
+def test_explorer_filters_no_project() -> None:
+    notes = [
+        cornell_note("1", title="Sin proyecto", project="", context="estudio"),
+        cornell_note("2", title="Con proyecto", project="Algebra", context="estudio"),
+    ]
+
+    filtered = filter_cornell_notes_for_explorer(notes, project=NO_PROJECT_LABEL)
+
+    assert [note["_id"] for note in filtered] == ["1"]
