@@ -54,8 +54,7 @@ REGION_EXPORTS = {
         "paper_height": "2in",
     },
 }
-HISTORICAL_CORNELL_DIR = PROJECT_ROOT / "CornellFormats" / "1 Notas matemáticas tipo cornel"
-HISTORICAL_LINES_IMAGE = HISTORICAL_CORNELL_DIR / "lineas.png"
+HISTORICAL_LINES_IMAGE = PROJECT_ROOT / "templates_latex" / "lineas.png"
 LINES_IMAGE_FILENAME = "lineas.png"
 LINES_IMAGE_EXPORT_PATH = f"images/{LINES_IMAGE_FILENAME}"
 

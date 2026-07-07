@@ -4,6 +4,7 @@ import time
 import zipfile
 from pathlib import Path
 from typing import Dict
+from datetime import datetime
 
 from bson import ObjectId
 from bson.errors import InvalidId
@@ -42,6 +43,147 @@ def _restore_mongo_id(doc: dict) -> dict:
             doc["_id"] = ObjectId(raw_id)
         except InvalidId:
             pass
+    return doc
+
+_DATETIME_FIELDS_BY_COLLECTION = {
+    "concepts": (
+        "fecha_creacion",
+        "ultima_actualizacion",
+    ),
+    "latex_documents": (
+        "fecha_creacion",
+        "ultima_actualizacion",
+    ),
+    "worklog_entries": (
+        "created_at",
+        "updated_at",
+    ),
+    "backlog_items": (
+        "created_at",
+        "updated_at",
+    ),
+    "weekly_reviews": (
+        "created_at",
+        "updated_at",
+    ),
+    "deliverables": (
+        "created_at",
+        "updated_at",
+    ),
+    "latex_notes": (
+        "created_at",
+        "updated_at",
+    ),
+    "knowledge_graph_maps": (
+        "created_at",
+        "updated_at",
+    ),
+    MEDIA_ASSETS_COLLECTION: (
+        "created_at",
+        "updated_at",
+    ),
+}
+
+
+_OBJECT_ID_FIELDS_BY_COLLECTION = {
+    "worklog_entries": (
+        "deliverable_id",
+    ),
+}
+
+
+_OBJECT_ID_LIST_FIELDS_BY_COLLECTION = {
+    "backlog_items": (
+        "linked_worklog_ids",
+        "linked_note_ids",
+    ),
+    "deliverables": (
+        "linked_worklog_ids",
+        "linked_note_ids",
+    ),
+}
+
+
+def _restore_iso_datetime(
+    value,
+    *,
+    collection_name: str,
+    field_name: str,
+):
+    """Restore an ISO 8601 string exported from a MongoDB datetime."""
+    if value is None or isinstance(value, datetime):
+        return value
+
+    if not isinstance(value, str):
+        return value
+
+    normalized = value.strip()
+
+    if normalized.endswith(("Z", "z")):
+        normalized = normalized[:-1] + "+00:00"
+
+    try:
+        return datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid ISO datetime in "
+            f"{collection_name}.{field_name}: {value!r}"
+        ) from exc
+
+
+def _restore_object_id(value):
+    """Restore an ObjectId exported as a string."""
+    if value is None or isinstance(value, ObjectId):
+        return value
+
+    if not isinstance(value, str):
+        return value
+
+    try:
+        return ObjectId(value)
+    except InvalidId:
+        return value
+
+
+def _restore_mongo_types(doc: dict, collection_name: str) -> dict:
+    """Restore MongoDB-specific types lost during JSON export."""
+    doc = _restore_mongo_id(doc)
+
+    if not isinstance(doc, dict):
+        return doc
+
+    for field_name in _DATETIME_FIELDS_BY_COLLECTION.get(
+        collection_name,
+        (),
+    ):
+        if field_name in doc:
+            doc[field_name] = _restore_iso_datetime(
+                doc[field_name],
+                collection_name=collection_name,
+                field_name=field_name,
+            )
+
+    for field_name in _OBJECT_ID_FIELDS_BY_COLLECTION.get(
+        collection_name,
+        (),
+    ):
+        if field_name in doc:
+            doc[field_name] = _restore_object_id(
+                doc[field_name]
+            )
+
+    for field_name in _OBJECT_ID_LIST_FIELDS_BY_COLLECTION.get(
+        collection_name,
+        (),
+    ):
+        values = doc.get(field_name)
+
+        if isinstance(values, list):
+            doc[field_name] = [
+                _restore_object_id(value)
+                for value in values
+            ]
+
     return doc
 
 
@@ -204,7 +346,7 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> None:
                             IMPORT_TIMEOUT_SECONDS,
                             f"importing {coll}",
                         )
-                    doc = _restore_mongo_id(doc)
+                    doc = _restore_mongo_types(doc, coll)
                     if (
                         coll == MEDIA_ASSETS_COLLECTION
                         and isinstance(doc, dict)

@@ -5524,9 +5524,8 @@ elif page == "⚙️ Settings":
             with c1:
                  if st.button("⚠️ Confirm Clear All", type="primary", key="confirm_clear_all_btn"):
                     try:
-                        db.concepts.delete_many({})
-                        db.relations.delete_many({})
-                        db.latex_documents.delete_many({})
+                        for collection_name in EXPORT_COLLECTIONS:
+                            db.db[collection_name].delete_many({})
                         st.session_state.confirm_clear_all = False
                         st.success("✅ All data cleared!")
                         st.rerun()

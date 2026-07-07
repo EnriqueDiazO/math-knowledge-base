@@ -29,8 +29,7 @@ from editor.cornell.models import CornellPage
 from exporters_latex.latex_compile import run_latex_until_stable
 from mathkb_config import PROJECT_ROOT
 
-HISTORICAL_CORNELL_DIR = PROJECT_ROOT / "CornellFormats" / "1 Notas matemáticas tipo cornel"
-HISTORICAL_LINES_IMAGE = HISTORICAL_CORNELL_DIR / "lineas.png"
+HISTORICAL_LINES_IMAGE = PROJECT_ROOT / "templates_latex" / "lineas.png"
 ASSETS_DIRNAME = "cornell_assets"
 LINES_IMAGE_FILENAME = "lineas.png"
 LINES_IMAGE_INCLUDE_PATH = f"{ASSETS_DIRNAME}/{LINES_IMAGE_FILENAME}"
