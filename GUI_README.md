@@ -445,6 +445,14 @@ Install for the active database:
 python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
 ```
 
+Check status for that same active database:
+
+```bash
+python scripts/install_cuaderno_mode.py --status --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
+```
+
+Cornell notes use the existing `latex_notes` collection, not a separate `cornell_notes` collection. They are distinguished by `note_format = "cornell_math_v1"` and keep their canonical structure in `cornell.schema_version`, `cornell.template_id`, and `cornell.pages`. The installer is idempotent and adds the Cornell indexes `latex_note_format`, `latex_note_format_date_desc`, `latex_note_format_project`, and `latex_note_format_context` when missing.
+
 ### Diary Notes
 
 New note fields:

@@ -199,6 +199,35 @@ python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --
 
 This command is non-destructive. It creates missing Notebook/graph-map collections and indexes without deleting existing data. Core concept/relation indexes are also created automatically when the app opens a `MathMongo` connection.
 
+Check the target database before running the installer:
+
+```bash
+python scripts/install_cuaderno_mode.py --status --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
+```
+
+Use the same `--db` value selected in the Streamlit sidebar. The installer default is `mathmongo`, while active imported databases commonly use names such as `MathV0`.
+
+Cornell math notes are stored in the existing `latex_notes` collection. There is no separate `cornell_notes` collection. Cornell notes are identified by:
+
+```text
+note_format = "cornell_math_v1"
+```
+
+Their canonical Cornell payload is stored under:
+
+```text
+cornell.schema_version
+cornell.template_id
+cornell.pages
+```
+
+The Cornell installer support is idempotent and keeps legacy notes valid. Expected Cornell indexes on `latex_notes` are:
+
+- `latex_note_format`
+- `latex_note_format_date_desc`
+- `latex_note_format_project`
+- `latex_note_format_context`
+
 The full database flow uses:
 
 - `concepts`
