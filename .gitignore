@@ -108,3 +108,29 @@ exportados/**/*.html
 
 exported_notes/_build/*.sty
 exported_notes/_build/*.cls
+
+# Cornell historical reference: LaTeX build artifacts
+CornellFormats/**/*.aux
+CornellFormats/**/*.log
+CornellFormats/**/*.bbl
+CornellFormats/**/*.blg
+CornellFormats/**/*.dvi
+CornellFormats/**/*.out
+CornellFormats/**/*.toc
+CornellFormats/**/*.lof
+CornellFormats/**/*.lot
+CornellFormats/**/*.fls
+CornellFormats/**/*.png
+CornellFormats/**/*.gif
+CornellFormats/**/*.jpg
+CornellFormats/**/*.jpeg
+CornellFormats/**/*.svg
+CornellFormats/**/*.sty
+CornellFormats/**/*.Rhistory
+CornellFormats/**/*.fdb_latexmk
+CornellFormats/**/*.synctex.gz
+
+# Cornell historical intermediate PDFs
+CornellFormats/**/Izquierda.pdf
+CornellFormats/**/Derecha.pdf
+CornellFormats/**/Abajo.pdf

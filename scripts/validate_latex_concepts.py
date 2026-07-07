@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+"""Validate LaTeX concepts from MongoDB and optionally write safe fixes."""
+
 from __future__ import annotations
 
 import argparse
@@ -8,14 +10,15 @@ from pathlib import Path
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from exporters_latex.latex_validation import default_report_paths
-from exporters_latex.latex_validation import validate_concept_from_mongo
-from exporters_latex.latex_validation import validate_source_from_mongo
-from exporters_latex.latex_validation import write_json_report
-from exporters_latex.latex_validation import write_markdown_report
+from exporters_latex.latex_validation import default_report_paths  # noqa: E402
+from exporters_latex.latex_validation import validate_concept_from_mongo  # noqa: E402
+from exporters_latex.latex_validation import validate_source_from_mongo  # noqa: E402
+from exporters_latex.latex_validation import write_json_report  # noqa: E402
+from exporters_latex.latex_validation import write_markdown_report  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse command-line options."""
     parser = argparse.ArgumentParser(description="Validate LaTeX concepts from MongoDB.")
     parser.add_argument("--source", required=True, help="Concept source to validate.")
     parser.add_argument("--concept-id", help="Validate a single concept id.")
@@ -44,6 +47,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Run LaTeX validation for one concept or a full source."""
     args = parse_args()
     from mathdatabase.mathmongo import MathMongo
 

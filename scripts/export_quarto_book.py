@@ -1,3 +1,5 @@
+"""Build a Quarto book skeleton with an auto-generated chapter list."""
+
 from __future__ import annotations
 
 import argparse
@@ -16,8 +18,8 @@ def _collect_qmd(output_dir: Path, glob_pattern: str) -> list[str]:
 
 
 def _write_book_quarto_yml(output_dir: Path) -> None:
-    """
-    Rewrites output_dir/_quarto.yml with an auto-generated chapter list.
+    """Rewrite output_dir/_quarto.yml with an auto-generated chapter list.
+
     Assumes the skeleton files exist (copied from template).
     """
     # Required skeleton entries (must exist)
@@ -100,6 +102,7 @@ def _write_book_quarto_yml(output_dir: Path) -> None:
 
 
 def main() -> None:
+    """Generate the Quarto book build directory."""
     p = argparse.ArgumentParser()
     p.add_argument("--template", default="quarto_book", help="Template directory to copy from")
     p.add_argument("--output", default="quarto_book_build", help="Build directory to generate into")
