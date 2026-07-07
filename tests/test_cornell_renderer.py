@@ -30,7 +30,6 @@ def sample_page() -> CornellPage:
         cue=CornellRegion(
             heading="Ideas principales",
             latex="Matrices con la misma forma.",
-            image_ids=("cue-image",),
         ),
         main=CornellRegion(
             heading="Aritmética de matrices",
@@ -91,6 +90,16 @@ def snippet_page(main_latex: str) -> CornellPage:
     )
 
 
+def summary_layout_page(summary_latex: str) -> CornellPage:
+    return CornellPage(
+        page_id="summary-layout",
+        order=1,
+        cue=CornellRegion(heading="Cue", latex="Cue body"),
+        main=CornellRegion(heading="Main", latex="Main body"),
+        summary=CornellRegion(heading="Observaciones 2", latex=summary_latex),
+    )
+
+
 def pdfinfo_text(pdf_path: Path) -> str:
     return subprocess.run(
         ["pdfinfo", str(pdf_path)],
@@ -124,7 +133,7 @@ def test_cornell_page_model_creation() -> None:
     assert page.page_id == "p001"
     assert page.order == 1
     assert page.cue.heading == "Ideas principales"
-    assert page.cue.image_ids == ("cue-image",)
+    assert page.cue.image_ids == ()
 
 
 def test_cornell_page_requires_page_id() -> None:
@@ -242,15 +251,32 @@ def test_generate_cornell_tex_contains_snippet_compatibility_layer() -> None:
 
 
 def test_generate_cornell_tex_positions_summary_body_independently() -> None:
-    tex = renderer.generate_cornell_tex(sample_page())
+    tex = renderer.generate_cornell_tex(
+        summary_layout_page(
+            "\\begin{example}\n"
+            "A poco no ocupa todo el espacio.\\\\\n"
+            "Ejemplo en otra linea.\n"
+            "\\end{example}"
+        )
+    )
 
-    summary_heading_index = tex.index(r"\CornellSummaryHeading{Observaciones}")
-    summary_body_anchor_index = tex.index("anchor=north east")
+    summary_heading_index = tex.index(r"\CornellSummaryHeading{Observaciones 2}")
+    summary_body_anchor_index = tex.index(
+        r"\node[anchor=north west, inner sep=0pt, align=left] at ($(SW)+(18mm,1.62in)$)"
+    )
+    summary_marker_index = tex.index("% Cornell source page=1 region=summary")
 
     assert summary_heading_index < summary_body_anchor_index
-    assert r"\node[anchor=north east, inner sep=0pt, align=right]" in tex
-    assert "$(SW)+(8.3in,1.72in)$" in tex
-    assert r"\raggedleft" in tex
+    assert summary_body_anchor_index < summary_marker_index
+    assert r"\begin{minipage}[t]{7.55in}" in tex
+    assert r"\raggedright" in tex
+    assert r"\raggedleft" not in tex
+    assert "anchor=north east" not in tex
+    assert "align=right" not in tex
+    assert "$(SW)+(8.3in,1.72in)$" not in tex
+    assert tex.index(r"\begin{example}") > summary_marker_index
+    assert "A poco no ocupa todo el espacio" in tex
+    assert "Ejemplo en otra linea" in tex
 
 
 def test_all_snippet_environments_are_supported_by_cornell_compat() -> None:

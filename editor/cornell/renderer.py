@@ -12,6 +12,8 @@ from textwrap import dedent
 from typing import Any
 
 from editor.cornell.latex_compat import cornell_latex_compat_preamble
+from editor.cornell.media import prepare_cornell_image_assets
+from editor.cornell.media import render_cornell_region_latex
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from exporters_latex.latex_compile import run_latex_until_stable
@@ -89,6 +91,7 @@ def _latex_preamble() -> str:
         \setlength{\parskip}{4pt}
         \newcommand{\CornellMainText}{\normalfont\color{black}\fontsize{10}{18.9}\selectfont}
         \newcommand{\CornellCueHeading}[1]{\begin{center}{\Huge\color{OliveGreen} #1}\end{center}}
+        \newcommand{\cornellimage}[1]{\textbf{[Imagen Cornell: \detokenize{#1}]}}
         \newcommand{\CornellMainHeading}[1]{%
           \begin{minipage}{1mm}\rule{0pt}{2.1cm}\end{minipage}%
           \begin{minipage}{5.45in}{\Huge\color{RubineRed} #1}\end{minipage}\par%
@@ -102,11 +105,27 @@ def _cornell_page_body(
     page: CornellPage,
     *,
     page_number: int,
+    asset_paths_by_id: Mapping[str, str] | None = None,
     lines_image_path: str | None = LINES_IMAGE_INCLUDE_PATH,
 ) -> str:
     cue_heading = _escape_latex_text(page.cue.heading)
     main_heading = _escape_latex_text(page.main.heading)
     summary_heading = _escape_latex_text(page.summary.heading)
+    cue_latex = render_cornell_region_latex(
+        page.cue,
+        region_name="cue",
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    main_latex = render_cornell_region_latex(
+        page.main,
+        region_name="main",
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    summary_latex = render_cornell_region_latex(
+        page.summary,
+        region_name="summary",
+        asset_paths_by_id=asset_paths_by_id,
+    )
     background_block = ""
     if lines_image_path:
         background_block = rf"""
@@ -144,7 +163,7 @@ def _cornell_page_body(
                 \par\vspace{{4mm}}
                 \CornellMainText
                 % Cornell source page={page_number} region=cue
-                {page.cue.latex}
+                {cue_latex}
               \end{{minipage}}
             \end{{minipage}}
           }};
@@ -156,7 +175,7 @@ def _cornell_page_body(
                 \CornellMainHeading{{{main_heading}}}
                 \CornellMainText
                 % Cornell source page={page_number} region=main
-                {page.main.latex}
+                {main_latex}
               \end{{minipage}}
             \end{{minipage}}
           }};
@@ -170,12 +189,12 @@ def _cornell_page_body(
             \end{{minipage}}
           }};
 
-          \node[anchor=north east, inner sep=0pt, align=right] at ($(SW)+(8.3in,1.72in)$) {{
-            \begin{{minipage}}[t]{{5.7in}}
-              \raggedleft
+          \node[anchor=north west, inner sep=0pt, align=left] at ($(SW)+(18mm,1.62in)$) {{
+            \begin{{minipage}}[t]{{7.55in}}
+              \raggedright
               \CornellMainText
               % Cornell source page={page_number} region=summary
-              {page.summary.latex}
+              {summary_latex}
             \end{{minipage}}
           }};
         \end{{tikzpicture}}
@@ -186,12 +205,18 @@ def _cornell_page_body(
 def _generate_document_tex(
     pages: tuple[CornellPage, ...],
     *,
+    asset_paths_by_id: Mapping[str, str] | None = None,
     lines_image_path: str | None = LINES_IMAGE_INCLUDE_PATH,
 ) -> str:
     if not pages:
         raise ValueError("CornellDocument must contain at least one page")
     page_bodies = [
-        _cornell_page_body(page, page_number=index, lines_image_path=lines_image_path).strip()
+        _cornell_page_body(
+            page,
+            page_number=index,
+            asset_paths_by_id=asset_paths_by_id,
+            lines_image_path=lines_image_path,
+        ).strip()
         for index, page in enumerate(pages, start=1)
     ]
     return (
@@ -205,36 +230,72 @@ def _generate_document_tex(
 def generate_cornell_tex(
     page: CornellPage,
     *,
+    asset_paths_by_id: Mapping[str, str] | None = None,
     lines_image_path: str | None = LINES_IMAGE_INCLUDE_PATH,
 ) -> str:
     """Generate the one-page LaTeX source for a Cornell page."""
-    return _generate_document_tex((page,), lines_image_path=lines_image_path)
+    return _generate_document_tex(
+        (page,),
+        asset_paths_by_id=asset_paths_by_id,
+        lines_image_path=lines_image_path,
+    )
 
 
 def generate_cornell_document_tex(
     document: CornellDocument,
     *,
+    asset_paths_by_id: Mapping[str, str] | None = None,
     lines_image_path: str | None = LINES_IMAGE_INCLUDE_PATH,
 ) -> str:
     """Generate a single LaTeX document for all Cornell pages in order."""
-    return _generate_document_tex(document.ordered_pages(), lines_image_path=lines_image_path)
+    return _generate_document_tex(
+        document.ordered_pages(),
+        asset_paths_by_id=asset_paths_by_id,
+        lines_image_path=lines_image_path,
+    )
 
 
-def _prepare_output_dir(output_dir: str | Path) -> Path:
+def _prepare_output_dir(
+    output_dir: str | Path,
+    document: CornellDocument | None = None,
+    *,
+    db: Any | None = None,
+    assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+) -> tuple[Path, dict[str, str]]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
     assets_path = output_path / ASSETS_DIRNAME
     assets_path.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(HISTORICAL_LINES_IMAGE, assets_path / LINES_IMAGE_FILENAME)
-    return output_path
+    image_paths = {}
+    if document is not None:
+        image_paths = prepare_cornell_image_assets(
+            document,
+            output_path,
+            db=db,
+            assets_by_id=assets_by_id,
+        )
+    return output_path, image_paths
 
 
-def write_cornell_tex(page: CornellPage, output_dir: str | Path) -> Path:
+def write_cornell_tex(
+    page: CornellPage,
+    output_dir: str | Path,
+    *,
+    db: Any | None = None,
+    assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+) -> Path:
     """Write a Cornell page source file and its renderer asset."""
-    output_path = _prepare_output_dir(output_dir)
+    document = CornellDocument(schema_version=1, template_id="single_page_render", pages=(page,))
+    output_path, image_paths = _prepare_output_dir(
+        output_dir,
+        document,
+        db=db,
+        assets_by_id=assets_by_id,
+    )
 
     tex_path = output_path / f"cornell_{_slugify_page_id(page.page_id)}.tex"
-    tex_path.write_text(generate_cornell_tex(page), encoding="utf-8")
+    tex_path.write_text(generate_cornell_tex(page, asset_paths_by_id=image_paths), encoding="utf-8")
     return tex_path
 
 
@@ -242,11 +303,22 @@ def write_cornell_document_tex(
     document: CornellDocument,
     output_dir: str | Path,
     output_name: str,
+    *,
+    db: Any | None = None,
+    assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> Path:
     """Write a complete Cornell document source file and its renderer asset."""
-    output_path = _prepare_output_dir(output_dir)
+    output_path, image_paths = _prepare_output_dir(
+        output_dir,
+        document,
+        db=db,
+        assets_by_id=assets_by_id,
+    )
     tex_path = output_path / f"{_slugify_output_name(output_name)}.tex"
-    tex_path.write_text(generate_cornell_document_tex(document), encoding="utf-8")
+    tex_path.write_text(
+        generate_cornell_document_tex(document, asset_paths_by_id=image_paths),
+        encoding="utf-8",
+    )
     return tex_path
 
 
@@ -351,7 +423,13 @@ def cornell_latex_full_log(result: CornellRenderResult) -> str:
     return result.message
 
 
-def render_cornell_pdf(page: CornellPage, output_dir: str | Path) -> CornellRenderResult:
+def render_cornell_pdf(
+    page: CornellPage,
+    output_dir: str | Path,
+    *,
+    db: Any | None = None,
+    assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+) -> CornellRenderResult:
     """Render a single Cornell page directly to a PDF."""
     output_path = Path(output_dir)
     tex_path = output_path / f"cornell_{_slugify_page_id(page.page_id)}.tex"
@@ -359,7 +437,7 @@ def render_cornell_pdf(page: CornellPage, output_dir: str | Path) -> CornellRend
     log_path = tex_path.with_suffix(".log")
 
     try:
-        tex_path = write_cornell_tex(page, output_path)
+        tex_path = write_cornell_tex(page, output_path, db=db, assets_by_id=assets_by_id)
         return _compile_cornell_tex(tex_path, output_path)
     except Exception as exc:
         return CornellRenderResult(
@@ -377,6 +455,9 @@ def render_cornell_document(
     document: CornellDocument,
     output_dir: str | Path,
     output_name: str,
+    *,
+    db: Any | None = None,
+    assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> CornellRenderResult:
     """Render all Cornell pages into one LaTeX document and one PDF."""
     output_path = Path(output_dir)
@@ -385,7 +466,13 @@ def render_cornell_document(
     log_path = tex_path.with_suffix(".log")
 
     try:
-        tex_path = write_cornell_document_tex(document, output_path, output_name)
+        tex_path = write_cornell_document_tex(
+            document,
+            output_path,
+            output_name,
+            db=db,
+            assets_by_id=assets_by_id,
+        )
         return _compile_cornell_tex(tex_path, output_path)
     except Exception as exc:
         return CornellRenderResult(

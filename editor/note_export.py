@@ -13,6 +13,7 @@ from editor.cornell.persistence import extract_cornell_document
 from editor.cornell.renderer import CornellRenderResult
 from editor.cornell.renderer import generate_cornell_document_tex
 from editor.cornell.renderer import render_cornell_document
+from editor.cornell.renderer import write_cornell_document_tex
 from editor.pdf_export import EXPORTED_NOTES_DIR
 from editor.pdf_export import generar_pdf_nota_latex_result
 from editor.pdf_export import generar_tex_nota_latex
@@ -80,12 +81,33 @@ def note_export_basename(note: dict[str, Any]) -> str:
     return "_".join(parts) or "latex_note"
 
 
-def export_note_tex(note: dict[str, Any], *, template: str = "diario") -> NoteTexExport:
+def export_note_tex(
+    note: dict[str, Any],
+    *,
+    db: Any | None = None,
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
+    output_dir: str | Path | None = None,
+    template: str = "diario",
+) -> NoteTexExport:
     """Export one latex_note as TEX, dispatching Cornell separately from legacy notes."""
     note_format = normalized_note_format(note)
     base_name = note_export_basename(note)
     if note_format == CORNELL_NOTE_FORMAT:
         document = extract_cornell_document(note)
+        if db is not None or assets_by_id:
+            tex_dir = Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cornell" / "_tex"
+            tex_path = write_cornell_document_tex(
+                document,
+                tex_dir,
+                f"{base_name}_cornell",
+                db=db,
+                assets_by_id=assets_by_id,
+            )
+            return NoteTexExport(
+                tex=tex_path.read_text(encoding="utf-8"),
+                file_name=tex_path.name,
+                note_format=note_format,
+            )
         return NoteTexExport(
             tex=generate_cornell_document_tex(document),
             file_name=f"{base_name}_cornell.tex",
@@ -101,6 +123,8 @@ def export_note_tex(note: dict[str, Any], *, template: str = "diario") -> NoteTe
 def export_note_pdf(
     note: dict[str, Any],
     *,
+    db: Any | None = None,
+    assets_by_id: dict[str, dict[str, Any]] | None = None,
     output_dir: str | Path | None = None,
     template: str = "diario",
 ) -> NotePdfExport:
@@ -110,7 +134,13 @@ def export_note_pdf(
     if note_format == CORNELL_NOTE_FORMAT:
         document = extract_cornell_document(note)
         cornell_output_dir = Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cornell"
-        result = render_cornell_document(document, cornell_output_dir, f"{base_name}_cornell")
+        result = render_cornell_document(
+            document,
+            cornell_output_dir,
+            f"{base_name}_cornell",
+            db=db,
+            assets_by_id=assets_by_id,
+        )
         if not result.success:
             raise NoteExportError(result.message, dict(result.diagnostics))
         return NotePdfExport(

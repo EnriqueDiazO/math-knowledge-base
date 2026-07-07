@@ -1377,7 +1377,7 @@ def _render_diary_exports(notes_col) -> None:
     with e2:
         if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
             try:
-                tex_export = export_note_tex(note_doc)
+                tex_export = export_note_tex(note_doc, db=notes_col.database)
                 st.session_state[f"note_tex_{nid}"] = tex_export.tex
                 st.session_state[f"note_tex_file_{nid}"] = tex_export.file_name
                 st.success("✅ TEX listo para descargar.")
@@ -1397,7 +1397,7 @@ def _render_diary_exports(notes_col) -> None:
     with e3:
         if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
             try:
-                pdf_export = export_note_pdf(note_doc)
+                pdf_export = export_note_pdf(note_doc, db=notes_col.database)
                 st.session_state[f"note_pdf_path_{nid}"] = str(pdf_export.pdf_path)
                 st.session_state[f"note_pdf_file_{nid}"] = pdf_export.file_name
                 st.session_state[f"note_pdf_diagnostics_{nid}"] = pdf_export.diagnostics

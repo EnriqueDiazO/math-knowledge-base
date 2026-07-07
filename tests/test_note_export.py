@@ -127,7 +127,12 @@ def test_export_note_pdf_uses_cornell_renderer(monkeypatch, tmp_path: Path) -> N
     pdf_path = tmp_path / "fake.pdf"
     pdf_path.write_bytes(b"%PDF")
 
-    def fake_render(document: CornellDocument, output_dir: Path, output_name: str) -> CornellRenderResult:
+    def fake_render(
+        document: CornellDocument,
+        output_dir: Path,
+        output_name: str,
+        **kwargs: Any,
+    ) -> CornellRenderResult:
         calls.append((document, output_dir, output_name))
         return CornellRenderResult(
             success=True,

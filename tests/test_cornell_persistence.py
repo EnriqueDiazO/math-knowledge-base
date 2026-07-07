@@ -36,6 +36,22 @@ def sample_document() -> CornellDocument:
     )
 
 
+def sample_document_with_images() -> CornellDocument:
+    return CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=(
+            CornellPage(
+                page_id="p001",
+                order=1,
+                cue=CornellRegion(heading="Ideas principales", latex="Cue body", image_ids=("cue-img",)),
+                main=CornellRegion(heading="Aritmética", latex=r"\[ A+B=B+A \]", image_ids=("main-img",)),
+                summary=CornellRegion(heading="Observaciones", latex="Summary body", image_ids=("cue-img",)),
+            ),
+        ),
+    )
+
+
 def sample_metadata() -> dict:
     now = datetime(2026, 7, 7, 12, 0, 0)
     return {
@@ -67,9 +83,18 @@ def test_build_cornell_note_document_preserves_normal_metadata() -> None:
     note = build_cornell_note_document(metadata, sample_document())
 
     for field, value in metadata.items():
+        if field == "image_ids":
+            continue
         assert note[field] == value
+    assert note["image_ids"] == []
     assert note["note_format"] == CORNELL_NOTE_FORMAT
     assert "cornell" in note
+
+
+def test_build_cornell_note_document_derives_global_image_ids_from_regions() -> None:
+    note = build_cornell_note_document(sample_metadata(), sample_document_with_images())
+
+    assert note["image_ids"] == ["cue-img", "main-img"]
 
 
 def test_build_cornell_note_document_regenerates_latex_body() -> None:
