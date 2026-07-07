@@ -1187,6 +1187,7 @@ nav_options = [
 ]
 if _cuaderno_is_installed(db):
     nav_options.append("🧪 Cuaderno")
+    nav_options.append("🧾 Cornell")
 
 page = st.sidebar.selectbox("Navigation", nav_options)
 
@@ -1684,6 +1685,9 @@ if page == "🏠 Dashboard":
 elif page == "🧪 Cuaderno":
     from cuaderno_page import render_cuaderno
     render_cuaderno(db, _cuaderno_is_installed)
+elif page == "🧾 Cornell":
+    from editor.cornell.streamlit_page import render_cornell_page
+    render_cornell_page(db)
 elif page == "➕ Add Concept":
     st.title("➕ Add New Mathematical Concept")
 

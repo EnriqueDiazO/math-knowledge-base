@@ -1,11 +1,18 @@
+"""Export selected Mongo concepts into a Quarto book build."""
+
 from __future__ import annotations
 
 import argparse
+import sys
 from pathlib import Path
-from mathdatabase.mathmongo import MathMongo
-from exporters_quarto.quarto_exporter import QuartoBookExporter
 
-def main():
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+if str(PROJECT_ROOT) not in sys.path:
+    sys.path.insert(0, str(PROJECT_ROOT))
+
+
+def main() -> None:
+    """Export requested concept IDs from MongoDB to Quarto files."""
     p = argparse.ArgumentParser()
     p.add_argument("--mongo-uri", default="mongodb://localhost:27017")
     p.add_argument("--db", default="mathmongo")
@@ -15,9 +22,12 @@ def main():
     p.add_argument("--force", action="store_true")
     args = p.parse_args()
 
-    root = Path(__file__).resolve().parents[1]
+    root = PROJECT_ROOT
     template_dir = (root / args.template).resolve()
     build_dir = (root / args.build).resolve()
+
+    from exporters_quarto.quarto_exporter import QuartoBookExporter
+    from mathdatabase.mathmongo import MathMongo
 
     mm = MathMongo(mongo_uri=args.mongo_uri, db_name=args.db)
 
@@ -36,6 +46,7 @@ def main():
 
     print(f"OK. Build: {res.build_dir}")
     print(f"Archivos escritos: {len(res.written_files)}")
+
 
 if __name__ == "__main__":
     main()

@@ -38,6 +38,14 @@ from streamlit_ace import st_ace
 
 from editor.db.concept_repository import insert_concept_with_latex_atomic
 from editor.helpers.concept_builders import build_concept_metadata
+from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
+from editor.cornell.ui_helpers import get_existing_note_contexts
+from editor.cornell.ui_helpers import get_existing_note_projects
+from editor.note_export import NoteExportError
+from editor.note_export import export_note_pdf
+from editor.note_export import export_note_tex
+from editor.note_export import note_format_badge
+from editor.note_export import normalized_note_format
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
 from editor.utils.media_assets import detach_media_asset_from_note
@@ -673,30 +681,11 @@ def _delete_one_by_id(coll, id_value):
 
 
 def _existing_note_projects(notes_col) -> List[str]:
-    try:
-        raw = notes_col.distinct("project")
-    except Exception:
-        raw = []
-    normalized: Dict[str, str] = {}
-    for project in raw:
-        if not isinstance(project, str):
-            continue
-        clean = _normalize_project_name(project)
-        if not clean:
-            continue
-        normalized.setdefault(clean.lower(), clean)
-    return sorted(normalized.values(), key=str.lower)
+    return get_existing_note_projects(notes_col)
 
 
 def _existing_note_contexts(notes_col) -> List[str]:
-    try:
-        raw = notes_col.distinct("context")
-    except Exception:
-        raw = []
-    defaults = ["estudio", "debug", "lectura", "idea", "reflexion"]
-    values = [v for v in raw if isinstance(v, str) and v.strip()]
-    merged = list(dict.fromkeys(defaults + sorted(values, key=str.lower)))
-    return merged
+    return get_existing_note_contexts(notes_col)
 
 
 def _existing_note_tags(notes_col) -> List[str]:
@@ -1346,34 +1335,54 @@ def _render_diary_exports(notes_col) -> None:
     if not notes:
         st.info("Primero crea una nota para poder exportar.")
         return
-    opt_map = {_note_label(n): _note_id(n) for n in notes}
+    opt_map = {}
+    for note in notes:
+        try:
+            label = f"{note_format_badge(note)} {_note_label(note)}"
+        except ValueError:
+            label = f"[Formato desconocido] {_note_label(note)}"
+        opt_map[label] = _note_id(note)
     selected_label = st.selectbox("Selecciona una nota", list(opt_map.keys()), key="latex_notes_export_select")
     nid = opt_map.get(selected_label)
     note_doc = _find_one_by_id(notes_col, nid) if nid else None
     if not note_doc:
         st.warning("No se pudo cargar la nota seleccionada.")
         return
+    try:
+        selected_format = normalized_note_format(note_doc)
+    except ValueError as exc:
+        selected_format = "unknown"
+        st.error(str(exc))
     e1, e2, e3 = st.columns(3)
     with e1:
         if st.button("🔍 Analizar TEX", key=f"note_chktex_gen_{nid}"):
-            try:
-                chktex_result = analizar_tex_nota_latex_con_chktex(note_doc)
-                st.session_state[f"note_chktex_{nid}"] = chktex_result
-            except Exception as exc:
-                render_pdf_export_error(
-                    exc,
-                    main_message="❌ No se pudo analizar el TEX.",
-                    fallback_stage="Analizar TEX con ChkTeX",
-                    fallback_operation="Ejecutar ChkTeX",
-                )
+            if selected_format == "cornell_math_v1":
+                st.info("El análisis ChkTeX de Cornell se hará en una etapa posterior.")
+            elif selected_format == "unknown":
+                st.error("No se puede analizar una nota con formato desconocido.")
+            else:
+                try:
+                    chktex_result = analizar_tex_nota_latex_con_chktex(note_doc)
+                    st.session_state[f"note_chktex_{nid}"] = chktex_result
+                except Exception as exc:
+                    render_pdf_export_error(
+                        exc,
+                        main_message="❌ No se pudo analizar el TEX.",
+                        fallback_stage="Analizar TEX con ChkTeX",
+                        fallback_operation="Ejecutar ChkTeX",
+                    )
         chktex_data = st.session_state.get(f"note_chktex_{nid}")
         if chktex_data:
             render_chktex_result(chktex_data, expanded=True)
     with e2:
         if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
             try:
-                st.session_state[f"note_tex_{nid}"] = generar_tex_nota_latex(note_doc)
+                tex_export = export_note_tex(note_doc, db=notes_col.database)
+                st.session_state[f"note_tex_{nid}"] = tex_export.tex
+                st.session_state[f"note_tex_file_{nid}"] = tex_export.file_name
                 st.success("✅ TEX listo para descargar.")
+            except ValueError as exc:
+                st.error(str(exc))
             except Exception as exc:
                 render_pdf_export_error(
                     exc,
@@ -1383,16 +1392,27 @@ def _render_diary_exports(notes_col) -> None:
                 )
         tex_data = st.session_state.get(f"note_tex_{nid}")
         if tex_data:
-            st.download_button("Descargar TEX", data=tex_data, file_name=f"latex_note_{nid}.tex", mime="text/x-tex", key=f"note_tex_dl_{nid}")
+            tex_file_name = st.session_state.get(f"note_tex_file_{nid}") or f"latex_note_{nid}.tex"
+            st.download_button("Descargar TEX", data=tex_data, file_name=tex_file_name, mime="text/x-tex", key=f"note_tex_dl_{nid}")
     with e3:
         if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
             try:
-                pdf_result = generar_pdf_nota_latex_result(note_doc)
-                st.session_state[f"note_pdf_path_{nid}"] = pdf_result["pdf_path"]
-                st.session_state[f"note_pdf_diagnostics_{nid}"] = pdf_result
-                st.session_state[f"note_chktex_{nid}"] = pdf_result.get("chktex")
-                render_chktex_result(pdf_result.get("chktex"), expanded=False)
+                pdf_export = export_note_pdf(note_doc, db=notes_col.database)
+                st.session_state[f"note_pdf_path_{nid}"] = str(pdf_export.pdf_path)
+                st.session_state[f"note_pdf_file_{nid}"] = pdf_export.file_name
+                st.session_state[f"note_pdf_diagnostics_{nid}"] = pdf_export.diagnostics
+                if pdf_export.note_format != "cornell_math_v1":
+                    st.session_state[f"note_chktex_{nid}"] = pdf_export.diagnostics.get("chktex")
+                    render_chktex_result(pdf_export.diagnostics.get("chktex"), expanded=False)
                 st.success("✅ PDF listo para descargar.")
+            except NoteExportError as exc:
+                st.error(str(exc))
+                full_log = exc.diagnostics.get("log_text") or exc.diagnostics.get("log_excerpt")
+                if full_log:
+                    with st.expander("Ver log completo", expanded=False):
+                        st.code(str(full_log), language="text")
+            except ValueError as exc:
+                st.error(str(exc))
             except Exception as exc:
                 render_pdf_export_error(
                     exc,
@@ -1404,7 +1424,8 @@ def _render_diary_exports(notes_col) -> None:
         if pdf_path and os.path.exists(pdf_path):
             _render_pdf_diagnostics(st.session_state.get(f"note_pdf_diagnostics_{nid}"))
             with open(pdf_path, "rb") as f:
-                st.download_button("Descargar PDF", data=f.read(), file_name=os.path.basename(pdf_path), mime="application/pdf", key=f"note_pdf_dl_{nid}")
+                pdf_file_name = st.session_state.get(f"note_pdf_file_{nid}") or os.path.basename(pdf_path)
+                st.download_button("Descargar PDF", data=f.read(), file_name=pdf_file_name, mime="application/pdf", key=f"note_pdf_dl_{nid}")
 
 
 def _render_diary_promote_note(notes_col) -> None:
@@ -1888,93 +1909,20 @@ def _handle_pending_insert(prefix: str) -> None:
 def _render_latex_toolbar(prefix: str) -> None:
     """Toolbar: same spirit as 'Añadir Concepto' + semantic diary blocks."""
     st.write("**🔧 Herramientas LaTeX:**")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        if st.button("📝 Definición", key=f"{prefix}_btn_def"):
-            _queue_insert(prefix, "\\begin{definition}\n% ...\n\\end{definition}\n")
-        if st.button("📋 Teorema", key=f"{prefix}_btn_theorem"):
-            _queue_insert(prefix, "\\begin{theorem}{% ...}\n% ...\n\\end{theorem}\n")
-        if st.button("📌 Lema", key=f"{prefix}_btn_lemma"):
-            _queue_insert(prefix, "\\begin{lemma}\n% ...\n\\end{lemma}\n")
-        if st.button("📌 Proposición", key=f"{prefix}_btn_prop"):
-            _queue_insert(prefix, "\\begin{proposition}\n% ...\n\\end{proposition}\n")
-        if st.button("📋 Corolario", key=f"{prefix}_btn_cor"):
-            _queue_insert(prefix, "\\begin{corollary}\n% ...\n\\end{corollary}\n")
-        if st.button("📖 Prueba", key=f"{prefix}_btn_proof"):
-            _queue_insert(prefix, "\\begin{proof}\n% ...\n\\end{proof}\n")
-
-    with col2:
-        if st.button("🧪 Ejemplo", key=f"{prefix}_btn_ex"):
-            _queue_insert(prefix, "\\begin{example}\n% ...\n\\end{example}\n")
-        if st.button("🗒️ Nota / Remark", key=f"{prefix}_btn_remark"):
-            _queue_insert(prefix, "\\begin{remark}\n% ...\n\\end{remark}\n")
-        if st.button("🔢 Ecuación", key=f"{prefix}_btn_eq"):
-            _queue_insert(prefix, "\\begin{equation}\n% ...\n\\end{equation}\n")
-        if st.button("🔢 Align", key=f"{prefix}_btn_align"):
-            _queue_insert(prefix, "\\begin{align}\n% ...\n\\end{align}\n")
-        if st.button("🔢 Matrix", key=f"{prefix}_btn_matrix"):
-            _queue_insert(prefix, "\\begin{pmatrix}\na & b \\\\\nc & d\n\\end{pmatrix}\n")
-        if st.button("🔢 Cases", key=f"{prefix}_btn_cases"):
-            _queue_insert(prefix, "\\begin{cases}\n% ...\n\\end{cases}\n")
-
-    with col3:
-        if st.button("• Itemize", key=f"{prefix}_btn_itemize"):
-            _queue_insert(prefix, "\\begin{itemize}\n  \\item ...\n\\end{itemize}\n")
-        if st.button("1) Enumerate", key=f"{prefix}_btn_enum"):
-            _queue_insert(prefix, "\\begin{enumerate}\n  \\item ...\n\\end{enumerate}\n")
-        if st.button("≡ Description", key=f"{prefix}_btn_desc"):
-            _queue_insert(prefix, "\\begin{description}\n  \\item[\Ítem] ...\n\\end{description}\n")
-        if st.button("💻 Código (lstlisting)", key=f"{prefix}_btn_code"):
-            _queue_insert(prefix, "\\begin{lstlisting}\n# ...\n\\end{lstlisting}\n")
-        if st.button("📁 DirTree", key=f"{prefix}_btn_dirtree"):
-            _queue_insert(prefix, "\\begin{dirtree}\n.1 /ruta.\n.2 archivo.txt.\n\\end{dirtree}\n")
-
-    with col4:
-        # Símbolos (mínimo viable)
-        sym_cols = st.columns(2)
-        with sym_cols[0]:
-            if st.button("∑", key=f"{prefix}_sym_sum"):
-                _queue_insert(prefix, "\\sum_{i=1}^{n}")
-            if st.button("∫", key=f"{prefix}_sym_int"):
-                _queue_insert(prefix, "\\int_{a}^{b}")
-            if st.button("∈", key=f"{prefix}_sym_in"):
-                _queue_insert(prefix, "\\in")
-            if st.button("∀", key=f"{prefix}_sym_forall"):
-                _queue_insert(prefix, "\\forall")
-            if st.button("ℝ", key=f"{prefix}_sym_R"):
-                _queue_insert(prefix, "\\mathbb{R}")
-        with sym_cols[1]:
-            if st.button("∃", key=f"{prefix}_sym_exists"):
-                _queue_insert(prefix, "\\exists")
-            if st.button("→", key=f"{prefix}_sym_to"):
-                _queue_insert(prefix, "\\rightarrow")
-            if st.button("∞", key=f"{prefix}_sym_inf"):
-                _queue_insert(prefix, "\\infty")
-            if st.button("ε", key=f"{prefix}_sym_eps"):
-                _queue_insert(prefix, "\\varepsilon")
-            if st.button("δ", key=f"{prefix}_sym_delta"):
-                _queue_insert(prefix, "\\delta")
+    cols = st.columns(4)
+    for index, group in enumerate(LATEX_SNIPPET_GROUPS[:4]):
+        with cols[index]:
+            st.caption(group.title)
+            for snippet in group.snippets:
+                if st.button(snippet.label, key=f"{prefix}_btn_{snippet.key}"):
+                    _queue_insert(prefix, snippet.snippet)
 
     st.write("**🧩 Bloques semánticos del cuaderno:**")
-    b1, b2, b3, b4, b5 = st.columns(5)
-    semantic = [
-        ("context", b1),
-        ("reading", b1),
-        ("exploration", b2),
-        ("hypothesis", b2),
-        ("connections", b3),
-        ("reflection", b3),
-        ("decision", b4),
-        ("openquestions", b4),
-        ("technical", b5),
-        ("nextsteps", b5),
-    ]
-    for name, col in semantic:
-        with col:
-            if st.button(name, key=f"{prefix}_sem_{name}"):
-                _queue_insert(prefix, f"\\begin{{{name}}}\n...\n\\end{{{name}}}\n")
+    semantic_cols = st.columns(5)
+    for index, snippet in enumerate(LATEX_SNIPPET_GROUPS[4].snippets):
+        with semantic_cols[index % len(semantic_cols)]:
+            if st.button(snippet.label, key=f"{prefix}_sem_{snippet.key}"):
+                _queue_insert(prefix, snippet.snippet)
 
 
 def _render_latex_ace_editor(prefix: str, initial_text: str, height: int = 320) -> str:
