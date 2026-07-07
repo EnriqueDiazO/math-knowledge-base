@@ -12,20 +12,33 @@ from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
 from editor.cornell.persistence import extract_cornell_document
+from editor.cornell.renderer import cornell_latex_full_log
 from editor.cornell.renderer import render_cornell_document
 from editor.cornell.service import create_cornell_note
 from editor.cornell.service import get_cornell_note
 from editor.cornell.service import list_cornell_notes
 from editor.cornell.service import update_cornell_note
+from editor.cornell.ui_helpers import ALL_LABEL
+from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
+from editor.cornell.ui_helpers import NEW_PROJECT_LABEL
+from editor.cornell.ui_helpers import NO_PROJECT_LABEL
+from editor.cornell.ui_helpers import append_latex_snippet
+from editor.cornell.ui_helpers import filter_cornell_notes_for_explorer
+from editor.cornell.ui_helpers import get_existing_note_contexts
+from editor.cornell.ui_helpers import get_existing_note_projects
+from editor.cornell.ui_helpers import normalize_tags
+from editor.cornell.ui_helpers import note_page_count
+from editor.cornell.ui_helpers import project_selector_choices
+from editor.cornell.ui_helpers import resolve_project_choice
 from mathkb_config import PROJECT_ROOT
 
-CONTEXT_OPTIONS = ("estudio", "debug", "lectura", "idea", "reflexion")
 SESSION_NOTE_ID = "cornell_note_id"
 SESSION_DOCUMENT = "cornell_document"
 SESSION_PAGE_INDEX = "cornell_page_index"
 SESSION_METADATA = "cornell_metadata"
 SESSION_DIRTY = "cornell_dirty"
 SESSION_RENDERED_PAGE_ID = "cornell_rendered_page_id"
+SESSION_VIEW = "cornell_view"
 
 
 def _new_page_id(existing_ids: set[str] | None = None) -> str:
@@ -182,18 +195,6 @@ def _safe_date(value: Any) -> date:
         return date.today()
 
 
-def _tags_from_text(raw: str) -> list[str]:
-    tags = []
-    seen = set()
-    for part in (raw or "").split(","):
-        tag = " ".join(part.split())
-        key = tag.lower()
-        if tag and key not in seen:
-            tags.append(tag)
-            seen.add(key)
-    return tags
-
-
 def _ensure_state() -> None:
     import streamlit as st
 
@@ -207,6 +208,8 @@ def _ensure_state() -> None:
         st.session_state[SESSION_NOTE_ID] = None
     if SESSION_DIRTY not in st.session_state:
         st.session_state[SESSION_DIRTY] = False
+    if SESSION_VIEW not in st.session_state:
+        st.session_state[SESSION_VIEW] = "Nueva nota"
 
 
 def _set_current_note(note_id: Any, note: dict[str, Any] | None, document: CornellDocument) -> None:
@@ -221,6 +224,8 @@ def _set_current_note(note_id: Any, note: dict[str, Any] | None, document: Corne
     st.session_state["cornell_title"] = st.session_state[SESSION_METADATA]["title"]
     st.session_state["cornell_date"] = _safe_date(st.session_state[SESSION_METADATA]["date"])
     st.session_state["cornell_project"] = st.session_state[SESSION_METADATA]["project"]
+    st.session_state.pop("cornell_project_choice", None)
+    st.session_state.pop("cornell_project_new", None)
     st.session_state["cornell_context"] = st.session_state[SESSION_METADATA]["context"]
     st.session_state["cornell_tags"] = ", ".join(st.session_state[SESSION_METADATA]["tags"])
 
@@ -279,12 +284,14 @@ def _document_from_inputs() -> CornellDocument:
 def _metadata_from_inputs() -> dict[str, Any]:
     import streamlit as st
 
+    project_choice = st.session_state.get("cornell_project_choice", NO_PROJECT_LABEL)
+    project_new = st.session_state.get("cornell_project_new", "")
     return {
         "title": st.session_state.get("cornell_title") or "Nueva nota Cornell",
         "date": st.session_state.get("cornell_date", date.today()).isoformat(),
-        "project": st.session_state.get("cornell_project") or "",
+        "project": resolve_project_choice(project_choice, project_new),
         "context": st.session_state.get("cornell_context") or "estudio",
-        "tags": _tags_from_text(st.session_state.get("cornell_tags", "")),
+        "tags": normalize_tags(st.session_state.get("cornell_tags", "")),
         "image_ids": list(st.session_state.get(SESSION_METADATA, {}).get("image_ids") or []),
     }
 
@@ -295,16 +302,28 @@ def _mark_dirty() -> None:
     st.session_state[SESSION_DIRTY] = True
 
 
-def _render_sidebar(db: Any) -> None:
+def _render_navigation() -> str:
     import streamlit as st
 
-    st.subheader("Notas Cornell")
+    st.subheader("Cornell")
+    view = st.radio(
+        "Vista",
+        options=("Nueva nota", "Explorar notas"),
+        key=SESSION_VIEW,
+    )
     if st.button("Nueva nota Cornell", use_container_width=True):
         _set_current_note(None, None, make_blank_document())
+        st.session_state[SESSION_VIEW] = "Nueva nota"
         st.rerun()
+    return view
 
+
+def _render_explorer(db: Any) -> None:
+    import streamlit as st
+
+    st.subheader("Explorar notas Cornell")
     try:
-        notes = list_cornell_notes(db, limit=200)
+        notes = list_cornell_notes(db, limit=500)
     except Exception as exc:
         st.error(f"No se pudieron listar las notas Cornell: {exc}")
         return
@@ -313,26 +332,61 @@ def _render_sidebar(db: Any) -> None:
         st.caption("No hay notas Cornell todavía.")
         return
 
-    labels = {
-        str(note.get("_id")): f"{note.get('date', '')} · {note.get('title', 'Sin título')}"
-        for note in notes
-    }
-    selected = st.selectbox(
-        "Abrir",
-        options=list(labels),
-        format_func=lambda note_id: labels.get(note_id, note_id),
-        key="cornell_open_select",
+    projects = sorted({note.get("project") or NO_PROJECT_LABEL for note in notes}, key=str.lower)
+    contexts = sorted({note.get("context") or "" for note in notes if note.get("context")}, key=str.lower)
+    f1, f2, f3 = st.columns([2, 1, 1])
+    with f1:
+        text_q = st.text_input("Buscar", value="", key="cornell_explore_text")
+    with f2:
+        project = st.selectbox(
+            "Proyecto",
+            options=[ALL_LABEL, NO_PROJECT_LABEL, *[p for p in projects if p != NO_PROJECT_LABEL]],
+            key="cornell_explore_project",
+        )
+    with f3:
+        context = st.selectbox(
+            "Contexto",
+            options=[ALL_LABEL, *contexts],
+            key="cornell_explore_context",
+        )
+
+    use_date = st.checkbox("Filtrar por fecha", value=False, key="cornell_explore_use_date")
+    start_date = end_date = None
+    if use_date:
+        d1, d2 = st.columns(2)
+        with d1:
+            start_date = st.date_input("Desde", value=date.today(), key="cornell_explore_start")
+        with d2:
+            end_date = st.date_input("Hasta", value=date.today(), key="cornell_explore_end")
+
+    filtered = filter_cornell_notes_for_explorer(
+        notes,
+        text=text_q,
+        project=project,
+        context=context,
+        start_date=start_date,
+        end_date=end_date,
     )
-    if st.button("Abrir nota", use_container_width=True):
-        try:
-            note = get_cornell_note(db, selected)
-            if note is None:
-                st.warning("La nota seleccionada ya no existe.")
-                return
-            _set_current_note(selected, note, extract_cornell_document(note))
-            st.rerun()
-        except Exception as exc:
-            st.error(f"No se pudo abrir como Cornell: {exc}")
+    st.caption(f"Resultados: {len(filtered)}")
+    for note in filtered:
+        note_id = str(note.get("_id"))
+        cols = st.columns([2, 1, 1, 1, 1, 0.8])
+        cols[0].write(note.get("title") or "Sin título")
+        cols[1].write(note.get("date") or "")
+        cols[2].write(note.get("project") or "Sin proyecto")
+        cols[3].write(note.get("context") or "")
+        cols[4].write(f"{note_page_count(note)} págs.")
+        if cols[5].button("Abrir", key=f"cornell_open_{note_id}"):
+            try:
+                opened = get_cornell_note(db, note_id)
+                if opened is None:
+                    st.warning("La nota seleccionada ya no existe.")
+                    return
+                _set_current_note(note_id, opened, extract_cornell_document(opened))
+                st.session_state[SESSION_VIEW] = "Nueva nota"
+                st.rerun()
+            except Exception as exc:
+                st.error(f"No se pudo abrir como Cornell: {exc}")
 
 
 def _render_page_controls() -> None:
@@ -381,7 +435,7 @@ def _render_page_controls() -> None:
             st.rerun()
 
 
-def _render_metadata_editor() -> None:
+def _render_metadata_editor(db: Any) -> None:
     import streamlit as st
 
     metadata = st.session_state[SESSION_METADATA]
@@ -392,11 +446,28 @@ def _render_metadata_editor() -> None:
         key="cornell_date",
         on_change=_mark_dirty,
     )
-    st.text_input("Proyecto", value=metadata["project"], key="cornell_project", on_change=_mark_dirty)
-    context_index = CONTEXT_OPTIONS.index(metadata["context"]) if metadata["context"] in CONTEXT_OPTIONS else 0
+    projects = get_existing_note_projects(db)
+    project_choices, project_index = project_selector_choices(projects, metadata["project"])
+    project_choice = st.selectbox(
+        "Proyecto (opcional)",
+        options=project_choices,
+        index=project_index,
+        key="cornell_project_choice",
+        on_change=_mark_dirty,
+    )
+    if project_choice == NEW_PROJECT_LABEL:
+        st.text_input(
+            "Proyecto nuevo",
+            value=metadata["project"],
+            key="cornell_project_new",
+            on_change=_mark_dirty,
+        )
+
+    contexts = get_existing_note_contexts(db)
+    context_index = contexts.index(metadata["context"]) if metadata["context"] in contexts else 0
     st.selectbox(
         "Contexto",
-        options=CONTEXT_OPTIONS,
+        options=contexts,
         index=context_index,
         key="cornell_context",
         on_change=_mark_dirty,
@@ -411,6 +482,41 @@ def _render_metadata_editor() -> None:
 
 def _render_page_editor(page: CornellPage) -> None:
     import streamlit as st
+
+    with st.expander("Herramientas LaTeX", expanded=False):
+        target = st.selectbox(
+            "Insertar en",
+            options=("Cue", "Main", "Summary"),
+            key="cornell_latex_insert_target",
+        )
+        target_key = {
+            "Cue": "cornell_cue_latex",
+            "Main": "cornell_main_latex",
+            "Summary": "cornell_summary_latex",
+        }[target]
+        cols = st.columns(4)
+        for index, group in enumerate(LATEX_SNIPPET_GROUPS[:4]):
+            with cols[index]:
+                st.caption(group.title)
+                for snippet in group.snippets:
+                    if st.button(snippet.label, key=f"cornell_tool_{target}_{snippet.key}"):
+                        st.session_state[target_key] = append_latex_snippet(
+                            st.session_state.get(target_key, ""),
+                            snippet.snippet,
+                        )
+                        _mark_dirty()
+                        st.rerun()
+        st.caption(LATEX_SNIPPET_GROUPS[4].title)
+        semantic_cols = st.columns(5)
+        for index, snippet in enumerate(LATEX_SNIPPET_GROUPS[4].snippets):
+            with semantic_cols[index % len(semantic_cols)]:
+                if st.button(snippet.label, key=f"cornell_tool_{target}_{snippet.key}"):
+                    st.session_state[target_key] = append_latex_snippet(
+                        st.session_state.get(target_key, ""),
+                        snippet.snippet,
+                    )
+                    _mark_dirty()
+                    st.rerun()
 
     left, main = st.columns([1, 2])
     with left:
@@ -484,6 +590,8 @@ def _preview_pdf() -> None:
     result = render_cornell_document(document, output_dir, str(output_name))
     if not result.success:
         st.error(result.message or "No se pudo generar el PDF.")
+        with st.expander("Ver log completo", expanded=False):
+            st.code(cornell_latex_full_log(result), language="text")
         return
     st.success(f"PDF generado: {result.pdf_path}")
     try:
@@ -509,14 +617,18 @@ def render_cornell_page(db: Any) -> None:
     _ensure_state()
     sidebar, editor = st.columns([1, 3])
     with sidebar:
-        _render_sidebar(db)
+        view = _render_navigation()
 
     with editor:
+        if view == "Explorar notas":
+            _render_explorer(db)
+            return
+
         note_id = st.session_state[SESSION_NOTE_ID]
         dirty = " · sin guardar" if st.session_state[SESSION_DIRTY] else ""
         st.caption(f"Nota actual: {note_id or 'nueva'}{dirty}")
         st.subheader("Metadata")
-        _render_metadata_editor()
+        _render_metadata_editor(db)
         st.markdown("---")
         document = st.session_state[SESSION_DOCUMENT]
         pages = document.ordered_pages()

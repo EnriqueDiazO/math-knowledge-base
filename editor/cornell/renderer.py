@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import re
 import shutil
+from collections.abc import Mapping
 from dataclasses import dataclass
 from dataclasses import field
 from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+from editor.cornell.latex_compat import cornell_latex_compat_preamble
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from exporters_latex.latex_compile import run_latex_until_stable
@@ -20,6 +22,10 @@ HISTORICAL_LINES_IMAGE = HISTORICAL_CORNELL_DIR / "lineas.png"
 ASSETS_DIRNAME = "cornell_assets"
 LINES_IMAGE_FILENAME = "lineas.png"
 LINES_IMAGE_INCLUDE_PATH = f"{ASSETS_DIRNAME}/{LINES_IMAGE_FILENAME}"
+SOURCE_MARKER_PATTERN = re.compile(r"% Cornell source page=(?P<page>\d+) region=(?P<region>\w+)")
+LATEX_FILE_LINE_PATTERN = re.compile(r"(?P<file>[^\s:]+\.tex):(?P<line>\d+):")
+LATEX_ERROR_PATTERN = re.compile(r"LaTeX Error:\s*(?P<message>.+)")
+REGION_LABELS = {"cue": "Cue", "main": "Main", "summary": "Summary"}
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,6 +79,11 @@ def _latex_preamble() -> str:
         \usepackage[dvipsnames,svgnames]{xcolor}
         \usepackage{tikz}
         \usetikzlibrary{calc}
+        """
+        + "\n"
+        + cornell_latex_compat_preamble()
+        + "\n"
+        + r"""
         \pagestyle{empty}
         \setlength{\parindent}{0pt}
         \setlength{\parskip}{4pt}
@@ -90,6 +101,7 @@ def _latex_preamble() -> str:
 def _cornell_page_body(
     page: CornellPage,
     *,
+    page_number: int,
     lines_image_path: str | None = LINES_IMAGE_INCLUDE_PATH,
 ) -> str:
     cue_heading = _escape_latex_text(page.cue.heading)
@@ -131,6 +143,7 @@ def _cornell_page_body(
                 }}}}
                 \par\vspace{{4mm}}
                 \CornellMainText
+                % Cornell source page={page_number} region=cue
                 {page.cue.latex}
               \end{{minipage}}
             \end{{minipage}}
@@ -142,6 +155,7 @@ def _cornell_page_body(
               \hspace*{{4mm}}\begin{{minipage}}[t]{{5.52in}}
                 \CornellMainHeading{{{main_heading}}}
                 \CornellMainText
+                % Cornell source page={page_number} region=main
                 {page.main.latex}
               \end{{minipage}}
             \end{{minipage}}
@@ -152,9 +166,16 @@ def _cornell_page_body(
               \vspace{{4mm}}
               \hspace*{{18mm}}\begin{{minipage}}[t]{{7.43in}}
                 \CornellSummaryHeading{{{summary_heading}}}
-                \CornellMainText
-                {page.summary.latex}
               \end{{minipage}}
+            \end{{minipage}}
+          }};
+
+          \node[anchor=north east, inner sep=0pt, align=right] at ($(SW)+(8.3in,1.72in)$) {{
+            \begin{{minipage}}[t]{{5.7in}}
+              \raggedleft
+              \CornellMainText
+              % Cornell source page={page_number} region=summary
+              {page.summary.latex}
             \end{{minipage}}
           }};
         \end{{tikzpicture}}
@@ -170,7 +191,8 @@ def _generate_document_tex(
     if not pages:
         raise ValueError("CornellDocument must contain at least one page")
     page_bodies = [
-        _cornell_page_body(page, lines_image_path=lines_image_path).strip() for page in pages
+        _cornell_page_body(page, page_number=index, lines_image_path=lines_image_path).strip()
+        for index, page in enumerate(pages, start=1)
     ]
     return (
         _latex_preamble()
@@ -250,7 +272,7 @@ def _compile_cornell_tex(tex_path: Path, output_path: Path) -> CornellRenderResu
     if success:
         message = "PDF generated successfully."
     else:
-        message = diagnostics.get("log_excerpt") or diagnostics.get("stderr") or "PDF generation failed."
+        message = summarize_cornell_latex_failure(tex_path, diagnostics)
     return CornellRenderResult(
         success=success,
         status=status,
@@ -260,6 +282,73 @@ def _compile_cornell_tex(tex_path: Path, output_path: Path) -> CornellRenderResu
         message=message,
         diagnostics=diagnostics,
     )
+
+
+def _line_number_from_diagnostics(diagnostics: Mapping[str, Any]) -> int | None:
+    text = "\n".join(
+        str(diagnostics.get(key) or "")
+        for key in ("log_excerpt", "stderr", "stdout", "log_text")
+    )
+    file_line_match = LATEX_FILE_LINE_PATTERN.search(text)
+    if file_line_match:
+        return int(file_line_match.group("line"))
+    line_match = re.search(r"\bl\.(?P<line>\d+)\b", text)
+    if line_match:
+        return int(line_match.group("line"))
+    return None
+
+
+def _latex_error_from_diagnostics(diagnostics: Mapping[str, Any]) -> str:
+    text = "\n".join(
+        str(diagnostics.get(key) or "")
+        for key in ("log_excerpt", "stderr", "stdout", "log_text")
+    )
+    latex_match = LATEX_ERROR_PATTERN.search(text)
+    if latex_match:
+        return latex_match.group("message").strip()
+    for line in text.splitlines():
+        clean = line.strip()
+        if clean.startswith("!") and len(clean) > 1:
+            return clean.lstrip("!").strip()
+    return "PDF generation failed."
+
+
+def _source_region_for_line(tex_path: Path, line_number: int | None) -> tuple[int, str] | None:
+    if line_number is None or not tex_path.exists():
+        return None
+    source = tex_path.read_text(encoding="utf-8", errors="replace").splitlines()
+    markers: list[tuple[int, int, str]] = []
+    for index, line in enumerate(source, start=1):
+        marker = SOURCE_MARKER_PATTERN.search(line)
+        if marker:
+            markers.append((index, int(marker.group("page")), marker.group("region")))
+    selected = None
+    for marker_line, page_number, region in markers:
+        if marker_line <= line_number:
+            selected = (page_number, region)
+        else:
+            break
+    return selected
+
+
+def summarize_cornell_latex_failure(tex_path: Path, diagnostics: Mapping[str, Any]) -> str:
+    """Build a short, UI-friendly LaTeX failure summary for Cornell PDFs."""
+    error = _latex_error_from_diagnostics(diagnostics)
+    region = _source_region_for_line(tex_path, _line_number_from_diagnostics(diagnostics))
+    if region is None:
+        return error
+    page_number, region_name = region
+    region_label = REGION_LABELS.get(region_name, region_name)
+    return f"Error LaTeX en pagina {page_number}, region {region_label}: {error}"
+
+
+def cornell_latex_full_log(result: CornellRenderResult) -> str:
+    """Return the complete LaTeX log when available, falling back to diagnostics/message."""
+    for key in ("log_text", "log_excerpt", "stderr", "stdout"):
+        value = result.diagnostics.get(key)
+        if value:
+            return str(value)
+    return result.message
 
 
 def render_cornell_pdf(page: CornellPage, output_dir: str | Path) -> CornellRenderResult:
