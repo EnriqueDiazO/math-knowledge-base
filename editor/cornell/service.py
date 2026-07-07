@@ -114,6 +114,26 @@ def upload_cornell_region_image(
     )
 
 
+def upload_cornell_watermark_image(
+    db: Any,
+    *,
+    note_id: Any | None,
+    filename: str,
+    data: bytes,
+    mime_type: str | None = None,
+) -> dict[str, Any]:
+    """Upload one optional Cornell watermark image through media_assets."""
+    return save_media_asset(
+        db,
+        filename=filename,
+        data=data,
+        mime_type=mime_type,
+        note_id=str(note_id) if note_id else None,
+        tags=["cornell", "watermark"],
+        description="Cornell watermark",
+    )
+
+
 def _region_with_image_ids(region: CornellRegion, image_ids: tuple[str, ...]) -> CornellRegion:
     return CornellRegion(
         heading=region.heading,
@@ -162,6 +182,8 @@ def update_cornell_region_image_ids(
         schema_version=document.schema_version,
         template_id=document.template_id,
         pages=tuple(pages),
+        attribution=document.attribution,
+        watermark=document.watermark,
     )
 
 

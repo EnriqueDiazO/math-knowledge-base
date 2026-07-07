@@ -21,6 +21,7 @@ from editor.cornell.models import DEFAULT_TEMPLATE_ID
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.models import CornellWatermark
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.service import add_cornell_region_image
 from editor.cornell.service import remove_cornell_region_image
@@ -224,6 +225,51 @@ def test_pdf_with_image_compiles(tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 
     assert result.success, result.message
     assert "Pages:           1" in pdfinfo_text(result.pdf_path)
+
+
+def test_image_watermark_renders_behind_multipage_content(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    if shutil.which("pdflatex") is None or shutil.which("pdfinfo") is None:
+        pytest.skip("pdflatex and pdfinfo are required for image PDF verification")
+    asset = _write_asset(tmp_path, monkeypatch, "wm-logo", filename="Logo COCID.png")
+    first = _document_with_images().ordered_pages()[0]
+    second = CornellPage(
+        page_id="p002",
+        order=2,
+        cue=CornellRegion(heading="Cue 2", latex="Cue 2"),
+        main=CornellRegion(heading="Main 2", latex="Main 2"),
+        summary=CornellRegion(heading="Summary 2", latex="Summary 2"),
+    )
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=(first, second),
+        watermark=CornellWatermark(
+            enabled=True,
+            type="image",
+            image_id="wm-logo",
+            opacity=0.05,
+            scale=0.4,
+            position="center",
+        ),
+    )
+
+    result = renderer.render_cornell_document(
+        document,
+        tmp_path / "out",
+        "watermark_pdf",
+        assets_by_id={"wm-logo": asset},
+    )
+
+    assert result.success, result.message
+    tex = result.tex_path.read_text(encoding="utf-8")
+    assert "opacity=0.05" in tex
+    assert r"width=0.4\paperwidth" in tex
+    assert "cornell_assets/media/logo_cocid_wm-logo.png" in tex
+    assert tex.count("cornell_assets/media/logo_cocid_wm-logo.png") == 2
+    assert "Pages:           2" in pdfinfo_text(result.pdf_path)
 
 
 def test_export_multipage_cornell_preserves_images(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

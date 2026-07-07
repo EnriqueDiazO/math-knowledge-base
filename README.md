@@ -219,6 +219,8 @@ Their canonical Cornell payload is stored under:
 cornell.schema_version
 cornell.template_id
 cornell.pages
+cornell.attribution
+cornell.watermark
 ```
 
 The Cornell installer support is idempotent and keeps legacy notes valid. Expected Cornell indexes on `latex_notes` are:
@@ -246,6 +248,27 @@ The installer also creates the portable media directory:
 - `media/images`
 
 Images uploaded from concepts or Cuaderno notes are stored as local files under `media/images` and referenced from MongoDB with relative paths such as `media/images/figure.png`. Database export/import includes both the `media_assets` collection and the `media/` tree, so backups remain portable across machines and database names.
+
+Cornell notes support per-region images, optional footer attribution, text or image watermarks, and editable multi-page export. The editable project export writes a self-contained LaTeX folder with:
+
+- `Notas.tex`
+- `Izquierda.tex`, `Derecha.tex`, `Abajo.tex`
+- `A.tex`, `B.tex`, `C.tex`
+- `contenido/pagina_NNN/*.tex`
+- `images/`
+- `metadata.json`
+- `README.md`
+
+Compile editable projects with:
+
+```bash
+pdflatex Izquierda.tex
+pdflatex Derecha.tex
+pdflatex Abajo.tex
+pdflatex Notas.tex
+```
+
+Generated Cornell exports live under `runtime/cornell_exports/`. Safe cleanup should preserve sources, `README.md`, `metadata.json`, required images such as `lineas.png`, and the final `Notas.pdf` when present; remove only LaTeX auxiliary files and explicitly selected intermediate regional PDFs.
 
 ### 6. Run the Streamlit app
 

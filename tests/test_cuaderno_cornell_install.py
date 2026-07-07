@@ -106,6 +106,24 @@ def test_latex_notes_validator_is_legacy_and_cornell_compatible() -> None:
         "cornell": {
             "schema_version": 1,
             "template_id": "historical_cornell_math_letter_v1",
+            "attribution": {
+                "enabled": True,
+                "mode": "auto",
+                "text": "Texto personalizado",
+                "author": "Enrique Díaz Ocampo",
+                "course": "Python",
+                "year": "2026",
+                "position": "bottom_right",
+            },
+            "watermark": {
+                "enabled": True,
+                "type": "image",
+                "text": "",
+                "image_id": "logo-cocid",
+                "opacity": 0.05,
+                "scale": 0.4,
+                "position": "center",
+            },
             "pages": [
                 {
                     "page_id": "p001",
@@ -120,6 +138,8 @@ def test_latex_notes_validator_is_legacy_and_cornell_compatible() -> None:
     }
     cornell_schema = properties["cornell"]
     page_schema = cornell_schema["properties"]["pages"]["items"]
+    attribution_schema = cornell_schema["properties"]["attribution"]
+    watermark_schema = cornell_schema["properties"]["watermark"]
 
     assert "note_format" not in schema["required"]
     assert "cornell" not in schema["required"]
@@ -130,6 +150,10 @@ def test_latex_notes_validator_is_legacy_and_cornell_compatible() -> None:
     assert _required_fields_present(cornell_note, schema)
     assert _required_fields_present(cornell_note["cornell"], cornell_schema)
     assert _required_fields_present(cornell_note["cornell"]["pages"][0], page_schema)
+    assert attribution_schema["properties"]["mode"]["enum"] == ["auto", "custom"]
+    assert watermark_schema["properties"]["type"]["enum"] == ["text", "image"]
+    assert "attribution" not in cornell_schema["required"]
+    assert "watermark" not in cornell_schema["required"]
 
 
 def test_cornell_install_status_reports_validator_and_indexes(monkeypatch, tmp_path, capsys) -> None:

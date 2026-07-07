@@ -11,9 +11,12 @@ import pytest
 
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import DEFAULT_TEMPLATE_ID
+from editor.cornell.models import CornellAttribution
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.models import CornellWatermark
+from editor.cornell.models import build_footer_text
 from editor.cornell.models import generate_latex_body
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.persistence import extract_cornell_document
@@ -97,6 +100,23 @@ def test_build_cornell_note_document_derives_global_image_ids_from_regions() -> 
     assert note["image_ids"] == ["cue-img", "main-img"]
 
 
+def test_build_cornell_note_document_includes_enabled_watermark_image_id() -> None:
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=sample_document_with_images().pages,
+        watermark=CornellWatermark(
+            enabled=True,
+            type="image",
+            image_id="watermark-logo",
+        ),
+    )
+
+    note = build_cornell_note_document(sample_metadata(), document)
+
+    assert note["image_ids"] == ["cue-img", "main-img", "watermark-logo"]
+
+
 def test_build_cornell_note_document_regenerates_latex_body() -> None:
     metadata = {
         **sample_metadata(),
@@ -118,6 +138,30 @@ def test_extract_cornell_document_round_trip_from_mongo_dict() -> None:
     restored = extract_cornell_document(note)
 
     assert restored == document
+
+
+def test_attribution_footer_mode_round_trip_from_mongo_dict() -> None:
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=sample_document().pages,
+        attribution=CornellAttribution(
+            enabled=True,
+            mode="auto",
+            text="Texto personalizado inactivo",
+            author="Enrique Díaz Ocampo",
+            course="Python",
+            year="2026",
+            position="bottom_right",
+        ),
+    )
+    note = build_cornell_note_document(sample_metadata(), document)
+
+    restored = extract_cornell_document(note)
+
+    assert restored.attribution.mode == "auto"
+    assert restored.attribution.text == "Texto personalizado inactivo"
+    assert build_footer_text(restored.attribution) == "© 2026 Enrique Díaz Ocampo · Python"
 
 
 def test_build_cornell_note_document_rejects_wrong_note_format() -> None:

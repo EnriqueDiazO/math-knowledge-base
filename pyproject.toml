@@ -9,6 +9,7 @@ packages = [
     { include = "app" },
     { include = "editor" },
     { include = "exporters_latex" },
+    { include = "exporters_quarto" },
     { include = "mathdatabase" },
     { include = "parsers" },
     { include = "schemas" },
@@ -25,6 +26,14 @@ networkx = "^3.3"
 matplotlib = "^3.9"
 jinja2 = "^3.1"
 typer = "^0.12"
+latexify-py = "*"
+pyvis = "*"
+python-slugify = "*"
+markdown-it-py = { version = "*", extras = ["linkify", "plugins"] }
+rapidfuzz = "*"
+bibtexparser = "*"
+streamlit-ace = "*"
+plotly = ">=5.0"
 # Otros si los usas:
 # latex2mathml = "^3.74"
 # watchdog = "^4.0"
@@ -34,6 +43,9 @@ pytest = "^8.2"
 ruff = "^0.4"
 ipykernel = "^6.29"
 jupyter = "^1.0"
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
 
 [build-system]
 requires = ["poetry-core"]

@@ -49,8 +49,6 @@ dist/
 *.csv
 *.tsv
 *.xlsx
-*.pdf
-*.tex
 # ───── Quarto build (generated) ─────
 quarto_book_build/
 quarto_book_build/_book/
@@ -120,12 +118,6 @@ CornellFormats/**/*.toc
 CornellFormats/**/*.lof
 CornellFormats/**/*.lot
 CornellFormats/**/*.fls
-CornellFormats/**/*.png
-CornellFormats/**/*.gif
-CornellFormats/**/*.jpg
-CornellFormats/**/*.jpeg
-CornellFormats/**/*.svg
-CornellFormats/**/*.sty
 CornellFormats/**/*.Rhistory
 CornellFormats/**/*.fdb_latexmk
 CornellFormats/**/*.synctex.gz

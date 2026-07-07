@@ -6,7 +6,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
-from editor.cornell.media import cornell_region_image_ids
+from editor.cornell.media import cornell_document_image_ids
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import build_cornell_math_v1_payload
@@ -50,7 +50,7 @@ def build_cornell_note_document(
         for field in NORMAL_NOTE_FIELDS
         if field in metadata
     }
-    note["image_ids"] = list(cornell_region_image_ids(document))
+    note["image_ids"] = list(cornell_document_image_ids(document))
     note.update(build_cornell_math_v1_payload(document))
     return note
 

@@ -3,17 +3,28 @@
 from __future__ import annotations
 
 from datetime import date
+from html import escape
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
+from editor.cornell.content_blocks import RegionSplitError
+from editor.cornell.content_blocks import SplitProposal
+from editor.cornell.content_blocks import apply_split_proposal
+from editor.cornell.content_blocks import is_empty_cornell_page
+from editor.cornell.content_blocks import split_region_to_fit
 from editor.cornell.media import cornell_image_reference
 from editor.cornell.models import DEFAULT_TEMPLATE_ID
+from editor.cornell.models import CornellAttribution
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.models import CornellWatermark
+from editor.cornell.models import build_footer_text
 from editor.cornell.persistence import extract_cornell_document
+from editor.cornell.project_export import export_cornell_project
 from editor.cornell.renderer import cornell_latex_full_log
+from editor.cornell.renderer import measure_cornell_page_fit
 from editor.cornell.renderer import render_cornell_document
 from editor.cornell.service import add_cornell_region_image
 from editor.cornell.service import create_cornell_note
@@ -23,6 +34,7 @@ from editor.cornell.service import list_cornell_notes
 from editor.cornell.service import remove_cornell_region_image
 from editor.cornell.service import update_cornell_note
 from editor.cornell.service import upload_cornell_region_image
+from editor.cornell.service import upload_cornell_watermark_image
 from editor.cornell.ui_helpers import ALL_LABEL
 from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import NEW_PROJECT_LABEL
@@ -49,6 +61,8 @@ SESSION_VIEW = "cornell_view_state"
 SESSION_VIEW_SELECTOR = "cornell_view_selector"
 SESSION_PENDING_VIEW = "cornell_pending_view"
 SESSION_PENDING_NOTE_ID = "cornell_pending_note_id"
+SESSION_FIT_DIAGNOSTICS = "cornell_fit_diagnostics"
+SESSION_SPLIT_PROPOSAL = "cornell_split_proposal"
 LEGACY_SESSION_VIEW = "cornell_view"
 VIEW_NEW_NOTE = "Nueva nota"
 VIEW_EXPLORE_NOTES = "Explorar notas"
@@ -58,6 +72,21 @@ REGION_LABELS = {
     "cue": "Cue",
     "main": "Main",
     "summary": "Summary",
+}
+IDENTITY_POSITION_LABELS = {
+    "center": "Centro",
+    "bottom_right": "Inferior derecha",
+    "top_right": "Superior derecha",
+}
+IDENTITY_POSITION_VALUES = tuple(IDENTITY_POSITION_LABELS)
+WATERMARK_TYPE_LABELS = {
+    "text": "Texto",
+    "image": "Imagen",
+}
+WATERMARK_TYPE_VALUES = tuple(WATERMARK_TYPE_LABELS)
+FOOTER_MODE_LABELS = {
+    "auto": "Automático",
+    "custom": "Personalizado",
 }
 
 
@@ -95,6 +124,8 @@ def normalize_page_orders(document: CornellDocument) -> CornellDocument:
         document.ordered_pages(),
         schema_version=document.schema_version,
         template_id=document.template_id,
+        attribution=document.attribution,
+        watermark=document.watermark,
     )
 
 
@@ -103,6 +134,8 @@ def _document_with_normalized_pages(
     *,
     schema_version: int,
     template_id: str,
+    attribution: CornellAttribution | None = None,
+    watermark: CornellWatermark | None = None,
 ) -> CornellDocument:
     normalized_pages = []
     for order, page in enumerate(pages, start=1):
@@ -120,6 +153,8 @@ def _document_with_normalized_pages(
         schema_version=schema_version,
         template_id=template_id,
         pages=tuple(normalized_pages),
+        attribution=attribution or CornellAttribution(),
+        watermark=watermark or CornellWatermark(),
     )
 
 
@@ -135,6 +170,8 @@ def replace_page(document: CornellDocument, page_index: int, page: CornellPage) 
         pages,
         schema_version=document.schema_version,
         template_id=document.template_id,
+        attribution=document.attribution,
+        watermark=document.watermark,
     )
 
 
@@ -148,6 +185,8 @@ def add_page(document: CornellDocument, selected_index: int | None = None) -> tu
         pages,
         schema_version=document.schema_version,
         template_id=document.template_id,
+        attribution=document.attribution,
+        watermark=document.watermark,
     )
     return new_document, insert_at
 
@@ -175,6 +214,8 @@ def duplicate_page(document: CornellDocument, selected_index: int) -> tuple[Corn
         pages,
         schema_version=document.schema_version,
         template_id=document.template_id,
+        attribution=document.attribution,
+        watermark=document.watermark,
     )
     return new_document, insert_at
 
@@ -191,6 +232,8 @@ def delete_page(document: CornellDocument, selected_index: int) -> tuple[Cornell
         pages,
         schema_version=document.schema_version,
         template_id=document.template_id,
+        attribution=document.attribution,
+        watermark=document.watermark,
     )
     return new_document, new_index
 
@@ -285,6 +328,7 @@ def apply_loaded_note_state(
     state["cornell_main_latex"] = first_page.main.latex
     state["cornell_summary_heading"] = first_page.summary.heading
     state["cornell_summary_latex"] = first_page.summary.latex
+    _sync_identity_state_values(state, normalized_document)
 
 
 def _safe_date(value: Any) -> date:
@@ -338,6 +382,106 @@ def _sync_page_widget_state(page: CornellPage) -> None:
     st.session_state["cornell_summary_latex"] = page.summary.latex
 
 
+def _position_label(position: str) -> str:
+    return IDENTITY_POSITION_LABELS.get(position, IDENTITY_POSITION_LABELS["center"])
+
+
+def _position_value(label: Any, *, default: str = "center") -> str:
+    text = str(label or "")
+    for value, display in IDENTITY_POSITION_LABELS.items():
+        if text == display or text == value:
+            return value
+    return default
+
+
+def _watermark_type_label(value: str) -> str:
+    return WATERMARK_TYPE_LABELS.get(value, WATERMARK_TYPE_LABELS["text"])
+
+
+def _watermark_type_value(label: Any) -> str:
+    text = str(label or "")
+    for value, display in WATERMARK_TYPE_LABELS.items():
+        if text == display or text == value:
+            return value
+    return "text"
+
+
+def _footer_mode_label(value: str) -> str:
+    return FOOTER_MODE_LABELS.get(value, FOOTER_MODE_LABELS["auto"])
+
+
+def _footer_mode_value(label: Any) -> str:
+    text = str(label or "")
+    for value, display in FOOTER_MODE_LABELS.items():
+        if text == display or text == value:
+            return value
+    return "auto"
+
+
+def _sync_identity_state_values(state: dict[str, Any], document: CornellDocument) -> None:
+    attribution = document.attribution
+    watermark = document.watermark
+    state["cornell_attribution_enabled"] = attribution.enabled
+    state["cornell_attribution_mode"] = _footer_mode_label(attribution.mode)
+    state["cornell_attribution_text"] = attribution.text
+    state["cornell_attribution_author"] = attribution.author
+    state["cornell_attribution_course"] = attribution.course
+    state["cornell_attribution_year"] = attribution.year
+    state["cornell_attribution_position"] = _position_label(attribution.position)
+    state["cornell_watermark_enabled"] = watermark.enabled
+    state["cornell_watermark_type"] = _watermark_type_label(watermark.type)
+    state["cornell_watermark_text"] = watermark.text
+    state["cornell_watermark_image_id"] = watermark.image_id
+    state["cornell_watermark_opacity"] = watermark.opacity
+    state["cornell_watermark_scale"] = watermark.scale
+    state["cornell_watermark_position"] = _position_label(watermark.position)
+
+
+def _ensure_identity_widget_state(document: CornellDocument) -> None:
+    import streamlit as st
+
+    defaults: dict[str, Any] = {}
+    _sync_identity_state_values(defaults, document)
+    for key, value in defaults.items():
+        st.session_state.setdefault(key, value)
+
+
+def _document_with_identity_from_inputs(document: CornellDocument) -> CornellDocument:
+    import streamlit as st
+
+    attribution = CornellAttribution(
+        enabled=bool(st.session_state.get("cornell_attribution_enabled", document.attribution.enabled)),
+        mode=_footer_mode_value(st.session_state.get("cornell_attribution_mode")),
+        text=str(st.session_state.get("cornell_attribution_text", document.attribution.text) or ""),
+        author=str(st.session_state.get("cornell_attribution_author", document.attribution.author) or ""),
+        course=str(st.session_state.get("cornell_attribution_course", document.attribution.course) or ""),
+        year=str(st.session_state.get("cornell_attribution_year", document.attribution.year) or ""),
+        position=_position_value(
+            st.session_state.get("cornell_attribution_position"),
+            default=document.attribution.position,
+        ),
+    )
+    watermark = CornellWatermark(
+        enabled=bool(st.session_state.get("cornell_watermark_enabled", document.watermark.enabled)),
+        type=_watermark_type_value(st.session_state.get("cornell_watermark_type")),
+        text=str(st.session_state.get("cornell_watermark_text", document.watermark.text) or ""),
+        image_id=str(st.session_state.get("cornell_watermark_image_id", document.watermark.image_id) or ""),
+        opacity=float(st.session_state.get("cornell_watermark_opacity", document.watermark.opacity)),
+        scale=float(st.session_state.get("cornell_watermark_scale", document.watermark.scale)),
+        position=_position_value(
+            st.session_state.get("cornell_watermark_position"),
+            default=document.watermark.position,
+        ),
+    )
+    return CornellDocument(
+        schema_version=document.schema_version,
+        template_id=document.template_id,
+        pages=document.pages,
+        attribution=attribution,
+        watermark=watermark,
+    )
+
+
 def _current_page_from_inputs(page: CornellPage) -> CornellPage:
     import streamlit as st
 
@@ -372,7 +516,7 @@ def _document_from_inputs() -> CornellDocument:
         return make_blank_document()
     page_index = valid_page_index(document, st.session_state.get(SESSION_PAGE_INDEX))
     current_page = _current_page_from_inputs(pages[page_index])
-    return replace_page(document, page_index, current_page)
+    return _document_with_identity_from_inputs(replace_page(document, page_index, current_page))
 
 
 def _metadata_from_inputs() -> dict[str, Any]:
@@ -394,6 +538,8 @@ def _mark_dirty() -> None:
     import streamlit as st
 
     st.session_state[SESSION_DIRTY] = True
+    st.session_state.pop(SESSION_FIT_DIAGNOSTICS, None)
+    st.session_state.pop(SESSION_SPLIT_PROPOSAL, None)
 
 
 def _sync_view_from_selector() -> None:
@@ -626,6 +772,138 @@ def _render_metadata_editor(db: Any) -> None:
     )
 
 
+def _render_identity_editor(db: Any) -> None:
+    import streamlit as st
+
+    document = _document_from_inputs()
+    _ensure_identity_widget_state(document)
+    with st.expander("Identidad del material", expanded=False):
+        st.checkbox(
+            "Mostrar pie de página",
+            key="cornell_attribution_enabled",
+            on_change=_mark_dirty,
+        )
+        st.radio(
+            "Modo del pie",
+            options=tuple(FOOTER_MODE_LABELS.values()),
+            horizontal=True,
+            key="cornell_attribution_mode",
+            on_change=_mark_dirty,
+        )
+        footer_mode = _footer_mode_value(st.session_state.get("cornell_attribution_mode"))
+        if footer_mode == "auto":
+            attr_author, attr_course, attr_year = st.columns([2, 2, 1])
+            attr_author.text_input("Autor", key="cornell_attribution_author", on_change=_mark_dirty)
+            attr_course.text_input("Curso", key="cornell_attribution_course", on_change=_mark_dirty)
+            attr_year.text_input("Año", key="cornell_attribution_year", on_change=_mark_dirty)
+        else:
+            st.text_input(
+                "Texto del pie",
+                key="cornell_attribution_text",
+                placeholder="© Enrique Díaz Ocampo · Material Docente",
+                on_change=_mark_dirty,
+            )
+        st.selectbox(
+            "Posición del pie",
+            options=tuple(IDENTITY_POSITION_LABELS.values()),
+            key="cornell_attribution_position",
+            on_change=_mark_dirty,
+        )
+        footer_preview = build_footer_text(
+            mode=footer_mode,
+            text=str(st.session_state.get("cornell_attribution_text") or ""),
+            author=str(st.session_state.get("cornell_attribution_author") or ""),
+            course=str(st.session_state.get("cornell_attribution_course") or ""),
+            year=str(st.session_state.get("cornell_attribution_year") or ""),
+        )
+        st.markdown("**Vista previa del pie:**")
+        st.caption(footer_preview or "Sin pie de página")
+
+        st.markdown("---")
+        st.checkbox(
+            "Mostrar marca de agua",
+            key="cornell_watermark_enabled",
+            on_change=_mark_dirty,
+        )
+        st.radio(
+            "Tipo",
+            options=tuple(WATERMARK_TYPE_LABELS.values()),
+            horizontal=True,
+            key="cornell_watermark_type",
+            on_change=_mark_dirty,
+        )
+        watermark_type = _watermark_type_value(st.session_state.get("cornell_watermark_type"))
+        if watermark_type == "text":
+            st.text_input(
+                "Texto de marca de agua",
+                key="cornell_watermark_text",
+                on_change=_mark_dirty,
+            )
+        else:
+            uploaded = st.file_uploader(
+                "Subir imagen",
+                type=("png", "svg"),
+                key="cornell_watermark_upload",
+            )
+            if st.button("Guardar imagen de marca", disabled=uploaded is None):
+                try:
+                    asset = upload_cornell_watermark_image(
+                        db,
+                        note_id=st.session_state.get(SESSION_NOTE_ID),
+                        filename=uploaded.name,
+                        data=uploaded.getvalue(),
+                        mime_type=getattr(uploaded, "type", None),
+                    )
+                    st.session_state["cornell_watermark_image_id"] = asset["asset_id"]
+                    _mark_dirty()
+                    st.success("Imagen de marca asociada.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(f"No se pudo guardar la imagen de marca: {exc}")
+            image_id = str(st.session_state.get("cornell_watermark_image_id") or "")
+            if image_id:
+                try:
+                    assets = get_cornell_assets_by_ids(db, (image_id,))
+                except Exception as exc:
+                    st.warning(f"No se pudo cargar la imagen de marca: {exc}")
+                    assets = []
+                if assets:
+                    asset = assets[0]
+                    st.caption(asset.get("original_filename") or asset.get("filename") or image_id)
+                    if media_path_exists(asset):
+                        st.image(str(PROJECT_ROOT / asset.get("path")), width=140)
+                    if st.button("Quitar imagen de marca"):
+                        st.session_state["cornell_watermark_image_id"] = ""
+                        _mark_dirty()
+                        st.rerun()
+                else:
+                    st.warning(f"Asset de marca no encontrado: {image_id}")
+
+        opacity_col, scale_col, position_col = st.columns(3)
+        opacity_col.slider(
+            "Opacidad",
+            min_value=0.0,
+            max_value=1.0,
+            step=0.01,
+            key="cornell_watermark_opacity",
+            on_change=_mark_dirty,
+        )
+        scale_col.slider(
+            "Tamaño",
+            min_value=0.05,
+            max_value=1.0,
+            step=0.01,
+            key="cornell_watermark_scale",
+            on_change=_mark_dirty,
+        )
+        position_col.selectbox(
+            "Posición",
+            options=tuple(IDENTITY_POSITION_LABELS.values()),
+            key="cornell_watermark_position",
+            on_change=_mark_dirty,
+        )
+
+
 def _render_region_media_manager(
     db: Any,
     *,
@@ -836,6 +1114,204 @@ def _save_current_note(db: Any) -> None:
     st.session_state[SESSION_DIRTY] = False
 
 
+def _render_fit_report(diagnostics: dict[str, Any]) -> None:
+    import streamlit as st
+
+    report = diagnostics.get("fit_report") if isinstance(diagnostics, dict) else None
+    if not isinstance(report, dict):
+        return
+    pages = report.get("pages")
+    if not isinstance(pages, list) or not pages:
+        return
+
+    status_labels = {
+        "FIT": "OK",
+        "SCALED": "Ajustado",
+        "OVERFLOW": "No cabe",
+    }
+    colors = {
+        "FIT": ("#0f7b35", "#e8f5ec", "#b7dfc5"),
+        "SCALED": ("#9a5b00", "#fff7e6", "#f3d18a"),
+        "OVERFLOW": ("#b42318", "#fff1f0", "#f4b8b2"),
+    }
+
+    st.markdown("**Ajuste de página**")
+    for page in pages:
+        page_id = escape(str(page.get("page_id") or "pagina"))
+        if len(pages) > 1:
+            st.caption(f"Página {page_id}")
+        regions = page.get("regions")
+        if not isinstance(regions, list):
+            continue
+        for region in regions:
+            if not isinstance(region, dict):
+                continue
+            status = str(region.get("status") or "FIT")
+            label = escape(str(region.get("label") or region.get("region") or "Region"))
+            scale = region.get("applied_scale", region.get("required_scale", 1.0))
+            try:
+                percent = int(round(float(scale) * 100))
+            except (TypeError, ValueError):
+                percent = 100
+            color, background, border = colors.get(status, colors["FIT"])
+            status_label = escape(status_labels.get(status, status))
+            st.markdown(
+                (
+                    "<div style='display:grid;grid-template-columns:1fr 72px 96px;"
+                    "gap:8px;align-items:center;border:1px solid "
+                    f"{border};background:{background};color:{color};"
+                    "border-radius:6px;padding:6px 8px;margin:4px 0;"
+                    "font-size:0.9rem;line-height:1.2;'>"
+                    f"<span>{label}</span>"
+                    f"<span style='text-align:right;font-variant-numeric:tabular-nums;'>{percent} %</span>"
+                    f"<strong style='text-align:right;'>{status_label}</strong>"
+                    "</div>"
+                ),
+                unsafe_allow_html=True,
+            )
+
+
+def _first_overflow_region(diagnostics: dict[str, Any]) -> tuple[str, str] | None:
+    report = diagnostics.get("fit_report") if isinstance(diagnostics, dict) else None
+    if not isinstance(report, dict):
+        return None
+    pages = report.get("pages")
+    if not isinstance(pages, list):
+        return None
+    for page in pages:
+        if not isinstance(page, dict):
+            continue
+        page_id = str(page.get("page_id") or "")
+        regions = page.get("regions")
+        if not page_id or not isinstance(regions, list):
+            continue
+        for region in regions:
+            if isinstance(region, dict) and region.get("status") == "OVERFLOW":
+                return page_id, str(region.get("region") or "")
+    return None
+
+
+def _page_index_by_id(document: CornellDocument, page_id: str) -> int | None:
+    for index, page in enumerate(document.ordered_pages()):
+        if page.page_id == page_id:
+            return index
+    return None
+
+
+def _split_proposal_fit_engine(db: Any, output_dir: Path):
+    counter = 0
+
+    def fit_engine(page: CornellPage, region_name: str):
+        nonlocal counter
+        counter += 1
+        page_report = measure_cornell_page_fit(
+            page,
+            output_dir,
+            f"split_fit_{counter}_{page.page_id}",
+            db=db,
+        )
+        fit = page_report.region_fit(region_name)
+        if fit is None:
+            raise RegionSplitError(f"No se pudo medir la región {region_name}.")
+        return fit
+
+    return fit_engine
+
+
+def apply_split_proposal_to_state(
+    state: dict[str, Any],
+    document: CornellDocument,
+    page_index: int,
+    proposal: SplitProposal,
+) -> CornellDocument:
+    """Apply a split proposal to editable UI state without saving to MongoDB."""
+    updated = apply_split_proposal(document, page_index, proposal)
+    state[SESSION_DOCUMENT] = updated
+    state[SESSION_PAGE_INDEX] = min(page_index + 1, len(updated.ordered_pages()) - 1)
+    state[SESSION_DIRTY] = True
+    state.pop(SESSION_FIT_DIAGNOSTICS, None)
+    state.pop(SESSION_SPLIT_PROPOSAL, None)
+    return updated
+
+
+def _render_split_proposal(proposal: SplitProposal, page_index: int) -> None:
+    import streamlit as st
+
+    st.markdown("**Propuesta de división**")
+    st.caption(
+        "Página actual: "
+        f"{proposal.current_fit.applied_scale:.0%} · "
+        "Nueva página: "
+        f"{proposal.moved_fit.applied_scale:.0%}"
+    )
+    left, right = st.columns(2)
+    with left:
+        st.caption("Contenido que queda")
+        st.code(proposal.kept_latex, language="latex")
+    with right:
+        st.caption("Contenido que se mueve")
+        st.code(proposal.moved_latex, language="latex")
+
+    apply_col, cancel_col = st.columns(2)
+    if apply_col.button("Aplicar división", type="primary", use_container_width=True):
+        document = _document_from_inputs()
+        st.session_state[SESSION_DOCUMENT] = apply_split_proposal(
+            document,
+            page_index,
+            proposal,
+        )
+        st.session_state[SESSION_PAGE_INDEX] = page_index + 1
+        st.session_state.pop(SESSION_SPLIT_PROPOSAL, None)
+        _mark_dirty()
+        st.rerun()
+    if cancel_col.button("Cancelar", use_container_width=True):
+        st.session_state.pop(SESSION_SPLIT_PROPOSAL, None)
+        st.rerun()
+
+
+def _render_overflow_split_controls(
+    document: CornellDocument,
+    diagnostics: dict[str, Any],
+    db: Any,
+) -> None:
+    import streamlit as st
+
+    overflow = _first_overflow_region(diagnostics)
+    if overflow is None:
+        return
+    page_id, region_name = overflow
+    page_index = _page_index_by_id(document, page_id)
+    if page_index is None:
+        st.warning("No se encontró la página con overflow en el editor actual.")
+        return
+
+    if not st.button("Dividir contenido en nueva página", use_container_width=True):
+        return
+
+    pages = document.ordered_pages()
+    page = pages[page_index]
+    existing_ids = {candidate.page_id for candidate in pages}
+    next_page = pages[page_index + 1] if page_index + 1 < len(pages) else None
+    if next_page is not None and is_empty_cornell_page(next_page):
+        target_page_id = next_page.page_id
+    else:
+        target_page_id = _new_page_id(existing_ids)
+    output_dir = PROJECT_ROOT / "runtime" / "cornell_streamlit_split"
+    try:
+        proposal = split_region_to_fit(
+            page,
+            region_name,
+            _split_proposal_fit_engine(db, output_dir),
+            new_page_id=target_page_id,
+        )
+    except (RegionSplitError, ValueError) as exc:
+        st.error(str(exc))
+        return
+
+    apply_split_proposal_to_state(st.session_state, document, page_index, proposal)
+    st.rerun()
+
+
 def _preview_pdf(db: Any) -> None:
     import streamlit as st
 
@@ -843,6 +1319,8 @@ def _preview_pdf(db: Any) -> None:
     output_dir = PROJECT_ROOT / "runtime" / "cornell_streamlit_preview"
     output_name = st.session_state[SESSION_NOTE_ID] or "cornell_preview"
     result = render_cornell_document(document, output_dir, str(output_name), db=db)
+    st.session_state[SESSION_FIT_DIAGNOSTICS] = result.diagnostics
+    _render_fit_report(result.diagnostics)
     if not result.success:
         st.error(result.message or "No se pudo generar el PDF.")
         with st.expander("Ver log completo", expanded=False):
@@ -860,6 +1338,35 @@ def _preview_pdf(db: Any) -> None:
         st.warning(f"PDF generado, pero no se pudo preparar la descarga: {exc}")
 
 
+def _export_editable_project(db: Any) -> None:
+    import streamlit as st
+
+    document = _document_from_inputs()
+    metadata = _metadata_from_inputs()
+    output_root = PROJECT_ROOT / "runtime" / "cornell_exports"
+    try:
+        result = export_cornell_project(
+            document,
+            metadata,
+            output_root,
+            db=db,
+        )
+    except Exception as exc:
+        st.error(f"No se pudo exportar el proyecto LaTeX: {exc}")
+        return
+
+    st.success(f"Proyecto exportado: {result.project_dir}")
+    try:
+        st.download_button(
+            "Descargar ZIP",
+            data=result.zip_path.read_bytes(),
+            file_name=result.zip_path.name,
+            mime="application/zip",
+        )
+    except OSError as exc:
+        st.warning(f"Proyecto exportado, pero no se pudo preparar el ZIP: {exc}")
+
+
 def _render_current_note_editor(db: Any) -> None:
     import streamlit as st
 
@@ -868,6 +1375,7 @@ def _render_current_note_editor(db: Any) -> None:
     st.caption(f"Nota actual: {note_id or 'nueva'}{dirty}")
     st.subheader("Metadata")
     _render_metadata_editor(db)
+    _render_identity_editor(db)
     st.markdown("---")
     document = st.session_state[SESSION_DOCUMENT]
     pages = document.ordered_pages()
@@ -884,7 +1392,7 @@ def _render_current_note_editor(db: Any) -> None:
     page_index = valid_page_index(document, st.session_state.get(SESSION_PAGE_INDEX))
     _render_page_editor(db, pages[page_index], page_index)
 
-    col_save, col_preview = st.columns(2)
+    col_save, col_preview, col_export = st.columns(3)
     with col_save:
         if st.button("Guardar", type="primary", use_container_width=True):
             try:
@@ -894,6 +1402,13 @@ def _render_current_note_editor(db: Any) -> None:
     with col_preview:
         if st.button("Vista previa PDF", use_container_width=True):
             _preview_pdf(db)
+    with col_export:
+        if st.button("Exportar proyecto LaTeX editable", use_container_width=True):
+            _export_editable_project(db)
+
+    diagnostics = st.session_state.get(SESSION_FIT_DIAGNOSTICS)
+    if isinstance(diagnostics, dict):
+        _render_overflow_split_controls(_document_from_inputs(), diagnostics, db)
 
 
 def _render_edit_notes(db: Any) -> None:

@@ -23,6 +23,7 @@ REGION_IMAGE_WIDTHS = {
     "main": "5.35in",
     "summary": "5.7in",
 }
+CORNELL_LATEX_IMAGE_EXTENSIONS = LATEX_IMAGE_EXTENSIONS | {".svg"}
 
 
 def cornell_image_reference(asset_id: str) -> str:
@@ -68,6 +69,12 @@ def cornell_document_image_ids(document: CornellDocument) -> tuple[str, ...]:
         if asset_id not in seen:
             image_ids.append(asset_id)
             seen.add(asset_id)
+    watermark = document.watermark
+    if watermark.enabled and watermark.type == "image" and watermark.image_id:
+        asset_id = watermark.image_id
+        if asset_id not in seen:
+            image_ids.append(asset_id)
+            seen.add(asset_id)
     return tuple(image_ids)
 
 
@@ -88,14 +95,19 @@ def _normalize_assets_by_id(assets_by_id: Mapping[str, Mapping[str, Any]] | None
     return {str(asset_id): dict(asset) for asset_id, asset in assets_by_id.items()}
 
 
-def _safe_asset_source_path(asset: Mapping[str, Any]) -> Path:
+def _safe_asset_source_path(
+    asset: Mapping[str, Any],
+    *,
+    allowed_extensions: set[str] | frozenset[str] | None = None,
+) -> Path:
     raw_path = relative_media_path(asset.get("path") or "")
     source_path = Path(raw_path)
     if not raw_path or source_path.is_absolute() or ".." in source_path.parts:
         raise ValueError(f"Cornell image asset has an unsafe path: {raw_path!r}")
     suffix = source_path.suffix.lower()
-    if suffix not in LATEX_IMAGE_EXTENSIONS:
-        allowed = ", ".join(sorted(LATEX_IMAGE_EXTENSIONS))
+    safe_extensions = allowed_extensions or CORNELL_LATEX_IMAGE_EXTENSIONS
+    if suffix not in safe_extensions:
+        allowed = ", ".join(sorted(safe_extensions))
         raise ValueError(f"Cornell image asset extension {suffix!r} is not supported by LaTeX. Allowed: {allowed}.")
     absolute_path = PROJECT_ROOT / source_path
     if not absolute_path.exists():
@@ -154,12 +166,26 @@ def prepare_cornell_image_assets(
 def cornell_image_box_latex(asset_path: str, *, region_name: str) -> str:
     """Return a bounded LaTeX image block for one region."""
     max_width = REGION_IMAGE_WIDTHS.get(region_name, r"\linewidth")
-    return (
-        "\n"
-        r"\begin{center}" "\n"
-        rf"\resizebox{{{max_width}}}{{!}}{{\includegraphics{{{asset_path}}}}}" "\n"
-        r"\end{center}" "\n"
-    )
+    if str(asset_path).lower().endswith(".svg"):
+        image = latex_image_include(asset_path, options=f"width={max_width}")
+    else:
+        image = rf"\resizebox{{{max_width}}}{{!}}{{\includegraphics{{{asset_path}}}}}"
+    return "\n" + r"\begin{center}" "\n" + image + "\n" + r"\end{center}" "\n"
+
+
+def latex_image_include(asset_path: str, *, options: str = "") -> str:
+    """Return a LaTeX image command for PNG/JPG/PDF/SVG Cornell assets."""
+    option_block = f"[{options}]" if options else ""
+    if str(asset_path).lower().endswith(".svg"):
+        svg_path = str(Path(asset_path).with_suffix(""))
+        return rf"\includesvg{option_block}{{{svg_path}}}"
+    return rf"\includegraphics{option_block}{{{asset_path}}}"
+
+
+def latex_uses_svg_paths(paths: Mapping[str, str] | list[str] | tuple[str, ...]) -> bool:
+    """Return True when any LaTeX image path needs the svg package."""
+    values = paths.values() if isinstance(paths, Mapping) else paths
+    return any(str(path).lower().endswith(".svg") for path in values)
 
 
 def render_cornell_region_latex(

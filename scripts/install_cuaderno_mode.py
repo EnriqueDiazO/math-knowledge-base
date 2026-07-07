@@ -251,6 +251,38 @@ def _cornell_document_validator() -> dict[str, Any]:
             "schema_version": {"bsonType": ["int", "long"], "minimum": 1},
             "template_id": {"bsonType": "string"},
             "pages": {"bsonType": ["array"], "items": _cornell_page_validator()},
+            "attribution": _cornell_attribution_validator(),
+            "watermark": _cornell_watermark_validator(),
+        },
+    }
+
+
+def _cornell_attribution_validator() -> dict[str, Any]:
+    return {
+        "bsonType": "object",
+        "properties": {
+            "enabled": {"bsonType": "bool"},
+            "mode": {"enum": ["auto", "custom"]},
+            "text": {"bsonType": "string"},
+            "author": {"bsonType": "string"},
+            "course": {"bsonType": "string"},
+            "year": {"bsonType": "string"},
+            "position": {"enum": ["center", "bottom_right", "top_right"]},
+        },
+    }
+
+
+def _cornell_watermark_validator() -> dict[str, Any]:
+    return {
+        "bsonType": "object",
+        "properties": {
+            "enabled": {"bsonType": "bool"},
+            "type": {"enum": ["text", "image"]},
+            "text": {"bsonType": "string"},
+            "image_id": {"bsonType": "string"},
+            "opacity": {"bsonType": ["double", "int", "long", "decimal"]},
+            "scale": {"bsonType": ["double", "int", "long", "decimal"]},
+            "position": {"enum": ["center", "bottom_right", "top_right"]},
         },
     }
 

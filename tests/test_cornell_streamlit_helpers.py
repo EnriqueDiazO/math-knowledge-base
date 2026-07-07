@@ -6,17 +6,23 @@ from __future__ import annotations
 
 from datetime import date
 
+from editor.cornell.content_blocks import split_region_to_fit
+from editor.cornell.layout import RegionFitResult
 from editor.cornell.models import DEFAULT_TEMPLATE_ID
+from editor.cornell.models import CornellAttribution
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.models import CornellWatermark
 from editor.cornell.streamlit_page import SESSION_DIRTY
 from editor.cornell.streamlit_page import SESSION_DOCUMENT
+from editor.cornell.streamlit_page import SESSION_FIT_DIAGNOSTICS
 from editor.cornell.streamlit_page import SESSION_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PAGE_INDEX
 from editor.cornell.streamlit_page import SESSION_PENDING_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PENDING_VIEW
 from editor.cornell.streamlit_page import SESSION_RENDERED_PAGE_ID
+from editor.cornell.streamlit_page import SESSION_SPLIT_PROPOSAL
 from editor.cornell.streamlit_page import SESSION_VIEW
 from editor.cornell.streamlit_page import SESSION_VIEW_SELECTOR
 from editor.cornell.streamlit_page import VIEW_EDIT_NOTES
@@ -25,6 +31,7 @@ from editor.cornell.streamlit_page import VIEW_NEW_NOTE
 from editor.cornell.streamlit_page import add_page
 from editor.cornell.streamlit_page import apply_loaded_note_state
 from editor.cornell.streamlit_page import apply_pending_view_state
+from editor.cornell.streamlit_page import apply_split_proposal_to_state
 from editor.cornell.streamlit_page import consume_pending_note_id
 from editor.cornell.streamlit_page import delete_page
 from editor.cornell.streamlit_page import duplicate_page
@@ -63,6 +70,55 @@ def document(*pages: CornellPage) -> CornellDocument:
     )
 
 
+def identity_document(*pages: CornellPage) -> CornellDocument:
+    return CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=pages,
+        attribution=CornellAttribution(enabled=True, text="© 2026 Enrique"),
+        watermark=CornellWatermark(enabled=True, type="text", text="COCID"),
+    )
+
+
+def empty_page(page_id: str = "empty", order: int = 2) -> CornellPage:
+    return CornellPage(
+        page_id=page_id,
+        order=order,
+        cue=CornellRegion(heading="Ideas principales", latex=""),
+        main=CornellRegion(heading="Tema", latex=""),
+        summary=CornellRegion(heading="Observaciones", latex=""),
+    )
+
+
+def split_source_page() -> CornellPage:
+    return CornellPage(
+        page_id="split-p1",
+        order=1,
+        cue=CornellRegion(heading="Cue", latex="Cue"),
+        main=CornellRegion(
+            heading="Main",
+            latex=(
+                "\\begin{definition}{A}\nA\n\\end{definition}\n"
+                "\\begin{proposition}{B}\nB\n\\end{proposition}"
+            ),
+        ),
+        summary=CornellRegion(heading="Summary", latex="Summary"),
+    )
+
+
+def fit_ok(page: CornellPage, region_name: str) -> RegionFitResult:
+    return RegionFitResult(
+        region=region_name,
+        natural_width=100,
+        natural_height=100,
+        available_width=100,
+        available_height=100,
+        required_scale=1.0,
+        applied_scale=1.0,
+        status="FIT",
+    )
+
+
 def test_normalize_page_orders_sorts_and_renumbers() -> None:
     normalized = normalize_page_orders(document(page("p3", 30), page("p1", 10), page("p2", 20)))
 
@@ -82,6 +138,21 @@ def test_add_page_inserts_after_selected_page() -> None:
     assert pages[0].page_id == "p1"
     assert pages[1].page_id not in {"p1", "p2"}
     assert [page.order for page in pages] == [1, 2, 3]
+
+
+def test_page_operations_preserve_material_identity() -> None:
+    original = identity_document(page("p1", 1), page("p2", 2))
+
+    added, _ = add_page(original, selected_index=0)
+    duplicated, _ = duplicate_page(original, selected_index=0)
+    deleted, _ = delete_page(original, selected_index=0)
+
+    assert added.attribution == original.attribution
+    assert added.watermark == original.watermark
+    assert duplicated.attribution == original.attribution
+    assert duplicated.watermark == original.watermark
+    assert deleted.attribution == original.attribution
+    assert deleted.watermark == original.watermark
 
 
 def test_duplicate_page_copies_content_with_new_page_id() -> None:
@@ -225,6 +296,32 @@ def test_loading_second_note_does_not_mix_documents() -> None:
     assert state[SESSION_NOTE_ID] == "second"
     assert [page.page_id for page in current.ordered_pages()] == ["second-p1"]
     assert state["cornell_cue_latex"] == "Cue body second"
+
+
+def test_split_button_apply_updates_state_and_selects_destination() -> None:
+    source = split_source_page()
+    proposal = split_region_to_fit(source, "main", fit_ok, new_page_id="split-p2")
+    doc = document(source, empty_page("existing-empty", 2))
+    state = {
+        SESSION_DOCUMENT: doc,
+        SESSION_PAGE_INDEX: 0,
+        SESSION_DIRTY: False,
+        SESSION_FIT_DIAGNOSTICS: {"fit_report": "stale"},
+        SESSION_SPLIT_PROPOSAL: proposal,
+    }
+
+    updated = apply_split_proposal_to_state(state, doc, 0, proposal)
+
+    pages = updated.ordered_pages()
+    assert state[SESSION_DOCUMENT] == updated
+    assert state[SESSION_PAGE_INDEX] == 1
+    assert state[SESSION_DIRTY] is True
+    assert SESSION_FIT_DIAGNOSTICS not in state
+    assert SESSION_SPLIT_PROPOSAL not in state
+    assert [page.page_id for page in pages] == ["split-p1", "existing-empty"]
+    assert pages[0].main.latex + pages[1].main.latex == source.main.latex
+    assert pages[0].main.latex == proposal.kept_latex
+    assert pages[1].main.latex == proposal.moved_latex
 
 
 def test_project_selector_uses_history_and_no_project_option() -> None:

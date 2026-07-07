@@ -15,10 +15,13 @@ from editor.cornell.latex_compat import snippet_environment_names
 from editor.cornell.latex_compat import supported_cornell_snippet_environments
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import DEFAULT_TEMPLATE_ID
+from editor.cornell.models import CornellAttribution
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.models import CornellWatermark
 from editor.cornell.models import build_cornell_math_v1_payload
+from editor.cornell.models import build_footer_text
 from editor.cornell.models import generate_latex_body
 from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 
@@ -100,6 +103,57 @@ def summary_layout_page(summary_latex: str) -> CornellPage:
     )
 
 
+def overlap_regression_page(repeat: int, page_id: str = "p001") -> CornellPage:
+    repeated_text = " ".join(
+        [
+            "Sea una familia de objetos con una propiedad estable bajo las operaciones consideradas."
+            for _ in range(repeat)
+        ]
+    )
+    return CornellPage(
+        page_id=page_id,
+        order=1,
+        cue=CornellRegion(
+            heading="Ideas principales",
+            latex="\\begin{itemize}\n"
+            + "\n".join("\\item Punto de control" for _ in range(7))
+            + "\n\\end{itemize}",
+        ),
+        main=CornellRegion(
+            heading="Regresion Cornell",
+            latex=rf"""
+            \begin{{definition}}{{Espacio}}
+            {repeated_text}
+            \end{{definition}}
+            \begin{{example}}{{Matrices}}
+            {repeated_text}
+            \end{{example}}
+            \begin{{theorem}}{{Unicidad}}
+            {repeated_text}
+            \end{{theorem}}
+            \begin{{definition}}{{Subespacio}}
+            {repeated_text}
+            \end{{definition}}
+            \begin{{proposition}}{{Criterio}}
+            {repeated_text}
+            \end{{proposition}}
+            """,
+        ),
+        summary=CornellRegion(
+            heading="Observaciones",
+            latex=r"""
+            \begin{remark}{Control}
+            El criterio reduce la verificacion a una sola expresion.
+            \end{remark}
+            \begin{itemize}
+            \item Cuidar no vacuidad.
+            \item Separar axiomas de consecuencias.
+            \end{itemize}
+            """,
+        ),
+    )
+
+
 def pdfinfo_text(pdf_path: Path) -> str:
     return subprocess.run(
         ["pdfinfo", str(pdf_path)],
@@ -165,6 +219,99 @@ def test_cornell_document_round_trip_to_dict_from_dict() -> None:
 
     assert restored == CornellDocument.from_dict(restored.to_dict())
     assert restored.to_dict() == document.to_dict()
+
+
+def test_cornell_document_identity_round_trip_to_dict_from_dict() -> None:
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=(sample_page(),),
+        attribution=CornellAttribution(
+            enabled=True,
+            text="© 2026 Enrique Díaz Ocampo · Material docente",
+            author="Enrique Díaz Ocampo",
+            course="Álgebra",
+            year="2026",
+            position="bottom_right",
+        ),
+        watermark=CornellWatermark(
+            enabled=True,
+            type="text",
+            text="COCID",
+            opacity=0.05,
+            scale=0.4,
+            position="center",
+        ),
+    )
+
+    restored = CornellDocument.from_dict(document.to_dict())
+
+    assert restored == document
+    assert restored.attribution.mode == "custom"
+    assert restored.attribution.text.startswith("© 2026")
+    assert restored.watermark.opacity == 0.05
+
+
+def test_build_footer_text_auto_author_course_year() -> None:
+    assert (
+        build_footer_text(
+            mode="auto",
+            author="Enrique Díaz Ocampo",
+            course="Python",
+            year="2026",
+        )
+        == "© 2026 Enrique Díaz Ocampo · Python"
+    )
+
+
+@pytest.mark.parametrize(
+    ("author", "course", "year", "expected"),
+    [
+        ("Enrique Díaz Ocampo", "", "2026", "© 2026 Enrique Díaz Ocampo"),
+        ("Enrique Díaz Ocampo", "", "", "© Enrique Díaz Ocampo"),
+        ("", "Python", "2026", "Python · 2026"),
+        ("", "Python", "", "Python"),
+        ("", "", "2026", "2026"),
+        ("", "", "", ""),
+    ],
+)
+def test_build_footer_text_auto_omits_empty_fields(
+    author: str,
+    course: str,
+    year: str,
+    expected: str,
+) -> None:
+    assert build_footer_text(mode="auto", author=author, course=course, year=year) == expected
+
+
+def test_build_footer_text_custom_uses_literal_footer_text() -> None:
+    assert (
+        build_footer_text(
+            mode="custom",
+            text="© Enrique Díaz Ocampo · Material Docente",
+            author="Otro",
+            course="Python",
+            year="2026",
+        )
+        == "© Enrique Díaz Ocampo · Material Docente"
+    )
+
+
+def test_cornell_document_legacy_attribution_without_mode_stays_custom() -> None:
+    payload = sample_document().to_dict()
+    payload["attribution"] = {
+        "enabled": True,
+        "text": "© Enrique Díaz Ocampo · Material Docente",
+        "author": "Enrique Díaz Ocampo",
+        "course": "Python",
+        "year": "2026",
+        "position": "bottom_right",
+    }
+
+    restored = CornellDocument.from_dict(payload)
+
+    assert restored.attribution.mode == "custom"
+    assert build_footer_text(restored.attribution) == "© Enrique Díaz Ocampo · Material Docente"
 
 
 def test_cornell_document_rejects_duplicate_page_ids() -> None:
@@ -240,6 +387,56 @@ def test_generate_cornell_tex_contains_expected_geometry() -> None:
     assert r"\includegraphics[width=6in]{cornell_assets/lineas.png}" in tex
 
 
+def test_generate_cornell_document_tex_contains_text_watermark_and_footer() -> None:
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=(sample_page(),),
+        attribution=CornellAttribution(
+            enabled=True,
+            mode="auto",
+            text="© 2026 Enrique Díaz Ocampo · Material docente",
+            author="Enrique Díaz Ocampo",
+            course="Python",
+            year="2026",
+            position="bottom_right",
+        ),
+        watermark=CornellWatermark(
+            enabled=True,
+            type="text",
+            text="COCID",
+            opacity=0.05,
+            scale=0.4,
+            position="center",
+        ),
+    )
+
+    tex = renderer.generate_cornell_document_tex(document)
+
+    assert "COCID" in tex
+    assert "opacity=0.05" in tex
+    assert "scale=0.4" in tex
+    assert r"($(SW)+(4.25in,5.5in)$)" in tex
+    assert r"\scriptsize © 2026 Enrique Díaz Ocampo · Python" in tex
+    assert r"($(SE)+(-.35in,.16in)$)" in tex
+
+
+def test_generate_cornell_document_tex_disabled_identity_is_absent() -> None:
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=(sample_page(),),
+        attribution=CornellAttribution(enabled=False, text="NO FOOTER"),
+        watermark=CornellWatermark(enabled=False, type="text", text="NO WATERMARK"),
+    )
+
+    tex = renderer.generate_cornell_document_tex(document)
+
+    assert "NO FOOTER" not in tex
+    assert "NO WATERMARK" not in tex
+    assert "opacity=0.05" not in tex
+
+
 def test_generate_cornell_tex_contains_snippet_compatibility_layer() -> None:
     tex = renderer.generate_cornell_tex(sample_page())
 
@@ -250,7 +447,7 @@ def test_generate_cornell_tex_contains_snippet_compatibility_layer() -> None:
     assert r"\RenewDocumentEnvironment{lstlisting}" in tex
 
 
-def test_generate_cornell_tex_positions_summary_body_independently() -> None:
+def test_generate_cornell_tex_isolates_summary_region() -> None:
     tex = renderer.generate_cornell_tex(
         summary_layout_page(
             "\\begin{example}\n"
@@ -260,20 +457,21 @@ def test_generate_cornell_tex_positions_summary_body_independently() -> None:
         )
     )
 
+    summary_clip_index = tex.index(r"\clip ($(SW)+(0,2in)$) rectangle (SE);")
     summary_heading_index = tex.index(r"\CornellSummaryHeading{Observaciones 2}")
-    summary_body_anchor_index = tex.index(
-        r"\node[anchor=north west, inner sep=0pt, align=left] at ($(SW)+(18mm,1.62in)$)"
-    )
     summary_marker_index = tex.index("% Cornell source page=1 region=summary")
 
-    assert summary_heading_index < summary_body_anchor_index
-    assert summary_body_anchor_index < summary_marker_index
+    assert summary_clip_index < summary_heading_index
+    assert summary_heading_index < summary_marker_index
+    assert r"\begin{minipage}[t]{8.5in}" in tex
     assert r"\begin{minipage}[t]{7.55in}" in tex
     assert r"\raggedright" in tex
     assert r"\raggedleft" not in tex
     assert "anchor=north east" not in tex
     assert "align=right" not in tex
+    assert "align=left" not in tex
     assert "$(SW)+(8.3in,1.72in)$" not in tex
+    assert "$(SW)+(18mm,1.62in)$" not in tex
     assert tex.index(r"\begin{example}") > summary_marker_index
     assert "A poco no ocupa todo el espacio" in tex
     assert "Ejemplo en otra linea" in tex
@@ -396,7 +594,7 @@ def test_render_cornell_pdf_compiles_core_snippets(
     assert result.success, result.message
 
 
-def test_render_cornell_pdf_compiles_every_shared_latex_snippet(tmp_path: Path) -> None:
+def test_render_cornell_pdf_measures_every_shared_latex_snippet_and_rejects_overflow(tmp_path: Path) -> None:
     if shutil.which("pdflatex") is None:
         pytest.skip("pdflatex is required for Cornell snippet compilation")
 
@@ -406,7 +604,44 @@ def test_render_cornell_pdf_compiles_every_shared_latex_snippet(tmp_path: Path) 
             snippets.append(f"% snippet {snippet.key}\n{snippet.snippet}")
     result = renderer.render_cornell_pdf(snippet_page("\n\n".join(snippets)), tmp_path)
 
+    assert not result.success
+    assert result.status == "overflow"
+    assert "Escala necesaria" in result.message
+    assert result.diagnostics["overflow_regions"][0]["page_id"] == "snippet"
+    assert result.diagnostics["overflow_regions"][0]["region"] == "main"
+
+
+def test_render_cornell_pdf_scales_main_independently(tmp_path: Path) -> None:
+    if shutil.which("pdflatex") is None:
+        pytest.skip("pdflatex is required for Cornell fit verification")
+
+    result = renderer.render_cornell_pdf(overlap_regression_page(6), tmp_path)
+
     assert result.success, result.message
+    regions = {
+        region["region"]: region
+        for region in result.diagnostics["fit_report"]["pages"][0]["regions"]
+    }
+    assert regions["cue"]["status"] == "FIT"
+    assert regions["main"]["status"] == "SCALED"
+    assert 0.80 <= regions["main"]["applied_scale"] < 1.0
+    assert regions["summary"]["status"] == "FIT"
+    assert r"\begin{adjustbox}{scale=" in result.tex_path.read_text(encoding="utf-8")
+
+
+def test_render_cornell_pdf_rejects_overflow_below_minimum(tmp_path: Path) -> None:
+    if shutil.which("pdflatex") is None:
+        pytest.skip("pdflatex is required for Cornell fit verification")
+
+    result = renderer.render_cornell_pdf(overlap_regression_page(7, page_id="p_overflow"), tmp_path)
+
+    assert not result.success
+    assert result.status == "overflow"
+    assert not result.pdf_path.exists()
+    overflow = result.diagnostics["overflow_regions"][0]
+    assert overflow["page_id"] == "p_overflow"
+    assert overflow["region"] == "main"
+    assert overflow["required_scale"] < overflow["min_region_scale"]
 
 
 def test_cornell_compile_error_summary_uses_page_and_region(tmp_path: Path) -> None:

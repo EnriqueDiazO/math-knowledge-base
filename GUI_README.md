@@ -451,7 +451,9 @@ Check status for that same active database:
 python scripts/install_cuaderno_mode.py --status --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
 ```
 
-Cornell notes use the existing `latex_notes` collection, not a separate `cornell_notes` collection. They are distinguished by `note_format = "cornell_math_v1"` and keep their canonical structure in `cornell.schema_version`, `cornell.template_id`, and `cornell.pages`. The installer is idempotent and adds the Cornell indexes `latex_note_format`, `latex_note_format_date_desc`, `latex_note_format_project`, and `latex_note_format_context` when missing.
+Cornell notes use the existing `latex_notes` collection, not a separate `cornell_notes` collection. They are distinguished by `note_format = "cornell_math_v1"` and keep their canonical structure in `cornell.schema_version`, `cornell.template_id`, `cornell.pages`, `cornell.attribution`, and `cornell.watermark`. The installer is idempotent and adds the Cornell indexes `latex_note_format`, `latex_note_format_date_desc`, `latex_note_format_project`, and `latex_note_format_context` when missing.
+
+Cornell supports per-region images, optional footer attribution, and text or image watermarks. Editable Cornell project export creates a self-contained folder with `Notas.tex`, `Izquierda.tex`, `Derecha.tex`, `Abajo.tex`, `A.tex`, `B.tex`, `C.tex`, `contenido/pagina_NNN/`, `images/`, `metadata.json`, and `README.md`. Compile the regional documents first, then `Notas.tex`. Cleanup of generated projects should keep source `.tex`, metadata, README, required images such as `lineas.png`, and final `Notas.pdf` when present; remove only LaTeX auxiliaries and selected regenerable intermediate PDFs.
 
 ### Diary Notes
 
