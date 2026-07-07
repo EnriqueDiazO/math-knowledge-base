@@ -15,7 +15,7 @@ from typing import Any
 
 from editor.cornell.identity import cornell_attribution_latex
 from editor.cornell.identity import cornell_watermark_latex
-from editor.cornell.latex_compat import cornell_latex_compat_preamble
+from editor.cornell.latex_compat import cornell_standalone_preamble
 from editor.cornell.media import _assets_by_id_from_db
 from editor.cornell.media import _normalize_assets_by_id
 from editor.cornell.media import _safe_asset_source_path
@@ -134,38 +134,15 @@ def _resolve_project_images(
 
 
 def _common_preamble(*, paper_width: str, paper_height: str, include_svg: bool = False) -> str:
-    svg_package = "\n\\usepackage{svg}" if include_svg else ""
-    return dedent(
-        rf"""
-        \documentclass[12pt]{{article}}
-        \usepackage[utf8]{{inputenc}}
-        \usepackage[T1]{{fontenc}}
-        \usepackage[paperwidth={paper_width},paperheight={paper_height},margin=0in]{{geometry}}
-        \usepackage{{amsmath,amssymb,amsfonts}}
-        \usepackage{{graphicx}}
-        \usepackage{{adjustbox}}
-        \usepackage[dvipsnames,svgnames]{{xcolor}}
-        \usepackage{{tikz}}
-        \usetikzlibrary{{calc}}
-        """
-        + svg_package
+    return (
+        cornell_standalone_preamble(
+            paper_width=paper_width,
+            paper_height=paper_height,
+            include_svg=include_svg,
+            document_options="12pt",
+        )
         + "\n"
-        + cornell_latex_compat_preamble()
-        + "\n"
-        + r"""
-        \pagestyle{empty}
-        \setlength{\parindent}{0pt}
-        \setlength{\parskip}{4pt}
-        \newcommand{\CornellMainText}{\normalfont\color{black}\fontsize{10}{18.9}\selectfont}
-        \newcommand{\CornellCueHeading}[1]{\begin{center}{\Huge\color{OliveGreen} #1}\end{center}}
-        \newcommand{\cornellimage}[1]{\textbf{[Imagen Cornell: \detokenize{#1}]}}
-        \newcommand{\CornellMainHeading}[1]{%
-          \begin{minipage}{1mm}\rule{0pt}{2.1cm}\end{minipage}%
-          \begin{minipage}{5.45in}{\Huge\color{RubineRed} #1}\end{minipage}\par%
-        }
-        \newcommand{\CornellSummaryHeading}[1]{{\color{blue}\bfseries\large #1}\par}
-        """
-    ).strip() + "\n"
+    )
 
 
 def _main_background_preamble() -> str:

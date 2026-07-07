@@ -137,3 +137,53 @@ def cornell_latex_compat_preamble() -> str:
         \NewDocumentEnvironment{dirtree}{}{\begin{technical}}{\end{technical}}
         """
     ).strip()
+
+
+def cornell_standalone_preamble(
+    *,
+    paper_width: str,
+    paper_height: str,
+    include_svg: bool = False,
+    document_options: str = "12pt",
+    header_comment: str | None = None,
+) -> str:
+    """Return the shared self-contained article preamble for Cornell PDFs."""
+    comment = f"{header_comment.strip()}\n" if header_comment else ""
+    svg_package = "\n\\usepackage{svg}" if include_svg else ""
+    return (
+        comment
+        + dedent(
+            rf"""
+            \documentclass[{document_options}]{{article}}
+            \usepackage[utf8]{{inputenc}}
+            \usepackage[T1]{{fontenc}}
+            \usepackage[paperwidth={paper_width},paperheight={paper_height},margin=0in]{{geometry}}
+            \usepackage{{amsmath,amssymb,amsfonts}}
+            \usepackage{{graphicx}}
+            \usepackage{{adjustbox}}
+            \usepackage[dvipsnames,svgnames]{{xcolor}}
+            \usepackage{{tikz}}
+            \usetikzlibrary{{calc}}
+            """
+        ).strip()
+        + svg_package
+        + "\n"
+        + cornell_latex_compat_preamble()
+        + "\n"
+        + dedent(
+            r"""
+        \usepackage{hyperref}
+        \pagestyle{empty}
+        \setlength{\parindent}{0pt}
+        \setlength{\parskip}{4pt}
+        \newcommand{\CornellMainText}{\normalfont\color{black}\fontsize{10}{18.9}\selectfont}
+        \newcommand{\CornellCueHeading}[1]{\begin{center}{\Huge\color{OliveGreen} #1}\end{center}}
+        \newcommand{\cornellimage}[1]{\textbf{[Imagen Cornell: \detokenize{#1}]}}
+        \newcommand{\CornellMainHeading}[1]{%
+          \begin{minipage}{1mm}\rule{0pt}{2.1cm}\end{minipage}%
+          \begin{minipage}{5.45in}{\Huge\color{RubineRed} #1}\end{minipage}\par%
+        }
+        \newcommand{\CornellSummaryHeading}[1]{{\color{blue}\bfseries\large #1}\par}
+        """
+        ).strip()
+    ).strip()

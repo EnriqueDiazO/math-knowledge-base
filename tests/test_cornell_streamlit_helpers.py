@@ -1,10 +1,13 @@
 """Tests for pure Cornell Streamlit helper functions."""
 
-# ruff: noqa: D103
+# ruff: noqa: D101,D102,D103,D107
 
 from __future__ import annotations
 
+from dataclasses import dataclass
 from datetime import date
+
+import pytest
 
 from editor.cornell.content_blocks import split_region_to_fit
 from editor.cornell.layout import RegionFitResult
@@ -17,8 +20,10 @@ from editor.cornell.models import CornellWatermark
 from editor.cornell.streamlit_page import SESSION_DIRTY
 from editor.cornell.streamlit_page import SESSION_DOCUMENT
 from editor.cornell.streamlit_page import SESSION_FIT_DIAGNOSTICS
+from editor.cornell.streamlit_page import SESSION_FLASH_MESSAGE
 from editor.cornell.streamlit_page import SESSION_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PAGE_INDEX
+from editor.cornell.streamlit_page import SESSION_PENDING_DELETE_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PENDING_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PENDING_VIEW
 from editor.cornell.streamlit_page import SESSION_RENDERED_PAGE_ID
@@ -32,11 +37,15 @@ from editor.cornell.streamlit_page import add_page
 from editor.cornell.streamlit_page import apply_loaded_note_state
 from editor.cornell.streamlit_page import apply_pending_view_state
 from editor.cornell.streamlit_page import apply_split_proposal_to_state
+from editor.cornell.streamlit_page import cancel_cornell_note_delete
+from editor.cornell.streamlit_page import clear_deleted_note_state
+from editor.cornell.streamlit_page import confirm_cornell_note_delete
 from editor.cornell.streamlit_page import consume_pending_note_id
 from editor.cornell.streamlit_page import delete_page
 from editor.cornell.streamlit_page import duplicate_page
 from editor.cornell.streamlit_page import normalize_page_orders
 from editor.cornell.streamlit_page import queue_cornell_navigation
+from editor.cornell.streamlit_page import request_cornell_note_delete
 from editor.cornell.streamlit_page import valid_page_index
 from editor.cornell.ui_helpers import ALL_LABEL
 from editor.cornell.ui_helpers import DEFAULT_NOTE_CONTEXTS
@@ -404,6 +413,101 @@ def cornell_note(
         "latex_body": f"{title} body",
         "cornell": doc.to_dict(),
     }
+
+
+@dataclass(frozen=True, slots=True)
+class FakeDeleteResult:
+    deleted_count: int
+
+
+class FakeDeleteDb:
+    def __init__(self, note: dict | None, *, deleted_count: int = 1) -> None:
+        self.note = note
+        self.deleted_count = deleted_count
+        self.get_ids: list[str] = []
+        self.delete_ids: list[str] = []
+
+    def get_notebook_note_by_id(self, note_id: str) -> dict | None:
+        self.get_ids.append(str(note_id))
+        if self.note is not None and str(self.note.get("_id")) == str(note_id):
+            return dict(self.note)
+        return None
+
+    def delete_notebook_note(self, note_id: str) -> FakeDeleteResult:
+        self.delete_ids.append(str(note_id))
+        return FakeDeleteResult(deleted_count=self.deleted_count)
+
+
+def test_delete_confirmation_request_and_cancel_do_not_touch_storage() -> None:
+    state: dict = {}
+
+    request_cornell_note_delete(state, "note-1")
+
+    assert state[SESSION_PENDING_DELETE_NOTE_ID] == "note-1"
+    cancel_cornell_note_delete(state, "other-note")
+    assert state[SESSION_PENDING_DELETE_NOTE_ID] == "note-1"
+    cancel_cornell_note_delete(state, "note-1")
+    assert SESSION_PENDING_DELETE_NOTE_ID not in state
+
+
+def test_confirm_delete_uses_note_id_verifies_result_and_clears_current_state() -> None:
+    note = cornell_note("note-1", title="Cornell Algebra", project="Algebra", context="estudio")
+    db = FakeDeleteDb(note)
+    state = {
+        SESSION_NOTE_ID: "note-1",
+        SESSION_PENDING_NOTE_ID: "note-1",
+        SESSION_PENDING_DELETE_NOTE_ID: "note-1",
+        SESSION_FIT_DIAGNOSTICS: {"stale": True},
+        SESSION_SPLIT_PROPOSAL: object(),
+    }
+
+    status = confirm_cornell_note_delete(state, db, "note-1")
+
+    assert status == "deleted"
+    assert db.get_ids == ["note-1"]
+    assert db.delete_ids == ["note-1"]
+    assert state[SESSION_NOTE_ID] is None
+    assert state[SESSION_DIRTY] is False
+    assert SESSION_PENDING_NOTE_ID not in state
+    assert SESSION_PENDING_DELETE_NOTE_ID not in state
+    assert SESSION_FIT_DIAGNOSTICS not in state
+    assert SESSION_SPLIT_PROPOSAL not in state
+    assert state[SESSION_FLASH_MESSAGE]["level"] == "success"
+
+
+def test_confirm_delete_missing_note_updates_list_without_delete_call() -> None:
+    db = FakeDeleteDb(None)
+    state = {SESSION_PENDING_DELETE_NOTE_ID: "missing-note"}
+
+    status = confirm_cornell_note_delete(state, db, "missing-note")
+
+    assert status == "missing"
+    assert db.get_ids == ["missing-note"]
+    assert db.delete_ids == []
+    assert SESSION_PENDING_DELETE_NOTE_ID not in state
+    assert state[SESSION_FLASH_MESSAGE]["level"] == "warning"
+
+
+def test_confirm_delete_rejects_unexpected_deleted_count() -> None:
+    note = cornell_note("note-1", title="Cornell Algebra", project="Algebra", context="estudio")
+    db = FakeDeleteDb(note, deleted_count=2)
+
+    with pytest.raises(RuntimeError, match="se esperaba exactamente 1"):
+        confirm_cornell_note_delete({}, db, "note-1")
+
+
+def test_clear_deleted_note_state_keeps_other_open_note() -> None:
+    state = {
+        SESSION_NOTE_ID: "open-note",
+        SESSION_PENDING_DELETE_NOTE_ID: "deleted-note",
+        SESSION_FIT_DIAGNOSTICS: {"kept": True},
+    }
+
+    clear_deleted_note_state(state, "deleted-note")
+
+    assert state[SESSION_NOTE_ID] == "open-note"
+    assert SESSION_PENDING_DELETE_NOTE_ID not in state
+    assert state[SESSION_FIT_DIAGNOSTICS] == {"kept": True}
 
 
 def test_explorer_filters_only_cornell_notes() -> None:

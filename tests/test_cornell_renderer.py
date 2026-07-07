@@ -4,8 +4,10 @@
 
 from __future__ import annotations
 
+import re
 import shutil
 import subprocess
+import zlib
 from pathlib import Path
 
 import pytest
@@ -24,6 +26,23 @@ from editor.cornell.models import build_cornell_math_v1_payload
 from editor.cornell.models import build_footer_text
 from editor.cornell.models import generate_latex_body
 from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
+
+HREF_REGRESSION_URL = "https://www.r-project.org/"
+HREF_REGRESSION_LATEX = rf"""
+Texto con enlace: \href{{{HREF_REGRESSION_URL}}}{{\textbf{{proyecto oficial de R}}}}
+
+\begin{{enumerate}}
+    \item ¿Qué es \textbf{{R}}?
+    \item ¿Qué es \textbf{{RStudio}}?
+\end{{enumerate}}
+
+Código inline: \texttt{{x <- c(10, 12, 9, 15)}}
+
+Matemáticas: \(x^2 + y^2 = z^2\)
+
+Caracteres españoles: á é í ó ú ñ ¿ ¡
+"""
+PDF_STREAM_PATTERN = re.compile(rb"stream\r?\n(.*?)\r?\nendstream", re.DOTALL)
 
 
 def sample_page() -> CornellPage:
@@ -50,6 +69,16 @@ def sample_page() -> CornellPage:
             heading="Observaciones",
             latex="Revisar dimensiones antes de operar.",
         ),
+    )
+
+
+def href_regression_page() -> CornellPage:
+    return CornellPage(
+        page_id="href-regression",
+        order=1,
+        cue=CornellRegion(heading="Cue", latex="Idea principal."),
+        main=CornellRegion(heading="R y RStudio", latex=HREF_REGRESSION_LATEX),
+        summary=CornellRegion(heading="Resumen", latex="Cierre con acentos: á é í ó ú ñ."),
     )
 
 
@@ -179,6 +208,18 @@ def pdf_page_text(pdf_path: Path, page_number: int) -> str:
         capture_output=True,
         text=True,
     ).stdout
+
+
+def pdf_contains_uri(pdf_path: Path, uri: str) -> bool:
+    raw = pdf_path.read_bytes()
+    content = bytearray(raw)
+    for match in PDF_STREAM_PATTERN.finditer(raw):
+        stream = match.group(1).strip(b"\r\n")
+        try:
+            content.extend(zlib.decompress(stream))
+        except zlib.error:
+            continue
+    return b"/Subtype/Link" in content and uri.encode("ascii") in content
 
 
 def test_cornell_page_model_creation() -> None:
@@ -441,6 +482,7 @@ def test_generate_cornell_tex_contains_snippet_compatibility_layer() -> None:
     tex = renderer.generate_cornell_tex(sample_page())
 
     assert "Cornell compatibility layer for snippets shared with Diario LaTeX" in tex
+    assert r"\usepackage{hyperref}" in tex
     assert r"\NewDocumentEnvironment{definition}{g}" in tex
     assert r"\NewDocumentEnvironment{theorem}{g}" in tex
     assert r"\NewDocumentEnvironment{dirtree}" in tex
@@ -592,6 +634,44 @@ def test_render_cornell_pdf_compiles_core_snippets(
     result = renderer.render_cornell_pdf(snippet_page(main_latex), tmp_path / snippet_name)
 
     assert result.success, result.message
+
+
+def test_render_cornell_pdf_compiles_href_lists_utf8_and_math(tmp_path: Path) -> None:
+    if (
+        shutil.which("pdflatex") is None
+        or shutil.which("pdftotext") is None
+        or shutil.which("pdfinfo") is None
+    ):
+        pytest.skip("pdflatex, pdftotext, and pdfinfo are required for href regression verification")
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=(href_regression_page(),),
+    )
+
+    result = renderer.render_cornell_document(document, tmp_path, "cornell_preview")
+
+    assert result.success, result.message
+    assert result.diagnostics["fit_report"]["pages"][0]["regions"]
+    assert result.pdf_path.exists()
+    assert "Pages:           1" in pdfinfo_text(result.pdf_path)
+    assert pdf_contains_uri(result.pdf_path, HREF_REGRESSION_URL)
+    log_text = result.log_path.read_text(encoding="utf-8")
+    assert "Undefined control sequence" not in log_text
+
+    fit_tex = tmp_path / "cornell_preview_fit.tex"
+    assert fit_tex.exists()
+    assert r"\usepackage{hyperref}" in fit_tex.read_text(encoding="utf-8")
+    fit_log = fit_tex.with_suffix(".log").read_text(encoding="utf-8")
+    assert "Undefined control sequence" not in fit_log
+
+    text = pdf_page_text(result.pdf_path, 1)
+    assert "proyecto oficial de R" in text
+    assert "1. ¿Qué es R" in text
+    assert "2. ¿Qué es RStudio" in text
+    assert "x <- c(10, 12, 9, 15)" in text
+    assert "x2 + y 2 = z 2" in text
+    assert "á é í ó ú ñ ¿ ¡" in text
 
 
 def test_render_cornell_pdf_measures_every_shared_latex_snippet_and_rejects_overflow(tmp_path: Path) -> None:

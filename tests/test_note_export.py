@@ -19,6 +19,9 @@ from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.renderer import CornellRenderResult
+from tests.test_cornell_renderer import HREF_REGRESSION_LATEX
+from tests.test_cornell_renderer import HREF_REGRESSION_URL
+from tests.test_cornell_renderer import pdf_contains_uri
 
 
 def sample_legacy_note(note_format: str | None = None) -> dict[str, Any]:
@@ -62,6 +65,18 @@ def sample_cornell_document() -> CornellDocument:
             ),
         ),
     )
+
+
+def href_cornell_document() -> CornellDocument:
+    page = sample_cornell_document().ordered_pages()[0]
+    href_page = CornellPage(
+        page_id=page.page_id,
+        order=page.order,
+        cue=page.cue,
+        main=CornellRegion(heading="R y RStudio", latex=HREF_REGRESSION_LATEX),
+        summary=page.summary,
+    )
+    return CornellDocument(schema_version=1, template_id=DEFAULT_TEMPLATE_ID, pages=(href_page,))
 
 
 def sample_cornell_note() -> dict[str, Any]:
@@ -166,3 +181,31 @@ def test_export_note_pdf_cornell_multipage_compiles_snippets(tmp_path: Path) -> 
     assert result.note_format == CORNELL_NOTE_FORMAT
     assert result.pdf_path.exists()
     assert "Pages:           2" in pdfinfo_text(result.pdf_path)
+
+
+def test_export_note_tex_and_pdf_cornell_support_href(tmp_path: Path) -> None:
+    if shutil.which("pdflatex") is None or shutil.which("pdfinfo") is None:
+        pytest.skip("pdflatex and pdfinfo are required for Cornell export PDF verification")
+    note = build_cornell_note_document(
+        {
+            "_id": "cornell-href",
+            "title": "Cornell href",
+            "date": "2026-07-07",
+            "project": "R",
+            "context": "debug",
+        },
+        href_cornell_document(),
+    )
+    note["_id"] = "cornell-href"
+
+    tex_result = note_export.export_note_tex(note)
+    pdf_result = note_export.export_note_pdf(note, output_dir=tmp_path)
+
+    assert r"\usepackage{hyperref}" in tex_result.tex
+    assert r"\href{https://www.r-project.org/}" in tex_result.tex
+    assert pdf_result.pdf_path.exists()
+    assert "Pages:           1" in pdfinfo_text(pdf_result.pdf_path)
+    assert pdf_contains_uri(pdf_result.pdf_path, HREF_REGRESSION_URL)
+    assert pdf_result.render_result is not None
+    log_text = pdf_result.render_result.log_path.read_text(encoding="utf-8")
+    assert "Undefined control sequence" not in log_text

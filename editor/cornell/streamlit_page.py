@@ -28,6 +28,7 @@ from editor.cornell.renderer import measure_cornell_page_fit
 from editor.cornell.renderer import render_cornell_document
 from editor.cornell.service import add_cornell_region_image
 from editor.cornell.service import create_cornell_note
+from editor.cornell.service import delete_cornell_note
 from editor.cornell.service import get_cornell_assets_by_ids
 from editor.cornell.service import get_cornell_note
 from editor.cornell.service import list_cornell_notes
@@ -61,6 +62,8 @@ SESSION_VIEW = "cornell_view_state"
 SESSION_VIEW_SELECTOR = "cornell_view_selector"
 SESSION_PENDING_VIEW = "cornell_pending_view"
 SESSION_PENDING_NOTE_ID = "cornell_pending_note_id"
+SESSION_PENDING_DELETE_NOTE_ID = "cornell_pending_delete_note_id"
+SESSION_FLASH_MESSAGE = "cornell_flash_message"
 SESSION_FIT_DIAGNOSTICS = "cornell_fit_diagnostics"
 SESSION_SPLIT_PROPOSAL = "cornell_split_proposal"
 LEGACY_SESSION_VIEW = "cornell_view"
@@ -282,6 +285,59 @@ def consume_pending_note_id(state: dict[str, Any]) -> str | None:
     """Return and clear the note id queued for opening/editing."""
     note_id = state.pop(SESSION_PENDING_NOTE_ID, None)
     return str(note_id) if note_id is not None else None
+
+
+def request_cornell_note_delete(state: dict[str, Any], note_id: Any) -> None:
+    """Mark a Cornell note as pending deletion without touching storage."""
+    state[SESSION_PENDING_DELETE_NOTE_ID] = str(note_id)
+
+
+def cancel_cornell_note_delete(state: dict[str, Any], note_id: Any | None = None) -> None:
+    """Clear pending delete confirmation, optionally only for a specific note."""
+    pending_id = state.get(SESSION_PENDING_DELETE_NOTE_ID)
+    if note_id is None or (pending_id is not None and str(pending_id) == str(note_id)):
+        state.pop(SESSION_PENDING_DELETE_NOTE_ID, None)
+
+
+def _same_note_id(left: Any, right: Any) -> bool:
+    return left is not None and right is not None and str(left) == str(right)
+
+
+def clear_deleted_note_state(state: dict[str, Any], note_id: Any) -> None:
+    """Clear editor/session state that points at a note deleted from storage."""
+    cancel_cornell_note_delete(state, note_id)
+    if _same_note_id(state.get(SESSION_PENDING_NOTE_ID), note_id):
+        state.pop(SESSION_PENDING_NOTE_ID, None)
+    if not _same_note_id(state.get(SESSION_NOTE_ID), note_id):
+        return
+
+    apply_loaded_note_state(
+        state,
+        note_id=None,
+        note=None,
+        document=make_blank_document(),
+    )
+    state.pop(SESSION_FIT_DIAGNOSTICS, None)
+    state.pop(SESSION_SPLIT_PROPOSAL, None)
+
+
+def _set_flash_message(state: dict[str, Any], level: str, message: str) -> None:
+    state[SESSION_FLASH_MESSAGE] = {"level": level, "message": message}
+
+
+def confirm_cornell_note_delete(state: dict[str, Any], db: Any, note_id: Any) -> str:
+    """Delete exactly one Cornell note and return deleted, missing, or failed."""
+    result = delete_cornell_note(db, note_id)
+    deleted_count = 0 if result is None else int(getattr(result, "deleted_count", 0) or 0)
+    if deleted_count == 1:
+        clear_deleted_note_state(state, note_id)
+        _set_flash_message(state, "success", "Nota Cornell borrada correctamente.")
+        return "deleted"
+    if deleted_count == 0:
+        clear_deleted_note_state(state, note_id)
+        _set_flash_message(state, "warning", "La nota ya no existe. La lista se actualizó.")
+        return "missing"
+    raise RuntimeError(f"La eliminación informó {deleted_count} documentos borrados; se esperaba exactamente 1.")
 
 
 def valid_page_index(document: CornellDocument, selected_index: Any) -> int:
@@ -598,10 +654,25 @@ def _render_note_browser(
     key_prefix: str,
     action_label: str,
     destination_view: str,
+    allow_delete: bool = False,
 ) -> None:
     import streamlit as st
 
     st.subheader(title)
+    flash = st.session_state.pop(SESSION_FLASH_MESSAGE, None)
+    if isinstance(flash, dict):
+        message = str(flash.get("message") or "")
+        if message:
+            level = str(flash.get("level") or "info")
+            if level == "success":
+                st.success(message)
+            elif level == "warning":
+                st.warning(message)
+            elif level == "error":
+                st.error(message)
+            else:
+                st.info(message)
+
     try:
         notes = list_cornell_notes(db, limit=500)
     except Exception as exc:
@@ -648,17 +719,57 @@ def _render_note_browser(
         end_date=end_date,
     )
     st.caption(f"Resultados: {len(filtered)}")
-    for note in filtered:
-        note_id = str(note.get("_id"))
-        cols = st.columns([2, 1, 1, 1, 1, 0.8])
+    for row_index, note in enumerate(filtered):
+        raw_note_id = note.get("_id")
+        note_id = str(raw_note_id) if raw_note_id is not None else ""
+        row_key = note_id or f"missing_id_{row_index}"
+        cols = st.columns([2, 1, 1, 1, 1, 0.8, 0.8] if allow_delete else [2, 1, 1, 1, 1, 0.8])
         cols[0].write(note.get("title") or "Sin título")
         cols[1].write(note.get("date") or "")
         cols[2].write(note.get("project") or "Sin proyecto")
         cols[3].write(note.get("context") or "")
         cols[4].write(f"{note_page_count(note)} págs.")
-        if cols[5].button(action_label, key=f"{key_prefix}_open_{note_id}"):
+        if cols[5].button(
+            action_label,
+            key=f"{key_prefix}_open_{row_key}",
+            disabled=not note_id,
+        ):
             _request_navigation(destination_view, note_id=note_id)
             st.rerun()
+        if not allow_delete:
+            continue
+
+        if cols[6].button(
+            "Borrar",
+            key=f"{key_prefix}_delete_{row_key}",
+            disabled=not note_id,
+        ):
+            request_cornell_note_delete(st.session_state, note_id)
+            st.rerun()
+
+        if not _same_note_id(st.session_state.get(SESSION_PENDING_DELETE_NOTE_ID), note_id):
+            continue
+
+        title_text = str(note.get("title") or "Sin título")
+        project_text = str(note.get("project") or "").strip()
+        st.warning("¿Seguro que deseas borrar esta nota?")
+        st.markdown(f"**Título:** {title_text}")
+        if project_text:
+            st.markdown(f"**Proyecto:** {project_text}")
+        confirm_cols = st.columns([1, 1.6, 3])
+        if confirm_cols[0].button("Cancelar", key=f"{key_prefix}_cancel_delete_{note_id}"):
+            cancel_cornell_note_delete(st.session_state, note_id)
+            st.rerun()
+        if confirm_cols[1].button(
+            "Sí, borrar definitivamente",
+            key=f"{key_prefix}_confirm_delete_{note_id}",
+        ):
+            try:
+                confirm_cornell_note_delete(st.session_state, db, note_id)
+            except Exception as exc:
+                st.error(f"No se pudo borrar la nota Cornell: {exc}")
+            else:
+                st.rerun()
 
 
 def _render_explorer(db: Any) -> None:
@@ -678,6 +789,7 @@ def _render_edit_note_picker(db: Any) -> None:
         key_prefix="cornell_edit",
         action_label="Editar",
         destination_view=VIEW_EDIT_NOTES,
+        allow_delete=True,
     )
 
 

@@ -29,6 +29,9 @@ from editor.cornell.project_export import export_cornell_project
 from editor.cornell.renderer import generate_cornell_document_tex
 from tests.test_cornell_content_blocks import always_fit_engine
 from tests.test_cornell_content_blocks import mandatory_overflow_page
+from tests.test_cornell_renderer import HREF_REGRESSION_LATEX
+from tests.test_cornell_renderer import HREF_REGRESSION_URL
+from tests.test_cornell_renderer import pdf_contains_uri
 
 
 def _png_chunk(chunk_type: bytes, payload: bytes) -> bytes:
@@ -372,6 +375,24 @@ def test_export_project_compiles_one_page_without_blank_pages(tmp_path: Path) ->
     assert pdf_page_count(result.project_dir / "Derecha.pdf") == 1
     assert pdf_page_count(result.project_dir / "Abajo.pdf") == 1
     assert pdf_page_count(result.project_dir / "Notas.pdf") == 1
+
+
+def test_export_project_compiles_href_lists_utf8_and_math(tmp_path: Path) -> None:
+    if shutil.which("pdflatex") is None or shutil.which("pdfinfo") is None:
+        pytest.skip("pdflatex and pdfinfo are required for Cornell project compilation")
+    result = export_cornell_project(
+        one_page_document(main_latex=HREF_REGRESSION_LATEX),
+        metadata("Href Cornell"),
+        tmp_path / "out",
+    )
+
+    derecha_template = (result.project_dir / "B.tex").read_text(encoding="utf-8")
+    assert r"\usepackage{hyperref}" in derecha_template
+
+    compile_cornell_project(result.project_dir)
+
+    assert pdf_page_count(result.project_dir / "Derecha.pdf") == 1
+    assert pdf_contains_uri(result.project_dir / "Derecha.pdf", HREF_REGRESSION_URL)
 
 
 def test_export_project_compiles_two_pages_without_blank_pages(
