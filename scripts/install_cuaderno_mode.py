@@ -10,11 +10,10 @@ Este script crea colecciones, validadores (JSON Schema) e índices mínimos para
   - knowledge_graph_maps
   - media_assets
 
-Cornell matemático usa la colección existente latex_notes. No existe una
-colección cornell_notes separada; las notas Cornell se distinguen por
-note_format="cornell_math_v1" y guardan su estructura canónica en
-cornell.schema_version, cornell.template_id y cornell.pages. Ejecuta este
-script con el mismo --db seleccionado en la aplicación (por ejemplo MathV0).
+Cornell matemático y CPI usan la colección existente latex_notes. No existen
+colecciones cornell_notes o cpi_notes separadas; las notas se distinguen por
+note_format y guardan su estructura canónica bajo cornell.* o cpi.*. Ejecuta
+este script con el mismo --db seleccionado en la aplicación (por ejemplo MathV0).
 
 Uso:
   python scripts/install_cuaderno_mode.py
@@ -60,6 +59,7 @@ REQUIRED_COLLECTIONS = [
 ]
 
 CORNELL_NOTE_FORMAT = "cornell_math_v1"
+CPI_NOTE_FORMAT = "cpi_v1"
 CORNELL_LATEX_NOTE_INDEXES = [
     ([("note_format", ASCENDING)], "latex_note_format"),
     ([("note_format", ASCENDING), ("date", DESCENDING)], "latex_note_format_date_desc"),
@@ -287,6 +287,46 @@ def _cornell_watermark_validator() -> dict[str, Any]:
     }
 
 
+def _cpi_region_validator() -> dict[str, Any]:
+    return {
+        "bsonType": "object",
+        "required": ["heading", "latex"],
+        "properties": {
+            "heading": {"bsonType": "string"},
+            "latex": {"bsonType": "string"},
+            "image_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
+        },
+    }
+
+
+def _cpi_page_validator() -> dict[str, Any]:
+    region = _cpi_region_validator()
+    return {
+        "bsonType": "object",
+        "required": ["page_number", "comprehension", "production", "integration"],
+        "properties": {
+            "page_number": {"bsonType": ["int", "long"], "minimum": 1},
+            "comprehension": region,
+            "production": region,
+            "integration": region,
+        },
+    }
+
+
+def _cpi_document_validator() -> dict[str, Any]:
+    return {
+        "bsonType": "object",
+        "required": ["schema_version", "template_id", "pages"],
+        "properties": {
+            "schema_version": {"bsonType": ["int", "long"], "minimum": 1},
+            "template_id": {"bsonType": "string"},
+            "pages": {"bsonType": ["array"], "items": _cpi_page_validator()},
+            "attribution": _cornell_attribution_validator(),
+            "watermark": _cornell_watermark_validator(),
+        },
+    }
+
+
 def _latex_notes_validator() -> dict[str, Any]:
     return {
         "$jsonSchema": {
@@ -297,9 +337,10 @@ def _latex_notes_validator() -> dict[str, Any]:
                 "date": {"bsonType": "string", "description": "YYYY-MM-DD"},
                 "project": {"bsonType": ["string", "null"]},
                 "context": {"enum": ["estudio", "debug", "lectura", "idea", "reflexion"]},
-                "note_format": {"enum": [CORNELL_NOTE_FORMAT]},
+                "note_format": {"enum": [CORNELL_NOTE_FORMAT, CPI_NOTE_FORMAT]},
                 "latex_body": {"bsonType": "string"},
                 "cornell": _cornell_document_validator(),
+                "cpi": _cpi_document_validator(),
                 "image_ids": {"bsonType": ["array"], "items": {"bsonType": "string"}},
                 "tags": {"bsonType": ["array"], "items": {"bsonType": "string"}},
                 "created_at": {"bsonType": "date"},
@@ -556,10 +597,27 @@ def _latex_notes_validator_supports_cornell(db) -> bool:
     properties = validator.get("$jsonSchema", {}).get("properties", {})
     cornell = properties.get("cornell", {})
     cornell_properties = cornell.get("properties", {})
+    note_formats = set(properties.get("note_format", {}).get("enum") or [])
     return (
-        properties.get("note_format", {}).get("enum") == [CORNELL_NOTE_FORMAT]
+        CORNELL_NOTE_FORMAT in note_formats
         and cornell.get("required") == ["schema_version", "template_id", "pages"]
         and "pages" in cornell_properties
+    )
+
+
+def _latex_notes_validator_supports_cpi(db) -> bool:
+    try:
+        validator = db["latex_notes"].options().get("validator", {})
+    except (AttributeError, PyMongoError):
+        return False
+    properties = validator.get("$jsonSchema", {}).get("properties", {})
+    cpi = properties.get("cpi", {})
+    cpi_properties = cpi.get("properties", {})
+    note_formats = set(properties.get("note_format", {}).get("enum") or [])
+    return (
+        CPI_NOTE_FORMAT in note_formats
+        and cpi.get("required") == ["schema_version", "template_id", "pages"]
+        and "pages" in cpi_properties
     )
 
 
@@ -593,6 +651,7 @@ def status(db) -> int:
     print("Cornell:")
     cornell_collection = "latex_notes" in existing
     cornell_validator = cornell_collection and _latex_notes_validator_supports_cornell(db)
+    cpi_validator = cornell_collection and _latex_notes_validator_supports_cpi(db)
     cornell_indexes = cornell_collection and _latex_notes_has_cornell_indexes(db)
     if cornell_collection:
         print("  - latex_notes: OK")
@@ -602,6 +661,11 @@ def status(db) -> int:
         print("  - validador cornell_math_v1: OK")
     else:
         print("  - validador cornell_math_v1: MISSING")
+        ok = False
+    if cpi_validator:
+        print("  - validador cpi_v1: OK")
+    else:
+        print("  - validador cpi_v1: MISSING")
         ok = False
     if cornell_indexes:
         print("  - índices Cornell: OK")
@@ -622,7 +686,7 @@ def install(db) -> int:
     _ensure_collection(db, "knowledge_graph_maps", _knowledge_graph_maps_validator())
     _ensure_collection(db, MEDIA_ASSETS_COLLECTION, _media_assets_validator())
     _ensure_indexes(db)
-    print("✅ Cuaderno instalado (colecciones + validadores + índices + media/images + Cornell en latex_notes).")
+    print("✅ Cuaderno instalado (colecciones + validadores + índices + media/images + Cornell/CPI en latex_notes).")
     return 0
 
 

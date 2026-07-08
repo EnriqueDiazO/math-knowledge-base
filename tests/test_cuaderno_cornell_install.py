@@ -90,7 +90,7 @@ def test_cuaderno_install_is_idempotent_and_preserves_existing_latex_notes(monke
         assert index_counts[tuple(keys)] == 1
 
 
-def test_latex_notes_validator_is_legacy_and_cornell_compatible() -> None:
+def test_latex_notes_validator_is_legacy_cornell_and_cpi_compatible() -> None:
     validator = installer._latex_notes_validator()
     schema = validator["$jsonSchema"]
     properties = schema["properties"]
@@ -136,24 +136,78 @@ def test_latex_notes_validator_is_legacy_and_cornell_compatible() -> None:
             ],
         },
     }
+    cpi_note = {
+        **legacy_note,
+        "note_format": installer.CPI_NOTE_FORMAT,
+        "cpi": {
+            "schema_version": 1,
+            "template_id": "cpi_landscape_letter_v1",
+            "attribution": {
+                "enabled": True,
+                "mode": "auto",
+                "text": "Texto personalizado",
+                "author": "Enrique Díaz Ocampo",
+                "course": "Python",
+                "year": "2026",
+                "position": "bottom_right",
+            },
+            "watermark": {
+                "enabled": True,
+                "type": "image",
+                "text": "",
+                "image_id": "logo-cpi",
+                "opacity": 0.05,
+                "scale": 0.4,
+                "position": "center",
+            },
+            "pages": [
+                {
+                    "page_number": 1,
+                    "comprehension": {
+                        "heading": "Comprensión",
+                        "latex": "Aprendizaje",
+                        "image_ids": ["img-comp"],
+                    },
+                    "production": {"heading": "Producción", "latex": "Resultado"},
+                    "integration": {"heading": "Integración", "latex": "Acción futura"},
+                }
+            ],
+        },
+    }
     cornell_schema = properties["cornell"]
     page_schema = cornell_schema["properties"]["pages"]["items"]
+    cpi_schema = properties["cpi"]
+    cpi_page_schema = cpi_schema["properties"]["pages"]["items"]
     attribution_schema = cornell_schema["properties"]["attribution"]
     watermark_schema = cornell_schema["properties"]["watermark"]
+    cpi_attribution_schema = cpi_schema["properties"]["attribution"]
+    cpi_watermark_schema = cpi_schema["properties"]["watermark"]
 
     assert "note_format" not in schema["required"]
     assert "cornell" not in schema["required"]
+    assert "cpi" not in schema["required"]
     assert "created_at" not in schema["required"]
     assert "updated_at" not in schema["required"]
-    assert properties["note_format"]["enum"] == [installer.CORNELL_NOTE_FORMAT]
+    assert properties["note_format"]["enum"] == [
+        installer.CORNELL_NOTE_FORMAT,
+        installer.CPI_NOTE_FORMAT,
+    ]
     assert _required_fields_present(legacy_note, schema)
     assert _required_fields_present(cornell_note, schema)
+    assert _required_fields_present(cpi_note, schema)
     assert _required_fields_present(cornell_note["cornell"], cornell_schema)
     assert _required_fields_present(cornell_note["cornell"]["pages"][0], page_schema)
+    assert _required_fields_present(cpi_note["cpi"], cpi_schema)
+    assert _required_fields_present(cpi_note["cpi"]["pages"][0], cpi_page_schema)
+    assert "image_ids" in cpi_page_schema["properties"]["comprehension"]["properties"]
     assert attribution_schema["properties"]["mode"]["enum"] == ["auto", "custom"]
     assert watermark_schema["properties"]["type"]["enum"] == ["text", "image"]
+    assert cpi_attribution_schema["properties"]["mode"]["enum"] == ["auto", "custom"]
+    assert cpi_watermark_schema["properties"]["type"]["enum"] == ["text", "image"]
     assert "attribution" not in cornell_schema["required"]
     assert "watermark" not in cornell_schema["required"]
+    assert "attribution" not in cpi_schema["required"]
+    assert "watermark" not in cpi_schema["required"]
 
 
 def test_cornell_install_status_reports_validator_and_indexes(monkeypatch, tmp_path, capsys) -> None:
@@ -168,6 +222,8 @@ def test_cornell_install_status_reports_validator_and_indexes(monkeypatch, tmp_p
     output = capsys.readouterr().out
     assert "Cornell:" in output
     assert "validador cornell_math_v1: OK" in output
+    assert "validador cpi_v1: OK" in output
     assert "índices Cornell: OK" in output
     assert installer._latex_notes_validator_supports_cornell(db)
+    assert installer._latex_notes_validator_supports_cpi(db)
     assert installer._latex_notes_has_cornell_indexes(db)

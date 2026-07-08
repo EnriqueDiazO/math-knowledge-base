@@ -7,6 +7,7 @@ from __future__ import annotations
 import shutil
 import subprocess
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -19,6 +20,13 @@ from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.renderer import CornellRenderResult
+from editor.cpi.models import CPI_NOTE_FORMAT
+from editor.cpi.models import DEFAULT_TEMPLATE_ID as CPI_DEFAULT_TEMPLATE_ID
+from editor.cpi.models import CpiDocument
+from editor.cpi.models import CpiPage
+from editor.cpi.models import CpiRegion
+from editor.cpi.persistence import build_cpi_note_document
+from editor.cpi.renderer import CpiRenderResult
 from tests.test_cornell_renderer import HREF_REGRESSION_LATEX
 from tests.test_cornell_renderer import HREF_REGRESSION_URL
 from tests.test_cornell_renderer import pdf_contains_uri
@@ -95,6 +103,43 @@ def sample_cornell_note() -> dict[str, Any]:
     return note
 
 
+def sample_cpi_document() -> CpiDocument:
+    return CpiDocument(
+        schema_version=1,
+        template_id=CPI_DEFAULT_TEMPLATE_ID,
+        pages=(
+            CpiPage(
+                page_number=2,
+                comprehension=CpiRegion(heading="Comprensión", latex="Segunda comprensión."),
+                production=CpiRegion(heading="Producción", latex="Segunda producción."),
+                integration=CpiRegion(heading="Integración", latex="Segunda integración."),
+            ),
+            CpiPage(
+                page_number=1,
+                comprehension=CpiRegion(heading="Comprensión", latex="Primera comprensión."),
+                production=CpiRegion(heading="Producción", latex=r"\[ a+b=b+a \]"),
+                integration=CpiRegion(heading="Integración", latex="Primera integración."),
+            ),
+        ),
+    )
+
+
+def sample_cpi_note() -> dict[str, Any]:
+    note = build_cpi_note_document(
+        {
+            "_id": "cpi-1",
+            "title": "CPI Algebra",
+            "date": "2026-07-07",
+            "project": "Algebra",
+            "context": "estudio",
+            "tags": ["cpi"],
+        },
+        sample_cpi_document(),
+    )
+    note["_id"] = "cpi-1"
+    return note
+
+
 def pdfinfo_text(pdf_path: Path) -> str:
     return subprocess.run(
         ["pdfinfo", str(pdf_path)],
@@ -137,6 +182,14 @@ def test_export_note_tex_uses_cornell_renderer_and_orders_pages() -> None:
     assert result.tex.count(r"\null") == 2
 
 
+def test_export_note_tex_uses_cpi_renderer_and_orders_pages() -> None:
+    result = note_export.export_note_tex(sample_cpi_note())
+
+    assert result.note_format == CPI_NOTE_FORMAT
+    assert result.tex.index("Primera comprensión.") < result.tex.index("Segunda comprensión.")
+    assert result.tex.count(r"\null") == 2
+
+
 def test_export_note_pdf_uses_cornell_renderer(monkeypatch, tmp_path: Path) -> None:
     calls = []
     pdf_path = tmp_path / "fake.pdf"
@@ -165,6 +218,81 @@ def test_export_note_pdf_uses_cornell_renderer(monkeypatch, tmp_path: Path) -> N
     assert result.note_format == CORNELL_NOTE_FORMAT
     assert result.pdf_path == pdf_path
     assert calls[0][0].ordered_pages()[0].page_id == "p001"
+
+
+def test_export_note_pdf_uses_cpi_renderer(monkeypatch, tmp_path: Path) -> None:
+    calls = []
+    pdf_path = tmp_path / "fake_cpi.pdf"
+    pdf_path.write_bytes(b"%PDF")
+
+    def fake_render(
+        document: CpiDocument,
+        output_dir: Path,
+        output_name: str,
+        **kwargs: Any,
+    ) -> CpiRenderResult:
+        calls.append((document, output_dir, output_name, kwargs))
+        return CpiRenderResult(
+            success=True,
+            status="success",
+            tex_path=tmp_path / "fake_cpi.tex",
+            pdf_path=pdf_path,
+            log_path=tmp_path / "fake_cpi.log",
+            diagnostics={"status": "success"},
+        )
+
+    monkeypatch.setattr(note_export, "render_cpi_document", fake_render)
+
+    assets_by_id = {"asset": {"asset_id": "asset"}}
+    db = object()
+    result = note_export.export_note_pdf(
+        sample_cpi_note(),
+        output_dir=tmp_path,
+        db=db,
+        assets_by_id=assets_by_id,
+    )
+
+    assert result.note_format == CPI_NOTE_FORMAT
+    assert result.pdf_path == pdf_path
+    assert calls[0][0].ordered_pages()[0].page_number == 1
+    assert calls[0][3]["db"] is db
+    assert calls[0][3]["assets_by_id"] == assets_by_id
+
+
+def test_export_note_project_dispatches_cornell_by_note_format(monkeypatch, tmp_path: Path) -> None:
+    calls = []
+    zip_path = tmp_path / "cornell_project.zip"
+    zip_path.write_bytes(b"zip")
+
+    def fake_export(document: CornellDocument, metadata: dict[str, Any], output_root: Path, **kwargs: Any):
+        calls.append((document, metadata, output_root, kwargs))
+        return SimpleNamespace(project_dir=tmp_path / "cornell_project", zip_path=zip_path)
+
+    monkeypatch.setattr(note_export, "export_cornell_project", fake_export)
+
+    result = note_export.export_note_project(sample_cornell_note(), tmp_path)
+
+    assert result.note_format == CORNELL_NOTE_FORMAT
+    assert result.file_name == "cornell_project.zip"
+    assert calls[0][0].ordered_pages()[0].page_id == "p001"
+
+
+def test_export_note_project_dispatches_cpi_by_note_format(monkeypatch, tmp_path: Path) -> None:
+    calls = []
+    zip_path = tmp_path / "cpi_project.zip"
+    zip_path.write_bytes(b"zip")
+
+    def fake_export(document: CpiDocument, metadata: dict[str, Any], output_root: Path, **kwargs: Any):
+        calls.append((document, metadata, output_root, kwargs))
+        return SimpleNamespace(project_dir=tmp_path / "cpi_project", zip_path=zip_path)
+
+    monkeypatch.setattr(note_export, "export_cpi_project", fake_export)
+
+    result = note_export.export_note_project(sample_cpi_note(), tmp_path)
+
+    assert result.note_format == CPI_NOTE_FORMAT
+    assert result.file_name == "cpi_project.zip"
+    assert calls[0][0].ordered_pages()[0].page_number == 1
 
 
 def test_export_note_unknown_format_fails_clearly() -> None:

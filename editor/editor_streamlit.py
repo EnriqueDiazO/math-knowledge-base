@@ -1171,6 +1171,8 @@ def _cuaderno_is_installed(conn) -> bool:
         return False
 
 
+CPI_NAV_LABEL = "🧩 CPI"
+
 nav_options = [
     "🏠 Dashboard",
     "➕ Add Concept",
@@ -1188,8 +1190,10 @@ nav_options = [
 if _cuaderno_is_installed(db):
     nav_options.append("🧪 Cuaderno")
     nav_options.append("🧾 Cornell")
+    nav_options.append(CPI_NAV_LABEL)
 
-page = st.sidebar.selectbox("Navigation", nav_options)
+selected_page = st.sidebar.selectbox("Navigation", nav_options)
+page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page
 
 
 # Dashboard page
@@ -1688,6 +1692,9 @@ elif page == "🧪 Cuaderno":
 elif page == "🧾 Cornell":
     from editor.cornell.streamlit_page import render_cornell_page
     render_cornell_page(db)
+elif page == "CPI":
+    from editor.cpi.streamlit_page import render_cpi_page
+    render_cpi_page(db)
 elif page == "➕ Add Concept":
     st.title("➕ Add New Mathematical Concept")
 

@@ -1401,7 +1401,7 @@ def _render_diary_exports(notes_col) -> None:
                 st.session_state[f"note_pdf_path_{nid}"] = str(pdf_export.pdf_path)
                 st.session_state[f"note_pdf_file_{nid}"] = pdf_export.file_name
                 st.session_state[f"note_pdf_diagnostics_{nid}"] = pdf_export.diagnostics
-                if pdf_export.note_format != "cornell_math_v1":
+                if pdf_export.note_format not in {"cornell_math_v1", "cpi_v1"}:
                     st.session_state[f"note_chktex_{nid}"] = pdf_export.diagnostics.get("chktex")
                     render_chktex_result(pdf_export.diagnostics.get("chktex"), expanded=False)
                 st.success("✅ PDF listo para descargar.")

@@ -1,0 +1,65 @@
+% CPI landscape-letter template for Math Knowledge Base.
+\documentclass[12pt]{article}
+
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage[spanish,es-nodecimaldot]{babel}
+\usepackage[
+    letterpaper,
+    landscape,
+    margin=0pt,
+    noheadfoot
+]{geometry}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{graphicx}
+\usepackage{adjustbox}
+\usepackage[dvipsnames,svgnames]{xcolor}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+${svg_package}
+
+${snippet_compat}
+
+\usepackage{hyperref}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{4pt}
+
+\newlength{\alturaIntegracion}
+\setlength{\alturaIntegracion}{2.40in}
+
+\newlength{\mitadPagina}
+\setlength{\mitadPagina}{5.50in}
+
+\newlength{\bajadaTitulos}
+\setlength{\bajadaTitulos}{0.18in}
+
+\newlength{\bajadaIntegracion}
+\setlength{\bajadaIntegracion}{0.08in}
+
+\definecolor{CPIComprehension}{HTML}{2E7D32}
+\definecolor{CPIProduction}{HTML}{C2185B}
+\definecolor{CPIIntegration}{HTML}{1565C0}
+
+\newcommand{\CPIBodyText}{\normalfont\color{black}\fontsize{10}{13}\selectfont}
+\newcommand{\CPITopTitle}[3]{%
+  \textcolor{#3}{%
+    {\fontsize{15}{18}\selectfont #1}%
+    {\fontsize{11}{13}\selectfont #2}%
+  }%
+}
+\newcommand{\CPIIntegrationTitle}{%
+  \textcolor{CPIIntegration}{\fontsize{15}{18}\selectfont Zona de Integración}%
+}
+\newcommand{\cpiimage}[1]{\textbf{[Imagen CPI: \detokenize{#1}]}}
+\newenvironment{CPIZoneBody}[1]{%
+  \begin{minipage}[t]{#1}%
+  \CPIBodyText
+  \raggedright
+}{%
+  \end{minipage}%
+}
+
+\begin{document}
+${pages}
+\end{document}
