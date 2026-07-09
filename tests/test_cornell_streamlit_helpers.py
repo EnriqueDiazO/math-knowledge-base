@@ -24,6 +24,7 @@ from editor.cornell.streamlit_page import SESSION_FLASH_MESSAGE
 from editor.cornell.streamlit_page import SESSION_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PAGE_INDEX
 from editor.cornell.streamlit_page import SESSION_PENDING_DELETE_NOTE_ID
+from editor.cornell.streamlit_page import SESSION_PENDING_LATEX_INSERT
 from editor.cornell.streamlit_page import SESSION_PENDING_NOTE_ID
 from editor.cornell.streamlit_page import SESSION_PENDING_VIEW
 from editor.cornell.streamlit_page import SESSION_RENDERED_PAGE_ID
@@ -35,6 +36,7 @@ from editor.cornell.streamlit_page import VIEW_EXPLORE_NOTES
 from editor.cornell.streamlit_page import VIEW_NEW_NOTE
 from editor.cornell.streamlit_page import add_page
 from editor.cornell.streamlit_page import apply_loaded_note_state
+from editor.cornell.streamlit_page import apply_pending_latex_insert
 from editor.cornell.streamlit_page import apply_pending_view_state
 from editor.cornell.streamlit_page import apply_split_proposal_to_state
 from editor.cornell.streamlit_page import cancel_cornell_note_delete
@@ -45,6 +47,7 @@ from editor.cornell.streamlit_page import delete_page
 from editor.cornell.streamlit_page import duplicate_page
 from editor.cornell.streamlit_page import normalize_page_orders
 from editor.cornell.streamlit_page import queue_cornell_navigation
+from editor.cornell.streamlit_page import queue_latex_insert
 from editor.cornell.streamlit_page import request_cornell_note_delete
 from editor.cornell.streamlit_page import valid_page_index
 from editor.cornell.ui_helpers import ALL_LABEL
@@ -392,6 +395,17 @@ def test_insert_snippet_does_not_erase_empty_region() -> None:
     snippet = LATEX_SNIPPET_GROUPS[3].snippets[0].snippet
 
     assert append_latex_snippet("", snippet) == snippet + "\n"
+
+
+def test_pending_latex_insert_updates_target_and_clears_queue() -> None:
+    state = {"cornell_main_latex": "main previo"}
+
+    queue_latex_insert(state, latex_key="cornell_main_latex", snippet="\\cornellimage{asset-1}")
+    applied = apply_pending_latex_insert(state)
+
+    assert applied is True
+    assert state["cornell_main_latex"] == "main previo\n\\cornellimage{asset-1}\n"
+    assert SESSION_PENDING_LATEX_INSERT not in state
 
 
 def cornell_note(

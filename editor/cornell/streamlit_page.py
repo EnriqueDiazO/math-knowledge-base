@@ -66,6 +66,7 @@ SESSION_PENDING_DELETE_NOTE_ID = "cornell_pending_delete_note_id"
 SESSION_FLASH_MESSAGE = "cornell_flash_message"
 SESSION_FIT_DIAGNOSTICS = "cornell_fit_diagnostics"
 SESSION_SPLIT_PROPOSAL = "cornell_split_proposal"
+SESSION_PENDING_LATEX_INSERT = "cornell_pending_latex_insert"
 LEGACY_SESSION_VIEW = "cornell_view"
 VIEW_NEW_NOTE = "Nueva nota"
 VIEW_EXPLORE_NOTES = "Explorar notas"
@@ -285,6 +286,29 @@ def consume_pending_note_id(state: dict[str, Any]) -> str | None:
     """Return and clear the note id queued for opening/editing."""
     note_id = state.pop(SESSION_PENDING_NOTE_ID, None)
     return str(note_id) if note_id is not None else None
+
+
+def queue_latex_insert(state: dict[str, Any], *, latex_key: str, snippet: str) -> None:
+    """Queue a LaTeX insert so widget state is updated before instantiation."""
+    state[SESSION_PENDING_LATEX_INSERT] = {
+        "latex_key": latex_key,
+        "snippet": snippet,
+    }
+
+
+def apply_pending_latex_insert(state: dict[str, Any]) -> bool:
+    """Apply a queued LaTeX insert before its text area widget is created."""
+    pending = state.pop(SESSION_PENDING_LATEX_INSERT, None)
+    if not isinstance(pending, dict):
+        return False
+
+    latex_key = pending.get("latex_key")
+    snippet = pending.get("snippet")
+    if not isinstance(latex_key, str) or not isinstance(snippet, str):
+        return False
+
+    state[latex_key] = append_latex_snippet(str(state.get(latex_key, "") or ""), snippet)
+    return True
 
 
 def request_cornell_note_delete(state: dict[str, Any], note_id: Any) -> None:
@@ -1083,10 +1107,7 @@ def _render_region_media_manager(
             st.code(ref, language="latex")
             col_insert, col_remove = st.columns(2)
             if col_insert.button("Insertar referencia LaTeX", key=f"{safe_prefix}_insert_{asset_id}"):
-                st.session_state[latex_key] = append_latex_snippet(
-                    st.session_state.get(latex_key, ""),
-                    ref,
-                )
+                queue_latex_insert(st.session_state, latex_key=latex_key, snippet=ref)
                 _mark_dirty()
                 st.rerun()
             if col_remove.button("Quitar asociación", key=f"{safe_prefix}_remove_{asset_id}"):
@@ -1103,6 +1124,8 @@ def _render_region_media_manager(
 
 def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
     import streamlit as st
+
+    apply_pending_latex_insert(st.session_state)
 
     with st.expander("Herramientas LaTeX", expanded=False):
         target = st.selectbox(
