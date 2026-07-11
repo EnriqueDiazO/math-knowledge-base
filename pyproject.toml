@@ -6,6 +6,7 @@ authors = ["Enrique Díaz Ocampo <doeo113900@gmail.com>"]
 license = "MIT"
 readme = "README.md"
 packages = [
+    { include = "mathmongo" },
     { include = "app" },
     { include = "editor" },
     { include = "exporters_latex" },
@@ -15,6 +16,13 @@ packages = [
     { include = "schemas" },
     { include = "visualizations" }
 ]
+include = [
+    { path = "mathkb_config.py", format = ["sdist", "wheel"] },
+    { path = "templates_latex/**", format = ["sdist", "wheel"] }
+]
+
+[tool.poetry.scripts]
+mathmongo = "mathmongo.cli:main"
 
 [tool.poetry.dependencies]
 python = "^3.10"
