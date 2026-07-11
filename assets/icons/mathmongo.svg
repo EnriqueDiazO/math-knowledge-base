@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" role="img" aria-label="MathMongo">
+  <defs>
+    <linearGradient id="background" x1="32" y1="24" x2="224" y2="232" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#173B57"/>
+      <stop offset="1" stop-color="#0A2235"/>
+    </linearGradient>
+    <linearGradient id="pages" x1="72" y1="62" x2="185" y2="195" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F7FAFC"/>
+      <stop offset="1" stop-color="#DCEAF2"/>
+    </linearGradient>
+  </defs>
+  <rect x="12" y="12" width="232" height="232" rx="52" fill="url(#background)"/>
+  <path d="M52 67c27-10 51-5 76 13v120c-24-17-49-22-76-12V67Z" fill="url(#pages)"/>
+  <path d="M204 67c-27-10-51-5-76 13v120c24-17 49-22 76-12V67Z" fill="#C8E2EC"/>
+  <path d="M128 80v120" fill="none" stroke="#7AAFC2" stroke-width="6" stroke-linecap="round"/>
+  <ellipse cx="174" cy="87" rx="31" ry="13" fill="#F2B84B"/>
+  <path d="M143 87v50c0 7 14 13 31 13s31-6 31-13V87" fill="#D9902F"/>
+  <ellipse cx="174" cy="112" rx="31" ry="13" fill="#F2B84B"/>
+  <ellipse cx="174" cy="137" rx="31" ry="13" fill="#F7C965"/>
+  <path d="M75 97h38M75 119h28M75 164h39" stroke="#2B6680" stroke-width="8" stroke-linecap="round"/>
+  <path d="M108 137H78l18 22H76" fill="none" stroke="#D06B3C" stroke-width="8" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
