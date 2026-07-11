@@ -37,6 +37,8 @@ from editor.cpi.service import get_cpi_note
 from editor.cpi.service import list_cpi_notes
 from editor.cpi.service import update_cpi_note
 from editor.note_export import export_note_project
+from editor.pdf_preview import open_local_pdf
+from editor.pdf_preview import prepare_stable_preview
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import media_path_exists
@@ -1525,7 +1527,8 @@ def _preview_pdf(db: Any) -> None:
 
     document = _document_from_inputs()
     output_dir = PROJECT_ROOT / "runtime" / "cpi_streamlit_preview"
-    output_name = st.session_state[SESSION_NOTE_ID] or "cpi_preview"
+    preview_path = prepare_stable_preview(output_dir, "cpi_preview.pdf")
+    output_name = preview_path.stem
     result = render_cpi_document(document, output_dir, str(output_name), db=db)
     st.session_state[SESSION_RENDER_DIAGNOSTICS] = result.diagnostics
     if not result.success:
@@ -1534,7 +1537,13 @@ def _preview_pdf(db: Any) -> None:
         with st.expander("Ver log completo", expanded=False):
             st.code(cpi_latex_full_log(result), language="text")
         return
-    st.success(f"PDF generado: {result.pdf_path}")
+    if not Path(result.pdf_path).is_file():
+        st.error("La compilación terminó sin producir el PDF esperado.")
+        return
+    if open_local_pdf(result.pdf_path):
+        st.success(f"PDF generado. Se solicitó su apertura en una nueva pestaña: {result.pdf_path}")
+    else:
+        st.warning(f"PDF generado, pero el navegador no confirmó la solicitud de apertura: {result.pdf_path}")
     _render_fit_report(result.diagnostics)
     try:
         st.download_button(

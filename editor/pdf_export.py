@@ -11,7 +11,6 @@ import shutil
 import tempfile
 import traceback
 import unicodedata
-import webbrowser
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
@@ -23,6 +22,7 @@ from exporters_latex.latex_compile import latex_warning_message
 from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.latex_validation import run_chktex_analysis
 from editor.utils.media_assets import copy_media_tree_for_latex
+from editor.pdf_preview import open_local_pdf
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 
@@ -1029,12 +1029,7 @@ def abrir_pdf_en_navegador(pdf_path: str) -> bool:
         True if successful, False otherwise.
     """
     try:
-        # Convert to file URL
-        pdf_url = f"file://{os.path.abspath(pdf_path)}"
-        
-        # Open in browser
-        webbrowser.open_new_tab(pdf_url)
-        return True
+        return open_local_pdf(pdf_path)
         
     except Exception as e:
         st.error(f"❌ Error opening PDF: {e}")
