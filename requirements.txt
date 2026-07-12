@@ -1,4 +1,5 @@
-streamlit
+streamlit[pdf]
+streamlit-pdf>=1.0.0,<2
 pymongo
 latexify-py
 pyvis

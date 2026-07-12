@@ -14,13 +14,18 @@ from bson import ObjectId
 from streamlit_ace import st_ace
 
 from editor.db.concept_repository import concept_exists
+from editor.pdf_preview import PdfPreviewError
+from editor.pdf_preview import clear_pdf_preview
+from editor.pdf_preview import generate_pdf_preview
+from editor.pdf_preview import pdf_preview_context
+from editor.pdf_preview import render_pdf_preview
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit.components.v1 as components
 from helpers.concept_builders import build_concept_metadata
-from pdf_export import generar_y_abrir_pdf_desde_formulario
+from pdf_export import generar_pdf_desde_formulario
 
 from db.concept_repository import insert_concept_with_latex_atomic
 from editor.document_builder import render_document_builder_page
@@ -121,6 +126,55 @@ from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
 
 DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
+
+
+def _concept_pdf_download_name(concept_data: dict) -> str:
+    """Return a safe leaf filename without exposing an internal filesystem path."""
+    concept_id = str(concept_data.get("id") or "concept")
+    concept_type = str(concept_data.get("tipo") or "concept")
+    safe_id = concept_id.replace("/", "_").replace("\\", "_").replace(":", "_")
+    safe_type = concept_type.replace("/", "_").replace("\\", "_").replace(":", "_")
+    return f"{safe_id or 'concept'}_{safe_type or 'concept'}.pdf"
+
+
+def _generate_concept_pdf_preview(
+    namespace: str,
+    concept_data: dict,
+    *,
+    context_identity: str,
+    allowed_root: Path,
+) -> None:
+    """Generate, validate, and store one concept preview for internal rendering."""
+    try:
+        with st.spinner("🔄 Generando PDF..."):
+            generate_pdf_preview(
+                st.session_state,
+                namespace,
+                generator=lambda: generar_pdf_desde_formulario(concept_data),
+                allowed_root=allowed_root,
+                file_name=_concept_pdf_download_name(concept_data),
+                context_identity=context_identity,
+            )
+        st.success("✅ PDF generado y disponible en la vista previa.")
+    except PdfPreviewError as exc:
+        st.error(f"❌ No se pudo preparar la vista previa PDF. {exc}")
+    except Exception as exc:
+        diagnostic = getattr(exc, "diagnostic", {})
+        known_stages = {
+            "Generar contenido LaTeX",
+            "Preparar datos",
+            "Escribir archivo TEX",
+            "Analizar TEX con ChkTeX",
+            "Ejecutar compilador LaTeX",
+            "Verificar PDF generado",
+            "Entregar PDF",
+        }
+        stage = diagnostic.get("stage") if isinstance(diagnostic, dict) else None
+        safe_stage = stage if stage in known_stages else "Generar PDF"
+        st.error(
+            "❌ No se pudo generar el PDF. "
+            f"Etapa: {safe_stage}. Revisa el contenido LaTeX y vuelve a intentarlo."
+        )
 
 
 def _kg_debug(message: str, **kwargs) -> None:
@@ -2413,10 +2467,19 @@ elif page == "➕ Add Concept":
     # PDF Generation Button
     st.markdown("---")
     st.subheader("📄 Generar PDF")
+    add_pdf_context = pdf_preview_context(
+        "add_concept",
+        current_db,
+        source,
+        concept_id,
+    )
+    concept_pdf_root = get_exports_dir(
+        configured=resolve_config().export_directory
+    ) / "concepts"
 
     # Check if we have the minimum required data for PDF generation
     if concept_id and source and contenido_latex:
-        if st.button("📄 Generar y abrir PDF", type="secondary"):
+        if st.button("📄 Generar vista previa PDF", type="secondary"):
             # Build concept data for PDF generation
             pdf_concept_data = {
                 "id": concept_id,
@@ -2446,10 +2509,22 @@ elif page == "➕ Add Concept":
                     "issbn": ref_issbn if ref_issbn else None
                 }
 
-            # Generate and open PDF
-            generar_y_abrir_pdf_desde_formulario(pdf_concept_data)
+            _generate_concept_pdf_preview(
+                "add_concept",
+                pdf_concept_data,
+                context_identity=add_pdf_context,
+                allowed_root=concept_pdf_root,
+            )
     else:
+        clear_pdf_preview(st.session_state, "add_concept")
         st.info("ℹ️ Complete los campos requeridos (ID, Source, LaTeX Content) para generar el PDF")
+
+    render_pdf_preview(
+        st,
+        st.session_state,
+        "add_concept",
+        context_identity=add_pdf_context,
+    )
 
 # Edit Concept page
 elif page == "✏️ Edit Concept":
@@ -3090,10 +3165,23 @@ elif page == "✏️ Edit Concept":
         # PDF Generation Button for Edit Concept
         st.markdown("---")
         st.subheader("📄 Generar PDF")
+        edit_pdf_context = pdf_preview_context(
+            "edit_concept",
+            current_db,
+            source,
+            concept_id,
+        )
+        concept_pdf_root = get_exports_dir(
+            configured=resolve_config().export_directory
+        ) / "concepts"
 
         # Check if we have the minimum required data for PDF generation
         if concept_id and source and contenido_latex:
-            if st.button("📄 Generar y abrir PDF", key="edit_pdf_btn", type="secondary"):
+            if st.button(
+                "📄 Generar vista previa PDF",
+                key="edit_pdf_btn",
+                type="secondary",
+            ):
                 # Build concept data for PDF generation
                 pdf_concept_data = {
                     "id": concept_id,
@@ -3125,10 +3213,22 @@ elif page == "✏️ Edit Concept":
                         "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
 
-                # Generate and open PDF
-                generar_y_abrir_pdf_desde_formulario(pdf_concept_data)
+                _generate_concept_pdf_preview(
+                    "edit_concept",
+                    pdf_concept_data,
+                    context_identity=edit_pdf_context,
+                    allowed_root=concept_pdf_root,
+                )
         else:
+            clear_pdf_preview(st.session_state, "edit_concept")
             st.info("ℹ️ Complete los campos requeridos (ID, Source, LaTeX Content) para generar el PDF")
+
+        render_pdf_preview(
+            st,
+            st.session_state,
+            "edit_concept",
+            context_identity=edit_pdf_context,
+        )
 
         with col2:
             if st.button("🔄 Reset to Original"):

@@ -1,35 +1,94 @@
-# Auditoría y corrección de vista previa PDF Cornell/CPI
+# Auditoría de vistas previas PDF generadas
 
-## Flujo anterior y causa raíz
+## Alcance y causa raíz
 
-El punto de entrada operativo es `editor/editor_streamlit.py` (lanzado por `run_gui.py`); `app/main.py` es un adaptador alternativo. Add Concept y Edit Concept construyen los datos en `editor/editor_streamlit.py` y comparten `generar_y_abrir_pdf_desde_formulario()` de `editor/pdf_export.py`. Esta función genera con `pdflatex`, comprueba el resultado y llama `webbrowser.open_new_tab()` con una URL local. No existe un servidor HTTP para PDFs ni JavaScript/HTML de apertura.
+Add Concept, Edit Concept, Cornell y CPI generan correctamente sus PDFs con los
+renderers LaTeX existentes. El problema estaba en la entrega del resultado: los
+flujos solicitaban al navegador abrir una ruta local. Firefox puede impedir el
+acceso a archivos del runtime de otra aplicación por su aislamiento, aunque el
+PDF sea válido.
 
-Cornell y CPI viven en `editor/cornell/streamlit_page.py` y `editor/cpi/streamlit_page.py`; sus renderers son `editor/cornell/renderer.py` y `editor/cpi/renderer.py`. Ambos generaban correctamente y ofrecían `st.download_button`, pero nunca invocaban la apertura. Además usaban el ID de nota como nombre de salida, permitiendo múltiples PDFs en la carpeta de preview.
+P1 sustituye esa entrega por un visor dentro de la página de Streamlit. No añade
+un servidor HTTP, contenido JavaScript, un iframe de datos ni una implementación
+propia de PDF.js. Tampoco crea una segunda copia permanente del archivo.
 
-## Decisión técnica y flujo final
+## Arquitectura compartida
 
-`editor/pdf_preview.py` concentra responsabilidades comunes:
+`editor/pdf_preview.py` es la única implementación del ciclo de vida del preview
+generado. Los cuatro flujos siguen esta secuencia:
 
-- prepara una carpeta controlada y una ruta estable;
-- elimina el PDF previo antes de compilar, evitando reutilizarlo si falla LaTeX;
-- limpia sólo auxiliares conocidos (`.aux`, `.log`, `.out`, `.toc`, `.fls`, `.fdb_latexmk`) dentro de esa carpeta;
-- valida que el PDF nuevo exista;
-- genera una URI segura mediante `Path.resolve().as_uri()` y solicita apertura no bloqueante con `webbrowser.open_new_tab()`.
+1. invalidan el preview anterior de su namespace;
+2. preparan la ruta controlada y eliminan sólo el PDF obsoleto y auxiliares LaTeX
+   conocidos;
+3. ejecutan el generador existente;
+4. validan y leen el resultado una sola vez;
+5. guardan un payload inmutable con bytes, nombre de descarga, SHA-256 e identidad
+   de contexto;
+6. pasan esos bytes a `st.pdf` y al botón de descarga;
+7. permiten cerrar el preview sin afectar los otros flujos.
 
-Cornell siempre usa `runtime/cornell_streamlit_preview/cornell_preview.pdf`; CPI usa `runtime/cpi_streamlit_preview/cpi_preview.pdf`. Tras un render exitoso se valida el archivo, se solicita la apertura y se conserva `Descargar PDF`. El mensaje distingue entre solicitud aceptada y navegador sin confirmación. Si falla el render o falta el archivo, no hay apertura. Conceptos conservan su flujo, pero ahora también validan existencia y usan `Path.as_uri()` para rutas con espacios.
+La ruta se comprueba contra una raíz mutable controlada. Se rechazan escapes,
+symlinks, archivos ausentes, resultados que no sean regulares, archivos vacíos,
+lecturas incompletas o inestables y contenido sin cabecera `%PDF-`. Los mensajes
+de error no incluyen rutas absolutas, bytes ni contenido LaTeX.
 
-No se sirve el sistema de archivos por HTTP, no se añadió JavaScript, HTML ni dependencia. La limitación heredada es que `file://` se abre en el navegador del proceso servidor; esto es apropiado para la aplicación local Linux planteada, no para despliegue remoto.
+El visor usa `st.pdf(pdf_bytes, height=800, key=...)`. Su clave deriva del
+namespace, del contexto y del SHA-256, por lo que un rerun conserva el mismo
+preview y un PDF nuevo obtiene una identidad nueva. `Descargar PDF` recibe
+exactamente los mismos bytes ya validados; no vuelve a leer el archivo.
 
-## Archivos modificados y ciclo de vida
+## Estado, aislamiento y fallos
 
-- `editor/pdf_preview.py`: utilidad común nueva.
-- `editor/pdf_export.py`: URI segura y validación para Add/Edit Concept.
-- `editor/cornell/streamlit_page.py`: preview estable, apertura y descarga.
-- `editor/cpi/streamlit_page.py`: preview estable, apertura y descarga.
-- `tests/test_pdf_preview.py`: ruta estable, espacios, archivo ausente, aislamiento y limpieza.
+Los namespaces son independientes:
 
-La limpieza no toca exportaciones, datos MongoDB, imágenes persistentes ni directorios fuera de los dos previews. Los recursos de render (`.tex`, estilos e imágenes necesarias) se reutilizan; auxiliares y el PDF se regeneran. Los renderers ya eliminan PDF obsoleto en overflow; la preparación común amplía la garantía a cualquier fallo posterior.
+- `pdf_preview_add_concept_*`;
+- `pdf_preview_edit_concept_*`;
+- `pdf_preview_cornell_*`;
+- `pdf_preview_cpi_*`.
 
-## Pruebas y limitaciones
+La identidad opaca del contexto incluye la base y la entidad relevante. Un cambio
+de base, concepto o nota invalida el payload en vez de mostrar un documento de un
+contexto anterior. Sólo se conserva el preview actual de cada flujo.
 
-Las pruebas unitarias inyectan el abridor, evitando automatización frágil del navegador. Cubren apertura sólo con archivo real, URI con espacios, rechazo de escape de directorio y limpieza segura. Las suites Cornell/CPI y conceptos verifican que los renderers y exportación preexistentes continúan funcionando. La apertura visual real requiere una sesión gráfica y debe verificarse manualmente en Add Concept, Edit Concept, Cornell y CPI.
+El estado se limpia antes de compilar. Por ello, un error LaTeX, un PDF ausente o
+una validación fallida no puede reutilizar el preview anterior. Si LaTeX produce
+warnings pero también un PDF válido, el visor se mantiene y los diagnósticos se
+presentan por el canal ya existente. Si el componente del visor falta o falla, la
+interfaz muestra un error accionable y conserva la descarga de los bytes válidos.
+
+## Flujos cubiertos
+
+| Flujo | Generador existente | Ubicación | Entrega P1 |
+| --- | --- | --- | --- |
+| Add Concept | exportador de concepto | política temporal/XDG existente | visor y descarga, sin guardar el concepto |
+| Edit Concept | exportador de concepto | política temporal/XDG existente | visor y descarga, sin modificar el concepto |
+| Cornell | renderer Cornell | `runtime/cornell_preview/cornell_preview.pdf` | visor, diagnósticos y descarga |
+| CPI | renderer CPI | `runtime/cpi_preview/cpi_preview.pdf` | visor, diagnósticos y descarga |
+
+La preparación conserva archivos ajenos y elimina únicamente el PDF estable y
+los auxiliares cuyo stem corresponde al preview. No modifica MongoDB, conceptos,
+Sources ni References.
+
+## Dependencia del visor
+
+Streamlit 1.55.0 expone `st.pdf`, pero carga su componente mediante el extra
+oficial `pdf`. Por ello el proyecto declara `streamlit` con `extras = ["pdf"]` en
+`pyproject.toml` y `streamlit[pdf]` en `requirements.txt`. Ese extra instala
+`streamlit-pdf`. La dependencia se restringe a la serie oficial 1.x porque la
+serie 2.0 usa el registro de componentes v2 y no carga sus assets con Streamlit
+1.55.0; la comprobación aislada confirma `streamlit-pdf` 1.0.8. No se añade un
+componente alternativo ni se actualiza la versión de Streamlit como parte de P1.
+
+## Pruebas y límites
+
+Las pruebas P1 verifican validación de archivos, lectura y SHA, namespaces,
+limpieza y persistencia de estado, igualdad de bytes entre visor y descarga,
+errores del componente y la integración de Add/Edit/Cornell/CPI. Una comprobación
+estática acotada impide reintroducir mecanismos de apertura local en esos módulos
+y comprueba que el extra oficial permanezca declarado.
+
+P1 sólo visualiza PDFs generados por MathMongo. No almacena ni visualiza PDFs
+bibliográficos asociados a Sources, no crea Documents o `source_documents`, no
+introduce anotaciones, subrayados, ReadingNote o ConceptEvidenceLink y no cambia
+el modelo de datos. Esas capacidades pertenecen a S2/S3 y quedan fuera de esta
+fase.

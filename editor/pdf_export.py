@@ -19,7 +19,6 @@ from typing import Optional
 
 import streamlit as st
 
-from editor.pdf_preview import open_local_pdf
 from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import latex_failure_message
 from exporters_latex.latex_compile import latex_warning_message
@@ -1017,12 +1016,12 @@ def _copiar_archivos_estilo(destino: Path) -> None:
         src = templates_dir / fname
         dst = destino / fname
         if not src.exists():
-            print(f"⚠️  Plantilla no encontrada: {src}")
+            print(f"⚠️  Plantilla no encontrada: {fname}")
             continue
         if not dst.exists():
             import shutil
             shutil.copy2(src, dst)
-            print(f"📄 Plantilla {fname} copiada a {destino}")
+            print(f"📄 Plantilla {fname} preparada para la compilación")
 
 
 def _copiar_archivos_notas(destino: Path) -> None:
@@ -1035,77 +1034,38 @@ def _copiar_archivos_notas(destino: Path) -> None:
         src = templates_dir / fname
         dst = destino / fname
         if not src.exists():
-            print(f"⚠️  Plantilla no encontrada: {src}")
+            print(f"⚠️  Plantilla no encontrada: {fname}")
             continue
         shutil.copy2(src, dst)
-        print(f"📄 Plantilla {fname} copiada a {destino}")
+        print(f"📄 Plantilla {fname} preparada para la compilación")
 
 
-def abrir_pdf_en_navegador(pdf_path: str) -> bool:
-    """
-    Open a PDF file in the default browser.
-    
-    Args:
-        pdf_path: Path to the PDF file.
-    
-    Returns:
-        True if successful, False otherwise.
-    """
-    try:
-        return open_local_pdf(pdf_path)
-        
-    except Exception as e:
-        st.error(f"❌ Error opening PDF: {e}")
-        return False
-
-
-def _generar_y_abrir_pdf(generar_pdf_path: Callable[[], str]) -> bool:
+def _generar_pdf_con_interfaz(generar_pdf_path: Callable[[], str]) -> bool:
+    """Generate a PDF for legacy form consumers without opening a browser."""
     try:
         with st.spinner("🔄 Generando PDF..."):
-            pdf_path = generar_pdf_path()
-
-            if abrir_pdf_en_navegador(pdf_path):
-                st.success(f"✅ PDF generado y abierto: {pdf_path}")
-                return True
-
-            render_pdf_export_error(
-                PdfExportError(
-                    "El PDF fue generado, pero no se pudo abrir en el navegador.",
-                    {
-                        "stage": "Abrir o entregar PDF",
-                        "operation": "Abrir PDF en navegador",
-                        "file": pdf_path,
-                        "pdf_path": pdf_path,
-                        "probable_cause": "El navegador o el sistema no aceptó la apertura del archivo.",
-                    },
-                ),
-                main_message="❌ PDF generado, pero no se pudo abrir.",
-            )
-            return False
+            generar_pdf_path()
+        st.success("✅ PDF generado correctamente.")
+        return True
 
     except Exception as e:
         render_pdf_export_error(e)
         return False
 
 
-def generar_y_abrir_pdf_desde_formulario(concept_data: Dict) -> bool:
-    """
-    Generate PDF from form data and open it in browser.
-    
-    Args:
-        concept_data: Dictionary containing concept data from form.
-    
-    Returns:
-        True if successful, False otherwise.
-    """
-    return _generar_y_abrir_pdf(lambda: generar_pdf_concepto(concept_data))
+def generar_pdf_desde_formulario(concept_data: dict) -> str:
+    """Generate a concept PDF from current form data and return its path."""
+    return generar_pdf_concepto(concept_data)
 
 
 def generar_y_abrir_pdf_nota_latex_desde_formulario(
     note_data: Dict,
     template: str = "diario",
 ) -> bool:
-    """Generate and open a diary-note PDF from current Streamlit form values."""
+    """Generate a diary-note PDF without exposing a local path or opening a browser.
+
+    The historical name is retained for compatibility with Cuaderno callers.
+    """
     pdf_note = dict(note_data or {})
     pdf_note["title"] = str(pdf_note.get("title") or "Nota sin título").strip() or "Nota sin título"
 
@@ -1113,7 +1073,7 @@ def generar_y_abrir_pdf_nota_latex_desde_formulario(
         st.warning("⚠️ El contenido LaTeX está vacío. Escribe contenido antes de generar el PDF.")
         return False
 
-    return _generar_y_abrir_pdf(
+    return _generar_pdf_con_interfaz(
         lambda: generar_pdf_nota_latex(
             pdf_note,
             template=template,

@@ -23,7 +23,6 @@ from editor.cornell.models import CornellWatermark
 from editor.cornell.models import build_footer_text
 from editor.cornell.persistence import extract_cornell_document
 from editor.cornell.project_export import export_cornell_project
-from editor.cornell.renderer import cornell_latex_full_log
 from editor.cornell.renderer import measure_cornell_page_fit
 from editor.cornell.renderer import render_cornell_document
 from editor.cornell.service import add_cornell_region_image
@@ -48,8 +47,12 @@ from editor.cornell.ui_helpers import normalize_tags
 from editor.cornell.ui_helpers import note_page_count
 from editor.cornell.ui_helpers import project_selector_choices
 from editor.cornell.ui_helpers import resolve_project_choice
-from editor.pdf_preview import open_local_pdf
+from editor.pdf_preview import PdfPreviewError
+from editor.pdf_preview import clear_pdf_preview
+from editor.pdf_preview import generate_pdf_preview
+from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import prepare_stable_preview
+from editor.pdf_preview import render_pdf_preview
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_path_exists
 from editor.utils.media_assets import resolve_media_asset_path
@@ -95,6 +98,7 @@ FOOTER_MODE_LABELS = {
     "auto": "Automático",
     "custom": "Personalizado",
 }
+PDF_PREVIEW_NAMESPACE = "cornell"
 
 
 def _new_page_id(existing_ids: set[str] | None = None) -> str:
@@ -394,6 +398,9 @@ def apply_loaded_note_state(
     state[SESSION_DOCUMENT] = normalized_document
     state[SESSION_PAGE_INDEX] = 0
     state[SESSION_DIRTY] = False
+    state.pop(SESSION_FIT_DIAGNOSTICS, None)
+    state.pop(SESSION_SPLIT_PROPOSAL, None)
+    clear_pdf_preview(state, PDF_PREVIEW_NAMESPACE)
 
     pages = normalized_document.ordered_pages()
     first_page = pages[0] if pages else make_blank_page()
@@ -1453,42 +1460,62 @@ def _render_overflow_split_controls(
 def _preview_pdf(db: Any) -> None:
     import streamlit as st
 
+    clear_pdf_preview(st.session_state, PDF_PREVIEW_NAMESPACE)
     document = _document_from_inputs()
     output_dir = RUNTIME_DIR / "cornell_preview"
-    try:
+    result_holder: dict[str, Any] = {}
+
+    def generate() -> Path:
         preview_path = prepare_stable_preview(
             output_dir,
             "cornell_preview.pdf",
             allowed_root=RUNTIME_DIR,
         )
-    except (OSError, ValueError) as exc:
-        st.error(f"No se pudo preparar la vista previa PDF: {exc}")
-        return
-    output_name = preview_path.stem
-    result = render_cornell_document(document, output_dir, str(output_name), db=db)
-    st.session_state[SESSION_FIT_DIAGNOSTICS] = result.diagnostics
-    _render_fit_report(result.diagnostics)
-    if not result.success:
-        st.error(result.message or "No se pudo generar el PDF.")
-        with st.expander("Ver log completo", expanded=False):
-            st.code(cornell_latex_full_log(result), language="text")
-        return
-    if not Path(result.pdf_path).is_file():
-        st.error("La compilación terminó sin producir el PDF esperado.")
-        return
-    if open_local_pdf(result.pdf_path):
-        st.success(f"PDF generado. Se solicitó su apertura en una nueva pestaña: {result.pdf_path}")
-    else:
-        st.warning(f"PDF generado, pero el navegador no confirmó la solicitud de apertura: {result.pdf_path}")
+        result = render_cornell_document(document, output_dir, preview_path.stem, db=db)
+        result_holder["result"] = result
+        st.session_state[SESSION_FIT_DIAGNOSTICS] = result.diagnostics
+        if not result.success:
+            raise PdfPreviewError(
+                "latex_failed",
+                "No se pudo generar el PDF. Revisa el contenido LaTeX y vuelve a intentarlo.",
+            )
+        return result.pdf_path
+
     try:
-        st.download_button(
-            "Descargar PDF",
-            data=Path(result.pdf_path).read_bytes(),
-            file_name=Path(result.pdf_path).name,
-            mime="application/pdf",
+        generate_pdf_preview(
+            st.session_state,
+            PDF_PREVIEW_NAMESPACE,
+            generator=generate,
+            allowed_root=RUNTIME_DIR,
+            file_name="cornell_preview.pdf",
+            context_identity=_current_pdf_preview_context(db),
         )
-    except OSError as exc:
-        st.warning(f"PDF generado, pero no se pudo preparar la descarga: {exc}")
+    except PdfPreviewError as exc:
+        result = result_holder.get("result")
+        if result is not None:
+            _render_fit_report(result.diagnostics)
+        st.error(str(exc))
+        return
+    except (OSError, ValueError):
+        st.error("No se pudo preparar la ubicación controlada de la vista previa PDF.")
+        return
+    except Exception:
+        st.error("No se pudo generar la vista previa PDF por un error inesperado.")
+        return
+
+    result = result_holder["result"]
+    _render_fit_report(result.diagnostics)
+    st.success("PDF generado y disponible en la vista previa.")
+
+
+def _current_pdf_preview_context(db: Any) -> str:
+    import streamlit as st
+
+    database_name = getattr(db, "name", None)
+    if not database_name:
+        database_name = getattr(getattr(db, "db", None), "name", "")
+    note_id = st.session_state.get(SESSION_NOTE_ID) or "new"
+    return pdf_preview_context(PDF_PREVIEW_NAMESPACE, database_name, note_id)
 
 
 def _export_editable_project(db: Any) -> None:
@@ -1559,6 +1586,14 @@ def _render_current_note_editor(db: Any) -> None:
     with col_export:
         if st.button("Exportar proyecto LaTeX editable", width="stretch"):
             _export_editable_project(db)
+
+    render_pdf_preview(
+        st,
+        st.session_state,
+        PDF_PREVIEW_NAMESPACE,
+        context_identity=_current_pdf_preview_context(db),
+        height=800,
+    )
 
     diagnostics = st.session_state.get(SESSION_FIT_DIAGNOSTICS)
     if isinstance(diagnostics, dict):
