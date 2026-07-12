@@ -5,6 +5,16 @@ from __future__ import annotations
 import os
 from pathlib import Path
 
+from mathmongo.paths import get_backups_dir
+from mathmongo.paths import get_data_dir
+from mathmongo.paths import get_exports_dir
+from mathmongo.paths import get_graph_runtime_dir
+from mathmongo.paths import get_legacy_project_root
+from mathmongo.paths import get_logs_dir
+from mathmongo.paths import get_media_dir
+from mathmongo.paths import get_resource_root
+from mathmongo.paths import get_runtime_dir
+
 
 def _timeout_from_env(name: str, default: int) -> int:
     raw_value = os.getenv(name)
@@ -26,40 +36,31 @@ IMPORT_TIMEOUT_SECONDS = _timeout_from_env("IMPORT_TIMEOUT_SECONDS", 300)
 LATEX_LINTER_TIMEOUT_SECONDS = _timeout_from_env("LATEX_LINTER_TIMEOUT_SECONDS", 60)
 MAX_IMAGE_UPLOAD_BYTES = _timeout_from_env("MAX_IMAGE_UPLOAD_BYTES", 10 * 1024 * 1024)
 
-PROJECT_ROOT = Path(__file__).resolve().parent
-RUNTIME_DIR = PROJECT_ROOT / "runtime"
-GRAPH_RUNTIME_DIR = RUNTIME_DIR / "knowledge_graphs"
-GRAPH_EXPORT_DIR = PROJECT_ROOT / "exports" / "knowledge_graphs"
-CLEANUP_BACKUP_DIR = RUNTIME_DIR / "cleanup_backups"
-CLEANUP_LOG_DIR = RUNTIME_DIR / "logs"
+PROJECT_ROOT = get_resource_root()
+LEGACY_PROJECT_ROOT = get_legacy_project_root()
+DATA_DIR = get_data_dir()
+RUNTIME_DIR = get_runtime_dir()
+GRAPH_RUNTIME_DIR = get_graph_runtime_dir()
+GRAPH_EXPORT_DIR = get_exports_dir() / "knowledge_graphs"
+CLEANUP_BACKUP_DIR = get_backups_dir() / "cleanup"
+CLEANUP_LOG_DIR = get_logs_dir()
 CLEANUP_LOG_FILE = CLEANUP_LOG_DIR / "cleanup_exports.log"
 MEDIA_ROOT = Path(os.getenv("MATHKB_MEDIA_ROOT", "media"))
 MEDIA_IMAGES_DIR = MEDIA_ROOT / "images"
+LOCAL_MEDIA_ROOT = get_media_dir()
+LOCAL_MEDIA_IMAGES_DIR = LOCAL_MEDIA_ROOT / "images"
 MEDIA_ASSETS_COLLECTION = "media_assets"
 ALLOWED_IMAGE_EXTENSIONS = (".png", ".jpg", ".jpeg", ".svg", ".pdf")
 
 EXPORT_CLEANUP_DIRS = (
-    PROJECT_ROOT / "exportados",
-    PROJECT_ROOT / "exported",
-    PROJECT_ROOT / "exported_notes",
-    Path.home() / "math_knowledge_pdfs",
+    get_exports_dir(),
+    get_data_dir() / "projects",
 )
 GRAPH_CLEANUP_DIRS = (
     GRAPH_RUNTIME_DIR,
     GRAPH_EXPORT_DIR,
 )
-ALLOWED_CLEANUP_DIRS = tuple(
-    path.resolve() for path in EXPORT_CLEANUP_DIRS + GRAPH_CLEANUP_DIRS
-)
-
-for _generated_dir in (
-    RUNTIME_DIR,
-    GRAPH_RUNTIME_DIR,
-    GRAPH_EXPORT_DIR,
-    CLEANUP_BACKUP_DIR,
-    CLEANUP_LOG_DIR,
-):
-    _generated_dir.mkdir(parents=True, exist_ok=True)
+ALLOWED_CLEANUP_DIRS = EXPORT_CLEANUP_DIRS + GRAPH_CLEANUP_DIRS
 
 CORE_COLLECTIONS = (
     "concepts",

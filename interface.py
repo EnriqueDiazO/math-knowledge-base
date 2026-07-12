@@ -1,8 +1,9 @@
 import tempfile
 import subprocess
-import os
+import re
 from pathlib import Path
 import yaml
+from mathmongo.paths import get_latex_runtime_dir, get_projects_dir, validate_mutable_path
 from schemas.schemas import (
     ConceptoBase, TipoTitulo, TipoReferencia, TipoPresentacion, NivelContexto,
     GradoFormalidad, NivelSimbolico, TipoAplicacion
@@ -22,14 +23,23 @@ def seleccionar_enum(enum_cls):
         print("⚠️ Selección inválida. Intente de nuevo.")
 
 def abrir_editor_vscode(texto_inicial=""):
-    with tempfile.NamedTemporaryFile(suffix=".tex", mode="w+", delete=False) as tmp:
-        tmp.write(texto_inicial)
-        tmp.flush()
-        subprocess.run(["code", "--wait", tmp.name])
-        tmp.seek(0)
-        contenido = tmp.read()
-    os.unlink(tmp.name)
-    return contenido.strip()
+    runtime = validate_mutable_path(get_latex_runtime_dir() / "vscode")
+    runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+    tmp_name = ""
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=".tex", mode="w+", delete=False, dir=runtime
+        ) as tmp:
+            tmp_name = tmp.name
+            tmp.write(texto_inicial)
+            tmp.flush()
+            subprocess.run(["code", "--wait", tmp.name], check=False)
+            tmp.seek(0)
+            contenido = tmp.read()
+        return contenido.strip()
+    finally:
+        if tmp_name:
+            Path(tmp_name).unlink(missing_ok=True)
 
 def capturar_booleano(msg, default=False):
     resp = input(f"{msg} [{'Y/n' if default else 'y/N'}]: ").strip().lower()
@@ -114,9 +124,11 @@ def main():
 
     concepto = ConceptoBase(**data)
 
-    carpeta = Path(f"data/{concepto.source}")
-    carpeta.mkdir(parents=True, exist_ok=True)
-    ruta = carpeta / f"{concepto.id.replace(':', '_')}.md"
+    safe_source = re.sub(r"[^A-Za-z0-9._-]+", "_", concepto.source).strip("._") or "source"
+    safe_id = re.sub(r"[^A-Za-z0-9._-]+", "_", concepto.id).strip("._") or "concept"
+    carpeta = validate_mutable_path(get_projects_dir() / "concept_sources" / safe_source)
+    carpeta.mkdir(parents=True, exist_ok=True, mode=0o700)
+    ruta = carpeta / f"{safe_id}.md"
 
     # Usar mode="json" para asegurar que enums y fechas se exporten como texto plano
     concepto_dict = concepto.model_dump(mode="json", exclude={"contenido_latex"}, exclude_none=True)

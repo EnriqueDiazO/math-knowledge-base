@@ -9,10 +9,15 @@ import sys
 from collections.abc import Callable
 from pathlib import Path
 
+from mathmongo.config import DEFAULT_MONGO_URI
+from mathmongo.config import redact_mongo_uri
+from mathmongo.paths import get_logs_dir
+from mathmongo.paths import validate_mutable_path
+
 DEFAULT_ADDRESS = "localhost"
 DEFAULT_PORT = 8501
 LOOPBACK_ADDRESSES = frozenset({"localhost", "127.0.0.1", "::1"})
-MONGODB_URI = "mongodb://localhost:27017"
+MONGODB_URI = DEFAULT_MONGO_URI
 
 
 class LaunchError(RuntimeError):
@@ -118,6 +123,7 @@ def launch_mathmongo(
     port_check: Callable[[str, int], bool] = port_available,
     app_resolver: Callable[[], Path] = resolve_streamlit_app,
     executable: str | None = None,
+    desktop_launch: bool = False,
 ) -> int:
     """Validate prerequisites, run Streamlit, and return a useful exit code."""
     address = validate_address(address)
@@ -128,7 +134,7 @@ def launch_mathmongo(
         )
     if not mongodb_check(mongodb_uri):
         raise LaunchError(
-            "MongoDB no está disponible en mongodb://localhost:27017. "
+            f"MongoDB no está disponible en {redact_mongo_uri(mongodb_uri)}. "
             "Inicia el servicio local antes de ejecutar MathMongo."
         )
     if not port_check(address, port):
@@ -143,9 +149,27 @@ def launch_mathmongo(
         executable=executable,
     )
     try:
-        result = runner(command, check=False)
+        if desktop_launch:
+            logs_dir = validate_mutable_path(get_logs_dir())
+            log_path = validate_mutable_path(
+                logs_dir / "streamlit.log",
+                allowed_root=logs_dir,
+            )
+            rotated_log = validate_mutable_path(
+                logs_dir / "streamlit.log.1",
+                allowed_root=logs_dir,
+            )
+            logs_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            logs_dir.chmod(0o700)
+            if log_path.exists() and log_path.stat().st_size > 1_000_000:
+                log_path.replace(rotated_log)
+            with log_path.open("a", encoding="utf-8") as log_file:
+                log_path.chmod(0o600)
+                result = runner(command, check=False, stdout=log_file, stderr=subprocess.STDOUT)
+        else:
+            result = runner(command, check=False)
     except KeyboardInterrupt:
         return 130
-    except OSError as exc:
+    except (OSError, ValueError) as exc:
         raise LaunchError(f"No se pudo ejecutar Streamlit: {exc}") from exc
     return int(result.returncode)

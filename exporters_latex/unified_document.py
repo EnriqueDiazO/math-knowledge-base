@@ -17,6 +17,11 @@ from exporters_latex.latex_compile import run_latex_until_stable
 from editor.utils.media_assets import copy_media_tree_for_latex
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
+from mathmongo.config import resolve_config
+from mathmongo.paths import find_symlink_component
+from mathmongo.paths import get_exports_dir
+from mathmongo.paths import resolve_home_path
+from mathmongo.paths import validate_mutable_path
 
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -97,10 +102,14 @@ def latex_escape_text(value: Any) -> str:
 
 def copy_latex_styles(destino: Path, templates_dir: Path = DEFAULT_TEMPLATES_DIR) -> list[str]:
     warnings: list[str] = []
+    destino = validate_mutable_path(destino)
+    template_symlink = find_symlink_component(templates_dir)
+    if template_symlink is not None:
+        raise ValueError(f"LaTeX templates must not traverse symbolic links: {template_symlink}")
     destino.mkdir(parents=True, exist_ok=True)
     for src in templates_dir.iterdir():
-        if src.is_file() and src.suffix in {".sty", ".cls"}:
-            dst = destino / src.name
+        if not src.is_symlink() and src.is_file() and src.suffix in {".sty", ".cls"}:
+            dst = validate_mutable_path(destino / src.name, allowed_root=destino)
             shutil.copy2(src, dst)
 
     for required in ("miestilo.sty", "coloredtheorem.sty"):
@@ -280,7 +289,7 @@ def detect_probable_error_file(log_tail: str) -> str | None:
 def export_unified_document_with_inputs(
     source: str,
     concepts: list[dict],
-    output_dir: str | Path = "./exported",
+    output_dir: str | Path | None = None,
     title: str | None = None,
     agrupar_por_tipo: bool = False,
     respetar_orden_manual: bool = True,
@@ -288,6 +297,13 @@ def export_unified_document_with_inputs(
     overwrite: bool = False,
     templates_dir: str | Path = DEFAULT_TEMPLATES_DIR,
 ) -> UnifiedExportResult:
+    if output_dir is None:
+        output_dir = get_exports_dir(
+            configured=resolve_config().export_directory
+        ) / "documents"
+    else:
+        output_dir = resolve_home_path(output_dir)
+    output_dir = validate_mutable_path(output_dir)
     warnings: list[str] = []
     errors: list[str] = []
     if not concepts:

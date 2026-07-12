@@ -4,8 +4,8 @@ PDF Export Module for Math Knowledge Base
 Generates PDF files from mathematical concepts using LaTeX compilation.
 """
 
-import os
 import hashlib
+import os
 import re
 import shutil
 import tempfile
@@ -14,27 +14,31 @@ import unicodedata
 from collections.abc import Callable
 from dataclasses import asdict
 from pathlib import Path
-from typing import Dict, Optional
+from typing import Dict
+from typing import Optional
+
 import streamlit as st
 
+from editor.pdf_preview import open_local_pdf
+from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import latex_failure_message
 from exporters_latex.latex_compile import latex_warning_message
 from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.latex_validation import run_chktex_analysis
-from editor.utils.media_assets import copy_media_tree_for_latex
-from editor.pdf_preview import open_local_pdf
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
+from mathmongo.config import resolve_config
+from mathmongo.paths import get_exports_dir
+from mathmongo.paths import get_latex_runtime_dir
+from mathmongo.paths import resolve_home_path
+from mathmongo.paths import validate_mutable_path
 
 # Valores constantes
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 
-EXPORTED_NOTES_DIR = PROJECT_ROOT / "exported_notes"
-EXPORTED_NOTES_BUILD_DIR = EXPORTED_NOTES_DIR / "_build"
+EXPORTED_NOTES_DIR = get_exports_dir(configured=resolve_config().export_directory) / "notes"
+EXPORTED_NOTES_BUILD_DIR = get_latex_runtime_dir() / "note_analysis"
 TEMPLATES_LATEX_DIR = PROJECT_ROOT / "templates_latex"
-
-EXPORTED_NOTES_DIR.mkdir(parents=True, exist_ok=True)
-EXPORTED_NOTES_BUILD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 class PdfExportError(RuntimeError):
@@ -423,7 +427,9 @@ def _safe_concept_id_part(value: object, fallback: str = "concept") -> str:
 
 
 def _copy_pdf_to_final_path(pdf_file: Path, final_pdf: Path) -> None:
-    final_pdf.parent.mkdir(parents=True, exist_ok=True)
+    final_parent = validate_mutable_path(final_pdf.parent)
+    final_parent.mkdir(parents=True, exist_ok=True)
+    final_pdf = validate_mutable_path(final_pdf, allowed_root=final_parent)
     shutil.copy2(pdf_file, final_pdf)
     os.chmod(final_pdf, 0o644)
 
@@ -437,7 +443,12 @@ def _generar_pdf_desde_latex_temporal(
     include_note_styles: bool = False,
     source_map: Optional[dict] = None,
 ) -> dict:
-    temp_path = Path(tempfile.mkdtemp(prefix=temp_prefix))
+    runtime_dir = validate_mutable_path(get_latex_runtime_dir())
+    runtime_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    temp_path = validate_mutable_path(
+        Path(tempfile.mkdtemp(prefix=temp_prefix, dir=runtime_dir)),
+        allowed_root=runtime_dir,
+    )
     cleanup_temp = False
     try:
         try:
@@ -454,7 +465,10 @@ def _generar_pdf_desde_latex_temporal(
                 temp_dir=str(temp_path),
             )
 
-        tex_file = temp_path / f"{safe_id}.tex"
+        tex_file = validate_mutable_path(
+            temp_path / f"{safe_id}.tex",
+            allowed_root=temp_path,
+        )
         try:
             tex_file.write_text(latex_content, encoding="utf-8")
         except Exception as exc:
@@ -606,12 +620,13 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
         )
 
     if output_path is None:
-        pdf_dir = Path(os.path.expanduser("~/math_knowledge_pdfs"))
-        pdf_dir.mkdir(exist_ok=True)
-        os.chmod(pdf_dir, 0o755)
+        settings = resolve_config()
+        pdf_dir = get_exports_dir(configured=settings.export_directory) / "concepts"
+        pdf_dir = validate_mutable_path(pdf_dir)
+        pdf_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         final_pdf = pdf_dir / f"{safe_id}_{concepto['tipo']}.pdf"
     else:
-        final_pdf = Path(output_path)
+        final_pdf = validate_mutable_path(resolve_home_path(output_path))
 
     compile_info = _generar_pdf_desde_latex_temporal(
         latex_content=latex_content,
@@ -847,9 +862,9 @@ def generar_pdf_nota_latex_result(
         )
 
     if output_path is None:
-        pdf_dir = EXPORTED_NOTES_DIR
-        pdf_dir.mkdir(parents=True, exist_ok=True)
-        os.chmod(pdf_dir, 0o755)
+        pdf_dir = validate_mutable_path(EXPORTED_NOTES_DIR)
+        pdf_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        os.chmod(pdf_dir, 0o700)
 
         date_prefix = str(nota.get("date") or "").replace("-", "")
         title = _safe_filename_part(nota.get("title"), "nota")
@@ -859,7 +874,7 @@ def generar_pdf_nota_latex_result(
         else:
             final_pdf = pdf_dir / f"{title}_{safe_id}_{suffix}.pdf"
     else:
-        final_pdf = Path(output_path)
+        final_pdf = validate_mutable_path(resolve_home_path(output_path))
 
     return _generar_pdf_desde_latex_temporal(
         latex_content=latex_content,
@@ -888,8 +903,16 @@ def analizar_tex_nota_latex_con_chktex(nota: Dict, template: str = "diario") -> 
     raw_id = str(nota.get("_id") or nota.get("id") or "latex_note")
     digest = hashlib.sha256(latex_content.encode("utf-8")).hexdigest()[:12]
     safe_id = _safe_filename_part(f"{raw_id}_{digest}_chktex", "latex_note_chktex")
-    EXPORTED_NOTES_BUILD_DIR.mkdir(parents=True, exist_ok=True)
-    tex_file = EXPORTED_NOTES_BUILD_DIR / f"{safe_id}.tex"
+    runtime_dir = validate_mutable_path(get_latex_runtime_dir())
+    build_dir = validate_mutable_path(
+        EXPORTED_NOTES_BUILD_DIR,
+        allowed_root=runtime_dir,
+    )
+    build_dir.mkdir(parents=True, exist_ok=True)
+    tex_file = validate_mutable_path(
+        build_dir / f"{safe_id}.tex",
+        allowed_root=build_dir,
+    )
     tex_file.write_text(latex_content, encoding="utf-8")
     return asdict(
         run_chktex_analysis(

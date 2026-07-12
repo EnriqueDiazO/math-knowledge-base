@@ -138,3 +138,49 @@ def test_missing_application_has_clear_error(monkeypatch) -> None:
 def test_launcher_source_never_uses_shell_true() -> None:
     source = (Path(__file__).resolve().parents[1] / "mathmongo" / "launcher.py").read_text()
     assert "shell=True" not in source
+
+
+def test_desktop_launch_writes_private_xdg_log(tmp_path: Path, monkeypatch) -> None:
+    logs = tmp_path / "state/logs"
+    calls = []
+
+    def runner(command, *, check, stdout, stderr):
+        calls.append(command)
+        stdout.write("streamlit output\n")
+        return subprocess.CompletedProcess(command, 0)
+
+    monkeypatch.setattr("mathmongo.launcher.get_logs_dir", lambda: logs)
+    result = launch_mathmongo(
+        runner=runner,
+        dependency_check=lambda: True,
+        mongodb_check=lambda uri: True,
+        port_check=lambda address, port: True,
+        app_resolver=lambda: tmp_path / "editor_streamlit.py",
+        desktop_launch=True,
+    )
+    log = logs / "streamlit.log"
+    assert result == 0
+    assert calls
+    assert log.read_text() == "streamlit output\n"
+    assert log.stat().st_mode & 0o777 == 0o600
+
+
+def test_desktop_launch_rejects_a_streamlit_log_symlink(tmp_path: Path, monkeypatch) -> None:
+    logs = tmp_path / "state/logs"
+    logs.mkdir(parents=True)
+    outside = tmp_path / "outside.log"
+    outside.write_text("keep\n", encoding="utf-8")
+    (logs / "streamlit.log").symlink_to(outside)
+    monkeypatch.setattr("mathmongo.launcher.get_logs_dir", lambda: logs)
+
+    with pytest.raises(LaunchError, match="Symbolic links"):
+        launch_mathmongo(
+            runner=lambda *args, **kwargs: pytest.fail("runner must not be called"),
+            dependency_check=lambda: True,
+            mongodb_check=lambda uri: True,
+            port_check=lambda address, port: True,
+            app_resolver=lambda: tmp_path / "editor_streamlit.py",
+            desktop_launch=True,
+        )
+
+    assert outside.read_text(encoding="utf-8") == "keep\n"

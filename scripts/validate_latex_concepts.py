@@ -15,15 +15,18 @@ from exporters_latex.latex_validation import validate_concept_from_mongo  # noqa
 from exporters_latex.latex_validation import validate_source_from_mongo  # noqa: E402
 from exporters_latex.latex_validation import write_json_report  # noqa: E402
 from exporters_latex.latex_validation import write_markdown_report  # noqa: E402
+from mathmongo.config import resolve_config  # noqa: E402
+from mathmongo.paths import resolve_home_path  # noqa: E402
 
 
 def parse_args() -> argparse.Namespace:
     """Parse command-line options."""
+    settings = resolve_config()
     parser = argparse.ArgumentParser(description="Validate LaTeX concepts from MongoDB.")
     parser.add_argument("--source", required=True, help="Concept source to validate.")
     parser.add_argument("--concept-id", help="Validate a single concept id.")
-    parser.add_argument("--mongo-uri", default="mongodb://localhost:27017")
-    parser.add_argument("--db-name", default="mathmongo")
+    parser.add_argument("--mongo-uri", default=settings.mongo_uri)
+    parser.add_argument("--db-name", default=settings.mongo_database)
     parser.add_argument("--json-output", help="Write JSON report to this path.")
     parser.add_argument("--markdown-output", help="Write Markdown report to this path.")
     parser.add_argument(
@@ -87,9 +90,9 @@ def main() -> int:
 
     json_path, md_path = default_report_paths(args.source)
     if args.json_output:
-        json_path = Path(args.json_output)
+        json_path = resolve_home_path(args.json_output)
     if args.markdown_output:
-        md_path = Path(args.markdown_output)
+        md_path = resolve_home_path(args.markdown_output)
 
     if args.json_output:
         print(f"JSON report: {write_json_report(report, json_path)}")

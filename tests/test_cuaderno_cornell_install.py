@@ -211,9 +211,10 @@ def test_latex_notes_validator_is_legacy_cornell_and_cpi_compatible() -> None:
 
 
 def test_cornell_install_status_reports_validator_and_indexes(monkeypatch, tmp_path, capsys) -> None:
-    monkeypatch.setattr(installer, "PROJECT_ROOT", tmp_path)
     monkeypatch.setattr(installer, "MEDIA_ROOT", Path("media"))
     monkeypatch.setattr(installer, "MEDIA_IMAGES_DIR", Path("media/images"))
+    monkeypatch.setattr(installer, "LOCAL_MEDIA_ROOT", tmp_path / "xdg-data/media")
+    monkeypatch.setattr(installer, "LOCAL_MEDIA_IMAGES_DIR", tmp_path / "xdg-data/media/images")
     db = FakeDB()
 
     assert installer.install(db) == 0
@@ -227,3 +228,21 @@ def test_cornell_install_status_reports_validator_and_indexes(monkeypatch, tmp_p
     assert installer._latex_notes_validator_supports_cornell(db)
     assert installer._latex_notes_validator_supports_cpi(db)
     assert installer._latex_notes_has_cornell_indexes(db)
+
+
+def test_installer_redacts_known_mongo_uri_from_connection_error(monkeypatch, capsys) -> None:
+    uri = "mongodb://alice:secret@db.example:27018/math"
+
+    def fail_client(configured_uri: str):
+        raise RuntimeError(
+            f"Connection failed for {configured_uri}; user=alice password=secret"
+        )
+
+    monkeypatch.setattr(installer, "_get_client", fail_client)
+
+    assert installer.main(["--status", "--mongo-uri", uri]) == 2
+    output = capsys.readouterr().out
+    assert uri not in output
+    assert "alice" not in output
+    assert "secret" not in output
+    assert "mongodb://db.example:27018/math" in output

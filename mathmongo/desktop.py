@@ -41,8 +41,15 @@ def xdg_paths(environment: Mapping[str, str]) -> dict[str, Path]:
     home_value = environment.get("HOME")
     if not home_value:
         raise DesktopInstallError("HOME no está definido.")
-    home = Path(home_value).expanduser()
-    data_home = Path(environment.get("XDG_DATA_HOME") or home / ".local" / "share")
+    home = Path(home_value)
+    if not home.is_absolute():
+        raise DesktopInstallError("HOME debe ser una ruta absoluta.")
+    configured_data_home = Path(environment.get("XDG_DATA_HOME") or "")
+    data_home = (
+        configured_data_home
+        if configured_data_home.is_absolute()
+        else home / ".local" / "share"
+    )
     return {
         "data_home": data_home,
         "applications": data_home / "applications",
@@ -64,8 +71,8 @@ def desktop_directory(environment: Mapping[str, str]) -> Path:
             [command, "DESKTOP"], capture_output=True, text=True, check=False, env=dict(environment)
         )
         candidate = result.stdout.strip()
-        if result.returncode == 0 and candidate:
-            return Path(candidate).expanduser()
+        if result.returncode == 0 and candidate and Path(candidate).is_absolute():
+            return Path(candidate)
     return paths["home"] / "Desktop"
 
 
@@ -83,7 +90,10 @@ def resolve_executable(
         raise DesktopInstallError(
             "No se encontró el ejecutable mathmongo. Usa --executable o MATHMONGO_EXECUTABLE."
         )
-    path = Path(candidate).expanduser().resolve()
+    path = Path(candidate)
+    if not path.is_absolute():
+        raise DesktopInstallError(f"El ejecutable debe usar una ruta absoluta: {path}")
+    path = path.resolve()
     if not path.is_file():
         raise DesktopInstallError(f"El ejecutable no existe o no es un archivo: {path}")
     if not os.access(path, os.X_OK):
@@ -112,7 +122,7 @@ def desktop_file_content(executable: Path) -> str:
             "Name=MathMongo",
             "GenericName=Math Knowledge Base",
             "Comment=Mathematical knowledge base with MongoDB, LaTeX and Streamlit",
-            f"Exec={quoted} run",
+            f"Exec={quoted} run --desktop-launch",
             "Icon=mathmongo",
             "Terminal=false",
             "StartupNotify=true",
@@ -152,7 +162,7 @@ def install_desktop_launcher(
     print(f"Icono PNG: {paths['png_icon']}")
     print(f"Lanzador: {paths['desktop_file']}")
     print(f"Escritorio: {desktop}")
-    print(f"Exec={quote_exec_path(command)} run")
+    print(f"Exec={quote_exec_path(command)} run --desktop-launch")
     if dry_run:
         print("Dry-run: no se escribieron archivos.")
         return targets

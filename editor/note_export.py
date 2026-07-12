@@ -233,6 +233,7 @@ def export_note_project(
     note: dict[str, Any],
     output_root: str | Path,
     *,
+    allowed_root: str | Path | None = None,
     db: Any | None = None,
     assets_by_id: dict[str, dict[str, Any]] | None = None,
 ) -> NoteProjectExport:
@@ -243,6 +244,7 @@ def export_note_project(
             extract_cornell_document(note),
             note,
             output_root,
+            allowed_root=allowed_root,
             db=db,
             assets_by_id=assets_by_id,
         )
@@ -251,6 +253,7 @@ def export_note_project(
             extract_cpi_document(note),
             note,
             output_root,
+            allowed_root=allowed_root,
             db=db,
             assets_by_id=assets_by_id,
         )

@@ -13,18 +13,29 @@ if str(PROJECT_ROOT) not in sys.path:
 
 def main() -> None:
     """Export requested concept IDs from MongoDB to Quarto files."""
+    from mathmongo.config import resolve_config
+    from mathmongo.paths import get_exports_dir
+    from mathmongo.paths import resolve_home_path
+
+    settings = resolve_config()
     p = argparse.ArgumentParser()
-    p.add_argument("--mongo-uri", default="mongodb://localhost:27017")
-    p.add_argument("--db", default="mathmongo")
+    p.add_argument("--mongo-uri", default=settings.mongo_uri)
+    p.add_argument("--db", default=settings.mongo_database)
     p.add_argument("--template", default="quarto_book")
-    p.add_argument("--build", default="quarto_book_build")
+    p.add_argument("--build", help="Build directory; relative paths are resolved against HOME")
     p.add_argument("--ids", nargs="+", required=True, help="IDs de conceptos a exportar")
     p.add_argument("--force", action="store_true")
     args = p.parse_args()
 
     root = PROJECT_ROOT
-    template_dir = (root / args.template).resolve()
-    build_dir = (root / args.build).resolve()
+    template_argument = Path(args.template).expanduser()
+    template_dir = template_argument if template_argument.is_absolute() else root / template_argument
+    if args.build:
+        build_dir = resolve_home_path(args.build)
+        allowed_root = build_dir.parent
+    else:
+        allowed_root = get_exports_dir(configured=settings.export_directory)
+        build_dir = allowed_root / "quarto"
 
     from exporters_quarto.quarto_exporter import QuartoBookExporter
     from mathdatabase.mathmongo import MathMongo
@@ -36,7 +47,11 @@ def main() -> None:
     if not concepts:
         raise SystemExit("No se encontraron conceptos con esos IDs.")
 
-    exporter = QuartoBookExporter(template_dir=template_dir, build_dir=build_dir)
+    exporter = QuartoBookExporter(
+        template_dir=template_dir,
+        build_dir=build_dir,
+        allowed_root=allowed_root,
+    )
     exporter.prepare_build(force=args.force)
     res = exporter.export_concepts(concepts)
 

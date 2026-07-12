@@ -1,21 +1,26 @@
+from __future__ import annotations
+
 import json
 import logging
 import time
 import zipfile
+from datetime import datetime
 from pathlib import Path
 from typing import Dict
-from datetime import datetime
+from typing import TYPE_CHECKING
 
 from bson import ObjectId
 from bson.errors import InvalidId
 
-from mathdatabase.mathmongo import MathMongo
+from mathkb_config import DATA_DIR
 from mathkb_config import IMPORT_COLLECTIONS
 from mathkb_config import IMPORT_TIMEOUT_SECONDS
 from mathkb_config import MEDIA_ASSETS_COLLECTION
 from mathkb_config import MEDIA_ROOT
-from mathkb_config import PROJECT_ROOT
+from mathmongo.paths import validate_mutable_path
 
+if TYPE_CHECKING:
+    from mathdatabase.mathmongo import MathMongo
 
 logger = logging.getLogger(__name__)
 
@@ -312,11 +317,16 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> None:
                     continue
                 _raise_if_timed_out(started_at, IMPORT_TIMEOUT_SECONDS, f"restoring {rel_path}")
                 data = zf.read(name)
-                destination = PROJECT_ROOT / rel_path
-                destination.parent.mkdir(parents=True, exist_ok=True)
+                destination = validate_mutable_path(
+                    DATA_DIR / rel_path,
+                    allowed_root=DATA_DIR,
+                )
+                destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+                destination.parent.chmod(0o700)
                 if destination.exists() and not _same_bytes(destination, data):
                     destination = _unique_import_destination(destination)
-                    path_remap[rel_path.as_posix()] = destination.relative_to(PROJECT_ROOT).as_posix()
+                    path_remap[rel_path.as_posix()] = destination.relative_to(DATA_DIR).as_posix()
+                destination = validate_mutable_path(destination, allowed_root=DATA_DIR)
                 destination.write_bytes(data)
                 logger.info("Restored media file: %s", destination)
 

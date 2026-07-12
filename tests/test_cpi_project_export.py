@@ -192,6 +192,46 @@ def test_export_project_one_page_structure_and_metadata(tmp_path: Path) -> None:
     assert payload["watermark"]["enabled"] is False
 
 
+def test_export_project_preserves_unrelated_same_name_directory(tmp_path: Path) -> None:
+    output_root = tmp_path / "projects"
+    unrelated = output_root / "Proyecto_ajeno"
+    unrelated.mkdir(parents=True)
+    user_source = unrelated / "user_source.tex"
+    user_source.write_bytes(b"must survive")
+
+    with pytest.raises(FileExistsError, match="Refusing to replace"):
+        export_cpi_project(
+            one_page_document(),
+            metadata("Proyecto ajeno"),
+            output_root,
+            allowed_root=tmp_path,
+        )
+
+    assert user_source.read_bytes() == b"must survive"
+    assert not (unrelated / "metadata.json").exists()
+
+
+def test_export_project_rejects_symlink_escape_from_allowed_root(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    outside = tmp_path / "outside"
+    runtime.mkdir()
+    outside.mkdir()
+    marker = outside / "user_source.tex"
+    marker.write_bytes(b"must survive")
+    (runtime / "cpi").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="Symbolic links"):
+        export_cpi_project(
+            one_page_document(),
+            metadata("Escape"),
+            runtime / "cpi" / "editable_projects",
+            allowed_root=runtime,
+        )
+
+    assert marker.read_bytes() == b"must survive"
+    assert not (outside / "editable_projects").exists()
+
+
 def test_export_project_copies_images_without_mixing_zones(
     tmp_path: Path,
     monkeypatch: pytest.MonkeyPatch,

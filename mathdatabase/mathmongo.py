@@ -1,12 +1,22 @@
-from pymongo import MongoClient, ASCENDING
-from pymongo.errors import OperationFailure
-from pathlib import Path
-from pydantic import ValidationError
-from schemas.schemas import ConceptoBase, Relation, TipoRelacion, RelationEnriched, Referencia, LineageResult
-from typing import List, Optional
-from parsers.yaml_latex_parser import YamlLatexParser
 from datetime import datetime
+from pathlib import Path
+from typing import List
+from typing import Optional
+
+from pydantic import ValidationError
+from pymongo import ASCENDING
+from pymongo import MongoClient
+from pymongo.errors import OperationFailure
+
 from mathkb_config import MEDIA_ASSETS_COLLECTION
+from mathmongo.config import resolve_config
+from parsers.yaml_latex_parser import YamlLatexParser
+from schemas.schemas import ConceptoBase
+from schemas.schemas import LineageResult
+from schemas.schemas import Referencia
+from schemas.schemas import Relation
+from schemas.schemas import RelationEnriched
+from schemas.schemas import TipoRelacion
 
 
 class MongoIndexInitializationError(RuntimeError):
@@ -46,7 +56,10 @@ def _format_index_spec(spec: dict) -> str:
 
 
 class MathMongo:
-    def __init__(self, mongo_uri="mongodb://localhost:27017", db_name="mathmongo"):
+    def __init__(self, mongo_uri: str | None = None, db_name: str | None = None):
+        settings = resolve_config()
+        mongo_uri = mongo_uri or settings.mongo_uri
+        db_name = db_name or settings.mongo_database
         self.client = MongoClient(mongo_uri)
         self.db = self.client[db_name]
         self.concepts = self.db["concepts"]

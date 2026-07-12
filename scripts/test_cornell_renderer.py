@@ -40,6 +40,7 @@ def main() -> int:
     from editor.cornell.models import CornellDocument
     from editor.cornell.models import build_cornell_math_v1_payload
     from editor.cornell.renderer import render_cornell_document
+    from mathmongo.paths import get_cornell_runtime_dir
 
     document = CornellDocument(
         schema_version=1,
@@ -115,7 +116,7 @@ def main() -> int:
             ),
         ),
     )
-    output_dir = PROJECT_ROOT / "runtime" / "cornell_mvp"
+    output_dir = get_cornell_runtime_dir() / "mvp"
     single_page_document = CornellDocument(
         schema_version=document.schema_version,
         template_id=document.template_id,

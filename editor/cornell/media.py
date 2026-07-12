@@ -12,7 +12,7 @@ from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellRegion
 from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_collection
-from editor.utils.media_assets import relative_media_path
+from editor.utils.media_assets import resolve_media_asset_path
 from editor.utils.media_assets import safe_media_filename
 from mathkb_config import PROJECT_ROOT
 
@@ -100,17 +100,22 @@ def _safe_asset_source_path(
     *,
     allowed_extensions: set[str] | frozenset[str] | None = None,
 ) -> Path:
-    raw_path = relative_media_path(asset.get("path") or "")
+    raw_path = str(asset.get("path") or "")
     source_path = Path(raw_path)
-    if not raw_path or source_path.is_absolute() or ".." in source_path.parts:
+    if not raw_path or (not source_path.is_absolute() and ".." in source_path.parts):
         raise ValueError(f"Cornell image asset has an unsafe path: {raw_path!r}")
     suffix = source_path.suffix.lower()
     safe_extensions = allowed_extensions or CORNELL_LATEX_IMAGE_EXTENSIONS
     if suffix not in safe_extensions:
         allowed = ", ".join(sorted(safe_extensions))
         raise ValueError(f"Cornell image asset extension {suffix!r} is not supported by LaTeX. Allowed: {allowed}.")
-    absolute_path = PROJECT_ROOT / source_path
-    if not absolute_path.exists():
+    absolute_path = resolve_media_asset_path({"path": raw_path})
+    # Compatibility for callers/tests that explicitly provide a historical root.
+    if not absolute_path.is_file():
+        fallback = source_path if source_path.is_absolute() else PROJECT_ROOT / source_path
+        if fallback.is_file():
+            absolute_path = fallback
+    if not absolute_path.is_file():
         raise FileNotFoundError(f"Cornell image asset file does not exist: {raw_path}")
     return absolute_path
 

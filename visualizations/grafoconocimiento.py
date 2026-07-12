@@ -9,6 +9,9 @@ from pathlib import Path
 import networkx as nx
 from pyvis.network import Network
 
+from mathmongo.paths import resolve_home_path
+from mathmongo.paths import validate_mutable_path
+
 
 DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
 
@@ -883,7 +886,7 @@ class GrafoConocimiento:
 
     def exportar_html(
         self,
-        salida: str | Path | None = "grafo_conceptos.html",
+        salida: str | Path | None = None,
         size: int | None = None,
         initial_state: dict | None = None,
     ) -> str:
@@ -3654,7 +3657,7 @@ function downloadGraphStateJson() {
         if "</body>" in html:
             html = html.replace("</body>", overlay + "\n</body>")
         if salida:
-            salida_path = Path(salida)
+            salida_path = validate_mutable_path(resolve_home_path(salida))
             salida_path.parent.mkdir(parents=True, exist_ok=True)
             salida_path.write_text(html, encoding="utf-8")
             if DEBUG_KNOWLEDGE_GRAPH:

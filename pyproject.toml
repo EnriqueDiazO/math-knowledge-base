@@ -14,11 +14,13 @@ packages = [
     { include = "mathdatabase" },
     { include = "parsers" },
     { include = "schemas" },
+    { include = "scripts" },
     { include = "visualizations" }
 ]
 include = [
     { path = "assets/icons/**", format = ["sdist", "wheel"] },
     { path = "mathkb_config.py", format = ["sdist", "wheel"] },
+    { path = "quarto_book/**", format = ["sdist", "wheel"] },
     { path = "scripts/make_desktop_shortcut.sh", format = ["sdist"] },
     { path = "templates_latex/**", format = ["sdist", "wheel"] }
 ]

@@ -3,8 +3,12 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 from pathlib import Path
+
+from exporters_quarto.quarto_exporter import QuartoBookExporter
+from mathmongo.config import resolve_config
+from mathmongo.paths import get_exports_dir
+from mathmongo.paths import resolve_home_path
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -105,23 +109,29 @@ def main() -> None:
     """Generate the Quarto book build directory."""
     p = argparse.ArgumentParser()
     p.add_argument("--template", default="quarto_book", help="Template directory to copy from")
-    p.add_argument("--output", default="quarto_book_build", help="Build directory to generate into")
+    p.add_argument("--output", help="Build directory; relative paths are resolved against HOME")
     p.add_argument("--force", action="store_true", help="Delete output dir if it exists")
     args = p.parse_args()
 
-    template_dir = (ROOT / args.template).resolve()
-    output_dir = (ROOT / args.output).resolve()
+    template_argument = Path(args.template).expanduser()
+    template_dir = template_argument if template_argument.is_absolute() else ROOT / template_argument
+    if args.output:
+        output_dir = resolve_home_path(args.output)
+        allowed_root = output_dir.parent
+    else:
+        allowed_root = get_exports_dir(configured=resolve_config().export_directory)
+        output_dir = allowed_root / "quarto"
 
     if not template_dir.exists():
         raise SystemExit(f"Template dir not found: {template_dir}")
 
-    if output_dir.exists():
-        if not args.force:
-            raise SystemExit(f"Output dir exists: {output_dir} (use --force)")
-        shutil.rmtree(output_dir)
-
-    # Copy template -> output
-    shutil.copytree(template_dir, output_dir)
+    exporter = QuartoBookExporter(
+        template_dir=template_dir,
+        build_dir=output_dir,
+        allowed_root=allowed_root,
+    )
+    exporter.prepare_build(force=args.force)
+    output_dir = exporter.build_dir
 
     # Generate a stub file inside the BUILD (not the template)
     out = output_dir / "chapters" / "generated_stub.qmd"

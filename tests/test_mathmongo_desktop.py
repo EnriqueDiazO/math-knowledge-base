@@ -18,6 +18,7 @@ from mathmongo.desktop import install_desktop_launcher
 from mathmongo.desktop import resolve_executable
 from mathmongo.desktop import source_icon_path
 from mathmongo.desktop import uninstall_desktop_launcher
+from mathmongo.desktop import xdg_paths
 
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 SCRIPT = PROJECT_ROOT / "scripts" / "make_desktop_shortcut.sh"
@@ -67,7 +68,7 @@ def test_install_uses_xdg_and_writes_valid_application_files(tmp_path: Path) -> 
     assert "GenericName=Math Knowledge Base\n" in content
     assert "Icon=mathmongo\n" in content
     assert "Terminal=false\n" in content
-    assert f'Exec="{executable.resolve()}" run' in content
+    assert f'Exec="{executable.resolve()}" run --desktop-launch' in content
     assert "TryExec=" not in content
     exec_line = next(line for line in content.splitlines() if line.startswith("Exec="))
     assert "streamlit" not in exec_line.lower()
@@ -127,6 +128,13 @@ def test_desktop_copy_uses_xdg_user_dir(tmp_path: Path) -> None:
 def test_desktop_directory_falls_back_without_xdg_user_dir(tmp_path: Path) -> None:
     env = environment(tmp_path)
     assert desktop_directory(env) == Path(env["HOME"]) / "Desktop"
+
+
+def test_relative_xdg_data_home_falls_back_without_using_cwd(tmp_path: Path) -> None:
+    env = environment(tmp_path)
+    env["XDG_DATA_HOME"] = "relative-data"
+    paths = xdg_paths(env)
+    assert paths["data_home"] == Path(env["HOME"]) / ".local/share"
 
 
 def test_install_and_uninstall_are_idempotent_and_preserve_other_data(tmp_path: Path) -> None:

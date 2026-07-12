@@ -2,6 +2,11 @@ import hashlib
 import json
 import os
 import re
+from pathlib import Path
+
+from mathmongo.paths import get_data_dir
+from mathmongo.paths import resolve_home_path
+from mathmongo.paths import validate_mutable_path
 
 
 class MarkdownParser:
@@ -10,8 +15,13 @@ class MarkdownParser:
     Admite campos teóricos y de ejemplos con estilo Zettelkasten.
     """
 
-    def __init__(self, carpeta_salida: str = "./plantillas") -> None:
-        self.carpeta_salida = carpeta_salida
+    def __init__(self, carpeta_salida: str | Path | None = None) -> None:
+        destination = (
+            get_data_dir() / "user_templates" / "plantillas"
+            if carpeta_salida is None
+            else resolve_home_path(carpeta_salida)
+        )
+        self.carpeta_salida = str(validate_mutable_path(destination))
 
     def parsear_md(self, md_path: str, guardar: bool = True) -> dict:
         with open(md_path, encoding="utf-8") as f:
@@ -152,7 +162,11 @@ class MarkdownParser:
 
         return obj
 
-    def generar_ejemplo_md(self,nombre_archivo: str, carpeta_destino: str = "./md_files") -> None:
+    def generar_ejemplo_md(
+        self,
+        nombre_archivo: str,
+        carpeta_destino: str | Path | None = None,
+    ) -> None:
         """
         Genera un archivo Markdown de ejemplo con formato predefinido.
 
@@ -160,7 +174,13 @@ class MarkdownParser:
         - nombre_archivo (str): Nombre del archivo Markdown a crear (ej. 'formato_proposicion.md')
         - carpeta_destino (str): Carpeta donde se guardará el archivo
         """
-        os.makedirs(carpeta_destino, exist_ok=True)
+        destination = (
+            get_data_dir() / "user_templates" / "md_files"
+            if carpeta_destino is None
+            else resolve_home_path(carpeta_destino)
+        )
+        destination = validate_mutable_path(destination)
+        os.makedirs(destination, exist_ok=True)
 
         ejemplos = {
         "formato_proposicion.md":"""# Desigualdad del triángulo generalizado
@@ -204,7 +224,10 @@ $$
 """
         }
 
-        ruta_archivo = os.path.join(carpeta_destino, nombre_archivo)
+        safe_name = Path(nombre_archivo)
+        if safe_name.name != nombre_archivo or safe_name.is_absolute():
+            raise ValueError("nombre_archivo must be a plain filename")
+        ruta_archivo = destination / safe_name
         if not os.path.exists(ruta_archivo):
             with open(ruta_archivo, "w", encoding="utf-8") as f:
                 f.write(ejemplos[nombre_archivo].strip() + "\n")

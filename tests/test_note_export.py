@@ -270,11 +270,16 @@ def test_export_note_project_dispatches_cornell_by_note_format(monkeypatch, tmp_
 
     monkeypatch.setattr(note_export, "export_cornell_project", fake_export)
 
-    result = note_export.export_note_project(sample_cornell_note(), tmp_path)
+    result = note_export.export_note_project(
+        sample_cornell_note(),
+        tmp_path,
+        allowed_root=tmp_path,
+    )
 
     assert result.note_format == CORNELL_NOTE_FORMAT
     assert result.file_name == "cornell_project.zip"
     assert calls[0][0].ordered_pages()[0].page_id == "p001"
+    assert calls[0][3]["allowed_root"] == tmp_path
 
 
 def test_export_note_project_dispatches_cpi_by_note_format(monkeypatch, tmp_path: Path) -> None:
@@ -288,11 +293,16 @@ def test_export_note_project_dispatches_cpi_by_note_format(monkeypatch, tmp_path
 
     monkeypatch.setattr(note_export, "export_cpi_project", fake_export)
 
-    result = note_export.export_note_project(sample_cpi_note(), tmp_path)
+    result = note_export.export_note_project(
+        sample_cpi_note(),
+        tmp_path,
+        allowed_root=tmp_path,
+    )
 
     assert result.note_format == CPI_NOTE_FORMAT
     assert result.file_name == "cpi_project.zip"
     assert calls[0][0].ordered_pages()[0].page_number == 1
+    assert calls[0][3]["allowed_root"] == tmp_path
 
 
 def test_export_note_unknown_format_fails_clearly() -> None:

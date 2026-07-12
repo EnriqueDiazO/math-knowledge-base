@@ -52,7 +52,8 @@ from editor.pdf_preview import open_local_pdf
 from editor.pdf_preview import prepare_stable_preview
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_path_exists
-from mathkb_config import PROJECT_ROOT
+from editor.utils.media_assets import resolve_media_asset_path
+from mathkb_config import RUNTIME_DIR
 
 SESSION_NOTE_ID = "cornell_note_id"
 SESSION_DOCUMENT = "cornell_document"
@@ -1009,7 +1010,7 @@ def _render_identity_editor(db: Any) -> None:
                     asset = assets[0]
                     st.caption(asset.get("original_filename") or asset.get("filename") or image_id)
                     if media_path_exists(asset):
-                        st.image(str(PROJECT_ROOT / asset.get("path")), width=140)
+                        st.image(str(resolve_media_asset_path(asset)), width=140)
                     if st.button("Quitar imagen de marca"):
                         st.session_state["cornell_watermark_image_id"] = ""
                         _mark_dirty()
@@ -1102,7 +1103,7 @@ def _render_region_media_manager(
                 continue
             st.markdown(f"**{asset.get('original_filename') or asset.get('filename') or asset_id}**")
             if media_path_exists(asset):
-                st.image(str(PROJECT_ROOT / asset.get("path")), caption=asset.get("description") or "")
+                st.image(str(resolve_media_asset_path(asset)), caption=asset.get("description") or "")
             else:
                 st.warning(f"Archivo faltante: {asset.get('path')}")
             ref = cornell_image_reference(asset_id)
@@ -1433,7 +1434,7 @@ def _render_overflow_split_controls(
         target_page_id = next_page.page_id
     else:
         target_page_id = _new_page_id(existing_ids)
-    output_dir = PROJECT_ROOT / "runtime" / "cornell_streamlit_split"
+    output_dir = RUNTIME_DIR / "cornell" / "split"
     try:
         proposal = split_region_to_fit(
             page,
@@ -1453,8 +1454,16 @@ def _preview_pdf(db: Any) -> None:
     import streamlit as st
 
     document = _document_from_inputs()
-    output_dir = PROJECT_ROOT / "runtime" / "cornell_streamlit_preview"
-    preview_path = prepare_stable_preview(output_dir, "cornell_preview.pdf")
+    output_dir = RUNTIME_DIR / "cornell_preview"
+    try:
+        preview_path = prepare_stable_preview(
+            output_dir,
+            "cornell_preview.pdf",
+            allowed_root=RUNTIME_DIR,
+        )
+    except (OSError, ValueError) as exc:
+        st.error(f"No se pudo preparar la vista previa PDF: {exc}")
+        return
     output_name = preview_path.stem
     result = render_cornell_document(document, output_dir, str(output_name), db=db)
     st.session_state[SESSION_FIT_DIAGNOSTICS] = result.diagnostics
@@ -1487,12 +1496,13 @@ def _export_editable_project(db: Any) -> None:
 
     document = _document_from_inputs()
     metadata = _metadata_from_inputs()
-    output_root = PROJECT_ROOT / "runtime" / "cornell_exports"
+    output_root = RUNTIME_DIR / "cornell" / "editable_projects"
     try:
         result = export_cornell_project(
             document,
             metadata,
             output_root,
+            allowed_root=RUNTIME_DIR,
             db=db,
         )
     except Exception as exc:

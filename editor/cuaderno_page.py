@@ -6,11 +6,11 @@ Generated at: 2026-01-21T01:25:18.076642Z
 
 from __future__ import annotations
 
+import base64
+import calendar
+import hashlib
 import os
 import re
-import calendar
-import base64
-import hashlib
 import unicodedata
 from collections import Counter
 from collections import defaultdict
@@ -24,6 +24,10 @@ from typing import Callable
 from typing import Dict
 from typing import List
 from typing import Optional
+
+import pandas as pd
+import streamlit as st
+import streamlit.components.v1 as components
 from bson import ObjectId
 from pdf_export import analizar_tex_nota_latex_con_chktex
 from pdf_export import generar_pdf_nota_latex_result
@@ -31,21 +35,18 @@ from pdf_export import generar_tex_nota_latex
 from pdf_export import generar_y_abrir_pdf_nota_latex_desde_formulario
 from pdf_export import render_chktex_result
 from pdf_export import render_pdf_export_error
-import streamlit as st
-import pandas as pd
-import streamlit.components.v1 as components
 from streamlit_ace import st_ace
 
-from editor.db.concept_repository import insert_concept_with_latex_atomic
-from editor.helpers.concept_builders import build_concept_metadata
 from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
+from editor.db.concept_repository import insert_concept_with_latex_atomic
+from editor.helpers.concept_builders import build_concept_metadata
 from editor.note_export import NoteExportError
 from editor.note_export import export_note_pdf
 from editor.note_export import export_note_tex
-from editor.note_export import note_format_badge
 from editor.note_export import normalized_note_format
+from editor.note_export import note_format_badge
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
 from editor.utils.media_assets import detach_media_asset_from_note
@@ -54,10 +55,12 @@ from editor.utils.media_assets import html_image_snippet
 from editor.utils.media_assets import latex_includegraphics_snippet
 from editor.utils.media_assets import markdown_image_snippet
 from editor.utils.media_assets import media_path_exists
+from editor.utils.media_assets import resolve_media_asset_path
 from editor.utils.media_assets import save_media_asset
 from editor.validators.concept_validator import validate_new_concept_identity
 from editor.validators.concept_validator import validate_semantic_duplicate
-from mathkb_config import PROJECT_ROOT
+from mathmongo.paths import get_pdf_preview_dir
+from mathmongo.paths import validate_mutable_path
 from schemas.schemas import ConceptoBase
 from schemas.schemas import GradoFormalidad
 from schemas.schemas import NivelContexto
@@ -66,6 +69,7 @@ from schemas.schemas import TipoAplicacion
 from schemas.schemas import TipoPresentacion
 from schemas.schemas import TipoReferencia
 from schemas.schemas import TipoTitulo
+
 
 def _find_one_by_id(coll, id_value):
     """Find a document by _id supporting both ObjectId and string ids."""
@@ -473,7 +477,16 @@ def _generate_promoted_fragment_pdf_payload(note: Dict[str, Any], fragment: str)
         "latex_body": fragment,
         "updated_at": note.get("updated_at"),
     }
-    output_path = Path("/tmp") / f"mathkb_{safe_id}.pdf"
+    preview_root = validate_mutable_path(get_pdf_preview_dir())
+    output_dir = validate_mutable_path(
+        preview_root / "promoted_fragments",
+        allowed_root=preview_root,
+    )
+    output_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    output_path = validate_mutable_path(
+        output_dir / f"mathkb_{safe_id}.pdf",
+        allowed_root=output_dir,
+    )
     diagnostics = generar_pdf_nota_latex_result(
         preview_note,
         output_path=str(output_path),
@@ -548,7 +561,7 @@ def _media_tags_from_text(raw: str) -> List[str]:
 
 def _render_media_asset_preview(asset: dict) -> None:
     path = Path(asset.get("path") or "")
-    actual_path = PROJECT_ROOT / path
+    actual_path = resolve_media_asset_path(asset)
     suffix = path.suffix.lower()
     if not media_path_exists(asset):
         st.error(f"Imagen faltante: {asset.get('path')}")

@@ -26,7 +26,9 @@ from editor.cornell.media import safe_cornell_asset_filename
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
+from editor.pdf_preview import resolve_path_within
 from mathkb_config import PROJECT_ROOT
+from mathmongo.paths import validate_mutable_path
 
 REGION_EXPORTS = {
     "cue": {
@@ -417,14 +419,61 @@ def _write_readme(project_dir: Path) -> None:
 
 
 def _zip_project(project_dir: Path) -> Path:
-    zip_path = project_dir.with_suffix(".zip")
+    project_dir = validate_mutable_path(project_dir)
+    zip_path = validate_mutable_path(
+        project_dir.with_suffix(".zip"),
+        allowed_root=project_dir.parent,
+    )
+    project_paths = sorted(project_dir.rglob("*"))
+    for path in project_paths:
+        if path.is_symlink():
+            raise ValueError(f"Refusing to archive a symbolic link: {path}")
     if zip_path.exists():
         zip_path.unlink()
     with zipfile.ZipFile(zip_path, "w", compression=zipfile.ZIP_DEFLATED) as archive:
-        for path in sorted(project_dir.rglob("*")):
+        for path in project_paths:
             if path.is_file():
                 archive.write(path, path.relative_to(project_dir.parent).as_posix())
     return zip_path
+
+
+def _owned_project_format(project_dir: Path) -> str | None:
+    metadata_path = project_dir / "metadata.json"
+    if metadata_path.is_symlink() or not metadata_path.is_file():
+        return None
+    try:
+        payload = json.loads(metadata_path.read_text(encoding="utf-8"))
+    except (OSError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    note_format = payload.get("note_format")
+    return str(note_format) if note_format else None
+
+
+def _prepare_owned_project_directory(
+    output_root: str | Path,
+    project_name: object,
+    *,
+    allowed_root: str | Path,
+    expected_note_format: str,
+) -> Path:
+    output_path = resolve_path_within(output_root, allowed_root)
+    output_path.mkdir(parents=True, exist_ok=True, mode=0o700)
+    output_path.chmod(0o700)
+    project_dir = resolve_path_within(
+        output_path / safe_project_slug(project_name),
+        allowed_root,
+    )
+    if project_dir.exists():
+        if not project_dir.is_dir() or _owned_project_format(project_dir) != expected_note_format:
+            raise FileExistsError(
+                "Refusing to replace a directory that is not an identifiable "
+                f"MathMongo {expected_note_format} project: {project_dir}"
+            )
+        shutil.rmtree(project_dir)
+    project_dir.mkdir(parents=True, mode=0o700)
+    return project_dir
 
 
 def export_cornell_project(
@@ -432,6 +481,7 @@ def export_cornell_project(
     metadata: Mapping[str, Any],
     output_root: str | Path,
     *,
+    allowed_root: str | Path | None = None,
     db: Any | None = None,
     assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> CornellProjectExportResult:
@@ -440,12 +490,13 @@ def export_cornell_project(
     if not pages:
         raise ValueError("CornellDocument must contain at least one page")
 
-    output_path = Path(output_root)
-    output_path.mkdir(parents=True, exist_ok=True)
-    project_dir = output_path / safe_project_slug(metadata.get("title") or "cornell_project")
-    if project_dir.exists():
-        shutil.rmtree(project_dir)
-    project_dir.mkdir(parents=True)
+    project_dir = _prepare_owned_project_directory(
+        output_root,
+        metadata.get("title") or "cornell_project",
+        allowed_root=output_root if allowed_root is None else allowed_root,
+        expected_note_format=CORNELL_NOTE_FORMAT,
+    )
+    metadata_path = _write_metadata(project_dir, metadata, document)
 
     asset_paths = _resolve_project_images(
         document,
@@ -457,7 +508,6 @@ def export_cornell_project(
     _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
     _write_region_masters(project_dir, pages)
     _write_notas(project_dir, document, asset_paths_by_id=asset_paths)
-    metadata_path = _write_metadata(project_dir, metadata, document)
     _write_readme(project_dir)
     zip_path = _zip_project(project_dir)
     return CornellProjectExportResult(

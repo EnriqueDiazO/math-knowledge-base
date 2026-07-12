@@ -25,6 +25,7 @@ from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
 from editor.cornell.models import CornellWatermark
 from editor.cornell.models import build_footer_text
+from editor.cornell.project_export import _zip_project
 from editor.cornell.project_export import export_cornell_project
 from editor.cornell.renderer import generate_cornell_document_tex
 from tests.test_cornell_content_blocks import always_fit_engine
@@ -197,6 +198,86 @@ def test_export_project_one_page_structure_and_metadata(tmp_path: Path) -> None:
     assert payload["order"] == [{"page_id": "p001", "order": 1}]
 
 
+def test_export_project_replaces_only_an_identifiable_cornell_project(tmp_path: Path) -> None:
+    output_root = tmp_path / "projects"
+    first = export_cornell_project(
+        one_page_document(),
+        metadata("Proyecto propio"),
+        output_root,
+        allowed_root=tmp_path,
+    )
+    stale = first.project_dir / "stale.tmp"
+    stale.write_bytes(b"old")
+
+    second = export_cornell_project(
+        one_page_document(),
+        metadata("Proyecto propio"),
+        output_root,
+        allowed_root=tmp_path,
+    )
+
+    assert second.project_dir == first.project_dir
+    assert not stale.exists()
+    assert json.loads(second.metadata_path.read_text(encoding="utf-8"))["note_format"] == (
+        "cornell_math_v1"
+    )
+
+
+def test_export_project_preserves_unrelated_same_name_directory(tmp_path: Path) -> None:
+    output_root = tmp_path / "projects"
+    unrelated = output_root / "Proyecto_ajeno"
+    unrelated.mkdir(parents=True)
+    user_source = unrelated / "user_source.tex"
+    user_source.write_bytes(b"must survive")
+
+    with pytest.raises(FileExistsError, match="Refusing to replace"):
+        export_cornell_project(
+            one_page_document(),
+            metadata("Proyecto ajeno"),
+            output_root,
+            allowed_root=tmp_path,
+        )
+
+    assert user_source.read_bytes() == b"must survive"
+    assert not (unrelated / "metadata.json").exists()
+
+
+def test_export_project_rejects_symlink_escape_from_allowed_root(tmp_path: Path) -> None:
+    runtime = tmp_path / "runtime"
+    outside = tmp_path / "outside"
+    runtime.mkdir()
+    outside.mkdir()
+    marker = outside / "user_source.tex"
+    marker.write_bytes(b"must survive")
+    (runtime / "cornell").symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="Symbolic links"):
+        export_cornell_project(
+            one_page_document(),
+            metadata("Escape"),
+            runtime / "cornell" / "editable_projects",
+            allowed_root=runtime,
+        )
+
+    assert marker.read_bytes() == b"must survive"
+    assert not (outside / "editable_projects").exists()
+
+
+def test_export_project_rejects_the_installed_package_tree() -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    forbidden = project_root / "templates_latex" / "Forbidden"
+
+    with pytest.raises(ValueError, match="installed MathMongo package"):
+        export_cornell_project(
+            one_page_document(),
+            metadata("Forbidden"),
+            project_root / "templates_latex",
+            allowed_root=project_root,
+        )
+
+    assert not forbidden.exists()
+
+
 def test_export_project_masters_include_all_pages_in_order(tmp_path: Path) -> None:
     result = export_cornell_project(multipage_document(), metadata("Multipágina"), tmp_path)
 
@@ -277,6 +358,61 @@ def test_export_project_zip_contains_complete_source_tree(tmp_path: Path) -> Non
     assert f"{root}/contenido/pagina_002/derecha.tex" in names
     assert f"{root}/images/lineas.png" in names
     assert f"{root}/metadata.json" in names
+
+
+def test_zip_project_rejects_existing_zip_leaf_symlink(tmp_path: Path) -> None:
+    project_dir = tmp_path / "cornell-project"
+    project_dir.mkdir()
+    (project_dir / "source.tex").write_text("source", encoding="utf-8")
+    outside = tmp_path / "user-file.zip"
+    outside.write_bytes(b"must survive")
+    zip_path = project_dir.with_suffix(".zip")
+    zip_path.symlink_to(outside)
+
+    with pytest.raises(ValueError, match="Symbolic links"):
+        _zip_project(project_dir)
+
+    assert zip_path.is_symlink()
+    assert outside.read_bytes() == b"must survive"
+
+
+def test_zip_project_rejects_symlinked_intermediate_directory(tmp_path: Path) -> None:
+    real_parent = tmp_path / "real-parent"
+    project_dir = real_parent / "cornell-project"
+    project_dir.mkdir(parents=True)
+    (project_dir / "source.tex").write_text("source", encoding="utf-8")
+    alias = tmp_path / "parent-alias"
+    alias.symlink_to(real_parent, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="Symbolic links"):
+        _zip_project(alias / project_dir.name)
+
+    assert not project_dir.with_suffix(".zip").exists()
+
+
+@pytest.mark.parametrize("link_kind", ("file", "directory"))
+def test_zip_project_rejects_symlinks_inside_project(
+    tmp_path: Path,
+    link_kind: str,
+) -> None:
+    project_dir = tmp_path / "cornell-project"
+    project_dir.mkdir()
+    (project_dir / "source.tex").write_text("source", encoding="utf-8")
+    link = project_dir / "linked-user-content"
+    if link_kind == "file":
+        outside = tmp_path / "outside.tex"
+        outside.write_text("private", encoding="utf-8")
+        link.symlink_to(outside)
+    else:
+        outside = tmp_path / "outside-dir"
+        outside.mkdir()
+        (outside / "private.tex").write_text("private", encoding="utf-8")
+        link.symlink_to(outside, target_is_directory=True)
+
+    with pytest.raises(ValueError, match="symbolic link"):
+        _zip_project(project_dir)
+
+    assert not project_dir.with_suffix(".zip").exists()
 
 
 def test_export_project_includes_identity_watermark_image_in_notas_and_zip(

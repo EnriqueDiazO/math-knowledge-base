@@ -1,11 +1,11 @@
-import os
 import json
+import os
 import re
 import sys
 from copy import deepcopy
-from uuid import uuid4
 from datetime import datetime
 from pathlib import Path
+from uuid import uuid4
 
 import bibtexparser
 import pandas as pd
@@ -20,10 +20,10 @@ sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 import streamlit.components.v1 as components
 from helpers.concept_builders import build_concept_metadata
-
 from pdf_export import generar_y_abrir_pdf_desde_formulario
 
 from db.concept_repository import insert_concept_with_latex_atomic
+from editor.document_builder import render_document_builder_page
 from editor.helpers.tipo_aplicacion import TipoAplicacion
 from editor.helpers.tipo_contexto import NivelContexto
 from editor.helpers.tipo_formalidad import GradoFormalidad
@@ -32,10 +32,6 @@ from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
 from editor.helpers.tipo_simbolico import NivelSimbolico
 from editor.helpers.tipo_titulo import TipoTitulo
-from editor.document_builder import render_document_builder_page
-from editor.utils.db_export import export_database_to_zip
-from editor.utils.db_import import import_zip_into_database
-from editor.utils.db_import import inspect_export_zip
 from editor.utils.cleanup_exports import cleanup_old_graph_runtime_files
 from editor.utils.cleanup_exports import delete_files_safely
 from editor.utils.cleanup_exports import empty_directory_contents_safely
@@ -44,19 +40,13 @@ from editor.utils.cleanup_exports import format_bytes
 from editor.utils.cleanup_exports import list_deletable_files
 from editor.utils.cleanup_exports import move_legacy_root_graph_files_to_runtime
 from editor.utils.cleanup_exports import scan_cleanup_dirs
-from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
-from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
-from editor.utils.media_assets import detect_heavy_tikz
-from editor.utils.media_assets import detach_media_asset_from_concept
-from editor.utils.media_assets import get_concept_media_assets
-from editor.utils.media_assets import html_image_snippet
-from editor.utils.media_assets import latex_includegraphics_snippet
-from editor.utils.media_assets import media_path_exists
-from editor.utils.media_assets import save_media_asset
+from editor.utils.db_export import export_database_to_zip
+from editor.utils.db_import import import_zip_into_database
+from editor.utils.db_import import inspect_export_zip
 from editor.utils.knowledge_graph_sync import add_concepts_to_graph_state
-from editor.utils.knowledge_graph_sync import concept_key
 from editor.utils.knowledge_graph_sync import concept_graph_node_errors
 from editor.utils.knowledge_graph_sync import concept_graph_node_warnings
+from editor.utils.knowledge_graph_sync import concept_key
 from editor.utils.knowledge_graph_sync import concept_table_rows
 from editor.utils.knowledge_graph_sync import concepts_by_keys
 from editor.utils.knowledge_graph_sync import default_sync_settings
@@ -70,22 +60,36 @@ from editor.utils.knowledge_graph_sync import isolated_node_ids
 from editor.utils.knowledge_graph_sync import map_node_rows
 from editor.utils.knowledge_graph_sync import merge_ordered_values
 from editor.utils.knowledge_graph_sync import merge_preserved_graph_items
-from editor.utils.knowledge_graph_sync import remove_nodes_from_graph_state
 from editor.utils.knowledge_graph_sync import primary_sources
+from editor.utils.knowledge_graph_sync import remove_nodes_from_graph_state
 from editor.utils.knowledge_graph_sync import repair_incomplete_graph_nodes
 from editor.utils.knowledge_graph_sync import utc_timestamp
+from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
+from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
+from editor.utils.media_assets import detach_media_asset_from_concept
+from editor.utils.media_assets import detect_heavy_tikz
+from editor.utils.media_assets import get_concept_media_assets
+from editor.utils.media_assets import html_image_snippet
+from editor.utils.media_assets import latex_includegraphics_snippet
+from editor.utils.media_assets import media_path_exists
+from editor.utils.media_assets import resolve_media_asset_path
+from editor.utils.media_assets import save_media_asset
+from editor.validators.concept_validator import validate_new_concept_identity
+from editor.validators.concept_validator import validate_semantic_duplicate
+from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_latex.latex_compile import latex_timeout_message
 from exporters_latex.latex_compile import output_tail
 from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.latex_validation import validate_latex_fragment
-from editor.validators.concept_validator import validate_new_concept_identity
-from editor.validators.concept_validator import validate_semantic_duplicate
-from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_quarto.quarto_exporter import QuartoBookExporter
-from mathkb_config import EXPORT_COLLECTIONS
+
+# Render preview graph using the same renderer as "Knowledge Graph"
+from mathdatabase.mathmongo import MathMongo
+from mathdatabase.mathmongo import MongoIndexInitializationError
 from mathkb_config import CLEANUP_BACKUP_DIR
 from mathkb_config import CLEANUP_LOG_FILE
 from mathkb_config import EXPORT_CLEANUP_DIRS
+from mathkb_config import EXPORT_COLLECTIONS
 from mathkb_config import EXPORT_TIMEOUT_SECONDS
 from mathkb_config import GRAPH_CLEANUP_DIRS
 from mathkb_config import GRAPH_RUNTIME_DIR
@@ -93,13 +97,16 @@ from mathkb_config import IMPORT_TIMEOUT_SECONDS
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 from mathkb_config import PROJECT_ROOT
-
-# Render preview graph using the same renderer as "Knowledge Graph"
-from mathdatabase.mathmongo import MathMongo
-from mathdatabase.mathmongo import MongoIndexInitializationError
+from mathmongo.config import resolve_config
+from mathmongo.config import sanitize_mongo_error
+from mathmongo.paths import get_backups_dir
+from mathmongo.paths import get_exports_dir
+from mathmongo.paths import get_latex_runtime_dir
+from mathmongo.paths import get_runtime_dir
+from mathmongo.paths import resolve_home_path
+from mathmongo.paths import validate_mutable_path
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
-
 
 DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
 
@@ -521,10 +528,10 @@ def _render_cleanup_maintenance_page() -> None:
     legacy_graph_files = find_legacy_root_graph_files()
     _render_cleanup_candidates("Archivos legacy de grafo en la raíz", legacy_graph_files)
     confirm_legacy = st.checkbox(
-        "Entiendo que esto moverá sólo archivos legacy de grafo desde la raíz hacia runtime.",
+        "Entiendo que esto copiará archivos legacy de grafo a runtime y conservará los originales.",
         key="cleanup_confirm_legacy_graphs",
     )
-    if st.button("📦 Mover grafos legacy a runtime", key="cleanup_move_legacy_graphs"):
+    if st.button("📦 Copiar grafos legacy a runtime", key="cleanup_move_legacy_graphs"):
         if not confirm_legacy:
             st.error("Marca la confirmación antes de mover archivos legacy.")
         else:
@@ -567,7 +574,7 @@ def _render_tikz_weight_warnings(latex: str) -> None:
 
 def _render_media_asset_preview(asset: dict) -> None:
     path = Path(asset.get("path") or "")
-    actual_path = PROJECT_ROOT / path
+    actual_path = resolve_media_asset_path(asset)
     suffix = path.suffix.lower()
     if not media_path_exists(asset):
         st.error(f"Imagen faltante: {asset.get('path')}")
@@ -1022,12 +1029,15 @@ class DatabaseManager:
             }
             return True
         except MongoIndexInitializationError as e:
+            safe_error = sanitize_mongo_error(e, mongo_uri)
             st.error(
-                f"MongoDB conectado para {name}, pero falló la inicialización de índices:\n\n{e}"
+                "MongoDB conectado para "
+                f"{name}, pero falló la inicialización de índices:\n\n{safe_error}"
             )
             return False
         except Exception as e:
-            st.error(f"No se pudo conectar a MongoDB para {name}: {e}")
+            safe_error = sanitize_mongo_error(e, mongo_uri)
+            st.error(f"No se pudo conectar a MongoDB para {name}: {safe_error}")
             return False
 
     def get_connection(self, name):
@@ -1052,18 +1062,19 @@ class DatabaseManager:
 # Initialize database manager in session state
 if 'db_manager' not in st.session_state:
     st.session_state.db_manager = DatabaseManager()
+    app_settings = resolve_config()
 
     # Add default connections
     st.session_state.db_manager.add_connection(
         "MathMongo (Current)",
-        "mongodb://localhost:27017",
-        "mathmongo",
+        app_settings.mongo_uri,
+        app_settings.mongo_database,
     )
 
     # Add MathV0 connection
     st.session_state.db_manager.add_connection(
         "MathV0",
-        "mongodb://localhost:27017",
+        app_settings.mongo_uri,
         "MathV0",
     )
 
@@ -1117,7 +1128,11 @@ if available_dbs:
 # Add new database connection
 with st.sidebar.expander("➕ Add New Database", expanded=False):
     new_db_name = st.text_input("Database Name", placeholder="e.g., MathV1, ResearchDB")
-    new_db_uri = st.text_input("MongoDB URI", value="mongodb://localhost:27017")
+    new_db_uri = st.text_input(
+        "MongoDB URI",
+        value=resolve_config().mongo_uri,
+        type="password",
+    )
     new_db_collection = st.text_input("Database Name", placeholder="e.g., mathmongo")
 
     if st.button("Add Connection"):
@@ -3095,13 +3110,13 @@ elif page == "📚 Browse Concepts":
 
     build_dir = st.text_input(
         "Quarto build directory",
-        value="quarto_book_build",
+        value=str(get_exports_dir(configured=resolve_config().export_directory) / "quarto"),
     )
 
 
     force_build = st.checkbox(
         "Overwrite existing build directory",
-        value=True,
+        value=False,
     )
 
     # MVP-B: LaTeX preflight (pdflatex compile check) before export
@@ -3120,6 +3135,7 @@ elif page == "📚 Browse Concepts":
 
                 from exporters_quarto.quarto_exporter import QuartoBookExporter
                 from scripts.export_quarto_book import _write_book_quarto_yml
+                build_path = validate_mutable_path(resolve_home_path(build_dir))
                 selected_ids = {concept_id_map[l] for l in selected_labels}
                 selected_concepts = []
                 for c in concepts:
@@ -3140,10 +3156,9 @@ elif page == "📚 Browse Concepts":
                         )
 
                     style_dirs = [
-                        Path(build_dir) / "styles",
-                        Path("quarto_book_build/styles"),
-                        Path("quarto_book/styles"),
-                        Path("templates_latex"),
+                        build_path / "styles",
+                        PROJECT_ROOT / "quarto_book" / "styles",
+                        PROJECT_ROOT / "templates_latex",
                     ]
 
                     def _find_style_file(name: str) -> Path:
@@ -3169,7 +3184,9 @@ elif page == "📚 Browse Concepts":
                             progress.progress(int(idx * 100 / total))
                             continue
 
-                        with tempfile.TemporaryDirectory(prefix="mkb_preflight_") as td:
+                        latex_runtime = validate_mutable_path(get_latex_runtime_dir())
+                        latex_runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+                        with tempfile.TemporaryDirectory(prefix="mkb_preflight_", dir=latex_runtime) as td:
                             td_path = Path(td)
                             shutil.copy2(miestilo_src, td_path / "miestilo.sty")
                             (td_path / "styles").mkdir(parents=True, exist_ok=True)
@@ -3239,12 +3256,13 @@ elif page == "📚 Browse Concepts":
                         st.stop()
                 # --- end MVP-B ---
 
-                template_dir = Path("quarto_book").resolve()
-                build_path = Path(build_dir).resolve()
+                template_dir = PROJECT_ROOT / "quarto_book"
 
                 exporter = QuartoBookExporter(
                     template_dir=template_dir,
-                    build_dir=build_path)
+                    build_dir=build_path,
+                    allowed_root=build_path.parent,
+                )
 
                 exporter.prepare_build(force=force_build)
                 exporter.export_concepts(selected_concepts)
@@ -5358,7 +5376,10 @@ elif page == "📤 Export":
 
     with col2:
         export_format = st.selectbox("Export Format", ["PDF", "LaTeX"])
-        output_dir = st.text_input("Output Directory", value="./exported")
+        output_dir = st.text_input(
+            "Output Directory",
+            value=str(get_exports_dir(configured=resolve_config().export_directory) / "concepts"),
+        )
 
     val_exp_col1, val_exp_col2, val_exp_col3 = st.columns(3)
     with val_exp_col1:
@@ -5384,6 +5405,7 @@ elif page == "📤 Export":
         if export_source:
             try:
                 exportador = ExportadorLatex()
+                resolved_output_dir = validate_mutable_path(resolve_home_path(output_dir))
 
                 # Build query
                 query = {"source": export_source}
@@ -5428,17 +5450,25 @@ elif page == "📤 Export":
                                         f"Applied safe fixes only to exported file for {concept['id']}; "
                                         "MongoDB was not modified."
                                     )
-                            exportador.exportar_concepto(concept, contenido_latex, salida=output_dir)
+                            exportador.exportar_concepto(
+                                concept,
+                                contenido_latex,
+                                salida=str(resolved_output_dir),
+                            )
 
                         progress_bar.progress((i + 1) / len(concepts))
 
                     status_text.text("✅ Export completed!")
-                    st.success(f"✅ Exported {len(concepts)} concepts to {output_dir}")
+                    st.success(f"✅ Exported {len(concepts)} concepts to {resolved_output_dir}")
 
                     # Show exported files
-                    if Path(output_dir).exists():
+                    if resolved_output_dir.exists():
                         st.subheader("📁 Exported Files")
-                        files = list(Path(output_dir).glob("*.pdf" if export_format == "PDF" else "*.tex"))
+                        files = list(
+                            resolved_output_dir.glob(
+                                "*.pdf" if export_format == "PDF" else "*.tex"
+                            )
+                        )
                         for file in files:
                             st.write(f"• {file.name}")
 
@@ -5465,7 +5495,14 @@ elif page == "📤 Export":
 
             for i, source in enumerate(sources):
                 status_text.text(f"Exporting source: {source}")
-                exportador.exportar_todos_de_source(db.client, source, salida=f"./exported/{source}")
+                concepts_root = get_exports_dir(
+                    configured=resolve_config().export_directory
+                ) / "concepts"
+                bulk_dir = validate_mutable_path(
+                    concepts_root / source,
+                    allowed_root=concepts_root,
+                )
+                exportador.exportar_todos_de_source(db.client, source, salida=str(bulk_dir))
                 progress_bar.progress((i + 1) / len(sources))
 
             status_text.text("✅ Bulk export completed!")
@@ -5576,8 +5613,8 @@ elif page == "📦 Database Export":
     if st.button("📦 Export database"):
         with st.spinner("Exporting database..."):
             try:
-                out_dir = Path.home() / "mathkb_backups"
-                out_dir.mkdir(exist_ok=True)
+                out_dir = validate_mutable_path(get_backups_dir())
+                out_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
                 zip_path = export_database_to_zip(db, out_dir)
                 st.success(f"Export completed successfully: {zip_path}")
                 with open(zip_path, "rb") as f:
@@ -5601,7 +5638,16 @@ elif page == "📥 Database Import":
     )
 
     if uploaded_file:
-        tmp_path = Path("/tmp") / uploaded_file.name
+        runtime_root = validate_mutable_path(get_runtime_dir())
+        import_runtime = validate_mutable_path(
+            runtime_root / "imports",
+            allowed_root=runtime_root,
+        )
+        import_runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
+        tmp_path = validate_mutable_path(
+            import_runtime / Path(uploaded_file.name).name,
+            allowed_root=import_runtime,
+        )
         with open(tmp_path, "wb") as f:
             f.write(uploaded_file.getbuffer())
 

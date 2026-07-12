@@ -2,17 +2,25 @@
 # -*- coding: utf-8 -*-
 import os
 import shutil
-from typing import List, Dict
-from pymongo import MongoClient
 from pathlib import Path
-from exporters_latex.latex_compile import latex_warning_message
+from typing import Dict
+from typing import List
+
+from pymongo import MongoClient
+
+from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import latex_failure_message
+from exporters_latex.latex_compile import latex_warning_message
 from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.unified_document import export_unified_document_with_inputs
 from exporters_latex.unified_document import render_concept_fragment
-from editor.utils.media_assets import copy_media_tree_for_latex
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
+from mathmongo.config import resolve_config
+from mathmongo.paths import get_exports_dir
+from mathmongo.paths import resolve_home_path
+from mathmongo.paths import validate_mutable_path
+
 
 class ExportadorLatex:
     """
@@ -40,9 +48,17 @@ class ExportadorLatex:
         self,
         concepto: Dict,
         contenido_latex: str,
-        salida: str = "./exportados",
+        salida: str | None = None,
     ) -> None:
         """Genera `.tex` y `.pdf` para un único concepto."""
+
+        if salida is None:
+            output_path = get_exports_dir(
+                configured=resolve_config().export_directory
+            ) / "concepts"
+        else:
+            output_path = resolve_home_path(salida)
+        salida = str(validate_mutable_path(output_path))
 
         # ---------- Validaciones básicas ----------
         if not concepto or not contenido_latex:
@@ -105,7 +121,7 @@ class ExportadorLatex:
         self,
         db: MongoClient,
         source: str,
-        salida: str = "./exportados",
+        salida: str | None = None,
     ) -> None:
         """Exporta todos los conceptos provenientes de un mismo *source*."""
         conceptos = list(db.concepts.find({"source": source}))
@@ -130,7 +146,7 @@ class ExportadorLatex:
         self,
         source: str,
         conceptos: List[Dict],
-        salida: str = "./exported",
+        salida: str | None = None,
         titulo: str | None = None,
         agrupar_por_tipo: bool = False,
         respetar_orden_manual: bool = True,
@@ -138,10 +154,16 @@ class ExportadorLatex:
         sobrescribir: bool = False,
     ):
         """Exporta un documento maestro modular con fragments incluidos via \\input."""
+        if salida is None:
+            output_path = get_exports_dir(
+                configured=resolve_config().export_directory
+            ) / "documents"
+        else:
+            output_path = resolve_home_path(salida)
         return export_unified_document_with_inputs(
             source=source,
             concepts=conceptos,
-            output_dir=salida,
+            output_dir=validate_mutable_path(output_path),
             title=titulo or source,
             agrupar_por_tipo=agrupar_por_tipo,
             respetar_orden_manual=respetar_orden_manual,

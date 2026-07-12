@@ -13,15 +13,17 @@ from bson import ObjectId
 from bson.errors import InvalidId
 
 from mathkb_config import ALLOWED_IMAGE_EXTENSIONS
+from mathkb_config import DATA_DIR
+from mathkb_config import LEGACY_PROJECT_ROOT
+from mathkb_config import LOCAL_MEDIA_IMAGES_DIR
+from mathkb_config import LOCAL_MEDIA_ROOT
 from mathkb_config import MAX_IMAGE_UPLOAD_BYTES
 from mathkb_config import MEDIA_ASSETS_COLLECTION
-from mathkb_config import MEDIA_IMAGES_DIR
 from mathkb_config import MEDIA_ROOT
 from mathkb_config import PROJECT_ROOT
+from mathmongo.paths import find_symlink_component
+from mathmongo.paths import validate_mutable_path
 
-
-LOCAL_MEDIA_ROOT = PROJECT_ROOT / MEDIA_ROOT
-LOCAL_MEDIA_IMAGES_DIR = PROJECT_ROOT / MEDIA_IMAGES_DIR
 LATEX_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".pdf"}
 HEAVY_TIKZ_DRAW_THRESHOLD = 500
 HEAVY_TIKZ_CONTROLS_THRESHOLD = 800
@@ -37,7 +39,9 @@ def note_media_key(note_id: str) -> str:
 
 
 def ensure_media_dirs() -> None:
-    LOCAL_MEDIA_IMAGES_DIR.mkdir(parents=True, exist_ok=True)
+    directory = validate_mutable_path(LOCAL_MEDIA_IMAGES_DIR)
+    directory.mkdir(parents=True, exist_ok=True, mode=0o700)
+    directory.chmod(0o700)
 
 
 def mongo_database(db):
@@ -94,13 +98,19 @@ def validate_image_upload(filename: str, data: bytes) -> str:
 
 def _unique_destination(filename: str) -> Path:
     ensure_media_dirs()
-    candidate = LOCAL_MEDIA_IMAGES_DIR / filename
+    candidate = validate_mutable_path(
+        LOCAL_MEDIA_IMAGES_DIR / filename,
+        allowed_root=LOCAL_MEDIA_IMAGES_DIR,
+    )
     if not candidate.exists():
         return candidate
     stem = candidate.stem
     suffix = candidate.suffix
     for index in range(1, 1000):
-        next_candidate = candidate.with_name(f"{stem}_{index}{suffix}")
+        next_candidate = validate_mutable_path(
+            candidate.with_name(f"{stem}_{index}{suffix}"),
+            allowed_root=LOCAL_MEDIA_IMAGES_DIR,
+        )
         if not next_candidate.exists():
             return next_candidate
     raise FileExistsError(f"Could not allocate a unique media filename for {filename}.")
@@ -124,7 +134,7 @@ def save_media_asset(
     destination = _unique_destination(safe_name)
     destination.write_bytes(data)
 
-    relative_path = relative_media_path(destination.relative_to(PROJECT_ROOT))
+    relative_path = relative_media_path(destination.relative_to(DATA_DIR))
     now = datetime.utcnow()
     concept_key = concept_media_key(concept_id, source) if concept_id and source else None
     note_key = note_media_key(note_id) if note_id else None
@@ -198,8 +208,10 @@ def get_note_media_assets(db, note_id: str) -> list[dict]:
 
 def _delete_local_asset_file(asset: dict) -> None:
     rel_path = asset.get("path") or ""
-    target = PROJECT_ROOT / rel_path
-    if not Path(rel_path).is_absolute() and ".." not in Path(rel_path).parts and target.exists():
+    if Path(rel_path).is_absolute() or ".." in Path(rel_path).parts:
+        return
+    target = validate_mutable_path(DATA_DIR / rel_path, allowed_root=DATA_DIR)
+    if target.exists():
         target.unlink()
 
 
@@ -261,10 +273,56 @@ def detach_media_asset_from_note(
 
 
 def media_path_exists(asset: dict) -> bool:
-    rel_path = asset.get("path") or ""
-    if Path(rel_path).is_absolute() or ".." in Path(rel_path).parts:
-        return False
-    return (PROJECT_ROOT / rel_path).exists()
+    return resolve_media_asset_path(asset).is_file()
+
+
+def _logical_media_path(stored_path: Path) -> Path | None:
+    if not stored_path.is_absolute():
+        return stored_path
+
+    for root in (DATA_DIR, LEGACY_PROJECT_ROOT):
+        try:
+            return stored_path.relative_to(root)
+        except ValueError:
+            continue
+
+    media_parts = tuple(part for part in MEDIA_ROOT.parts if part != MEDIA_ROOT.anchor)
+    if not media_parts:
+        return None
+    stored_parts = stored_path.parts
+    for index in range(len(stored_parts) - len(media_parts), -1, -1):
+        if stored_parts[index : index + len(media_parts)] == media_parts:
+            return Path(*stored_parts[index:])
+    return None
+
+
+def resolve_media_asset_path(asset: dict) -> Path:
+    """Resolve XDG media first, then legacy or an absolute historical source."""
+    raw_path = asset.get("path") or ""
+    if not raw_path:
+        return DATA_DIR / "invalid-media-path"
+    stored_path = Path(raw_path)
+    if not stored_path.is_absolute() and ".." in stored_path.parts:
+        return DATA_DIR / "invalid-media-path"
+
+    logical_path = _logical_media_path(stored_path)
+    if logical_path is not None:
+        current = DATA_DIR / logical_path
+        if current.is_file():
+            return current
+        legacy = LEGACY_PROJECT_ROOT / logical_path
+        if legacy.is_file():
+            return legacy
+
+    if stored_path.is_absolute():
+        return stored_path
+    return LEGACY_PROJECT_ROOT / stored_path
+
+
+def _snippet_media_path(asset: dict) -> str:
+    stored_path = Path(asset.get("path") or "")
+    logical_path = _logical_media_path(stored_path)
+    return relative_media_path(logical_path if logical_path is not None else stored_path)
 
 
 def latex_includegraphics_snippet(
@@ -273,7 +331,7 @@ def latex_includegraphics_snippet(
     caption: str = "",
     width: str = r"\textwidth",
 ) -> str:
-    path = relative_media_path(asset.get("path") or "")
+    path = _snippet_media_path(asset)
     label_stem = _slug(Path(path).stem, "image")
     lines = [
         r"\begin{figure}[ht]",
@@ -287,30 +345,42 @@ def latex_includegraphics_snippet(
 
 
 def html_image_snippet(asset: dict, *, alt: str = "") -> str:
-    path = relative_media_path(asset.get("path") or "")
+    path = _snippet_media_path(asset)
     alt_text = (alt or asset.get("description") or asset.get("filename") or "image").replace('"', "&quot;")
     return f'<img src="{path}" alt="{alt_text}" style="max-width: 100%; height: auto;">'
 
 
 def markdown_image_snippet(asset: dict, *, alt: str = "") -> str:
-    path = relative_media_path(asset.get("path") or "")
+    path = _snippet_media_path(asset)
     alt_text = (alt or asset.get("description") or asset.get("filename") or "image").replace("]", "\\]")
     return f"![{alt_text}]({path})"
 
 
 def copy_media_tree_for_latex(destination_dir: str | Path) -> None:
-    source = LOCAL_MEDIA_ROOT
-    if not source.exists():
+    sources = [LEGACY_PROJECT_ROOT / MEDIA_ROOT, LOCAL_MEDIA_ROOT]
+    if not any(source.exists() for source in sources):
         return
-    destination_root = Path(destination_dir).resolve()
+    destination_root = validate_mutable_path(destination_dir)
     templates_root = (PROJECT_ROOT / "templates_latex").resolve()
     if destination_root == templates_root or templates_root in destination_root.parents:
         raise ValueError(
             "Refusing to copy media into templates_latex. "
             "Use a temporary/build directory for LaTeX compilation."
         )
-    destination = destination_root / MEDIA_ROOT
-    shutil.copytree(source, destination, dirs_exist_ok=True)
+    destination = validate_mutable_path(
+        destination_root / MEDIA_ROOT,
+        allowed_root=destination_root,
+    )
+    for source in sources:
+        if source.exists() and find_symlink_component(source) is None:
+            shutil.copytree(
+                source,
+                destination,
+                dirs_exist_ok=True,
+                ignore=lambda directory, names: [
+                    name for name in names if (Path(directory) / name).is_symlink()
+                ],
+            )
 
 
 def detect_heavy_tikz(latex: str) -> list[str]:

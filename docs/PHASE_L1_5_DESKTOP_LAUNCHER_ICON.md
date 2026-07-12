@@ -34,7 +34,7 @@ Type=Application
 Name=MathMongo
 GenericName=Math Knowledge Base
 Comment=Mathematical knowledge base with MongoDB, LaTeX and Streamlit
-Exec="/ruta/absoluta/bin/mathmongo" run
+Exec="/ruta/absoluta/bin/mathmongo" run --desktop-launch
 Icon=mathmongo
 Terminal=false
 StartupNotify=true
@@ -42,7 +42,7 @@ Categories=Education;Science;Office;
 Keywords=mathematics;knowledge;MongoDB;LaTeX;Streamlit;
 ```
 
-La ruta del ejecutable se escapa conforme al campo `Exec`; no hay shell, `source`, venv hardcoded ni parámetros arbitrarios. Se omite `TryExec`: GTK no interpreta comillas en ese campo de forma portable, por lo que una ruta con espacios ocultaría la aplicación aunque `Exec` fuera válido.
+La ruta del ejecutable se escapa conforme al campo `Exec`; no hay shell, `source`, venv hardcoded ni parámetros arbitrarios. `--desktop-launch` conserva el mismo launcher y habilita logs XDG para una ejecución sin terminal. Se omite `TryExec`: GTK no interpreta comillas en ese campo de forma portable, por lo que una ruta con espacios ocultaría la aplicación aunque `Exec` fuera válido.
 
 ## Resolución del ejecutable
 
@@ -104,4 +104,4 @@ No se contó con validación visual de una sesión de escritorio: no se afirma q
 
 ## Relación con L2
 
-L1.5 deja lista la integración de escritorio reutilizable por el futuro instalador. L2 podrá invocar `mathmongo-desktop` después de instalar el wheel. Siguen pospuestos el instalador Bash integral, XDG de datos/runtime/logs, `doctor`, MongoDB/TeX Live, actualizaciones, desinstalación general, `.deb` y AppImage.
+L1.5 dejó lista la integración de escritorio reutilizable por el futuro instalador. L2 añadió XDG para datos, runtime y logs, y reutiliza `mathmongo-desktop` con `--desktop-launch`. Siguen pospuestos el instalador Bash integral, `doctor`, MongoDB/TeX Live, actualizaciones, desinstalación general, `.deb` y AppImage.

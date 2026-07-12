@@ -10,8 +10,8 @@ from pathlib import Path
 from textwrap import dedent
 from typing import Any
 
+from editor.cornell.project_export import _prepare_owned_project_directory
 from editor.cornell.project_export import _zip_project
-from editor.cornell.project_export import safe_project_slug
 from editor.cpi.layout import CpiFitReport
 from editor.cpi.layout import measure_cpi_document_fit
 from editor.cpi.media import _assets_by_id_from_db
@@ -238,6 +238,7 @@ def export_cpi_project(
     metadata: Mapping[str, Any],
     output_root: str | Path,
     *,
+    allowed_root: str | Path | None = None,
     db: Any | None = None,
     assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
 ) -> CpiProjectExportResult:
@@ -246,12 +247,13 @@ def export_cpi_project(
     if not pages:
         raise ValueError("CpiDocument must contain at least one page")
 
-    output_path = Path(output_root)
-    output_path.mkdir(parents=True, exist_ok=True)
-    project_dir = output_path / safe_project_slug(metadata.get("title") or "cpi_project")
-    if project_dir.exists():
-        shutil.rmtree(project_dir)
-    project_dir.mkdir(parents=True)
+    project_dir = _prepare_owned_project_directory(
+        output_root,
+        metadata.get("title") or "cpi_project",
+        allowed_root=output_root if allowed_root is None else allowed_root,
+        expected_note_format=CPI_NOTE_FORMAT,
+    )
+    metadata_path = _write_metadata(project_dir, metadata, document)
 
     asset_paths = _resolve_project_images(
         document,
@@ -272,7 +274,6 @@ def export_cpi_project(
             f"escala minima {fit_report.min_region_scale:.2f}."
         )
     _write_notas(project_dir, document, asset_paths_by_id=asset_paths, fit_report=fit_report)
-    metadata_path = _write_metadata(project_dir, metadata, document)
     _write_readme(project_dir)
     zip_path = _zip_project(project_dir)
     return CpiProjectExportResult(

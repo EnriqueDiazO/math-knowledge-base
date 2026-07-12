@@ -42,7 +42,7 @@ El comando sin subcomando equivale a `run`. `--no-browser` añade la opción ofi
 
 El lanzador usa `importlib.util.find_spec("editor")` y la ubicación instalada real del paquete, nunca `Path.cwd()`. Por tanto funciona desde `/tmp`, rutas con espacios o el directorio personal después de instalar la distribución. No importa `editor_streamlit.py` durante la resolución.
 
-Poetry incluye ahora `mathmongo`, el módulo superior `mathkb_config.py` y `templates_latex/**` en wheel y sdist. Los paquetes `editor`, Cornell, CPI, exportadores, esquemas y visualizaciones ya estaban declarados. La inspección del wheel confirmó `editor/editor_streamlit.py`, estilos, clases, plantilla CPI e imagen Cornell. Los recursos siguen junto al código instalado; la migración de datos/runtime a XDG queda para L2 y fases posteriores.
+Poetry incluyó en L1 `mathmongo`, el módulo superior `mathkb_config.py` y `templates_latex/**` en wheel y sdist. Los paquetes `editor`, Cornell, CPI, exportadores, esquemas y visualizaciones ya estaban declarados. La inspección del wheel confirmó `editor/editor_streamlit.py`, estilos, clases, plantilla CPI e imagen Cornell. Los recursos siguen junto al código instalado; L2 implementó posteriormente la separación de datos y runtime mediante XDG.
 
 ## Streamlit, dirección y puerto
 
@@ -56,7 +56,7 @@ Sólo se aceptan `localhost`, `127.0.0.1` y `::1`; `0.0.0.0` y direcciones exter
 
 ## MongoDB y LaTeX
 
-Se conserva MongoDB local en `mongodb://localhost:27017`, sin instalar, arrancar, detener, migrar ni modificar bases. Antes de Streamlit se ejecuta `ping` con timeout; un fallo produce mensaje legible y código 1. La URI comunicada no contiene credenciales. La configuración completa se pospone.
+L1 conservó MongoDB local en `mongodb://localhost:27017`, sin instalar, arrancar, detener, migrar ni modificar bases. Antes de Streamlit se ejecuta `ping` con timeout; un fallo produce mensaje legible y código 1. La URI comunicada no contiene credenciales. L2 añadió después configuración XDG y precedencia CLI/entorno/config/default; un almacén de secretos sigue fuera de alcance.
 
 LaTeX no es prerrequisito de arranque. No se comprueba ni instala `pdflatex`; los flujos PDF mantienen su diagnóstico cuando realmente lo necesitan.
 
@@ -85,4 +85,4 @@ Las pruebas cubren ayuda/versión, comando implícito y explícito, opciones, `s
 
 No se realizó validación gráfica ni se arrancó un servidor real. La ejecución completa requiere instalar las dependencias declaradas y disponer de MongoDB local. La divergencia general entre `requirements.txt` y Poetry permanece fuera de L1.
 
-Para L2 o fases posteriores quedan deliberadamente: XDG; migración de runtime, medios y exportaciones; backups coordinados; migraciones de esquema; `mathmongo doctor`; instalación/configuración avanzada de MongoDB o TeX Live; credenciales; `.desktop` e icono; instalador Bash; actualizador/desinstalador; `.deb`; AppImage; Windows y macOS.
+L1.5 implementó posteriormente el `.desktop` y el icono. L2 centraliza rutas y separa configuración, datos, runtime, caché, estado y exportaciones mediante XDG. Siguen pendientes para L3 o fases posteriores: instalador Bash integral, backups coordinados MongoDB+archivos, migraciones de esquema, `mathmongo doctor`, instalación/configuración avanzada de MongoDB o TeX Live, almacén de secretos, actualizador/desinstalador, `.deb`, AppImage, Windows y macOS.

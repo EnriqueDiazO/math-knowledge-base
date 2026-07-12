@@ -4,14 +4,18 @@ Interactive Graph Visualization for Manage Relations Section
 Provides real-time, clickable graph visualization with MongoDB sync
 """
 
-import networkx as nx
-from pyvis.network import Network
-import streamlit as st
-import tempfile
 import os
-from pathlib import Path
-from typing import Dict, List, Optional, Tuple
-import json
+from typing import Dict
+from typing import List
+from typing import Optional
+from typing import Tuple
+
+import streamlit as st
+from pyvis.network import Network
+
+from mathmongo.paths import get_graph_runtime_dir
+from mathmongo.paths import validate_mutable_path
+
 
 class InteractiveGraphManager:
     """
@@ -20,8 +24,8 @@ class InteractiveGraphManager:
     
     def __init__(self, db):
         self.db = db
-        self.temp_dir = Path("~/math_knowledge_graphs").expanduser()
-        self.temp_dir.mkdir(exist_ok=True)
+        self.temp_dir = validate_mutable_path(get_graph_runtime_dir())
+        self.temp_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
         
         # Color schemes
         self.node_colors = {
@@ -58,6 +62,13 @@ class InteractiveGraphManager:
             "contradice": "solid",
             "contra_ejemplo": "dotted"
         }
+
+    def _mutable_graph_path(self, filename: str):
+        self.temp_dir = validate_mutable_path(self.temp_dir)
+        return validate_mutable_path(
+            self.temp_dir / filename,
+            allowed_root=self.temp_dir,
+        )
     
     def _apply_style(self, net, profile: str = "full"):
         if profile == "full":
@@ -215,7 +226,9 @@ class InteractiveGraphManager:
             """
             
             # Write fallback HTML
-            fallback_file = self.temp_dir / f"fallback_graph_{len(concepts)}_{len(relations)}.html"
+            fallback_file = self._mutable_graph_path(
+                f"fallback_graph_{len(concepts)}_{len(relations)}.html"
+            )
             with open(fallback_file, 'w', encoding='utf-8') as f:
                 f.write(fallback_html)
             
@@ -383,7 +396,9 @@ class InteractiveGraphManager:
 
         
         # Generate unique filename
-        graph_file = self.temp_dir / f"interactive_graph_{len(concepts)}_{len(relations)}.html"
+        graph_file = self._mutable_graph_path(
+            f"interactive_graph_{len(concepts)}_{len(relations)}.html"
+        )
         
         # Check if we have any valid nodes to render
         if added_nodes == 0:
@@ -505,7 +520,9 @@ class InteractiveGraphManager:
                 """
                 
                 # Write fallback HTML
-                fallback_file = self.temp_dir / f"fallback_graph_{len(concepts)}_{len(relations)}.html"
+                fallback_file = self._mutable_graph_path(
+                    f"fallback_graph_{len(concepts)}_{len(relations)}.html"
+                )
                 with open(fallback_file, 'w', encoding='utf-8') as f:
                     f.write(fallback_html)
                 
@@ -769,14 +786,18 @@ class InteractiveGraphManager:
         Clean up temporary graph files
         """
         try:
-            for file in self.temp_dir.glob("*.html"):
+            self.temp_dir = validate_mutable_path(self.temp_dir)
+            for candidate in self.temp_dir.glob("*.html"):
+                file = validate_mutable_path(candidate, allowed_root=self.temp_dir)
                 if file.exists():
                     file.unlink()
         except Exception as e:
             st.warning(f"Could not cleanup temp files: {e}")
     
     def _generate_empty_html(self, concepts, relations):
-        graph_file = self.temp_dir / f"empty_graph_{len(concepts)}_{len(relations)}.html"
+        graph_file = self._mutable_graph_path(
+            f"empty_graph_{len(concepts)}_{len(relations)}.html"
+        )
         empty_html = f"""
     <!DOCTYPE html>
     <html>

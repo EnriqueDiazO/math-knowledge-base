@@ -15,8 +15,8 @@ from mathkb_config import CLEANUP_BACKUP_DIR
 from mathkb_config import CLEANUP_LOG_FILE
 from mathkb_config import EXPORT_CLEANUP_DIRS
 from mathkb_config import GRAPH_RUNTIME_DIR
-from mathkb_config import PROJECT_ROOT
-
+from mathkb_config import LEGACY_PROJECT_ROOT
+from mathmongo.paths import validate_mutable_path
 
 TEMP_FILE_SUFFIXES = {
     ".aux",
@@ -43,7 +43,7 @@ LEGACY_ROOT_GRAPH_PATTERNS = (
 
 
 def _resolve_path(path: Path | str) -> Path:
-    return Path(path).expanduser().resolve(strict=False)
+    return Path(os.path.abspath(Path(path).expanduser()))
 
 
 def _allowed_roots() -> tuple[Path, ...]:
@@ -60,7 +60,14 @@ def _allowed_root_for_path(path: Path | str) -> Path | None:
 
 def validate_cleanup_path(path: Path | str) -> bool:
     """Return True only for root directories explicitly allowed for cleanup."""
-    return _resolve_path(path) in _allowed_roots()
+    candidate = _resolve_path(path)
+    if candidate not in _allowed_roots():
+        return False
+    try:
+        validate_mutable_path(candidate, allowed_root=candidate)
+    except ValueError:
+        return False
+    return True
 
 
 def _validate_cleanup_target(path: Path | str) -> tuple[Path | None, str | None]:
@@ -70,6 +77,10 @@ def _validate_cleanup_target(path: Path | str) -> tuple[Path | None, str | None]
         return None, f"Ruta no permitida: {resolved}"
     if resolved == root:
         return None, f"No se permite borrar la carpeta raíz protegida: {resolved}"
+    try:
+        validate_mutable_path(resolved, allowed_root=root)
+    except ValueError as exc:
+        return None, str(exc)
     return root, None
 
 
@@ -148,7 +159,7 @@ def get_directory_stats(path: Path | str) -> dict[str, Any]:
         "extensions": {},
         "preview": [],
     }
-    if not target.exists() or not target.is_dir():
+    if not stats["allowed"] or not target.exists() or not target.is_dir():
         return stats
 
     extensions: Counter[str] = Counter()
@@ -283,14 +294,20 @@ def list_deletable_files(
 
 def _backup_destination(path: Path, root: Path, backup_dir: Path) -> Path:
     relative = path.relative_to(root)
-    destination = backup_dir / root.name / relative
+    destination = validate_mutable_path(
+        backup_dir / root.name / relative,
+        allowed_root=backup_dir,
+    )
     if not destination.exists():
         return destination
     stem = destination.stem
     suffix = destination.suffix
     parent = destination.parent
     for index in range(1, 1000):
-        candidate = parent / f"{stem}_{index}{suffix}"
+        candidate = validate_mutable_path(
+            parent / f"{stem}_{index}{suffix}",
+            allowed_root=backup_dir,
+        )
         if not candidate.exists():
             return candidate
     raise FileExistsError(f"No se pudo crear destino único para respaldo: {destination}")
@@ -298,8 +315,12 @@ def _backup_destination(path: Path, root: Path, backup_dir: Path) -> Path:
 
 def _new_backup_dir() -> Path:
     stamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    backup_dir = CLEANUP_BACKUP_DIR / stamp
-    backup_dir.mkdir(parents=True, exist_ok=True)
+    backup_dir = validate_mutable_path(
+        CLEANUP_BACKUP_DIR / stamp,
+        allowed_root=CLEANUP_BACKUP_DIR,
+    )
+    backup_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    backup_dir.chmod(0o700)
     return backup_dir
 
 
@@ -323,6 +344,11 @@ def delete_files_safely(
     if move_to_backup and backup_dir is None:
         backup_dir = _new_backup_dir()
         result["backup_dir"] = str(backup_dir)
+    elif move_to_backup:
+        backup_dir = validate_mutable_path(
+            backup_dir,
+            allowed_root=CLEANUP_BACKUP_DIR,
+        )
 
     for target in targets:
         root, error = _validate_cleanup_target(target)
@@ -375,7 +401,7 @@ def empty_directory_contents_safely(
             "backup_dir": "",
         }
     if not root.exists():
-        root.mkdir(parents=True, exist_ok=True)
+        root.mkdir(parents=True, exist_ok=True, mode=0o700)
         return {
             "deleted_files": 0,
             "deleted_dirs": 0,
@@ -391,7 +417,7 @@ def empty_directory_contents_safely(
         if child.name not in PRESERVED_FILENAMES
     ]
     result = delete_files_safely(targets, move_to_backup=move_to_backup)
-    root.mkdir(parents=True, exist_ok=True)
+    root.mkdir(parents=True, exist_ok=True, mode=0o700)
     return result
 
 
@@ -417,16 +443,20 @@ def find_legacy_root_graph_files() -> list[Path]:
     """Find known graph artifacts that older versions wrote into PROJECT_ROOT."""
     files: list[Path] = []
     for pattern in LEGACY_ROOT_GRAPH_PATTERNS:
-        for path in PROJECT_ROOT.glob(pattern):
+        for path in LEGACY_PROJECT_ROOT.glob(pattern):
             if path.is_file():
                 files.append(path)
     return sorted(set(files), key=lambda item: item.name.lower())
 
 
 def move_legacy_root_graph_files_to_runtime() -> dict[str, Any]:
-    """Move legacy root graph artifacts into runtime/knowledge_graphs/legacy."""
-    legacy_dir = GRAPH_RUNTIME_DIR / "legacy"
-    legacy_dir.mkdir(parents=True, exist_ok=True)
+    """Copy legacy graph artifacts into XDG runtime while preserving originals."""
+    legacy_dir = validate_mutable_path(
+        GRAPH_RUNTIME_DIR / "legacy",
+        allowed_root=GRAPH_RUNTIME_DIR,
+    )
+    legacy_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+    legacy_dir.chmod(0o700)
     result: dict[str, Any] = {
         "deleted_files": 0,
         "deleted_dirs": 0,
@@ -438,28 +468,41 @@ def move_legacy_root_graph_files_to_runtime() -> dict[str, Any]:
     }
     for path in find_legacy_root_graph_files():
         try:
+            if path.is_symlink():
+                continue
             size = path.lstat().st_size
-            destination = legacy_dir / path.name
+            destination = validate_mutable_path(
+                legacy_dir / path.name,
+                allowed_root=legacy_dir,
+            )
             if destination.exists():
                 stem = path.stem
                 suffix = path.suffix
                 for index in range(1, 1000):
-                    candidate = legacy_dir / f"{stem}_{index}{suffix}"
+                    candidate = validate_mutable_path(
+                        legacy_dir / f"{stem}_{index}{suffix}",
+                        allowed_root=legacy_dir,
+                    )
                     if not candidate.exists():
                         destination = candidate
                         break
-            shutil.move(str(path), str(destination))
+            shutil.copy2(path, destination)
             result["moved_files"] += 1
             result["bytes_freed"] += size
         except Exception as exc:
             result["errors"].append(f"{path}: {exc}")
-    _log_cleanup_action("move_legacy_graphs", str(PROJECT_ROOT), result)
+    _log_cleanup_action("copy_legacy_graphs", str(LEGACY_PROJECT_ROOT), result)
     return result
 
 
 def _log_cleanup_action(action: str, target: str, result: dict[str, Any]) -> None:
     try:
-        CLEANUP_LOG_FILE.parent.mkdir(parents=True, exist_ok=True)
+        log_file = validate_mutable_path(
+            CLEANUP_LOG_FILE,
+            allowed_root=CLEANUP_LOG_FILE.parent,
+        )
+        log_file.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
+        log_file.parent.chmod(0o700)
         timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         deleted = result.get("deleted_files", 0)
         moved = result.get("moved_files", 0)
@@ -473,7 +516,8 @@ def _log_cleanup_action(action: str, target: str, result: dict[str, Any]) -> Non
         )
         if message:
             line += f" | {message}"
-        with CLEANUP_LOG_FILE.open("a", encoding="utf-8") as handle:
+        with log_file.open("a", encoding="utf-8") as handle:
             handle.write(line + "\n")
-    except OSError:
+        log_file.chmod(0o600)
+    except (OSError, ValueError):
         pass

@@ -8,10 +8,11 @@ import tempfile
 import time
 from dataclasses import asdict
 from dataclasses import dataclass
+from difflib import get_close_matches
 from pathlib import Path
 from typing import Any
-from difflib import get_close_matches
 
+from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import command_to_text
 from exporters_latex.latex_compile import decode_diagnostic_bytes
 from exporters_latex.latex_compile import latex_command_not_found_message
@@ -20,11 +21,12 @@ from exporters_latex.latex_compile import output_tail
 from exporters_latex.latex_compile import run_latex_until_stable
 from exporters_latex.unified_document import copy_latex_styles
 from exporters_latex.unified_document import sanitize_source_name
-from editor.utils.media_assets import copy_media_tree_for_latex
-from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import LATEX_LINTER_TIMEOUT_SECONDS
+from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
-
+from mathmongo.paths import get_latex_runtime_dir
+from mathmongo.paths import get_state_dir
+from mathmongo.paths import validate_mutable_path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 TEMPLATES_LATEX_DIR = PROJECT_ROOT / "templates_latex"
@@ -306,9 +308,13 @@ def find_undefined_environments(latex: str) -> list[dict[str, str]]:
 
 
 def _write_validation_document(latex: str, work_dir: Path) -> Path:
+    work_dir = validate_mutable_path(work_dir)
     copy_latex_styles(work_dir, TEMPLATES_LATEX_DIR)
     copy_media_tree_for_latex(work_dir)
-    test_path = work_dir / "fragment_test.tex"
+    test_path = validate_mutable_path(
+        work_dir / "fragment_test.tex",
+        allowed_root=work_dir,
+    )
     test_path.write_text(
         "\n".join(
             [
@@ -608,14 +614,26 @@ def run_lacheck(tex_path: str | Path) -> tuple[bool, list[str]]:
 def compile_latex_fragment(latex: str, work_dir: Path | None = None) -> tuple[bool, str]:
     owned_tmp = None
     if work_dir is None:
-        owned_tmp = tempfile.TemporaryDirectory(prefix="mathkb_latex_validation_")
-        work_path = Path(owned_tmp.name)
+        runtime_dir = validate_mutable_path(get_latex_runtime_dir())
+        runtime_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+        owned_tmp = tempfile.TemporaryDirectory(prefix="mathkb_latex_validation_", dir=runtime_dir)
+        work_path = validate_mutable_path(
+            Path(owned_tmp.name),
+            allowed_root=runtime_dir,
+        )
     else:
-        work_path = Path(work_dir)
+        work_path = validate_mutable_path(work_dir)
         work_path.mkdir(parents=True, exist_ok=True)
 
     test_path = _write_validation_document(latex, work_path)
-    log_path = work_path / "fragment_test.log"
+    log_path = validate_mutable_path(
+        work_path / "fragment_test.log",
+        allowed_root=work_path,
+    )
+    pdf_path = validate_mutable_path(
+        work_path / "fragment_test.pdf",
+        allowed_root=work_path,
+    )
     try:
         command = [
             "pdflatex",
@@ -627,7 +645,7 @@ def compile_latex_fragment(latex: str, work_dir: Path | None = None) -> tuple[bo
             command,
             cwd=str(work_path),
             tex_file=test_path.name,
-            pdf_path=work_path / "fragment_test.pdf",
+            pdf_path=pdf_path,
             log_path=log_path,
             timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
             max_passes=LATEX_MAX_PASSES,
@@ -763,10 +781,15 @@ def validate_latex_fragment(
     validation_dir: Path | None = None
     if run_linters or run_compile:
         if work_dir is None:
-            owned_tmp = tempfile.TemporaryDirectory(prefix="mathkb_latex_validation_")
-            validation_dir = Path(owned_tmp.name)
+            runtime_dir = validate_mutable_path(get_latex_runtime_dir())
+            runtime_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
+            owned_tmp = tempfile.TemporaryDirectory(prefix="mathkb_latex_validation_", dir=runtime_dir)
+            validation_dir = validate_mutable_path(
+                Path(owned_tmp.name),
+                allowed_root=runtime_dir,
+            )
         else:
-            validation_dir = Path(work_dir)
+            validation_dir = validate_mutable_path(work_dir)
             validation_dir.mkdir(parents=True, exist_ok=True)
         test_path = _write_validation_document(effective_latex, validation_dir)
 
@@ -775,6 +798,14 @@ def validate_latex_fragment(
             _available, lacheck_warnings = _run_tool(["lacheck", test_path.name], validation_dir)
         if run_compile:
             try:
+                pdf_path = validate_mutable_path(
+                    validation_dir / "fragment_test.pdf",
+                    allowed_root=validation_dir,
+                )
+                log_path = validate_mutable_path(
+                    validation_dir / "fragment_test.log",
+                    allowed_root=validation_dir,
+                )
                 command = [
                     "pdflatex",
                     "-interaction=nonstopmode",
@@ -785,14 +816,14 @@ def validate_latex_fragment(
                     command,
                     cwd=str(validation_dir),
                     tex_file=test_path.name,
-                    pdf_path=validation_dir / "fragment_test.pdf",
-                    log_path=validation_dir / "fragment_test.log",
+                    pdf_path=pdf_path,
+                    log_path=log_path,
                     timeout_seconds=PDF_COMPILE_TIMEOUT_SECONDS,
                     max_passes=LATEX_MAX_PASSES,
                 )
                 compile_success = (
                     compile_info["status"] != "failed"
-                    and (validation_dir / "fragment_test.pdf").exists()
+                    and pdf_path.exists()
                 )
                 log_excerpt = compile_info.get("log_excerpt") or output_tail(
                     compile_info.get("stdout", ""),
@@ -948,15 +979,18 @@ def summarize_validation_results(
 
 
 def write_json_report(report: dict[str, Any], path: str | Path) -> Path:
-    out = Path(path)
-    out.parent.mkdir(parents=True, exist_ok=True)
+    out = validate_mutable_path(path)
+    parent = validate_mutable_path(out.parent)
+    parent.mkdir(parents=True, exist_ok=True)
+    out = validate_mutable_path(out, allowed_root=parent)
     out.write_text(json.dumps(report, ensure_ascii=False, indent=2, default=str), encoding="utf-8")
     return out
 
 
 def write_markdown_report(report: dict[str, Any], path: str | Path) -> Path:
-    out = Path(path)
-    out.parent.mkdir(parents=True, exist_ok=True)
+    out = validate_mutable_path(path)
+    parent = validate_mutable_path(out.parent)
+    parent.mkdir(parents=True, exist_ok=True)
     lines = [
         "# LaTeX Validation Report",
         "",
@@ -1001,13 +1035,14 @@ def write_markdown_report(report: dict[str, Any], path: str | Path) -> Path:
                     f"{item.get('message')} {item.get('suggestion')}"
                 )
             lines.append("")
+    out = validate_mutable_path(out, allowed_root=parent)
     out.write_text("\n".join(lines), encoding="utf-8")
     return out
 
 
 def default_report_paths(source: str) -> tuple[Path, Path]:
     safe_source = sanitize_source_name(source)
-    reports_dir = PROJECT_ROOT / "reports"
+    reports_dir = get_state_dir() / "reports"
     return (
         reports_dir / f"{safe_source}_latex_validation.json",
         reports_dir / f"{safe_source}_latex_validation.md",

@@ -28,7 +28,6 @@ Variables de entorno (opcionales):
 from __future__ import annotations
 
 import argparse
-import os
 import sys
 from pathlib import Path
 from typing import Any
@@ -43,10 +42,14 @@ PROJECT_ROOT_PATH = Path(__file__).resolve().parents[1]
 if str(PROJECT_ROOT_PATH) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT_PATH))
 
+from mathkb_config import LOCAL_MEDIA_IMAGES_DIR  # noqa: E402
+from mathkb_config import LOCAL_MEDIA_ROOT  # noqa: E402
 from mathkb_config import MEDIA_ASSETS_COLLECTION  # noqa: E402
 from mathkb_config import MEDIA_IMAGES_DIR  # noqa: E402
 from mathkb_config import MEDIA_ROOT  # noqa: E402
-from mathkb_config import PROJECT_ROOT  # noqa: E402
+from mathmongo.config import resolve_config  # noqa: E402
+from mathmongo.config import sanitize_mongo_error  # noqa: E402
+from mathmongo.paths import validate_mutable_path  # noqa: E402
 
 REQUIRED_COLLECTIONS = [
     "worklog_entries",
@@ -68,36 +71,20 @@ CORNELL_LATEX_NOTE_INDEXES = [
 ]
 
 
-def _env_first(*keys: str) -> str | None:
-    for k in keys:
-        v = os.getenv(k)
-        if v:
-            return v
-    return None
-
-
 def _get_client(uri: str) -> MongoClient:
     return MongoClient(uri, serverSelectionTimeoutMS=3000)
 
 
 def _ensure_media_directories() -> None:
-    media_root = PROJECT_ROOT / MEDIA_ROOT
-    media_images_dir = PROJECT_ROOT / MEDIA_IMAGES_DIR
-    media_images_dir.mkdir(parents=True, exist_ok=True)
+    media_root = LOCAL_MEDIA_ROOT
+    media_images_dir = validate_mutable_path(
+        LOCAL_MEDIA_IMAGES_DIR,
+        allowed_root=media_root,
+    )
+    media_images_dir.mkdir(parents=True, exist_ok=True, mode=0o700)
 
-    gitkeep = media_images_dir / ".gitkeep"
-    if not gitkeep.exists():
-        gitkeep.write_text("", encoding="utf-8")
-
-    gitignore = media_images_dir / ".gitignore"
-    if not gitignore.exists():
-        gitignore.write_text("*\n!.gitignore\n!.gitkeep\n", encoding="utf-8")
-
-    try:
-        display_path = media_root.relative_to(PROJECT_ROOT).as_posix()
-    except ValueError:
-        display_path = media_root.as_posix()
-    print(f"✅ Directorio de medios listo: {display_path}")
+    display_path = media_root.as_posix()
+    print(f"✅ Directorio de medios listo: {display_path} (ruta lógica: {MEDIA_ROOT.as_posix()})")
 
 
 def _ensure_collection(db, name: str, validator: dict[str, Any]) -> None:
@@ -642,7 +629,7 @@ def status(db) -> int:
             print(f"  - {c}: MISSING")
             ok = False
     print("Medios:")
-    media_images_dir = PROJECT_ROOT / MEDIA_IMAGES_DIR
+    media_images_dir = LOCAL_MEDIA_IMAGES_DIR
     if media_images_dir.exists():
         print(f"  - {MEDIA_IMAGES_DIR.as_posix()}: OK")
     else:
@@ -692,10 +679,11 @@ def install(db) -> int:
 
 def main(argv: list[str] | None = None) -> int:
     """Run the Cuaderno installer CLI."""
+    settings = resolve_config()
     ap = argparse.ArgumentParser()
     ap.add_argument("--status", action="store_true", help="Solo imprime si existen las colecciones requeridas.")
-    ap.add_argument("--mongo-uri", default=_env_first("MONGODB_URI", "MONGO_URI") or "mongodb://127.0.0.1:27017")
-    ap.add_argument("--db", default=_env_first("MONGODB_DB", "MONGO_DB", "DB_NAME") or "mathmongo")
+    ap.add_argument("--mongo-uri", default=settings.mongo_uri)
+    ap.add_argument("--db", default=settings.mongo_database)
     args = ap.parse_args(argv)
 
     try:
@@ -703,7 +691,8 @@ def main(argv: list[str] | None = None) -> int:
         # ping rápido
         client.admin.command("ping")
     except Exception as e:
-        print(f"❌ No se pudo conectar a MongoDB: {e}")
+        safe_error = sanitize_mongo_error(e, args.mongo_uri)
+        print(f"❌ No se pudo conectar a MongoDB: {safe_error}")
         return 2
 
     db = client[args.db]
@@ -713,7 +702,8 @@ def main(argv: list[str] | None = None) -> int:
             return status(db)
         return install(db)
     except Exception as e:
-        print(f"❌ Error en instalación: {e}")
+        safe_error = sanitize_mongo_error(e, args.mongo_uri)
+        print(f"❌ Error en instalación: {safe_error}")
         return 2
 
 

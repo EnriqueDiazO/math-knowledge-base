@@ -13,7 +13,8 @@ from exporters_latex.concept_ordering import order_by_type
 from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_latex.latex_validation import validate_selected_concepts_from_mongo
 from exporters_latex.latex_validation import validate_source_from_mongo
-
+from mathmongo.config import resolve_config
+from mathmongo.paths import get_exports_dir
 
 CONCEPT_TYPES = [
     "definicion",
@@ -181,7 +182,7 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
     with controls_right:
         output_dir = st.text_input(
             "Output directory",
-            value="./exported",
+            value=str(get_exports_dir(configured=resolve_config().export_directory) / "documents"),
             key=_builder_state_key("output_dir"),
         )
 

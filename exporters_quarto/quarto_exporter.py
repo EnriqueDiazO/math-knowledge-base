@@ -13,6 +13,8 @@ from typing import List
 import yaml
 
 from editor.utils.media_assets import copy_media_tree_for_latex
+from mathmongo.paths import find_symlink_component
+from mathmongo.paths import validate_mutable_path
 
 
 # -----------------------------
@@ -305,22 +307,66 @@ class QuartoBookExporter:
     Important: Concepts must already include 'contenido_latex' (e.g., enriched from latex_documents).
     """
 
-    def __init__(self, template_dir: Path, build_dir: Path):
+    BUILD_MARKER = ".mathmongo-quarto-build"
+
+    def __init__(
+        self,
+        template_dir: Path,
+        build_dir: Path,
+        *,
+        allowed_root: Path | None = None,
+    ):
         self.template_dir = Path(template_dir)
         self.build_dir = Path(build_dir)
+        self.allowed_root = Path(allowed_root) if allowed_root is not None else None
 
     def prepare_build(self, force: bool = False) -> None:
         if not self.template_dir.exists():
             raise FileNotFoundError(f"Template dir not found: {self.template_dir}")
+        template_symlink = find_symlink_component(self.template_dir)
+        if template_symlink is None:
+            template_symlink = next(
+                (path for path in self.template_dir.rglob("*") if path.is_symlink()),
+                None,
+            )
+        if template_symlink is not None:
+            raise ValueError(f"Quarto templates must not contain symbolic links: {template_symlink}")
+
+        if self.build_dir.is_symlink():
+            raise ValueError(f"Quarto build directory must not be a symlink: {self.build_dir}")
+        build_dir = validate_mutable_path(self.build_dir, allowed_root=self.allowed_root)
+        if self.allowed_root is not None and build_dir == self.allowed_root.resolve(strict=False):
+            raise ValueError("Quarto build directory must be below, not equal to, its export root")
+        self.build_dir = build_dir
 
         if self.build_dir.exists():
             if not force:
                 raise FileExistsError(
                     f"Build dir exists: {self.build_dir} (use force=True)"
                 )
+            marker = validate_mutable_path(
+                self.build_dir / self.BUILD_MARKER,
+                allowed_root=self.build_dir,
+            )
+            if not marker.is_file() or marker.read_text(encoding="utf-8").strip() != "mathmongo-quarto-v1":
+                raise ValueError(
+                    f"Refusing to replace a directory not owned by MathMongo: {self.build_dir}"
+                )
             shutil.rmtree(self.build_dir)
 
         shutil.copytree(self.template_dir, self.build_dir)
+        self.build_dir.chmod(0o700)
+        for copied_path in self.build_dir.rglob("*"):
+            if copied_path.is_dir():
+                copied_path.chmod(0o700)
+            elif copied_path.is_file():
+                copied_path.chmod(0o600)
+        marker = validate_mutable_path(
+            self.build_dir / self.BUILD_MARKER,
+            allowed_root=self.build_dir,
+        )
+        marker.write_text("mathmongo-quarto-v1\n", encoding="utf-8")
+        marker.chmod(0o600)
         copy_media_tree_for_latex(self.build_dir)
 
     def export_concepts(self, concepts: Iterable[Dict[str, Any]]) -> QuartoExportResult:
