@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from bson import ObjectId
 from source_catalog_migration_fakes import FakeDatabase
 
 from mathmongo.source_catalog_migration import apply_safety as safety_module
@@ -113,7 +114,7 @@ def test_exact_authorization_accepts_both_isolated_target_prefixes() -> None:
 
 @pytest.mark.parametrize(
     "target",
-    ["MathV0", "mathmongo", "admin", "config", "local", "MATHV0", "ADMIN"],
+    ["mathmongo", "admin", "config", "local", "MATHV0", "ADMIN"],
 )
 def test_authorization_rejects_protected_database_names(target: str) -> None:
     with pytest.raises(ApplySafetyError) as exc_info:
@@ -122,6 +123,15 @@ def test_authorization_rejects_protected_database_names(target: str) -> None:
         )
 
     assert exc_info.value.code == "forbidden_target"
+
+
+def test_mathv0_requires_the_separate_production_authorization() -> None:
+    with pytest.raises(ApplySafetyError) as exc_info:
+        validate_apply_authorization(
+            _authorization(target_database="MathV0", confirmed_database="MathV0")
+        )
+
+    assert exc_info.value.code == "production_write_not_authorized"
 
 
 @pytest.mark.parametrize(
@@ -286,7 +296,10 @@ def test_plan_preflight_explicitly_rejects_a_conflict_queue(
     assert exc_info.value.code == "plan_conflict"
 
 
-@pytest.mark.parametrize("collection_name", ["sources", "references"])
+@pytest.mark.parametrize(
+    "collection_name",
+    ["sources", "references", "source_catalog_migration_manifest"],
+)
 def test_first_preflight_blocks_physically_present_empty_catalog_collection(
     collection_name: str,
     authoritative_export: LoadedLegacyExport,
@@ -307,8 +320,10 @@ def test_first_preflight_blocks_physically_present_empty_catalog_collection(
     assert comparison.successful is False
     if collection_name == "sources":
         assert comparison.sources_collection_absent is False
-    else:
+    elif collection_name == "references":
         assert comparison.references_collection_absent is False
+    else:
+        assert comparison.manifest_collection_absent is False
     assert any("physically present" in detail for detail in comparison.drift_details)
     with pytest.raises(ApplySafetyError) as exc_info:
         require_successful_legacy_preflight(comparison)
@@ -388,6 +403,26 @@ def test_stable_target_mismatch_is_snapshot_drift_not_concurrent_drift(
     assert database.write_attempt_events == ()
 
 
+def test_preflight_does_not_hide_a_field_named_like_the_old_projection_guard(
+    authoritative_export: LoadedLegacyExport,
+) -> None:
+    database = _target_database(authoritative_export)
+    database._documents["concepts"][0]["__mathmongo_s1c2a_projection_guard_never_persist__"] = (
+        "must be hashed"
+    )
+
+    comparison = preflight_legacy_database(
+        authoritative_export,
+        database,
+        require_catalog_absent=True,
+    )
+
+    assert comparison.snapshot_drift is True
+    assert comparison.fingerprints_match is False
+    assert comparison.successful is False
+    assert database.write_attempt_events == ()
+
+
 def test_mutation_between_reads_is_detected_as_live_database_drift(
     authoritative_export: LoadedLegacyExport,
 ) -> None:
@@ -428,6 +463,77 @@ def test_mutation_between_reads_is_detected_as_live_database_drift(
     assert database.write_attempt_events == ()
 
 
+def test_live_bson_type_change_is_detected_even_when_legacy_json_is_equal() -> None:
+    hex_id = "64b64c7f0123456789abcde1"
+    documents_as_string = {"concepts": ({"_id": hex_id},)}
+    documents_as_object_id = {"concepts": ({"_id": ObjectId(hex_id)},)}
+    expected = safety_module._snapshot_from_documents(
+        database_name=TARGET,
+        all_collection_names=safety_module.LEGACY_COLLECTIONS,
+        documents=documents_as_string,
+        indexes={},
+        read_operations=("test",),
+    )
+    before = safety_module._snapshot_from_documents(
+        database_name=TARGET,
+        all_collection_names=safety_module.LEGACY_COLLECTIONS,
+        documents=documents_as_object_id,
+        indexes={},
+        read_operations=("test",),
+    )
+    after = safety_module._snapshot_from_documents(
+        database_name=TARGET,
+        all_collection_names=safety_module.LEGACY_COLLECTIONS,
+        documents=documents_as_string,
+        indexes={},
+        read_operations=("test",),
+    )
+
+    comparison = safety_module.compare_legacy_snapshots(
+        expected,
+        before,
+        after,
+        require_catalog_absent=False,
+    )
+
+    assert comparison.fingerprints_match is True
+    assert comparison.live_database_drift is True
+    assert comparison.successful is False
+    assert safety_module.manifest_invariant_hashes(before) != (
+        safety_module.manifest_invariant_hashes(after)
+    )
+
+
+def test_legacy_index_hash_includes_hidden_and_all_server_options() -> None:
+    class _IndexCursor(list):
+        def close(self) -> None:
+            return None
+
+    class _IndexCollection:
+        def __init__(self, hidden: bool) -> None:
+            self.hidden = hidden
+
+        def list_indexes(self) -> _IndexCursor:
+            return _IndexCursor(
+                [
+                    {
+                        "v": 2,
+                        "key": {"source": 1},
+                        "name": "source_1",
+                        "hidden": self.hidden,
+                        "wildcardProjection": {"private": 0},
+                    }
+                ]
+            )
+
+    visible = safety_module._index_rows(_IndexCollection(False), "concepts")
+    hidden = safety_module._index_rows(_IndexCollection(True), "concepts")
+
+    assert visible != hidden
+    assert visible[0]["hidden"] is False
+    assert "wildcardProjection" in visible[0]
+
+
 @pytest.mark.parametrize(
     ("changes", "expected_code"),
     [
@@ -447,6 +553,13 @@ def test_mutation_between_reads_is_detected_as_live_database_drift(
                 "references_collection_absent": False,
             },
             "references_collection_present",
+        ),
+        (
+            {
+                "catalog_absence_required": True,
+                "manifest_collection_absent": False,
+            },
+            "manifest_collection_present",
         ),
         ({"counts_match": False}, "legacy_snapshot_mismatch"),
         ({"fingerprints_match": False}, "legacy_snapshot_mismatch"),

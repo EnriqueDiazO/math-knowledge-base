@@ -173,7 +173,7 @@ def _patch_apply_inputs(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def test_parser_exposes_only_s1c2a_commands_and_no_expansive_write_flags() -> None:
+def test_parser_exposes_separate_write_gates_and_no_expansive_write_flags() -> None:
     parser = migration_cli.build_parser()
     subparser_action = next(
         action for action in parser._actions if getattr(action, "choices", None)
@@ -182,10 +182,22 @@ def test_parser_exposes_only_s1c2a_commands_and_no_expansive_write_flags() -> No
     assert {"decisions-template", "apply-status", "apply"} <= set(subparser_action.choices)
     apply_help = subparser_action.choices["apply"].format_help()
     assert "--allow-isolated-write" in apply_help
+    assert "--allow-production-write" in apply_help
+    assert "--confirm-production-phrase" in apply_help
+    assert "--backup-path" in apply_help
+    assert "--backup-sha" in apply_help
+    assert "--confirm-backup-sha" in apply_help
     assert "--force" not in apply_help
-    assert "--allow-production-write" not in apply_help
-    assert "--skip-drift-check" not in apply_help
-    assert "--ignore-conflicts" not in apply_help
+    for forbidden in (
+        "--skip-preflight",
+        "--skip-drift-check",
+        "--ignore-drift",
+        "--ignore-conflicts",
+        "--overwrite",
+        "--drop-existing",
+        "--rollback-delete",
+    ):
+        assert forbidden not in apply_help
     assert "--database-name" not in apply_help
 
 
@@ -321,7 +333,7 @@ def test_apply_uses_injected_client_and_engine_after_all_pure_validation(
                 "connectTimeoutMS": 2_500,
                 "socketTimeoutMS": 10_000,
                 "retryWrites": False,
-                "appname": "MathMongo-S1C2A-isolated",
+                "appname": "MathMongo-S1C2P-bootstrap",
             },
         )
     ]
@@ -331,6 +343,41 @@ def test_apply_uses_injected_client_and_engine_after_all_pure_validation(
     assert call["export"].input_snapshot.database_name == "MathV0"
     assert call["authorization"].target_database == TARGET
     assert call["decisions"] == _decisions()
+
+
+def test_post_apply_verification_failure_requires_apply_status_before_retry(
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    _patch_apply_inputs(monkeypatch)
+
+    class Engine:
+        def __init__(self, _database: _Database) -> None:
+            pass
+
+        def apply(self, **_kwargs: Any) -> ApplyResult:
+            return _result(ApplyOutcome.APPLIED)
+
+    verifications = 0
+
+    def fail_after_engine(*_args: Any) -> None:
+        nonlocal verifications
+        verifications += 1
+        if verifications == 2:
+            raise OSError("changed after apply")
+
+    monkeypatch.setattr(migration_cli, "verify_input_unchanged", fail_after_engine)
+
+    result = migration_cli.main(
+        _apply_arguments(),
+        client_factory=_ClientFactory(),
+        engine_factory=Engine,
+    )
+
+    assert result == migration_cli.EXIT_ERROR
+    error = capsys.readouterr().err
+    assert "apply may have completed" in error
+    assert "apply-status" in error
 
 
 def test_apply_cli_runs_real_engine_only_against_injected_fake_and_second_run_is_noop(

@@ -198,6 +198,79 @@ class ManifestInvariantHashes(ManifestModel):
         return _validate_sha256(value, info.field_name)
 
 
+class ManifestBackupEvidence(ManifestModel):
+    """Path-free immutable identity of the pre-production MathV0 backup."""
+
+    file_name: str
+    sha256: str
+    size_bytes: int
+    exported_at: datetime
+    completed_at: datetime
+    write_freeze_at: datetime
+    format_name: str
+    format_version: str
+    collection_counts: dict[str, int]
+    legacy_aggregate_sha256: str
+    media_aggregate_sha256: str
+    media_file_count: int
+    file_mode: str
+    parent_mode: str
+
+    @field_validator("file_name")
+    @classmethod
+    def file_name_is_path_free(cls, value: str) -> str:
+        """Prevent HOME or other absolute path disclosure in the manifest."""
+        if not value or "/" in value or "\\" in value or value in {".", ".."}:
+            raise ValueError("manifest backup evidence requires a safe basename")
+        return value
+
+    @field_validator("sha256", "legacy_aggregate_sha256", "media_aggregate_sha256")
+    @classmethod
+    def backup_hashes_are_sha256(cls, value: Any, info: Any) -> str:
+        """Validate immutable backup digests."""
+        return _validate_sha256(value, info.field_name)
+
+    @field_validator("size_bytes")
+    @classmethod
+    def backup_size_is_positive(cls, value: Any) -> int:
+        """Reject empty or invalid backup sizes."""
+        if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+            raise ValueError("manifest backup size must be a positive integer")
+        return value
+
+    @field_validator("media_file_count")
+    @classmethod
+    def media_count_is_bounded(cls, value: Any) -> int:
+        """Retain a bounded physical-media inventory count."""
+        if isinstance(value, bool) or not isinstance(value, int) or not 0 <= value <= 10_000:
+            raise ValueError("manifest backup media count is invalid")
+        return value
+
+    @field_validator("exported_at", "completed_at", "write_freeze_at")
+    @classmethod
+    def backup_timestamps_are_utc(cls, value: datetime) -> datetime:
+        """Retain UTC millisecond timestamps compatible with BSON."""
+        return utc_now_milliseconds(lambda: value)
+
+    @field_validator("collection_counts")
+    @classmethod
+    def backup_counts_are_bounded(cls, value: dict[str, int]) -> dict[str, int]:
+        """Keep the compact legacy count proof deterministic."""
+        if len(value) > 64 or any(
+            not name or isinstance(count, bool) or not isinstance(count, int) or count < 0
+            for name, count in value.items()
+        ):
+            raise ValueError("manifest backup collection counts are invalid")
+        return dict(sorted(value.items()))
+
+    @model_validator(mode="after")
+    def backup_time_order_is_valid(self) -> ManifestBackupEvidence:
+        """Require the backup snapshot to begin after the write freeze."""
+        if self.exported_at < self.write_freeze_at or self.completed_at < self.exported_at:
+            raise ValueError("manifest backup timestamps are not ordered")
+        return self
+
+
 class ReferenceEvidenceSummary(ManifestModel):
     """Non-raw evidence retained when Reference cannot represent legacy shape."""
 
@@ -324,6 +397,7 @@ class MigrationManifest(ManifestModel):
     plan_semantic_sha256: str
     planner_version: str = PLANNER_VERSION
     decisions_sha256: str
+    production_backup_evidence: ManifestBackupEvidence | None = None
     source_id_map: dict[str, str]
     reference_id_map: dict[str, str]
     source_entity_hashes: dict[str, str]
@@ -583,6 +657,7 @@ def allocate_prepared_manifest(
     indexes_status: ManifestIndexStatus,
     reference_evidence_summaries: Iterable[ReferenceEvidenceSummary] = (),
     planner_version: str = PLANNER_VERSION,
+    production_backup_evidence: ManifestBackupEvidence | None = None,
     source_id_factory: Callable[[], str] = new_source_id,
     reference_id_factory: Callable[[], str] = new_reference_id,
     migration_id_factory: Callable[[], str] = new_migration_id,
@@ -609,6 +684,7 @@ def allocate_prepared_manifest(
         reference_evidence_hashes=reference_evidence_hashes,
         reference_evidence_summaries=reference_evidence_summaries,
         planner_version=planner_version,
+        production_backup_evidence=production_backup_evidence,
         indexes_status=indexes_status,
         invariant_hashes_before=invariant_hashes_before,
     )
@@ -629,6 +705,7 @@ def build_prepared_manifest_from_allocation(
     indexes_status: ManifestIndexStatus,
     reference_evidence_summaries: Iterable[ReferenceEvidenceSummary] = (),
     planner_version: str = PLANNER_VERSION,
+    production_backup_evidence: ManifestBackupEvidence | None = None,
 ) -> MigrationManifest:
     """Persist hashes built from an already allocated map without regenerating IDs."""
     return MigrationManifest(
@@ -644,6 +721,7 @@ def build_prepared_manifest_from_allocation(
         plan_semantic_sha256=plan_semantic_sha256,
         planner_version=planner_version,
         decisions_sha256=decisions_sha256,
+        production_backup_evidence=production_backup_evidence,
         source_id_map=allocation.source_id_map,
         reference_id_map=allocation.reference_id_map,
         source_entity_hashes=dict(source_entity_hashes),
@@ -673,6 +751,7 @@ def manifest_compatibility_issues(
         "plan_semantic_sha256",
         "planner_version",
         "decisions_sha256",
+        "production_backup_evidence",
         "expected_counts",
         "reference_evidence_hashes",
         "invariant_hashes_before",
@@ -1019,6 +1098,7 @@ __all__ = [
     "MAX_MANIFEST_ERRORS",
     "MIGRATION_TYPE",
     "ManifestCompatibilityError",
+    "ManifestBackupEvidence",
     "ManifestConcurrentUpdateError",
     "ManifestError",
     "ManifestExpectedCounts",

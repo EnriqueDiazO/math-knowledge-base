@@ -81,9 +81,9 @@ def test_interactive_graph_cleanup_rejects_a_symlinked_html_leaf(
 
 
 def test_editor_streamlit_backup_and_import_staging_are_guarded() -> None:
-    source = (
-        Path(__file__).resolve().parents[1] / "editor/editor_streamlit.py"
-    ).read_text(encoding="utf-8")
+    source = (Path(__file__).resolve().parents[1] / "editor/editor_streamlit.py").read_text(
+        encoding="utf-8"
+    )
 
     backup_guard = source.index("out_dir = validate_mutable_path(get_backups_dir())")
     backup_mkdir = source.index("out_dir.mkdir(", backup_guard)
@@ -94,12 +94,14 @@ def test_editor_streamlit_backup_and_import_staging_are_guarded() -> None:
     import_guard = source.index("import_runtime = validate_mutable_path(", runtime_guard)
     import_mkdir = source.index("import_runtime.mkdir(", import_guard)
     leaf_guard = source.index("tmp_path = validate_mutable_path(", import_mkdir)
-    write_open = source.index('with open(tmp_path, "wb")', leaf_guard)
+    write_open = source.index("upload_descriptor = os.open(", leaf_guard)
     assert runtime_guard < import_guard < import_mkdir < leaf_guard < write_open
 
-    preflight_guard = source.index(
-        "latex_runtime = validate_mutable_path(get_latex_runtime_dir())"
-    )
+    protected_guard = source.index("if new_db_name.casefold()", write_open)
+    mongo_constructor = source.index("MathMongo(db_name=new_db_name)", protected_guard)
+    assert protected_guard < mongo_constructor
+
+    preflight_guard = source.index("latex_runtime = validate_mutable_path(get_latex_runtime_dir())")
     preflight_mkdir = source.index("latex_runtime.mkdir(", preflight_guard)
     preflight_temp = source.index("tempfile.TemporaryDirectory(", preflight_mkdir)
     assert preflight_guard < preflight_mkdir < preflight_temp

@@ -282,7 +282,8 @@ def test_apply_is_rejected_before_input_or_output_access(
     captured = capsys.readouterr()
     assert result == migration_cli.EXIT_USAGE
     assert captured.out == ""
-    assert "S1C2A apply requires --allow-isolated-write" in captured.err
+    assert "requires either the isolated-write" in captured.err
+    assert "separately guarded production-write authorization" in captured.err
     assert "not available" not in captured.err
 
 

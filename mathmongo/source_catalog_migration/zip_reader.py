@@ -46,6 +46,7 @@ _ALLOWED_COLLECTIONS = frozenset(
         "references",
         "relations",
         "sources",
+        "source_catalog_migration_manifest",
         "weekly_reviews",
         "worklog_entries",
     }
@@ -126,12 +127,148 @@ class LoadedLegacyExport:
     input_identity: FileIdentity
 
 
-def _sha256_file(path: Path) -> str:
+def _descriptor_identity(value: os.stat_result) -> tuple[int, ...]:
+    """Return the immutable and change-detecting fields used by the input guard."""
+    return (
+        value.st_dev,
+        value.st_ino,
+        value.st_uid,
+        value.st_gid,
+        value.st_size,
+        value.st_mtime_ns,
+        value.st_ctime_ns,
+        stat.S_IMODE(value.st_mode),
+    )
+
+
+def _hash_stable_descriptor(descriptor: int) -> tuple[os.stat_result, str]:
+    """Hash one anchored regular descriptor without changing its file offset."""
+    before = os.fstat(descriptor)
+    if not stat.S_ISREG(before.st_mode):
+        raise ZipValidationError("input_not_regular", "Input ZIP must be a regular file")
     digest = hashlib.sha256()
-    with path.open("rb") as handle:
-        for chunk in iter(lambda: handle.read(1024 * 1024), b""):
-            digest.update(chunk)
-    return digest.hexdigest()
+    offset = 0
+    while offset < before.st_size:
+        chunk = os.pread(descriptor, min(1024 * 1024, before.st_size - offset), offset)
+        if not chunk:
+            raise InputChangedError()
+        digest.update(chunk)
+        offset += len(chunk)
+    after = os.fstat(descriptor)
+    if _descriptor_identity(after) != _descriptor_identity(before):
+        raise InputChangedError()
+    return after, digest.hexdigest()
+
+
+def _open_input_directory_chain(directory: Path) -> tuple[list[int], tuple[str, ...]]:
+    """Anchor every absolute parent component without following symlinks."""
+    flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    descriptors = [os.open(directory.anchor, flags)]
+    parts = directory.parts[1:]
+    try:
+        for part in parts:
+            descriptors.append(os.open(part, flags, dir_fd=descriptors[-1]))
+    except Exception:
+        for descriptor in reversed(descriptors):
+            os.close(descriptor)
+        raise
+    return descriptors, parts
+
+
+def _verify_input_directory_chain(descriptors: list[int], parts: tuple[str, ...]) -> None:
+    """Require every lexical directory name to retain its anchored inode."""
+    for index, part in enumerate(parts):
+        named = os.stat(part, dir_fd=descriptors[index], follow_symlinks=False)
+        anchored = os.fstat(descriptors[index + 1])
+        if not stat.S_ISDIR(named.st_mode) or (named.st_dev, named.st_ino) != (
+            anchored.st_dev,
+            anchored.st_ino,
+        ):
+            raise InputChangedError()
+
+
+@contextmanager
+def _anchored_input(path: Path) -> Iterator[tuple[int, FileIdentity]]:
+    """Keep the exact descriptor that was hashed anchored through ZIP parsing."""
+    directory_descriptors: list[int] = []
+    file_descriptor: int | None = None
+    try:
+        directory_descriptors, parts = _open_input_directory_chain(path.parent)
+        parent_before = os.fstat(directory_descriptors[-1])
+        named_before = os.stat(
+            path.name,
+            dir_fd=directory_descriptors[-1],
+            follow_symlinks=False,
+        )
+        if stat.S_ISLNK(named_before.st_mode):
+            raise ZipValidationError("input_symlink", "Input ZIP must not be a symbolic link")
+        if not stat.S_ISREG(named_before.st_mode):
+            raise ZipValidationError("input_not_regular", "Input ZIP must be a regular file")
+        flags = (
+            os.O_RDONLY
+            | getattr(os, "O_CLOEXEC", 0)
+            | getattr(os, "O_NOFOLLOW", 0)
+            | getattr(os, "O_NONBLOCK", 0)
+        )
+        file_descriptor = os.open(path.name, flags, dir_fd=directory_descriptors[-1])
+        anchored_before, digest = _hash_stable_descriptor(file_descriptor)
+        if _descriptor_identity(anchored_before) != _descriptor_identity(named_before):
+            raise InputChangedError()
+        identity = FileIdentity(
+            device=anchored_before.st_dev,
+            inode=anchored_before.st_ino,
+            size_bytes=anchored_before.st_size,
+            modified_ns=anchored_before.st_mtime_ns,
+            sha256=digest,
+        )
+        try:
+            yield file_descriptor, identity
+        finally:
+            anchored_after, final_digest = _hash_stable_descriptor(file_descriptor)
+            try:
+                named_after = os.stat(
+                    path.name,
+                    dir_fd=directory_descriptors[-1],
+                    follow_symlinks=False,
+                )
+            except OSError as exc:
+                raise InputChangedError() from exc
+            if (
+                final_digest != digest
+                or _descriptor_identity(anchored_after) != _descriptor_identity(anchored_before)
+                or _descriptor_identity(named_after) != _descriptor_identity(anchored_before)
+            ):
+                raise InputChangedError()
+            parent_after = os.fstat(directory_descriptors[-1])
+            parent_fields = (
+                "st_dev",
+                "st_ino",
+                "st_uid",
+                "st_gid",
+                "st_mtime_ns",
+                "st_ctime_ns",
+                "st_mode",
+            )
+            if any(
+                getattr(parent_after, field) != getattr(parent_before, field)
+                for field in parent_fields
+            ):
+                raise InputChangedError()
+            _verify_input_directory_chain(directory_descriptors, parts)
+    except (InputChangedError, ZipValidationError):
+        raise
+    except OSError as exc:
+        raise ZipValidationError("input_unreadable", "Input ZIP is not readable") from exc
+    finally:
+        if file_descriptor is not None:
+            os.close(file_descriptor)
+        for descriptor in reversed(directory_descriptors):
+            os.close(descriptor)
 
 
 def identify_input(path: str | os.PathLike[str]) -> FileIdentity:
@@ -139,35 +276,8 @@ def identify_input(path: str | os.PathLike[str]) -> FileIdentity:
     path = Path(path).expanduser()
     if not path.is_absolute():
         path = path.absolute()
-    try:
-        before = path.lstat()
-    except OSError as exc:
-        raise ZipValidationError("input_unreadable", "Input ZIP is not readable") from exc
-    if stat.S_ISLNK(before.st_mode):
-        raise ZipValidationError("input_symlink", "Input ZIP must not be a symbolic link")
-    if not stat.S_ISREG(before.st_mode):
-        raise ZipValidationError("input_not_regular", "Input ZIP must be a regular file")
-    digest = _sha256_file(path)
-    after = path.lstat()
-    if (
-        before.st_dev,
-        before.st_ino,
-        before.st_size,
-        before.st_mtime_ns,
-    ) != (
-        after.st_dev,
-        after.st_ino,
-        after.st_size,
-        after.st_mtime_ns,
-    ):
-        raise InputChangedError()
-    return FileIdentity(
-        device=after.st_dev,
-        inode=after.st_ino,
-        size_bytes=after.st_size,
-        modified_ns=after.st_mtime_ns,
-        sha256=digest,
-    )
+    with _anchored_input(path) as (_descriptor, identity):
+        return identity
 
 
 def verify_input_unchanged(
@@ -203,7 +313,7 @@ def _member_path(name: str) -> PurePosixPath:
 
 def _unix_kind(info: zipfile.ZipInfo) -> str:
     mode = (info.external_attr >> 16) & 0xFFFF
-    if mode == 0:
+    if stat.S_IFMT(mode) == 0:
         return "directory" if info.is_dir() else "regular"
     if stat.S_ISLNK(mode):
         return "symlink"
@@ -224,6 +334,12 @@ def _layout_kind(relative_parts: tuple[str, ...]) -> str | None:
         and relative_parts[1][:-5] in _ALLOWED_COLLECTIONS
     ):
         return "collection"
+    if (
+        len(relative_parts) == 1
+        and relative_parts[0].endswith(".json")
+        and relative_parts[0][:-5] in _ALLOWED_COLLECTIONS
+    ):
+        return "collection"
     if relative_parts and relative_parts[0] == "media":
         return "media"
     return None
@@ -240,23 +356,44 @@ def _validate_members(
 
     raw_names: set[str] = set()
     normalized_names: set[str] = set()
+    logical_names: set[str] = set()
     paths: list[PurePosixPath] = []
     members: list[ArchiveMember] = []
     total_size = 0
     total_compressed = 0
     maximum_ratio = 0.0
     suspicious_empty: list[str] = []
+    collection_identities: set[str] = set()
+    collection_layouts: set[str] = set()
 
     for info in infos:
         path = _member_path(info.filename)
         normalized_name = unicodedata.normalize("NFC", info.filename)
-        if info.filename in raw_names or normalized_name in normalized_names:
+        logical_name = path.as_posix()
+        if (
+            info.filename in raw_names
+            or normalized_name in normalized_names
+            or logical_name in logical_names
+        ):
             raise ZipValidationError(
                 "duplicate_member", "ZIP archive contains a duplicate member", member=info.filename
             )
         raw_names.add(info.filename)
         normalized_names.add(normalized_name)
+        logical_names.add(logical_name)
         paths.append(path)
+
+        relative_parts = path.parts[1:]
+        if _layout_kind(relative_parts) == "collection":
+            collection_name = PurePosixPath(relative_parts[-1]).stem
+            if collection_name in collection_identities:
+                raise ZipValidationError(
+                    "duplicate_collection",
+                    "ZIP archive contains duplicate collection identities",
+                    member=info.filename,
+                )
+            collection_identities.add(collection_name)
+            collection_layouts.add("modern" if relative_parts[0] == "collections" else "historical")
 
         if info.flag_bits & 0x1:
             raise ZipValidationError(
@@ -318,6 +455,22 @@ def _validate_members(
             "ZIP archive contains a suspicious empty regular member",
             member=suspicious_empty[0],
         )
+    if len(collection_layouts) > 1:
+        raise ZipValidationError(
+            "mixed_collection_layout",
+            "ZIP archive mixes modern and historical collection layouts",
+        )
+    regular_parts = {
+        path.parts for info, path in zip(infos, paths, strict=True) if not info.is_dir()
+    }
+    for path in paths:
+        for length in range(1, len(path.parts)):
+            if path.parts[:length] in regular_parts:
+                raise ZipValidationError(
+                    "member_path_collision",
+                    "A regular ZIP member is an ancestor of another member",
+                    member=path.as_posix(),
+                )
     roots = {path.parts[0] for path in paths}
     if len(roots) != 1:
         raise ZipValidationError("ambiguous_root", "ZIP archive must have one base directory")
@@ -461,59 +614,59 @@ def read_legacy_export(
     if not path.is_absolute():
         path = path.absolute()
     limits = limits or ZipSafetyLimits()
-    initial = identify_input(path)
-    if not zipfile.is_zipfile(path):
-        raise ZipValidationError("not_zip", "Input file is not a valid ZIP archive")
 
     try:
-        with zipfile.ZipFile(path, "r") as zf:
-            infos = zf.infolist()
-            base, members, safety = _validate_members(infos, limits)
-            corrupt_member = zf.testzip()
-            if corrupt_member is not None:
-                raise ZipValidationError(
-                    "crc_mismatch", "ZIP member failed its CRC check", member=corrupt_member
-                )
-            info_by_name = {info.filename: info for info in infos}
-            metadata_name = f"{base}/metadata.json"
-            metadata_info = info_by_name.get(metadata_name)
-            if metadata_info is None:
-                raise ZipValidationError("missing_metadata", "metadata.json is missing")
+        with _anchored_input(path) as (descriptor, initial):
+            with os.fdopen(os.dup(descriptor), "rb") as handle:
+                with zipfile.ZipFile(handle, "r") as zf:
+                    infos = zf.infolist()
+                    base, members, safety = _validate_members(infos, limits)
+                    corrupt_member = zf.testzip()
+                    if corrupt_member is not None:
+                        raise ZipValidationError(
+                            "crc_mismatch",
+                            "ZIP member failed its CRC check",
+                            member=corrupt_member,
+                        )
+                    info_by_name = {info.filename: info for info in infos}
+                    metadata_name = f"{base}/metadata.json"
+                    metadata_info = info_by_name.get(metadata_name)
+                    if metadata_info is None:
+                        raise ZipValidationError("missing_metadata", "metadata.json is missing")
 
-            member_sha256: dict[str, str] = {}
-            metadata_data, metadata_sha = _read_member(zf, metadata_info)
-            member_sha256[metadata_name] = metadata_sha
-            metadata_raw = _json_payload(metadata_data, member=metadata_name)
-            collections: dict[str, tuple[dict[str, Any], ...]] = {}
-            media_sizes: dict[str, int] = {}
-            for info in infos:
-                relative = PurePosixPath(info.filename).parts[1:]
-                kind = _layout_kind(relative)
-                if kind == "collection" and not info.is_dir():
-                    data, digest = _read_member(zf, info)
-                    member_sha256[info.filename] = digest
-                    payload = _json_payload(data, member=info.filename)
-                    if not isinstance(payload, list):
-                        raise ZipValidationError(
-                            "invalid_collection",
-                            "Collection JSON must contain an array",
-                            member=info.filename,
-                        )
-                    if not all(isinstance(document, dict) for document in payload):
-                        raise ZipValidationError(
-                            "invalid_collection",
-                            "Collection JSON entries must be objects",
-                            member=info.filename,
-                        )
-                    collections[PurePosixPath(info.filename).stem] = tuple(payload)
-                elif kind == "media" and not info.is_dir():
-                    relative_name = PurePosixPath(*relative).as_posix()
-                    media_sizes[relative_name] = info.file_size
-            metadata = _validate_metadata(metadata_raw, collections, media_sizes)
+                    member_sha256: dict[str, str] = {}
+                    metadata_data, metadata_sha = _read_member(zf, metadata_info)
+                    member_sha256[metadata_name] = metadata_sha
+                    metadata_raw = _json_payload(metadata_data, member=metadata_name)
+                    collections: dict[str, tuple[dict[str, Any], ...]] = {}
+                    media_sizes: dict[str, int] = {}
+                    for info in infos:
+                        relative = PurePosixPath(info.filename).parts[1:]
+                        kind = _layout_kind(relative)
+                        if kind == "collection" and not info.is_dir():
+                            data, digest = _read_member(zf, info)
+                            member_sha256[info.filename] = digest
+                            payload = _json_payload(data, member=info.filename)
+                            if not isinstance(payload, list):
+                                raise ZipValidationError(
+                                    "invalid_collection",
+                                    "Collection JSON must contain an array",
+                                    member=info.filename,
+                                )
+                            if not all(isinstance(document, dict) for document in payload):
+                                raise ZipValidationError(
+                                    "invalid_collection",
+                                    "Collection JSON entries must be objects",
+                                    member=info.filename,
+                                )
+                            collections[PurePosixPath(info.filename).stem] = tuple(payload)
+                        elif kind == "media" and not info.is_dir():
+                            relative_name = PurePosixPath(*relative).as_posix()
+                            media_sizes[relative_name] = info.file_size
+                    metadata = _validate_metadata(metadata_raw, collections, media_sizes)
     except zipfile.BadZipFile as exc:
         raise ZipValidationError("bad_zip", "ZIP archive is corrupt") from exc
 
-    verify_input_unchanged(path, initial)
     exported_at = _parse_exported_at(metadata.get("exported_at"))
     declared_format = metadata.get("format") or metadata.get("format_name")
     declared_version = metadata.get("format_version") or metadata.get("schema_version")

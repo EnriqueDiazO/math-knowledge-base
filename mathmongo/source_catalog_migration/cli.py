@@ -1,4 +1,4 @@
-"""CLI boundary for read-only planning and isolated S1C2A bootstrap operations."""
+"""CLI boundary for planning and explicitly guarded Source Catalog bootstrap."""
 
 from __future__ import annotations
 
@@ -18,10 +18,14 @@ from mathmongo.source_catalog_migration.apply_result import render_apply_result
 from mathmongo.source_catalog_migration.apply_result import safe_apply_diagnostic
 from mathmongo.source_catalog_migration.apply_safety import AUTHORITATIVE_PLAN_SEMANTIC_SHA256
 from mathmongo.source_catalog_migration.apply_safety import AUTHORITATIVE_ZIP_SHA256
+from mathmongo.source_catalog_migration.apply_safety import PRODUCTION_CONFIRMATION_PHRASE
+from mathmongo.source_catalog_migration.apply_safety import PRODUCTION_TARGET_DATABASE
 from mathmongo.source_catalog_migration.apply_safety import ApplyAuthorization
 from mathmongo.source_catalog_migration.apply_safety import ApplySafetyError
 from mathmongo.source_catalog_migration.apply_safety import validate_apply_authorization
 from mathmongo.source_catalog_migration.apply_safety import validate_authoritative_plan
+from mathmongo.source_catalog_migration.backup_safety import parse_write_freeze_at
+from mathmongo.source_catalog_migration.backup_safety import validate_production_backup
 from mathmongo.source_catalog_migration.canonical import json_safe
 from mathmongo.source_catalog_migration.decisions import DecisionError
 from mathmongo.source_catalog_migration.decisions import build_decisions_template
@@ -62,7 +66,7 @@ class CatalogCLIConnectionError(RuntimeError):
 
 
 class CatalogCLIExecutionError(RuntimeError):
-    """An unexpected isolated-target operation failed with a safe diagnostic."""
+    """An unexpected guarded-target operation failed with a safe diagnostic."""
 
 
 class CatalogCLIUsageError(ValueError):
@@ -152,9 +156,9 @@ def build_parser() -> argparse.ArgumentParser:
 
     apply_status = subparsers.add_parser(
         "apply-status",
-        help="Read bootstrap manifest status from an explicit isolated target.",
+        help="Read bootstrap manifest status from an explicit guarded target.",
     )
-    apply_status.add_argument("--database", required=True, help="Exact isolated target database.")
+    apply_status.add_argument("--database", required=True, help="Exact guarded target database.")
     apply_status.add_argument(
         "--allow-live-read",
         action="store_true",
@@ -164,20 +168,39 @@ def build_parser() -> argparse.ArgumentParser:
 
     apply = subparsers.add_parser(
         "apply",
-        help="Apply the approved catalog plan only to an isolated validation target.",
+        help="Apply the approved catalog plan through an explicit isolated or MathV0 gate.",
     )
     _add_authoritative_zip_options(apply)
     apply.add_argument("--decisions", required=True, help="Validated human-decision JSON file.")
-    apply.add_argument("--database", required=True, help="Exact isolated target database.")
+    apply.add_argument("--database", required=True, help="Exact guarded target database.")
     apply.add_argument(
         "--allow-isolated-write",
         action="store_true",
         help="Required explicit authorization for isolated catalog writes.",
     )
     apply.add_argument(
+        "--allow-production-write",
+        action="store_true",
+        help="Required explicit authorization for the separately guarded MathV0 path.",
+    )
+    apply.add_argument(
         "--confirm-database",
         required=True,
-        help="Must repeat the exact isolated target database name.",
+        help="Must repeat the exact guarded target database name.",
+    )
+    apply.add_argument(
+        "--confirm-production-phrase",
+        help=f"MathV0 only: must be exactly {PRODUCTION_CONFIRMATION_PHRASE!r}.",
+    )
+    apply.add_argument("--backup-path", help="MathV0 only: fresh private pre-apply backup ZIP.")
+    apply.add_argument("--backup-sha", help="MathV0 only: SHA-256 of the fresh backup.")
+    apply.add_argument(
+        "--confirm-backup-sha",
+        help="MathV0 only: repeat the exact fresh-backup SHA-256.",
+    )
+    apply.add_argument(
+        "--write-freeze-at",
+        help="MathV0 only: timezone-aware timestamp recorded after writes were frozen.",
     )
     apply.add_argument("--expected-zip-sha", required=True, help="Complete authoritative ZIP hash.")
     apply.add_argument(
@@ -238,18 +261,92 @@ def _load_authoritative_plan(args: argparse.Namespace):
 
 def _apply_authorization(args: argparse.Namespace) -> ApplyAuthorization:
     """Validate every write assertion before reading config or constructing a client."""
+    is_production = args.database == PRODUCTION_TARGET_DATABASE
+    if is_production:
+        if args.output:
+            raise ApplySafetyError(
+                "production_output_requires_stdout",
+                "MathV0 apply emits only to captured stdout; --output is forbidden.",
+            )
+        if args.allow_production_write is not True:
+            raise ApplySafetyError(
+                "production_write_not_authorized",
+                "MathV0 apply requires --allow-production-write.",
+            )
+        if args.allow_isolated_write is True:
+            raise ApplySafetyError(
+                "authorization_mode_conflict",
+                "Production and isolated write flags cannot be combined.",
+            )
+        if args.confirm_database != PRODUCTION_TARGET_DATABASE:
+            raise ApplySafetyError(
+                "database_confirmation_mismatch",
+                "The exact MathV0 database confirmation does not match.",
+            )
+        if args.confirm_production_phrase != PRODUCTION_CONFIRMATION_PHRASE:
+            raise ApplySafetyError(
+                "production_phrase_mismatch",
+                "The exact MathV0 production confirmation phrase does not match.",
+            )
+        if args.expected_zip_sha != AUTHORITATIVE_ZIP_SHA256:
+            raise ApplySafetyError(
+                "zip_hash_mismatch", "The expected ZIP hash is not authoritative."
+            )
+        if args.expected_plan_sha != AUTHORITATIVE_PLAN_SEMANTIC_SHA256:
+            raise ApplySafetyError(
+                "plan_hash_mismatch",
+                "The expected semantic plan hash is not authoritative.",
+            )
+        if not all(
+            (args.backup_path, args.backup_sha, args.confirm_backup_sha, args.write_freeze_at)
+        ):
+            raise ApplySafetyError(
+                "production_backup_required",
+                "MathV0 apply requires backup path, both backup hashes, and write-freeze time.",
+            )
+        freeze = parse_write_freeze_at(args.write_freeze_at)
+        backup = validate_production_backup(
+            args.backup_path,
+            backup_sha=args.backup_sha,
+            confirm_backup_sha=args.confirm_backup_sha,
+            write_freeze_at=freeze,
+            require_fresh=False,
+        )
+    else:
+        production_only = (
+            args.allow_production_write,
+            args.confirm_production_phrase,
+            args.backup_path,
+            args.backup_sha,
+            args.confirm_backup_sha,
+            args.write_freeze_at,
+        )
+        if any(value not in (None, False) for value in production_only):
+            raise ApplySafetyError(
+                "unexpected_production_authorization",
+                "Production-only flags are forbidden for an isolated target.",
+            )
+        freeze = None
+        backup = None
     try:
         authorization = ApplyAuthorization(
             target_database=args.database,
             allow_isolated_write=args.allow_isolated_write,
+            allow_production_write=args.allow_production_write,
             confirmed_database=args.confirm_database,
             expected_zip_sha=args.expected_zip_sha,
             expected_plan_sha=args.expected_plan_sha,
+            confirm_production_phrase=args.confirm_production_phrase,
+            production_backup=backup,
+            production_backup_path=args.backup_path if is_production else None,
+            production_backup_sha=args.backup_sha if is_production else None,
+            confirm_production_backup_sha=(args.confirm_backup_sha if is_production else None),
+            write_freeze_at=freeze,
         )
     except (TypeError, ValueError) as exc:
         raise ApplySafetyError(
             "invalid_authorization",
-            "The isolated-write authorization fields are invalid.",
+            "The write authorization fields are invalid.",
         ) from exc
     return validate_apply_authorization(authorization)
 
@@ -258,6 +355,8 @@ def _validate_apply_status_request(args: argparse.Namespace) -> None:
     """Reuse isolated-name safety without treating a status read as write authority."""
     if args.allow_live_read is not True:
         raise CatalogCLIUsageError("apply-status requires --allow-live-read")
+    if args.database == PRODUCTION_TARGET_DATABASE:
+        return
     try:
         authorization = ApplyAuthorization(
             target_database=args.database,
@@ -294,11 +393,11 @@ def _connect_target_database(database_name: str, client_factory=None):
             connectTimeoutMS=2_500,
             socketTimeoutMS=10_000,
             retryWrites=False,
-            appname="MathMongo-S1C2A-isolated",
+            appname="MathMongo-S1C2P-bootstrap",
         )
         client.admin.command("ping")
         if database_name not in tuple(client.list_database_names()):
-            raise RuntimeError("The isolated target database does not already exist.")
+            raise RuntimeError("The exact guarded target database does not already exist.")
         database = client.get_database(database_name)
         if getattr(database, "name", None) != database_name:
             raise RuntimeError("The MongoDB database object does not match the exact target name.")
@@ -325,6 +424,11 @@ def _manifest_status_payload(database_name: str, manifests: Sequence[Any]) -> di
                 "plan_semantic_sha256": manifest.plan_semantic_sha256,
                 "planner_version": manifest.planner_version,
                 "decisions_sha256": manifest.decisions_sha256,
+                "production_backup_evidence": (
+                    manifest.production_backup_evidence.model_dump(mode="json")
+                    if getattr(manifest, "production_backup_evidence", None) is not None
+                    else None
+                ),
                 "expected_counts": manifest.expected_counts.model_dump(mode="json"),
                 "sources_created": manifest.sources_created,
                 "sources_identical": manifest.sources_identical,
@@ -460,6 +564,7 @@ def _run_apply(
     validate_authoritative_plan(plan, decisions)
     verify_input_unchanged(args.input_zip, export.input_identity)
     client, database = _connect_target_database(args.database, client_factory)
+    engine_completed = False
     try:
         if engine_factory is None:
             from mathmongo.source_catalog_migration.bootstrap import BootstrapEngine
@@ -472,16 +577,30 @@ def _run_apply(
                 decisions=decisions,
                 authorization=authorization,
             )
+            engine_completed = True
         except (ApplySafetyError, DecisionError, ManifestPersistenceError):
             raise
         except Exception as exc:
             raise CatalogCLIExecutionError(safe_apply_diagnostic(exc)) from exc
     finally:
         client.close()
-        verify_input_unchanged(args.input_zip, export.input_identity)
+        try:
+            verify_input_unchanged(args.input_zip, export.input_identity)
+        except Exception as exc:
+            if engine_completed:
+                raise CatalogCLIExecutionError(
+                    "Post-apply ZIP verification failed; apply may have completed. "
+                    "Run apply-status before any retry."
+                ) from exc
+            raise
     if not isinstance(result, ApplyResult):
         raise TypeError("BootstrapEngine.apply must return ApplyResult")
-    _emit_content(render_apply_result(result, args.output_format), args)
+    try:
+        _emit_content(render_apply_result(result, args.output_format), args)
+    except Exception as exc:
+        raise CatalogCLIExecutionError(
+            "Apply completed but result emission failed; run apply-status before any retry."
+        ) from exc
     if result.outcome in {
         ApplyOutcome.PREPARED,
         ApplyOutcome.APPLIED,
@@ -506,10 +625,15 @@ def main(
 ) -> int:
     """Execute one planner/bootstrap command and return a stable process exit code."""
     arguments = list(sys.argv[1:] if argv is None else argv)
-    if arguments and arguments[0] == "apply" and "--allow-isolated-write" not in arguments:
+    if (
+        arguments
+        and arguments[0] == "apply"
+        and "--allow-isolated-write" not in arguments
+        and "--allow-production-write" not in arguments
+    ):
         print(
-            "Error: S1C2A apply requires --allow-isolated-write and complete "
-            "isolated-target authorization.",
+            "Error: apply requires either the isolated-write or the separately guarded "
+            "production-write authorization.",
             file=sys.stderr,
         )
         return EXIT_USAGE

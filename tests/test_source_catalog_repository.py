@@ -54,8 +54,7 @@ def _condition_matches(values: list[Any], condition: Any) -> bool:
             expression = re.compile(condition["$regex"], flags)
             return any(expression.search(str(value)) for value in values)
     return any(
-        condition in value if isinstance(value, list) else value == condition
-        for value in values
+        condition in value if isinstance(value, list) else value == condition for value in values
     )
 
 
@@ -359,9 +358,7 @@ def test_source_physical_delete_blocks_reference_and_exact_legacy_string() -> No
     database = _Database()
     sources = SourceRepository(database)
     references = ReferenceRepository(database)
-    source = sources.insert(
-        Source(name="Catalog", legacy={"source_strings": ["Exact Legacy"]})
-    )
+    source = sources.insert(Source(name="Catalog", legacy={"source_strings": ["Exact Legacy"]}))
     reference = references.insert(Reference(title="Linked", source_ids=[source.source_id]))
     database["concepts"].documents.append({"id": "c1", "source": "Exact Legacy"})
 
@@ -378,9 +375,7 @@ def test_source_physical_delete_blocks_exact_current_name_match() -> None:
     database = _Database()
     sources = SourceRepository(database)
     source = sources.insert(Source(name="Current Exact Name"))
-    database["concepts"].documents.append(
-        {"id": "legacy-current-name", "source": source.name}
-    )
+    database["concepts"].documents.append({"id": "legacy-current-name", "source": source.name})
 
     with pytest.raises(PhysicalDeletionBlockedError) as caught:
         sources.physical_delete_if_unused(source.source_id)
@@ -464,3 +459,31 @@ def test_index_manager_reports_stable_name_conflict_without_creation() -> None:
 
     with pytest.raises(IndexPlanConflictError):
         manager.apply()
+
+
+@pytest.mark.parametrize(
+    "option",
+    [
+        {"partialFilterExpression": {"source_id": {"$exists": True}}},
+        {"sparse": True},
+        {"collation": {"locale": "en"}},
+        {"hidden": True},
+    ],
+)
+def test_index_manager_rejects_unapproved_semantic_options(option: dict) -> None:
+    database = _Database()
+    database["sources"].indexes.append(
+        {
+            "name": "sources_source_id_unique",
+            "key": [("source_id", 1)],
+            "unique": True,
+            **option,
+        }
+    )
+
+    plan = SourceCatalogIndexManager(database).plan()
+    conflict = next(
+        status for status in plan.conflicts if status.spec.name == "sources_source_id_unique"
+    )
+
+    assert "unapproved options" in conflict.detail

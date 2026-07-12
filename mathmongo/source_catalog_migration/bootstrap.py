@@ -1,4 +1,4 @@
-"""Idempotent, resumable Source Catalog bootstrap for an isolated legacy copy."""
+"""Idempotent, resumable Source Catalog bootstrap for an explicitly guarded target."""
 
 from __future__ import annotations
 
@@ -32,6 +32,7 @@ from mathmongo.source_catalog_migration.apply_result import ApplyOutcome
 from mathmongo.source_catalog_migration.apply_result import ApplyResult
 from mathmongo.source_catalog_migration.apply_result import IndexApplyResult
 from mathmongo.source_catalog_migration.apply_result import safe_apply_diagnostic
+from mathmongo.source_catalog_migration.apply_safety import PRODUCTION_TARGET_DATABASE
 from mathmongo.source_catalog_migration.apply_safety import ApplyAuthorization
 from mathmongo.source_catalog_migration.apply_safety import ApplySafetyError
 from mathmongo.source_catalog_migration.apply_safety import LegacySnapshot
@@ -43,6 +44,8 @@ from mathmongo.source_catalog_migration.apply_safety import manifest_invariant_h
 from mathmongo.source_catalog_migration.apply_safety import require_successful_legacy_preflight
 from mathmongo.source_catalog_migration.apply_safety import validate_apply_authorization
 from mathmongo.source_catalog_migration.apply_safety import validate_authoritative_inputs
+from mathmongo.source_catalog_migration.backup_safety import ProductionBackupRevalidationError
+from mathmongo.source_catalog_migration.backup_safety import revalidate_production_authorization
 from mathmongo.source_catalog_migration.canonical import sha256_digest
 from mathmongo.source_catalog_migration.decisions import DecisionSet
 from mathmongo.source_catalog_migration.decisions import ValidatedDecisions
@@ -50,6 +53,7 @@ from mathmongo.source_catalog_migration.manifest import MANIFEST_COLLECTION
 from mathmongo.source_catalog_migration.manifest import MAX_MANIFESTS_PER_TARGET
 from mathmongo.source_catalog_migration.manifest import MIGRATION_TYPE
 from mathmongo.source_catalog_migration.manifest import FinalIdAllocation
+from mathmongo.source_catalog_migration.manifest import ManifestBackupEvidence
 from mathmongo.source_catalog_migration.manifest import ManifestCompatibilityError
 from mathmongo.source_catalog_migration.manifest import ManifestConcurrentUpdateError
 from mathmongo.source_catalog_migration.manifest import ManifestIndexStatus
@@ -340,6 +344,31 @@ def _invariant_dict(value: ManifestInvariantHashes | None) -> dict[str, str]:
     return value.model_dump(mode="json") if value is not None else {}
 
 
+def _manifest_backup_evidence(
+    authorization: ApplyAuthorization,
+) -> ManifestBackupEvidence | None:
+    """Project production backup authority without its path or validation clock."""
+    evidence = authorization.production_backup
+    if evidence is None:
+        return None
+    return ManifestBackupEvidence(
+        file_name=evidence.file_name,
+        sha256=evidence.sha256,
+        size_bytes=evidence.size_bytes,
+        exported_at=evidence.exported_at,
+        completed_at=evidence.completed_at,
+        write_freeze_at=evidence.write_freeze_at,
+        format_name=evidence.format_name,
+        format_version=evidence.format_version,
+        collection_counts=evidence.collection_counts,
+        legacy_aggregate_sha256=evidence.legacy_aggregate_sha256,
+        media_aggregate_sha256=evidence.media_aggregate_sha256,
+        media_file_count=evidence.media_file_count,
+        file_mode=evidence.file_mode,
+        parent_mode=evidence.parent_mode,
+    )
+
+
 def _index_state_payload(plan: IndexPlan) -> tuple[dict[str, Any], ...]:
     return tuple(
         {
@@ -428,7 +457,7 @@ def _manifest_is_compatible(
 
 
 class BootstrapEngine:
-    """Apply one authoritative S1C1 plan to a strictly isolated target copy."""
+    """Apply one authoritative S1C1 plan through a validated target gate."""
 
     def __init__(
         self,
@@ -572,7 +601,7 @@ class BootstrapEngine:
         if unexpected_sources or unexpected_references:
             raise BootstrapBlockedError(
                 "unexpected_catalog_entity",
-                "The isolated catalog contains IDs outside the prepared manifest.",
+                "The guarded catalog contains IDs outside the prepared manifest.",
             )
 
         source_keys: set[str] = set()
@@ -675,6 +704,7 @@ class BootstrapEngine:
             zip_sha256=preflight.zip_sha256,
             plan_semantic_sha256=preflight.plan_semantic_sha256,
             decisions_sha256=preflight.decisions_sha256,
+            production_backup_evidence=_manifest_backup_evidence(authorization),
             expected_counts=preflight.expected_counts,
             source_entity_hashes=expected.source_entity_hashes,
             reference_entity_hashes=expected.reference_entity_hashes,
@@ -724,7 +754,7 @@ class BootstrapEngine:
             ):
                 raise BootstrapBlockedError(
                     "foreign_manifest",
-                    "The isolated target contains an incompatible migration manifest.",
+                    "The guarded target contains an incompatible migration manifest.",
                 )
         try:
             manifests = self.manifests.find_for_target(authorization.target_database)
@@ -1119,8 +1149,10 @@ class BootstrapEngine:
         sources_created = sources_identical = 0
         references_created = references_identical = 0
         resumed = False
+        production = authorization.target_database == PRODUCTION_TARGET_DATABASE
         try:
             validate_apply_authorization(authorization)
+            authorization = revalidate_production_authorization(authorization)
             preflight = validate_authoritative_inputs(export, plan, decisions)
             database_name = getattr(self.database, "name", None)
             if database_name != authorization.target_database:
@@ -1134,6 +1166,18 @@ class BootstrapEngine:
                 plan=plan,
                 preflight=preflight,
             )
+            if (
+                authorization.target_database == PRODUCTION_TARGET_DATABASE
+                and manifest is None
+                and (
+                    authorization.production_backup is None
+                    or authorization.production_backup.fresh is not True
+                )
+            ):
+                raise ApplySafetyError(
+                    "backup_not_fresh",
+                    "First MathV0 apply requires a fresh post-freeze backup.",
+                )
             if manifest is not None and manifest.state == ManifestState.BLOCKED:
                 return self._result(
                     outcome=ApplyOutcome.BLOCKED,
@@ -1141,7 +1185,12 @@ class BootstrapEngine:
                     preflight=preflight,
                     manifest=manifest,
                     errors=("The durable manifest is blocked and cannot be resumed.",),
-                    next_action="Inspect the bounded manifest diagnostics; use a new isolated target.",
+                    next_action=(
+                        "Run apply-status and inspect the durable MathV0 evidence; do not delete "
+                        "or replace partial data."
+                        if production
+                        else "Inspect the bounded manifest diagnostics; use a new isolated target."
+                    ),
                 )
 
             _before_snapshot, observed_invariant = self._preflight_target(
@@ -1163,6 +1212,23 @@ class BootstrapEngine:
                     "Legacy target invariants differ from the prepared manifest.",
                 )
 
+            # Keep the filesystem proof adjacent to the first possible MongoDB
+            # mutation as well as validating it at engine entry. Isolated
+            # authorizations return immediately from this check.
+            authorization = revalidate_production_authorization(authorization)
+            if (
+                authorization.target_database == PRODUCTION_TARGET_DATABASE
+                and manifest is None
+                and (
+                    authorization.production_backup is None
+                    or authorization.production_backup.fresh is not True
+                )
+            ):
+                raise ApplySafetyError(
+                    "backup_not_fresh",
+                    "First MathV0 apply requires a fresh backup at the final write boundary.",
+                )
+
             if manifest is None:
                 allocation = allocate_final_ids(
                     preflight.source_candidate_keys,
@@ -1180,6 +1246,18 @@ class BootstrapEngine:
                     expected=expected,
                     invariant_before=invariant_before,
                 )
+                if production:
+                    names_at_write_boundary = set(self.database.list_collection_names())
+                    present_catalog = names_at_write_boundary & {
+                        "sources",
+                        "references",
+                        MANIFEST_COLLECTION,
+                    }
+                    if present_catalog:
+                        raise BootstrapBlockedError(
+                            "catalog_appeared_at_write_boundary",
+                            "A Source Catalog collection appeared before the first production write.",
+                        )
                 try:
                     inserted = self.manifests.insert_prepared_if_absent(requested)
                 except ManifestCompatibilityError as exc:
@@ -1221,7 +1299,13 @@ class BootstrapEngine:
                         invariant_before=invariant_before,
                         errors=("The manifest race winner is durably blocked.",),
                         next_action=(
-                            "Inspect the bounded manifest diagnostics; use a new isolated target."
+                            "Run apply-status and inspect the durable MathV0 evidence; do not "
+                            "delete or replace partial data."
+                            if production
+                            else (
+                                "Inspect the bounded manifest diagnostics; use a new isolated "
+                                "target."
+                            )
                         ),
                     )
                 self._checkpoint("manifest_prepared")
@@ -1346,6 +1430,40 @@ class BootstrapEngine:
                     "The Source Catalog changed during final verification.",
                 )
             self._checkpoint("verification_complete")
+            boundary_reconciliation = self._reconcile(manifest, expected)
+            if len(boundary_reconciliation.source_keys) != len(expected.sources) or len(
+                boundary_reconciliation.reference_keys
+            ) != len(expected.references):
+                raise BootstrapBlockedError(
+                    "catalog_changed_at_commit_boundary",
+                    "The Source Catalog changed at the final manifest commit boundary.",
+                )
+            index_result = self._verify_indexes_read_only()
+            boundary_one = capture_legacy_snapshot(self.database)
+            boundary_two = capture_legacy_snapshot(self.database)
+            require_successful_legacy_preflight(
+                compare_legacy_snapshots(
+                    expected_snapshot,
+                    boundary_one,
+                    boundary_two,
+                    require_catalog_absent=False,
+                )
+            )
+            invariant_after = manifest_invariant_hashes(boundary_two)
+            if invariant_after != invariant_before:
+                raise BootstrapBlockedError(
+                    "legacy_changed_at_commit_boundary",
+                    "Legacy collections or indexes changed at the final manifest commit boundary.",
+                )
+            last_reconciliation = self._reconcile(manifest, expected)
+            if len(last_reconciliation.source_keys) != len(expected.sources) or len(
+                last_reconciliation.reference_keys
+            ) != len(expected.references):
+                raise BootstrapBlockedError(
+                    "catalog_changed_at_commit_boundary",
+                    "The Source Catalog changed at the final manifest commit boundary.",
+                )
+            index_result = self._verify_indexes_read_only()
             completed_at = manifest.completed_at or utc_now_milliseconds(self.clock)
             manifest = self._cas(
                 manifest,
@@ -1379,7 +1497,12 @@ class BootstrapEngine:
                 invariant_before=invariant_before,
                 invariant_after=invariant_after,
                 invariants_passed=True,
-                next_action="Proceed to S1C2B validation only in a disposable isolated harness.",
+                next_action=(
+                    "Verify MathV0 immediately, then run the exact same apply for the required "
+                    "no-op proof."
+                    if production
+                    else "Proceed to S1C2B validation only in a disposable isolated harness."
+                ),
             )
         except ManifestConcurrentUpdateError as exc:
             if manifest is not None:
@@ -1402,7 +1525,8 @@ class BootstrapEngine:
                 invariant_after=invariant_after,
                 errors=(safe_apply_diagnostic(exc),),
                 next_action=(
-                    "Another isolated apply advanced the manifest; rerun to reconcile its state."
+                    "Another apply advanced the manifest; run apply-status, then rerun only with "
+                    "the same authority."
                 ),
             )
         except (ApplySafetyError, BootstrapError) as exc:
@@ -1411,10 +1535,15 @@ class BootstrapEngine:
                 index_result = exc.indexes
             outcome = exc.outcome if isinstance(exc, BootstrapError) else ApplyOutcome.BLOCKED
             code = exc.code if hasattr(exc, "code") else "apply_safety"
-            if manifest is not None and manifest.state not in {
-                ManifestState.APPLIED,
-                ManifestState.BLOCKED,
-            }:
+            if (
+                manifest is not None
+                and not isinstance(exc, ProductionBackupRevalidationError)
+                and manifest.state
+                not in {
+                    ManifestState.APPLIED,
+                    ManifestState.BLOCKED,
+                }
+            ):
                 target_state = (
                     ManifestState.BLOCKED
                     if outcome in {ApplyOutcome.BLOCKED, ApplyOutcome.CONFLICT}
@@ -1445,7 +1574,15 @@ class BootstrapEngine:
                 invariant_after=invariant_after,
                 errors=(safe_apply_diagnostic(exc),),
                 next_action=(
-                    "Inspect the bounded manifest diagnostics and use a new isolated target."
+                    (
+                        "Run apply-status and inspect MathV0; preserve the manifest and partial "
+                        "catalog exactly."
+                        if production
+                        else (
+                            "Inspect the bounded manifest diagnostics and use a new isolated "
+                            "target."
+                        )
+                    )
                     if outcome in {ApplyOutcome.BLOCKED, ApplyOutcome.CONFLICT}
                     else "Fix the transient cause and rerun the same command to resume."
                 ),

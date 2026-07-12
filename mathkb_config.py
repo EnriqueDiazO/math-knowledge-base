@@ -76,17 +76,14 @@ CUADERNO_COLLECTIONS = (
     "deliverables",
 )
 
-GRAPH_COLLECTIONS = (
-    "knowledge_graph_maps",
-)
+GRAPH_COLLECTIONS = ("knowledge_graph_maps",)
 
-MEDIA_COLLECTIONS = (
-    MEDIA_ASSETS_COLLECTION,
-)
+MEDIA_COLLECTIONS = (MEDIA_ASSETS_COLLECTION,)
 
 SOURCE_CATALOG_COLLECTIONS = (
     "sources",
     "references",
+    "source_catalog_migration_manifest",
 )
 
 EXPORT_COLLECTIONS = CORE_COLLECTIONS + GRAPH_COLLECTIONS + MEDIA_COLLECTIONS + CUADERNO_COLLECTIONS

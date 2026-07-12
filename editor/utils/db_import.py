@@ -1,7 +1,12 @@
+"""Conservative portable and historical MathMongo database import helpers."""
+
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
+import os
+import stat
 import time
 import zipfile
 from dataclasses import dataclass
@@ -11,10 +16,12 @@ from datetime import timezone
 from pathlib import Path
 from typing import TYPE_CHECKING
 from typing import Any
-from typing import Dict
 
 from bson import ObjectId
 from bson.errors import InvalidId
+from bson.json_util import CANONICAL_JSON_OPTIONS
+from bson.json_util import dumps as bson_json_dumps
+from bson.json_util import loads as bson_json_loads
 from pymongo.errors import DuplicateKeyError
 
 from mathkb_config import DATA_DIR
@@ -24,6 +31,14 @@ from mathkb_config import MEDIA_ASSETS_COLLECTION
 from mathkb_config import MEDIA_ROOT
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_catalog.models import Reference
+from mathmongo.source_catalog.models import Source
+from mathmongo.source_catalog_migration.manifest import MANIFEST_COLLECTION
+from mathmongo.source_catalog_migration.manifest import MigrationManifest
+from mathmongo.source_catalog_migration.zip_reader import ZipSafetyLimits
+from mathmongo.source_catalog_migration.zip_reader import ZipValidationError
+from mathmongo.source_catalog_migration.zip_reader import _read_member
+from mathmongo.source_catalog_migration.zip_reader import _validate_members
 
 if TYPE_CHECKING:
     from mathdatabase.mathmongo import MathMongo
@@ -35,7 +50,14 @@ DEFAULT_IMPORT_COLLECTIONS = list(IMPORT_COLLECTIONS)
 _CATALOG_ID_FIELDS = {
     "sources": "source_id",
     "references": "reference_id",
+    MANIFEST_COLLECTION: "manifest_key",
 }
+_CATALOG_IMPORT_ORDER = ("sources", "references", MANIFEST_COLLECTION)
+CATALOG_EXTENDED_JSON_ENCODING = "mongodb_extended_json_v2_canonical"
+_CATALOG_JSON_OPTIONS = CANONICAL_JSON_OPTIONS.with_options(
+    tz_aware=True,
+    tzinfo=timezone.utc,
+)
 
 
 @dataclass(frozen=True)
@@ -55,6 +77,15 @@ class DatabaseImportReport:
     catalog_inserted: dict[str, int] = field(default_factory=dict)
     catalog_identical: dict[str, int] = field(default_factory=dict)
     catalog_conflicts: list[CatalogImportConflict] = field(default_factory=list)
+    legacy_inserted: dict[str, int] = field(default_factory=dict)
+    legacy_identical: dict[str, int] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class _MediaRestorePlan:
+    relative_path: Path
+    destination: Path
+    data: bytes
 
 
 class CatalogImportConflictError(RuntimeError):
@@ -91,6 +122,7 @@ def _restore_mongo_id(doc: dict) -> dict:
         except InvalidId:
             pass
     return doc
+
 
 _DATETIME_FIELDS_BY_COLLECTION = {
     "concepts": (
@@ -140,20 +172,22 @@ _DATETIME_FIELDS_BY_COLLECTION = {
         "archived_at",
         "accessed_at",
     ),
+    MANIFEST_COLLECTION: (
+        "created_at",
+        "started_at",
+        "completed_at",
+        "last_updated_at",
+    ),
 }
 
 
 _NESTED_DATETIME_FIELDS_BY_COLLECTION = {
-    "references": (
-        ("provenance", "imported_at"),
-    ),
+    "references": (("provenance", "imported_at"),),
 }
 
 
 _OBJECT_ID_FIELDS_BY_COLLECTION = {
-    "worklog_entries": (
-        "deliverable_id",
-    ),
+    "worklog_entries": ("deliverable_id",),
 }
 
 
@@ -188,12 +222,14 @@ def _restore_iso_datetime(
         normalized = normalized[:-1] + "+00:00"
 
     try:
-        return datetime.fromisoformat(normalized)
+        parsed = datetime.fromisoformat(normalized)
     except ValueError as exc:
         raise ValueError(
-            f"Invalid ISO datetime in "
-            f"{collection_name}.{field_name}: {value!r}"
+            f"Invalid ISO datetime in {collection_name}.{field_name}: {value!r}"
         ) from exc
+    if parsed.tzinfo is None:
+        parsed = parsed.replace(tzinfo=timezone.utc)
+    return parsed
 
 
 def _restore_object_id(value):
@@ -233,9 +269,7 @@ def _restore_mongo_types(doc: dict, collection_name: str) -> dict:
         (),
     ):
         if field_name in doc:
-            doc[field_name] = _restore_object_id(
-                doc[field_name]
-            )
+            doc[field_name] = _restore_object_id(doc[field_name])
 
     for field_name in _OBJECT_ID_LIST_FIELDS_BY_COLLECTION.get(
         collection_name,
@@ -244,10 +278,7 @@ def _restore_mongo_types(doc: dict, collection_name: str) -> dict:
         values = doc.get(field_name)
 
         if isinstance(values, list):
-            doc[field_name] = [
-                _restore_object_id(value)
-                for value in values
-            ]
+            doc[field_name] = [_restore_object_id(value) for value in values]
 
     for path in _NESTED_DATETIME_FIELDS_BY_COLLECTION.get(collection_name, ()):
         parent: Any = doc
@@ -264,6 +295,26 @@ def _restore_mongo_types(doc: dict, collection_name: str) -> dict:
                     field_name=".".join(path),
                 )
 
+    if collection_name == MANIFEST_COLLECTION:
+        errors = doc.get("errors")
+        if isinstance(errors, list):
+            for error in errors:
+                if isinstance(error, dict) and "occurred_at" in error:
+                    error["occurred_at"] = _restore_iso_datetime(
+                        error["occurred_at"],
+                        collection_name=collection_name,
+                        field_name="errors.occurred_at",
+                    )
+        backup_evidence = doc.get("production_backup_evidence")
+        if isinstance(backup_evidence, dict):
+            for field_name in ("exported_at", "completed_at", "write_freeze_at"):
+                if field_name in backup_evidence:
+                    backup_evidence[field_name] = _restore_iso_datetime(
+                        backup_evidence[field_name],
+                        collection_name=collection_name,
+                        field_name=f"production_backup_evidence.{field_name}",
+                    )
+
     return doc
 
 
@@ -277,21 +328,325 @@ def _safe_media_member_path(base_dir: str, member_name: str) -> Path | None:
     return rel_path
 
 
+def _descriptor_has_bytes(descriptor: int, data: bytes) -> bool:
+    """Compare stable regular-file bytes through an already anchored descriptor."""
+    before = os.fstat(descriptor)
+    if not stat.S_ISREG(before.st_mode):
+        return False
+    content = bytearray()
+    while True:
+        chunk = os.read(descriptor, 1024 * 1024)
+        if not chunk:
+            break
+        content.extend(chunk)
+        if len(content) > len(data):
+            return False
+    after = os.fstat(descriptor)
+    identity_before = (
+        before.st_dev,
+        before.st_ino,
+        before.st_size,
+        before.st_mtime_ns,
+        before.st_ctime_ns,
+    )
+    identity_after = (
+        after.st_dev,
+        after.st_ino,
+        after.st_size,
+        after.st_mtime_ns,
+        after.st_ctime_ns,
+    )
+    return identity_before == identity_after and bytes(content) == data
+
+
 def _same_bytes(path: Path, data: bytes) -> bool:
-    return path.exists() and path.read_bytes() == data
+    """Compare one regular file through a stable no-follow descriptor."""
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(path, flags)
+    except FileNotFoundError:
+        return False
+    except OSError as exc:
+        raise ValueError(f"Could not safely inspect import destination {path}") from exc
+    try:
+        return _descriptor_has_bytes(descriptor, data)
+    finally:
+        os.close(descriptor)
 
 
-def _unique_import_destination(path: Path) -> Path:
-    if not path.exists():
-        return path
+def _matching_file_identity_at(
+    parent_descriptor: int,
+    name: str,
+    data: bytes,
+) -> tuple[int, int] | None:
+    """Return one direct child's inode only when its anchored bytes are exact."""
+    flags = os.O_RDONLY | getattr(os, "O_CLOEXEC", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        descriptor = os.open(name, flags, dir_fd=parent_descriptor)
+    except FileNotFoundError:
+        return None
+    except OSError as exc:
+        raise ValueError(f"Could not safely inspect import destination {name}") from exc
+    try:
+        opened = os.fstat(descriptor)
+        if not _descriptor_has_bytes(descriptor, data):
+            return None
+        named = os.stat(name, dir_fd=parent_descriptor, follow_symlinks=False)
+        identity = (opened.st_dev, opened.st_ino)
+        return identity if (named.st_dev, named.st_ino) == identity else None
+    finally:
+        os.close(descriptor)
+
+
+def _same_bytes_at(parent_descriptor: int, name: str, data: bytes) -> bool:
+    return _matching_file_identity_at(parent_descriptor, name, data) is not None
+
+
+def _reusable_import_destination(path: Path, data: bytes) -> Path | None:
+    """Find a bounded historical remap with the same immutable bytes."""
+    if not path.parent.is_dir():
+        return None
     stem = path.stem
     suffix = path.suffix
-    stamp = int(time.time())
-    for index in range(1, 1000):
-        candidate = path.with_name(f"{stem}_imported_{stamp}_{index}{suffix}")
-        if not candidate.exists():
+    prefix = f"{stem}_imported_"
+    names: list[str] = []
+    with os.scandir(path.parent) as entries:
+        for ordinal, entry in enumerate(entries, start=1):
+            if ordinal > 10_000:
+                raise FileExistsError(f"Too many files while resolving import path for {path}")
+            if entry.name.startswith(prefix) and entry.name.endswith(suffix):
+                names.append(entry.name)
+                if len(names) > 1_000:
+                    raise FileExistsError(f"Too many collision paths for {path}")
+    for name in sorted(names):
+        candidate = validate_mutable_path(path.with_name(name), allowed_root=DATA_DIR)
+        if _same_bytes(candidate, data):
+            return candidate
+    return None
+
+
+def _content_addressed_import_destination(path: Path, data: bytes) -> Path:
+    """Choose a stable collision path and reuse an identical prior import."""
+    reusable = _reusable_import_destination(path, data)
+    if reusable is not None:
+        return reusable
+    stem = path.stem
+    suffix = path.suffix
+    digest = hashlib.sha256(data).hexdigest()[:16]
+    for index in range(1000):
+        discriminator = "" if index == 0 else f"_{index}"
+        candidate = path.with_name(f"{stem}_imported_{digest}{discriminator}{suffix}")
+        candidate = validate_mutable_path(candidate, allowed_root=DATA_DIR)
+        if not candidate.exists() or _same_bytes(candidate, data):
             return candidate
     raise FileExistsError(f"Could not allocate a unique import path for {path}")
+
+
+def _open_private_import_directory(directory: Path, *, create: bool = True) -> int:
+    """Open a DATA_DIR descendant through anchored no-follow dirfds."""
+    data_root = validate_mutable_path(DATA_DIR)
+    directory = validate_mutable_path(directory, allowed_root=data_root)
+    directory_flags = (
+        os.O_RDONLY
+        | getattr(os, "O_CLOEXEC", 0)
+        | getattr(os, "O_DIRECTORY", 0)
+        | getattr(os, "O_NOFOLLOW", 0)
+    )
+    current_descriptor = os.open(directory.anchor, directory_flags)
+    current_path = Path(directory.anchor)
+    try:
+        for part in directory.parts[1:]:
+            if create:
+                try:
+                    os.mkdir(part, 0o700, dir_fd=current_descriptor)
+                except FileExistsError:
+                    pass
+            next_descriptor = os.open(
+                part,
+                directory_flags,
+                dir_fd=current_descriptor,
+            )
+            os.close(current_descriptor)
+            current_descriptor = next_descriptor
+            current_path /= part
+            if create and (current_path == data_root or current_path.is_relative_to(data_root)):
+                current_mode = stat.S_IMODE(os.fstat(current_descriptor).st_mode)
+                if current_mode != 0o700:
+                    os.fchmod(current_descriptor, 0o700)
+        return current_descriptor
+    except Exception:
+        os.close(current_descriptor)
+        raise
+
+
+def _require_current_media_destination(
+    path: Path,
+    pinned_parent_descriptor: int,
+    expected_identity: tuple[int, int],
+    data: bytes,
+) -> None:
+    """Reopen lexical parent and prove exact name, inode, and bytes before success."""
+    try:
+        current_parent_descriptor = _open_private_import_directory(
+            path.parent,
+            create=False,
+        )
+    except Exception as exc:
+        raise FileExistsError(
+            f"Import destination parent is no longer reachable: {path.parent}"
+        ) from exc
+    try:
+        pinned_parent = os.fstat(pinned_parent_descriptor)
+        current_parent = os.fstat(current_parent_descriptor)
+        if (pinned_parent.st_dev, pinned_parent.st_ino) != (
+            current_parent.st_dev,
+            current_parent.st_ino,
+        ):
+            raise FileExistsError(
+                f"Import destination parent changed before completion: {path.parent}"
+            )
+        current_identity = _matching_file_identity_at(
+            current_parent_descriptor,
+            path.name,
+            data,
+        )
+        if current_identity != expected_identity:
+            raise FileExistsError(
+                f"Import destination identity or bytes changed before completion: {path}"
+            )
+    finally:
+        os.close(current_parent_descriptor)
+
+    try:
+        final_parent_descriptor = _open_private_import_directory(
+            path.parent,
+            create=False,
+        )
+    except Exception as exc:
+        raise FileExistsError(
+            f"Import destination parent moved at completion: {path.parent}"
+        ) from exc
+    try:
+        pinned_parent = os.fstat(pinned_parent_descriptor)
+        final_parent = os.fstat(final_parent_descriptor)
+        if (pinned_parent.st_dev, pinned_parent.st_ino) != (
+            final_parent.st_dev,
+            final_parent.st_ino,
+        ):
+            raise FileExistsError(f"Import destination parent changed at completion: {path.parent}")
+        final_identity = _matching_file_identity_at(
+            final_parent_descriptor,
+            path.name,
+            data,
+        )
+        if final_identity != expected_identity:
+            raise FileExistsError(
+                f"Import destination identity or bytes changed at completion: {path}"
+            )
+    finally:
+        os.close(final_parent_descriptor)
+
+
+def _write_media_file_exclusive(path: Path, data: bytes) -> bool:
+    """Stage anonymously, then publish without overwrite in the validated parent."""
+    path = validate_mutable_path(path, allowed_root=DATA_DIR)
+    parent_descriptor = _open_private_import_directory(path.parent)
+    descriptor: int | None = None
+    try:
+        existing_identity = _matching_file_identity_at(
+            parent_descriptor,
+            path.name,
+            data,
+        )
+        if existing_identity is not None:
+            _require_current_media_destination(
+                path,
+                parent_descriptor,
+                existing_identity,
+                data,
+            )
+            return False
+        temporary_flag = getattr(os, "O_TMPFILE", 0)
+        if not temporary_flag:
+            raise OSError("This platform cannot stage media through anonymous files")
+        try:
+            descriptor = os.open(
+                ".",
+                os.O_RDWR | temporary_flag | getattr(os, "O_CLOEXEC", 0),
+                0o600,
+                dir_fd=parent_descriptor,
+            )
+        except OSError as exc:
+            raise OSError(
+                f"The destination filesystem cannot stage media safely: {path.parent}"
+            ) from exc
+
+        view = memoryview(data)
+        written = 0
+        while written < len(view):
+            count = os.write(descriptor, view[written:])
+            if count <= 0:
+                raise OSError(f"Could not complete media restore for {path}")
+            written += count
+        os.fchmod(descriptor, 0o600)
+        staged_stat = os.fstat(descriptor)
+        staged_identity = (staged_stat.st_dev, staged_stat.st_ino)
+        published = True
+        expected_final_identity = staged_identity
+
+        try:
+            current_parent_descriptor = _open_private_import_directory(
+                path.parent,
+                create=False,
+            )
+        except Exception as exc:
+            raise FileExistsError(
+                f"Import destination parent moved during creation: {path.parent}"
+            ) from exc
+        try:
+            pinned_parent = os.fstat(parent_descriptor)
+            current_parent = os.fstat(current_parent_descriptor)
+            if (pinned_parent.st_dev, pinned_parent.st_ino) != (
+                current_parent.st_dev,
+                current_parent.st_ino,
+            ):
+                raise FileExistsError(
+                    f"Import destination parent changed during creation: {path.parent}"
+                )
+            try:
+                os.link(
+                    f"/proc/self/fd/{descriptor}",
+                    path.name,
+                    dst_dir_fd=current_parent_descriptor,
+                    follow_symlinks=True,
+                )
+            except FileExistsError as exc:
+                existing_identity = _matching_file_identity_at(
+                    current_parent_descriptor,
+                    path.name,
+                    data,
+                )
+                if existing_identity is not None:
+                    expected_final_identity = existing_identity
+                    published = False
+                else:
+                    raise FileExistsError(
+                        f"Import destination changed before publication: {path}"
+                    ) from exc
+        finally:
+            os.close(current_parent_descriptor)
+
+        _require_current_media_destination(
+            path,
+            parent_descriptor,
+            expected_final_identity,
+            data,
+        )
+        return published
+    finally:
+        if descriptor is not None:
+            os.close(descriptor)
+        os.close(parent_descriptor)
 
 
 def _remap_media_paths_in_value(value, path_remap: dict[str, str]):
@@ -310,24 +665,42 @@ def _remap_media_paths_in_value(value, path_remap: dict[str, str]):
 
 
 def _catalog_comparable(value):
-    """Normalize BSON datetime representation for exact domain comparisons."""
-    if isinstance(value, datetime):
-        if value.tzinfo is not None:
-            value = value.astimezone(timezone.utc).replace(tzinfo=None)
-        return value.isoformat(timespec="milliseconds")
-    if isinstance(value, dict):
-        return {
-            key: _catalog_comparable(item)
-            for key, item in value.items()
-            if key != "_id"
-        }
-    if isinstance(value, list):
-        return [_catalog_comparable(item) for item in value]
-    return value
+    """Canonicalize exact BSON type/value identity, including int32 versus int64."""
+    return json.loads(
+        bson_json_dumps(
+            value,
+            json_options=CANONICAL_JSON_OPTIONS,
+            ensure_ascii=False,
+        )
+    )
 
 
 def _catalog_documents_identical(existing: dict, incoming: dict) -> bool:
     return _catalog_comparable(existing) == _catalog_comparable(incoming)
+
+
+def _find_at_most_two(collection, query: dict) -> tuple[dict, ...]:
+    """Expose duplicate destination identities without an unbounded query."""
+    cursor = collection.find(query)
+    max_time_ms = getattr(cursor, "max_time_ms", None)
+    if callable(max_time_ms):
+        cursor = max_time_ms(IMPORT_TIMEOUT_SECONDS * 1000)
+    limit = getattr(cursor, "limit", None)
+    if callable(limit):
+        cursor = limit(2)
+    matches: list[dict] = []
+    try:
+        for document in cursor:
+            if not isinstance(document, dict):
+                raise ValueError("MongoDB returned a non-document import identity match")
+            matches.append(document)
+            if len(matches) == 2:
+                break
+    finally:
+        close = getattr(cursor, "close", None)
+        if callable(close):
+            close()
+    return tuple(matches)
 
 
 def _catalog_member_names(
@@ -335,15 +708,398 @@ def _catalog_member_names(
     *,
     base_dir: str,
 ) -> dict[str, str]:
-    members: dict[str, str] = {}
-    prefix = f"{base_dir}/"
+    return {
+        collection_name: member_name
+        for collection_name, member_name in _collection_member_names(
+            names,
+            base_dir=base_dir,
+        ).items()
+        if collection_name in SOURCE_CATALOG_COLLECTIONS
+    }
+
+
+def _collection_member_names(
+    names: list[str],
+    *,
+    base_dir: str,
+) -> dict[str, str]:
+    """Require one exact non-nested member for each collection stem."""
+    if len(names) != len(set(names)):
+        raise ValueError("Export ZIP contains duplicate member names")
+    modern_prefix = f"{base_dir}/collections/"
+    legacy_prefix = f"{base_dir}/"
+    modern_members: dict[str, str] = {}
+    legacy_members: dict[str, str] = {}
+    allowed_collections = set(IMPORT_COLLECTIONS) | set(SOURCE_CATALOG_COLLECTIONS)
     for name in names:
-        if not name.startswith(prefix) or not name.endswith(".json"):
+        if not name.endswith(".json"):
             continue
-        collection_name = Path(name).stem
+        if name.startswith(modern_prefix):
+            relative = name[len(modern_prefix) :]
+            target = modern_members
+        elif name.startswith(legacy_prefix):
+            relative = name[len(legacy_prefix) :]
+            if relative == "metadata.json":
+                continue
+            target = legacy_members
+        else:
+            continue
+        if not relative or "/" in relative or "\\" in relative:
+            if name.startswith(modern_prefix):
+                raise ValueError("Export ZIP contains a nested or ambiguous collection member")
+            continue
+        collection_name = relative[:-5]
+        if not collection_name or collection_name in target:
+            raise ValueError("Export ZIP contains duplicate collection identities")
+        if collection_name not in allowed_collections:
+            raise ValueError(f"Export ZIP contains unsupported collection {collection_name!r}")
+        target[collection_name] = name
+    if modern_members and legacy_members:
+        raise ValueError("Export ZIP mixes modern and historical collection layouts")
+    return modern_members or legacy_members
+
+
+def _collection_encodings(metadata: Any) -> dict[str, str]:
+    """Validate optional per-collection codecs without breaking historical ZIPs."""
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata.json must contain an object")
+    raw = metadata.get("collection_encodings", {})
+    if not isinstance(raw, dict):
+        raise ValueError("metadata.collection_encodings must contain an object")
+    encodings: dict[str, str] = {}
+    for collection_name, encoding in raw.items():
+        if collection_name not in SOURCE_CATALOG_COLLECTIONS:
+            raise ValueError("metadata declares an encoding for an unsupported collection")
+        if encoding != CATALOG_EXTENDED_JSON_ENCODING:
+            raise ValueError("metadata declares an unsupported collection encoding")
+        encodings[str(collection_name)] = str(encoding)
+    return encodings
+
+
+def _validate_zip_safety(zf: zipfile.ZipFile, *, expected_base: str) -> None:
+    """Apply the bounded S1C1 member/type/compression checks before payload reads."""
+    base, _members, _report = _validate_members(zf.infolist(), ZipSafetyLimits())
+    if base != expected_base:
+        raise ZipValidationError("ambiguous_root", "ZIP base directory changed")
+    corrupt_member = zf.testzip()
+    if corrupt_member is not None:
+        raise ZipValidationError(
+            "crc_mismatch",
+            "ZIP member failed its CRC check",
+            member=corrupt_member,
+        )
+
+
+def _read_zip_member(zf: zipfile.ZipFile, member_name: str) -> bytes:
+    """Read exactly one already-bounded member through the streaming guard."""
+    try:
+        info = zf.getinfo(member_name)
+    except KeyError as exc:
+        raise ValueError(f"ZIP member is missing: {member_name}") from exc
+    data, _sha256 = _read_member(zf, info)
+    return data
+
+
+def _read_collection_documents(
+    zf: zipfile.ZipFile,
+    member_name: str,
+    *,
+    collection_name: str,
+    encodings: dict[str, str],
+) -> list[Any]:
+    """Decode one collection using its explicit codec or the historical JSON fallback."""
+    data = _read_zip_member(zf, member_name).decode("utf-8")
+    if encodings.get(collection_name) == CATALOG_EXTENDED_JSON_ENCODING:
+        payload = bson_json_loads(data, json_options=_CATALOG_JSON_OPTIONS)
+    else:
+        payload = json.loads(data)
+    if not isinstance(payload, list):
+        raise ValueError(f"Collection {collection_name} must contain a JSON array")
+    return payload
+
+
+def _validate_import_metadata(
+    zf: zipfile.ZipFile,
+    names: list[str],
+    *,
+    base_dir: str,
+    metadata: Any,
+    collection_members: dict[str, str],
+    encodings: dict[str, str],
+) -> dict[str, int]:
+    """Bind declared collection/media inventory to exact physical ZIP members."""
+    if not isinstance(metadata, dict):
+        raise ValueError("metadata.json must contain an object")
+    format_declared = "format" in metadata or "format_version" in metadata
+    if format_declared:
+        if (
+            metadata.get("format") != "mathkb_legacy_export"
+            or str(metadata.get("format_version")) != "1"
+        ):
+            raise ValueError("metadata declares an unsupported export format or version")
+        if (
+            not isinstance(metadata.get("database_name"), str)
+            or not metadata["database_name"].strip()
+        ):
+            raise ValueError("versioned metadata requires a database_name")
+        if "media_files" not in metadata:
+            raise ValueError("versioned metadata requires an exact media inventory")
+        catalog_members = set(collection_members) & set(SOURCE_CATALOG_COLLECTIONS)
+        if set(encodings) != catalog_members:
+            raise ValueError(
+                "versioned catalog collections require canonical Extended JSON encodings"
+            )
+    declared_collections = metadata.get("collections")
+    if not isinstance(declared_collections, dict) or any(
+        not isinstance(name, str)
+        or isinstance(count, bool)
+        or not isinstance(count, int)
+        or count < 0
+        for name, count in declared_collections.items()
+    ):
+        raise ValueError("metadata.collections must contain non-negative integer counts")
+    if set(encodings) - set(collection_members):
+        raise ValueError("metadata declares an encoding for an absent collection")
+
+    actual_collections: dict[str, int] = {}
+    for collection_name, member_name in collection_members.items():
+        actual_collections[collection_name] = len(
+            _read_collection_documents(
+                zf,
+                member_name,
+                collection_name=collection_name,
+                encodings=encodings,
+            )
+        )
+    if declared_collections != actual_collections:
+        raise ValueError("metadata collection inventory does not match physical ZIP members")
+
+    actual_media: dict[str, int] = {}
+    for member_name in names:
+        relative_path = _safe_media_member_path(base_dir, member_name)
+        if relative_path is not None:
+            relative_name = relative_path.as_posix()
+            if relative_name in actual_media:
+                raise ValueError("ZIP contains duplicate normalized media paths")
+            actual_media[relative_name] = zf.getinfo(member_name).file_size
+    if "media_files" in metadata:
+        declared_media = metadata["media_files"]
+        if not isinstance(declared_media, dict) or any(
+            not isinstance(name, str)
+            or isinstance(size, bool)
+            or not isinstance(size, int)
+            or size < 0
+            for name, size in declared_media.items()
+        ):
+            raise ValueError("metadata.media_files must contain non-negative integer sizes")
+        if declared_media != actual_media:
+            raise ValueError("metadata media inventory does not match physical ZIP members")
+    return actual_collections
+
+
+def _load_legacy_documents(
+    zf: zipfile.ZipFile,
+    collection_members: dict[str, str],
+    *,
+    encodings: dict[str, str],
+) -> dict[str, list[dict]]:
+    """Decode every non-catalog collection before any filesystem or DB mutation."""
+    collections: dict[str, list[dict]] = {}
+    for collection_name, member_name in collection_members.items():
         if collection_name in SOURCE_CATALOG_COLLECTIONS:
-            members[collection_name] = name
-    return members
+            continue
+        raw_documents = _read_collection_documents(
+            zf,
+            member_name,
+            collection_name=collection_name,
+            encodings=encodings,
+        )
+        documents: list[dict] = []
+        for raw_document in raw_documents:
+            document = _restore_mongo_types(raw_document, collection_name)
+            if not isinstance(document, dict):
+                raise ValueError(f"Legacy collection {collection_name} must contain JSON objects")
+            documents.append(document)
+        collections[collection_name] = documents
+    return collections
+
+
+def _preferred_existing_media_destination(
+    db,
+    media_documents: list[dict],
+    *,
+    original_relative_path: str,
+    data: bytes,
+) -> Path | None:
+    """Reuse the remap already persisted for the same media-asset identity."""
+    for document in media_documents:
+        if document.get("path") != original_relative_path or "_id" not in document:
+            continue
+        existing = db[MEDIA_ASSETS_COLLECTION].find_one({"_id": document["_id"]})
+        if not isinstance(existing, dict):
+            continue
+        existing_path = existing.get("path")
+        if not isinstance(existing_path, str) or existing_path == original_relative_path:
+            continue
+        candidate = validate_mutable_path(DATA_DIR / existing_path, allowed_root=DATA_DIR)
+        if _same_bytes(candidate, data):
+            return candidate
+    return None
+
+
+def _plan_media_restores(
+    zf: zipfile.ZipFile,
+    names: list[str],
+    *,
+    base_dir: str,
+    db,
+    legacy_documents: dict[str, list[dict]],
+    started_at: float,
+) -> tuple[list[_MediaRestorePlan], dict[str, str]]:
+    """Plan stable media destinations without creating directories or files."""
+    plans: list[_MediaRestorePlan] = []
+    path_remap: dict[str, str] = {}
+    media_documents = legacy_documents.get(MEDIA_ASSETS_COLLECTION, [])
+    for member_name in names:
+        relative_path = _safe_media_member_path(base_dir, member_name)
+        if relative_path is None:
+            continue
+        _raise_if_timed_out(
+            started_at,
+            IMPORT_TIMEOUT_SECONDS,
+            f"planning media restore {relative_path}",
+        )
+        data = _read_zip_member(zf, member_name)
+        destination = validate_mutable_path(
+            DATA_DIR / relative_path,
+            allowed_root=DATA_DIR,
+        )
+        if not _same_bytes(destination, data):
+            original_relative_path = relative_path.as_posix()
+            reusable = _preferred_existing_media_destination(
+                db,
+                media_documents,
+                original_relative_path=original_relative_path,
+                data=data,
+            ) or _reusable_import_destination(destination, data)
+            if reusable is not None:
+                destination = reusable
+                path_remap[original_relative_path] = destination.relative_to(DATA_DIR).as_posix()
+            elif destination.exists():
+                destination = _content_addressed_import_destination(destination, data)
+                path_remap[original_relative_path] = destination.relative_to(DATA_DIR).as_posix()
+        plans.append(
+            _MediaRestorePlan(
+                relative_path=relative_path,
+                destination=destination,
+                data=data,
+            )
+        )
+    return plans, path_remap
+
+
+def _prepare_legacy_import(
+    legacy_documents: dict[str, list[dict]],
+    *,
+    path_remap: dict[str, str],
+    db,
+    report: DatabaseImportReport,
+) -> dict[str, list[dict]]:
+    """Preflight all remapped legacy documents before writing media or MongoDB."""
+    pending: dict[str, list[dict]] = {}
+    for collection_name, raw_documents in legacy_documents.items():
+        documents: list[dict] = []
+        seen: dict[Any, dict] = {}
+        for raw_document in raw_documents:
+            original_media_path = (
+                raw_document.get("path") if collection_name == MEDIA_ASSETS_COLLECTION else None
+            )
+            document = _remap_media_paths_in_value(raw_document, path_remap)
+            if isinstance(original_media_path, str) and original_media_path in path_remap:
+                document["filename"] = Path(document["path"]).name
+
+            storage_id = document.get("_id")
+            if storage_id is not None:
+                previous = seen.get(storage_id)
+                if previous is not None:
+                    reason = (
+                        "duplicate identical legacy _id in archive"
+                        if _catalog_documents_identical(previous, document)
+                        else "duplicate legacy _id with different data in archive"
+                    )
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(collection_name, str(storage_id), reason)
+                    )
+                    continue
+                seen[storage_id] = document
+                existing = db[collection_name].find_one({"_id": storage_id})
+                if existing is not None and not _catalog_documents_identical(
+                    existing,
+                    document,
+                ):
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(
+                            collection_name,
+                            str(storage_id),
+                            "destination contains different legacy data for the same _id",
+                        )
+                    )
+                    continue
+            documents.append(document)
+        pending[collection_name] = documents
+    return pending
+
+
+def _require_existing_documents_are_archive_subset(
+    db,
+    archive_documents: dict[str, list[dict]],
+) -> None:
+    """Allow a versioned same-name restore only into an empty or partial exact restore."""
+    for collection_name in db.list_collection_names():
+        incoming = archive_documents.get(collection_name)
+        if incoming is None:
+            raise ValueError("Same-name MathV0 restore found a collection absent from the archive")
+        cursor = db[collection_name].find({})
+        max_time_ms = getattr(cursor, "max_time_ms", None)
+        if callable(max_time_ms):
+            cursor = max_time_ms(IMPORT_TIMEOUT_SECONDS * 1000)
+        limit = getattr(cursor, "limit", None)
+        if callable(limit):
+            cursor = limit(len(incoming) + 1)
+        remaining = list(incoming)
+        try:
+            for existing in cursor:
+                if not isinstance(existing, dict):
+                    raise ValueError("Same-name MathV0 restore read a non-document value")
+                match = next(
+                    (
+                        index
+                        for index, candidate in enumerate(remaining)
+                        if _catalog_documents_identical(existing, candidate)
+                    ),
+                    None,
+                )
+                if match is None:
+                    raise ValueError(
+                        "Same-name MathV0 restore found data not identical to the archive"
+                    )
+                remaining.pop(match)
+        finally:
+            close = getattr(cursor, "close", None)
+            if callable(close):
+                close()
+
+
+def _validate_portable_manifest(document: dict) -> dict:
+    """Validate imported manifest authority without rewriting its original target."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    try:
+        manifest = MigrationManifest.model_validate(payload)
+    except (TypeError, ValueError) as exc:
+        raise ValueError("The imported Source Catalog manifest is invalid") from exc
+    if document.get("_id") != manifest.manifest_key:
+        raise ValueError("The imported manifest _id must equal manifest_key")
+    return manifest.model_dump(mode="python")
 
 
 def _prepare_catalog_import(
@@ -354,22 +1110,28 @@ def _prepare_catalog_import(
     db,
     report: DatabaseImportReport,
     started_at: float,
+    encodings: dict[str, str],
 ) -> dict[str, list[dict]]:
     """Preflight catalog documents without modifying the destination database."""
     pending: dict[str, list[dict]] = {}
-    for collection_name, member_name in _catalog_member_names(
+    member_names = _catalog_member_names(
         names,
         base_dir=base_dir,
-    ).items():
-        raw_documents = json.loads(zf.read(member_name).decode("utf-8"))
-        if not isinstance(raw_documents, list):
-            report.catalog_conflicts.append(
-                CatalogImportConflict(collection_name, "<collection>", "expected a JSON array")
-            )
+    )
+    for collection_name in _CATALOG_IMPORT_ORDER:
+        member_name = member_names.get(collection_name)
+        if member_name is None:
             continue
+        raw_documents = _read_collection_documents(
+            zf,
+            member_name,
+            collection_name=collection_name,
+            encodings=encodings,
+        )
 
         id_field = _CATALOG_ID_FIELDS[collection_name]
         seen: dict[str, dict] = {}
+        seen_storage_ids: dict[Any, str] = {}
         collection_pending: list[dict] = []
         for index, raw_document in enumerate(raw_documents, start=1):
             if index == 1 or index % 100 == 0:
@@ -387,7 +1149,11 @@ def _prepare_catalog_import(
                     )
                 )
                 continue
-            document = _restore_mongo_types(raw_document, collection_name)
+            document = (
+                dict(raw_document)
+                if encodings.get(collection_name) == CATALOG_EXTENDED_JSON_ENCODING
+                else _restore_mongo_types(raw_document, collection_name)
+            )
             domain_id = document.get(id_field)
             if not isinstance(domain_id, str) or not domain_id.strip():
                 report.catalog_conflicts.append(
@@ -398,6 +1164,60 @@ def _prepare_catalog_import(
                     )
                 )
                 continue
+
+            if collection_name == MANIFEST_COLLECTION:
+                try:
+                    validated_payload = _validate_portable_manifest(document)
+                except ValueError as exc:
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(collection_name, domain_id, str(exc))
+                    )
+                    continue
+                portable_payload = {key: value for key, value in document.items() if key != "_id"}
+                if encodings.get(
+                    collection_name
+                ) == CATALOG_EXTENDED_JSON_ENCODING and not _catalog_documents_identical(
+                    portable_payload,
+                    validated_payload,
+                ):
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(
+                            collection_name,
+                            domain_id,
+                            "non-canonical portable manifest document",
+                        )
+                    )
+                    continue
+            elif collection_name in {"sources", "references"}:
+                model = Source if collection_name == "sources" else Reference
+                portable_payload = {key: value for key, value in document.items() if key != "_id"}
+                try:
+                    validated_payload = model.model_validate(portable_payload).model_dump(
+                        mode="python"
+                    )
+                except (TypeError, ValueError):
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(
+                            collection_name,
+                            domain_id,
+                            f"invalid portable {collection_name[:-1]} document",
+                        )
+                    )
+                    continue
+                if encodings.get(
+                    collection_name
+                ) == CATALOG_EXTENDED_JSON_ENCODING and not _catalog_documents_identical(
+                    portable_payload,
+                    validated_payload,
+                ):
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(
+                            collection_name,
+                            domain_id,
+                            f"non-canonical portable {collection_name[:-1]} document",
+                        )
+                    )
+                    continue
 
             previous = seen.get(domain_id)
             if previous is not None:
@@ -412,13 +1232,51 @@ def _prepare_catalog_import(
                 continue
             seen[domain_id] = document
 
-            existing = db[collection_name].find_one({id_field: domain_id})
-            if existing is None:
-                collection_pending.append(document)
-            elif _catalog_documents_identical(existing, document):
-                report.catalog_identical[collection_name] = (
-                    report.catalog_identical.get(collection_name, 0) + 1
+            storage_id = document.get("_id")
+            if storage_id is not None:
+                previous_domain_id = seen_storage_ids.get(storage_id)
+                if previous_domain_id is not None and previous_domain_id != domain_id:
+                    report.catalog_conflicts.append(
+                        CatalogImportConflict(
+                            collection_name,
+                            domain_id,
+                            "duplicate MongoDB _id assigned to different domain IDs in archive",
+                        )
+                    )
+                    continue
+                seen_storage_ids[storage_id] = domain_id
+
+            domain_matches = _find_at_most_two(
+                db[collection_name],
+                {id_field: domain_id},
+            )
+            if len(domain_matches) > 1:
+                report.catalog_conflicts.append(
+                    CatalogImportConflict(
+                        collection_name,
+                        domain_id,
+                        "destination contains duplicate documents for the same domain ID",
+                    )
                 )
+                continue
+            existing = domain_matches[0] if domain_matches else None
+            if existing is None:
+                if storage_id is not None:
+                    storage_matches = _find_at_most_two(
+                        db[collection_name],
+                        {"_id": storage_id},
+                    )
+                    if len(storage_matches) != 0:
+                        report.catalog_conflicts.append(
+                            CatalogImportConflict(
+                                collection_name,
+                                domain_id,
+                                "destination MongoDB _id belongs to a different domain ID",
+                            )
+                        )
+                        continue
+            elif _catalog_documents_identical(existing, document):
+                pass
             else:
                 report.catalog_conflicts.append(
                     CatalogImportConflict(
@@ -427,13 +1285,49 @@ def _prepare_catalog_import(
                         "destination contains different data for the same domain ID",
                     )
                 )
+                continue
+            collection_pending.append(document)
         pending[collection_name] = collection_pending
+
+    available_source_ids = set()
+    for document in pending.get("sources", []):
+        source_id = document.get("source_id")
+        if isinstance(source_id, str):
+            available_source_ids.add(source_id)
+    for reference in pending.get("references", []):
+        reference_id = str(reference.get("reference_id") or "<reference>")
+        source_ids = reference.get("source_ids")
+        if not isinstance(source_ids, list) or not all(
+            isinstance(source_id, str) and source_id for source_id in source_ids
+        ):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "references",
+                    reference_id,
+                    "source_ids must be a list of nonempty Source IDs",
+                )
+            )
+            continue
+        for source_id in source_ids:
+            if source_id in available_source_ids:
+                continue
+            source_matches = _find_at_most_two(
+                db["sources"],
+                {"source_id": source_id},
+            )
+            if len(source_matches) != 1:
+                report.catalog_conflicts.append(
+                    CatalogImportConflict(
+                        "references",
+                        reference_id,
+                        "Reference points to a Source ID absent from archive and destination",
+                    )
+                )
     return pending
 
 
-def inspect_export_zip(zip_path: Path) -> Dict:
-    """
-    Inspect a Math Knowledge Base export ZIP.
+def inspect_export_zip(zip_path: Path) -> dict:
+    """Inspect a Math Knowledge Base export ZIP.
 
     Returns a dict with:
     - base_name
@@ -441,7 +1335,9 @@ def inspect_export_zip(zip_path: Path) -> Dict:
     - collections: {collection_name: count}
     """
     started_at = time.monotonic()
-    logger.info("Inspecting database import ZIP: path=%s timeout=%ss", zip_path, IMPORT_TIMEOUT_SECONDS)
+    logger.info(
+        "Inspecting database import ZIP: path=%s timeout=%ss", zip_path, IMPORT_TIMEOUT_SECONDS
+    )
     if not zipfile.is_zipfile(zip_path):
         raise ValueError("Uploaded file is not a valid ZIP archive")
 
@@ -454,23 +1350,27 @@ def inspect_export_zip(zip_path: Path) -> Dict:
             raise ValueError("Invalid export format: ambiguous base directory")
 
         base_name = base_dirs.pop()
+        _collection_member_names(names, base_dir=base_name)
+        _validate_zip_safety(zf, expected_base=base_name)
 
         metadata_path = f"{base_name}/metadata.json"
         if metadata_path not in names:
             raise ValueError("metadata.json not found in export")
 
-        metadata = json.loads(zf.read(metadata_path).decode("utf-8"))
-
-        collections = {}
-        for name in names:
+        metadata = json.loads(_read_zip_member(zf, metadata_path).decode("utf-8"))
+        encodings = _collection_encodings(metadata)
+        collection_members = _collection_member_names(names, base_dir=base_name)
+        collections = _validate_import_metadata(
+            zf,
+            names,
+            base_dir=base_name,
+            metadata=metadata,
+            collection_members=collection_members,
+            encodings=encodings,
+        )
+        for coll, name in collection_members.items():
             _raise_if_timed_out(started_at, IMPORT_TIMEOUT_SECONDS, f"inspecting {name}")
-            if name.startswith(f"{base_name}/") and name.endswith(".json"):
-                coll = Path(name).stem
-                if coll == "metadata":
-                    continue
-                docs = json.loads(zf.read(name).decode("utf-8"))
-                collections[coll] = len(docs)
-                logger.info("ZIP collection found: %s (%s documents)", coll, len(docs))
+            logger.info("ZIP collection found: %s (%s documents)", coll, collections[coll])
 
     duration = time.monotonic() - started_at
     logger.info("ZIP inspection completed: path=%s duration=%.2fs", zip_path, duration)
@@ -491,11 +1391,20 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
     """
     started_at = time.monotonic()
     db = mongo.db
+    database_name = getattr(db, "name", None)
+    if not isinstance(database_name, str) or not database_name:
+        raise ValueError("Database import requires an explicit target name")
+    folded_name = database_name.casefold()
+    if folded_name in {"admin", "config", "local", "mathmongo"}:
+        raise ValueError("Database import refuses protected MongoDB targets")
+    initial_collections = tuple(db.list_collection_names())
+    if folded_name == "mathv0" and database_name != "MathV0":
+        raise ValueError("Database import can restore only the exact case-sensitive MathV0 name")
     report = DatabaseImportReport()
     logger.info(
         "Starting database import: zip=%s db=%s timeout=%ss",
         zip_path,
-        getattr(db, "name", "<unknown>"),
+        database_name,
         IMPORT_TIMEOUT_SECONDS,
     )
 
@@ -507,6 +1416,35 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
             if len(base_dirs) != 1:
                 raise ValueError("Invalid export format: ambiguous base directory")
             base_dir = base_dirs.pop()
+            _collection_member_names(names, base_dir=base_dir)
+            _validate_zip_safety(zf, expected_base=base_dir)
+            metadata_name = f"{base_dir}/metadata.json"
+            if metadata_name not in names:
+                raise ValueError("metadata.json not found in export")
+            metadata = json.loads(_read_zip_member(zf, metadata_name).decode("utf-8"))
+            encodings = _collection_encodings(metadata)
+            collection_members = _collection_member_names(names, base_dir=base_dir)
+            validated_counts = _validate_import_metadata(
+                zf,
+                names,
+                base_dir=base_dir,
+                metadata=metadata,
+                collection_members=collection_members,
+                encodings=encodings,
+            )
+            versioned_export = "format" in metadata or "format_version" in metadata
+            if (
+                database_name == "MathV0"
+                and versioned_export
+                and metadata.get("database_name") != "MathV0"
+            ):
+                raise ValueError(
+                    "A versioned same-name MathV0 restore requires MathV0 archive metadata"
+                )
+            if database_name == "MathV0" and not versioned_export and initial_collections:
+                raise ValueError(
+                    "An unversioned same-name MathV0 restore requires a physically empty target"
+                )
 
             catalog_pending = _prepare_catalog_import(
                 zf,
@@ -515,44 +1453,65 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                 db=db,
                 report=report,
                 started_at=started_at,
+                encodings=encodings,
             )
             if report.catalog_conflicts:
                 raise CatalogImportConflictError(report)
 
-            path_remap: dict[str, str] = {}
-            for name in names:
-                rel_path = _safe_media_member_path(base_dir, name)
-                if rel_path is None:
-                    continue
-                _raise_if_timed_out(started_at, IMPORT_TIMEOUT_SECONDS, f"restoring {rel_path}")
-                data = zf.read(name)
-                destination = validate_mutable_path(
-                    DATA_DIR / rel_path,
-                    allowed_root=DATA_DIR,
+            legacy_documents = _load_legacy_documents(
+                zf,
+                collection_members,
+                encodings=encodings,
+            )
+            media_plans, path_remap = _plan_media_restores(
+                zf,
+                names,
+                base_dir=base_dir,
+                db=db,
+                legacy_documents=legacy_documents,
+                started_at=started_at,
+            )
+            legacy_pending = _prepare_legacy_import(
+                legacy_documents,
+                path_remap=path_remap,
+                db=db,
+                report=report,
+            )
+            if report.catalog_conflicts:
+                raise CatalogImportConflictError(report)
+            if database_name == "MathV0" and versioned_export:
+                _require_existing_documents_are_archive_subset(
+                    db,
+                    {**legacy_pending, **catalog_pending},
                 )
-                destination.parent.mkdir(parents=True, exist_ok=True, mode=0o700)
-                destination.parent.chmod(0o700)
-                if destination.exists() and not _same_bytes(destination, data):
-                    destination = _unique_import_destination(destination)
-                    path_remap[rel_path.as_posix()] = destination.relative_to(DATA_DIR).as_posix()
-                destination = validate_mutable_path(destination, allowed_root=DATA_DIR)
-                destination.write_bytes(data)
-                logger.info("Restored media file: %s", destination)
+
+            for media_plan in media_plans:
+                _raise_if_timed_out(
+                    started_at,
+                    IMPORT_TIMEOUT_SECONDS,
+                    f"restoring {media_plan.relative_path}",
+                )
+                if _write_media_file_exclusive(media_plan.destination, media_plan.data):
+                    logger.info("Restored media file: %s", media_plan.destination)
 
             imported_collections = set()
             imported_counts = {}
             existing_collections = set(db.list_collection_names())
-            for name in names:
+            ordered_collections = [
+                collection_name
+                for collection_name in collection_members
+                if collection_name not in SOURCE_CATALOG_COLLECTIONS
+            ]
+            ordered_collections.extend(
+                collection_name
+                for collection_name in _CATALOG_IMPORT_ORDER
+                if collection_name in collection_members
+            )
+            for coll in ordered_collections:
+                name = collection_members[coll]
                 _raise_if_timed_out(started_at, IMPORT_TIMEOUT_SECONDS, f"reading {name}")
-                if not name.startswith(f"{base_dir}/") or not name.endswith(".json"):
-                    continue
-
-                coll = Path(name).stem
-                if coll == "metadata":
-                    continue
 
                 collection_started_at = time.monotonic()
-                raw_docs = json.loads(zf.read(name).decode("utf-8"))
                 imported_collections.add(coll)
                 if coll not in existing_collections:
                     db.create_collection(coll)
@@ -563,13 +1522,58 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                     id_field = _CATALOG_ID_FIELDS[coll]
                     for document in docs:
                         domain_id = document[id_field]
+                        domain_matches = _find_at_most_two(
+                            db[coll],
+                            {id_field: domain_id},
+                        )
+                        if len(domain_matches) > 1:
+                            report.catalog_conflicts.append(
+                                CatalogImportConflict(
+                                    coll,
+                                    domain_id,
+                                    "destination gained duplicate domain IDs after preflight",
+                                )
+                            )
+                            raise CatalogImportConflictError(report)
+                        existing = domain_matches[0] if domain_matches else None
+                        if existing is not None:
+                            if _catalog_documents_identical(existing, document):
+                                report.catalog_identical[coll] = (
+                                    report.catalog_identical.get(coll, 0) + 1
+                                )
+                                continue
+                            report.catalog_conflicts.append(
+                                CatalogImportConflict(
+                                    coll,
+                                    domain_id,
+                                    "destination changed after catalog preflight",
+                                )
+                            )
+                            raise CatalogImportConflictError(report)
+                        storage_id = document.get("_id")
+                        if storage_id is not None:
+                            storage_matches = _find_at_most_two(
+                                db[coll],
+                                {"_id": storage_id},
+                            )
+                            if storage_matches:
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "destination MongoDB _id changed after catalog preflight",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
                         try:
                             db[coll].insert_one(document)
                         except DuplicateKeyError as exc:
-                            existing = db[coll].find_one({id_field: domain_id})
-                            if existing is not None and _catalog_documents_identical(
-                                existing,
-                                document,
+                            domain_matches = _find_at_most_two(
+                                db[coll],
+                                {id_field: domain_id},
+                            )
+                            if len(domain_matches) == 1 and _catalog_documents_identical(
+                                domain_matches[0], document
                             ):
                                 report.catalog_identical[coll] = (
                                     report.catalog_identical.get(coll, 0) + 1
@@ -583,9 +1587,25 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                                 )
                             )
                             raise CatalogImportConflictError(report) from exc
+                        inserted_matches = _find_at_most_two(
+                            db[coll],
+                            {id_field: domain_id},
+                        )
+                        if len(inserted_matches) != 1 or not _catalog_documents_identical(
+                            inserted_matches[0],
+                            document,
+                        ):
+                            report.catalog_conflicts.append(
+                                CatalogImportConflict(
+                                    coll,
+                                    domain_id,
+                                    "concurrent insert produced duplicate domain IDs",
+                                )
+                            )
+                            raise CatalogImportConflictError(report)
                         report.catalog_inserted[coll] = report.catalog_inserted.get(coll, 0) + 1
-                    imported_counts[coll] = len(raw_docs)
-                    report.imported_counts[coll] = len(raw_docs)
+                    imported_counts[coll] = validated_counts[coll]
+                    report.imported_counts[coll] = validated_counts[coll]
                     logger.info(
                         "Imported catalog collection %s: inserted=%s identical=%s",
                         coll,
@@ -594,7 +1614,7 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                     )
                     continue
 
-                docs = raw_docs
+                docs = legacy_pending.get(coll, [])
                 for idx, doc in enumerate(docs, start=1):
                     if idx == 1 or idx % 100 == 0:
                         _raise_if_timed_out(
@@ -602,22 +1622,29 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                             IMPORT_TIMEOUT_SECONDS,
                             f"importing {coll}",
                         )
-                    doc = _restore_mongo_types(doc, coll)
-                    if (
-                        coll == MEDIA_ASSETS_COLLECTION
-                        and isinstance(doc, dict)
-                        and doc.get("path") in path_remap
-                    ):
-                        doc["path"] = path_remap[doc["path"]]
-                        doc["filename"] = Path(doc["path"]).name
-                    if isinstance(doc, dict) and path_remap:
-                        doc = _remap_media_paths_in_value(doc, path_remap)
-                    if isinstance(doc, dict) and "_id" in doc:
-                        db[coll].replace_one({"_id": doc["_id"]}, doc, upsert=True)
+                    if "_id" in doc:
+                        existing = db[coll].find_one({"_id": doc["_id"]})
+                        if existing is not None:
+                            if _catalog_documents_identical(existing, doc):
+                                report.legacy_identical[coll] = (
+                                    report.legacy_identical.get(coll, 0) + 1
+                                )
+                                continue
+                            report.catalog_conflicts.append(
+                                CatalogImportConflict(
+                                    coll,
+                                    str(doc["_id"]),
+                                    "destination contains different legacy data for the same _id",
+                                )
+                            )
+                            raise CatalogImportConflictError(report)
+                        db[coll].insert_one(doc)
+                        report.legacy_inserted[coll] = report.legacy_inserted.get(coll, 0) + 1
                     else:
                         db[coll].insert_one(doc)
-                imported_counts[coll] = len(docs)
-                report.imported_counts[coll] = len(docs)
+                        report.legacy_inserted[coll] = report.legacy_inserted.get(coll, 0) + 1
+                imported_counts[coll] = len(legacy_documents.get(coll, []))
+                report.imported_counts[coll] = len(legacy_documents.get(coll, []))
                 logger.info(
                     "Imported collection %s: %s documents in %.2fs",
                     coll,
@@ -626,9 +1653,7 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                 )
 
             required_empty_collections = (
-                set(IMPORT_COLLECTIONS)
-                - imported_collections
-                - set(SOURCE_CATALOG_COLLECTIONS)
+                set(IMPORT_COLLECTIONS) - imported_collections - set(SOURCE_CATALOG_COLLECTIONS)
             )
             for coll in required_empty_collections:
                 _raise_if_timed_out(started_at, IMPORT_TIMEOUT_SECONDS, f"creating {coll}")

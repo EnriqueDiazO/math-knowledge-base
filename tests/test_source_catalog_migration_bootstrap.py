@@ -495,6 +495,61 @@ def test_second_identical_apply_is_a_read_only_noop_with_stable_ids_and_timestam
     assert database.write_attempt_events == ()
 
 
+@pytest.mark.parametrize("mutation", ["legacy", "source"])
+def test_verification_checkpoint_mutation_cannot_precede_applied_manifest(
+    mutation: str,
+    authoritative_export: LoadedLegacyExport,
+    authoritative_plan: MigrationPlan,
+    complete_decisions: DecisionSet,
+) -> None:
+    database = _database(authoritative_export)
+    fired = False
+
+    def mutate_at_boundary(label: str, _ordinal: int | None) -> None:
+        nonlocal fired
+        if label != "verification_complete" or fired:
+            return
+        fired = True
+        if mutation == "legacy":
+            database._documents["concepts"][0]["boundary_mutation"] = True
+        else:
+            database._documents["sources"].pop()
+
+    harness = _harness(database, offset=11_000, checkpoint=mutate_at_boundary)
+
+    result = _apply(harness, authoritative_export, authoritative_plan, complete_decisions)
+
+    assert fired is True
+    assert result.outcome == ApplyOutcome.BLOCKED
+    assert result.manifest_state == ManifestState.BLOCKED.value
+    assert _manifest(database).state == ManifestState.BLOCKED
+
+
+def test_applied_rerun_rejects_an_unapproved_index_option_without_writing(
+    authoritative_export: LoadedLegacyExport,
+    authoritative_plan: MigrationPlan,
+    complete_decisions: DecisionSet,
+) -> None:
+    database = _database(authoritative_export)
+    harness = _harness(database, offset=12_000)
+    assert (
+        _apply(harness, authoritative_export, authoritative_plan, complete_decisions).outcome
+        == ApplyOutcome.APPLIED
+    )
+    index = next(
+        item
+        for item in database._indexes["sources"]
+        if item.get("name") == "sources_source_id_unique"
+    )
+    index["partialFilterExpression"] = {"source_id": {"$exists": True}}
+    database.clear_events()
+
+    second = _apply(harness, authoritative_export, authoritative_plan, complete_decisions)
+
+    assert second.outcome == ApplyOutcome.CONFLICT
+    assert database.write_attempt_events == ()
+
+
 def test_applied_rerun_blocks_tampered_durable_index_evidence_without_writing(
     authoritative_export: LoadedLegacyExport,
     authoritative_plan: MigrationPlan,

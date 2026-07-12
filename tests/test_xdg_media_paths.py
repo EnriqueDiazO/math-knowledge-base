@@ -5,6 +5,7 @@
 from __future__ import annotations
 
 import json
+import os
 import zipfile
 from datetime import datetime
 from pathlib import Path
@@ -37,7 +38,9 @@ def test_media_resolves_xdg_first_then_legacy(tmp_path: Path, monkeypatch) -> No
     assert media_assets.resolve_media_asset_path(asset) == current
 
 
-def test_absolute_historical_media_resolves_xdg_then_legacy_then_original(tmp_path: Path, monkeypatch) -> None:
+def test_absolute_historical_media_resolves_xdg_then_legacy_then_original(
+    tmp_path: Path, monkeypatch
+) -> None:
     data = tmp_path / "xdg-data/mathmongo"
     legacy = tmp_path / "legacy"
     old_checkout = tmp_path / "old-checkout"
@@ -157,17 +160,23 @@ def test_cornell_and_cpi_absolute_assets_use_xdg_first(tmp_path: Path, monkeypat
     asset = {"asset_id": "logo", "filename": "logo.png", "path": str(historical)}
 
     assert cornell_media._safe_asset_source_path(asset) == current
-    assert cpi_media._safe_asset_source_path(
-        asset,
-        allowed_extensions=cpi_media.CPI_LATEX_IMAGE_EXTENSIONS,
-    ) == current
+    assert (
+        cpi_media._safe_asset_source_path(
+            asset,
+            allowed_extensions=cpi_media.CPI_LATEX_IMAGE_EXTENSIONS,
+        )
+        == current
+    )
 
     current.unlink()
     assert cornell_media._safe_asset_source_path(asset) == historical
-    assert cpi_media._safe_asset_source_path(
-        asset,
-        allowed_extensions=cpi_media.CPI_LATEX_IMAGE_EXTENSIONS,
-    ) == historical
+    assert (
+        cpi_media._safe_asset_source_path(
+            asset,
+            allowed_extensions=cpi_media.CPI_LATEX_IMAGE_EXTENSIONS,
+        )
+        == historical
+    )
 
 
 def test_deleting_media_never_deletes_legacy_fallback(tmp_path: Path, monkeypatch) -> None:
@@ -228,32 +237,26 @@ class _FixedExportDatetime:
 
 @pytest.mark.parametrize(
     "symlink_location",
-    ("export_dir", "collections_dir", "media_dir", "zip_path"),
+    ("out_dir", "zip_path"),
 )
-def test_database_export_rejects_symlinked_staging_destinations(
+def test_database_export_rejects_symlinked_output_destinations(
     tmp_path: Path,
     monkeypatch,
     symlink_location: str,
 ) -> None:
     out_dir = tmp_path / "backups"
-    out_dir.mkdir()
+    if symlink_location != "out_dir":
+        out_dir.mkdir()
     base_name = "mathkb_export_20260711_123456"
-    export_dir = out_dir / base_name
     outside_dir = tmp_path / "outside-dir"
     outside_dir.mkdir()
     outside_file = tmp_path / "outside.zip"
     outside_file.write_bytes(b"must survive")
 
-    if symlink_location == "export_dir":
-        export_dir.symlink_to(outside_dir, target_is_directory=True)
+    if symlink_location == "out_dir":
+        out_dir.symlink_to(outside_dir, target_is_directory=True)
     elif symlink_location == "zip_path":
         (out_dir / f"{base_name}.zip").symlink_to(outside_file)
-    else:
-        export_dir.mkdir()
-        if symlink_location == "collections_dir":
-            (export_dir / "collections").symlink_to(outside_dir, target_is_directory=True)
-        elif symlink_location == "media_dir":
-            (export_dir / "media").symlink_to(outside_dir, target_is_directory=True)
 
     monkeypatch.setattr(db_export, "datetime", _FixedExportDatetime)
     monkeypatch.setattr(db_export, "EXPORT_COLLECTIONS", ())
@@ -266,6 +269,85 @@ def test_database_export_rejects_symlinked_staging_destinations(
 
     assert outside_file.read_bytes() == b"must survive"
     assert list(outside_dir.iterdir()) == []
+
+
+def test_database_export_publication_race_never_overwrites_symlink_target(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    out_dir = tmp_path / "backups"
+    outside = tmp_path / "outside.zip"
+    outside.write_bytes(b"must survive")
+    final_path = out_dir / "mathkb_export_20260711_123456.zip"
+    original_link = os.link
+    raced = False
+
+    def insert_symlink_before_link(
+        source,
+        destination,
+        *,
+        src_dir_fd=None,
+        dst_dir_fd=None,
+        follow_symlinks=True,
+    ) -> None:
+        nonlocal raced
+        if not raced:
+            raced = True
+            final_path.symlink_to(outside)
+        return original_link(
+            source,
+            destination,
+            src_dir_fd=src_dir_fd,
+            dst_dir_fd=dst_dir_fd,
+            follow_symlinks=follow_symlinks,
+        )
+
+    monkeypatch.setattr(db_export, "datetime", _FixedExportDatetime)
+    monkeypatch.setattr(db_export, "EXPORT_COLLECTIONS", ())
+    monkeypatch.setattr(db_export, "LEGACY_PROJECT_ROOT", tmp_path / "missing-legacy")
+    monkeypatch.setattr(db_export, "LOCAL_MEDIA_ROOT", tmp_path / "missing-xdg-media")
+    monkeypatch.setattr(db_export.os, "link", insert_symlink_before_link)
+    mongo = type("FakeMongo", (), {"db": _ExportDatabase({})})()
+
+    with pytest.raises(FileExistsError):
+        db_export.export_database_to_zip(mongo, out_dir)
+
+    assert raced is True
+    assert outside.read_bytes() == b"must survive"
+
+
+def test_database_export_detects_same_inode_mutation_after_publication(
+    tmp_path: Path,
+    monkeypatch,
+) -> None:
+    out_dir = tmp_path / "backups"
+    final_path = out_dir / "mathkb_export_20260711_123456.zip"
+    original_open_directory = db_export._open_private_output_directory
+    calls = 0
+
+    def mutate_before_final_verification(directory: Path, *, create: bool = True) -> int:
+        nonlocal calls
+        calls += 1
+        descriptor = original_open_directory(directory, create=create)
+        if calls == 3:
+            before = final_path.stat()
+            final_path.write_bytes(b"same-inode mutation")
+            assert final_path.stat().st_ino == before.st_ino
+        return descriptor
+
+    monkeypatch.setattr(db_export, "datetime", _FixedExportDatetime)
+    monkeypatch.setattr(db_export, "EXPORT_COLLECTIONS", ())
+    monkeypatch.setattr(db_export, "LEGACY_PROJECT_ROOT", tmp_path / "missing-legacy")
+    monkeypatch.setattr(db_export, "LOCAL_MEDIA_ROOT", tmp_path / "missing-xdg-media")
+    monkeypatch.setattr(
+        db_export,
+        "_open_private_output_directory",
+        mutate_before_final_verification,
+    )
+    mongo = type("FakeMongo", (), {"db": _ExportDatabase({})})()
+
+    with pytest.raises(FileExistsError, match="Published backup identity changed"):
+        db_export.export_database_to_zip(mongo, out_dir)
 
 
 def test_database_export_merges_legacy_then_xdg_without_real_mongo(
@@ -290,7 +372,9 @@ def test_database_export_merges_legacy_then_xdg_without_real_mongo(
     archive_path = db_export.export_database_to_zip(mongo, tmp_path / "backups")
 
     with zipfile.ZipFile(archive_path) as archive:
-        shared_name = next(name for name in archive.namelist() if name.endswith("media/images/shared.png"))
+        shared_name = next(
+            name for name in archive.namelist() if name.endswith("media/images/shared.png")
+        )
         legacy_name = next(
             name for name in archive.namelist() if name.endswith("media/images/legacy-only.png")
         )
@@ -301,6 +385,16 @@ def test_database_export_merges_legacy_then_xdg_without_real_mongo(
 class _ImportCollection:
     def __init__(self) -> None:
         self.documents: list[dict] = []
+
+    def find_one(self, query: dict):
+        return next(
+            (
+                document
+                for document in self.documents
+                if all(document.get(key) == value for key, value in query.items())
+            ),
+            None,
+        )
 
     def replace_one(self, query: dict, document: dict, upsert: bool) -> None:
         self.documents.append(document)

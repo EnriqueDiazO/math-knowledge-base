@@ -15,6 +15,7 @@ from typing import Any
 
 import pytest
 
+from mathmongo.source_catalog_migration import zip_reader
 from mathmongo.source_catalog_migration.inventory import build_inventory
 from mathmongo.source_catalog_migration.zip_reader import HARD_MAX_COMPRESSION_RATIO
 from mathmongo.source_catalog_migration.zip_reader import HARD_MAX_MEMBER_BYTES
@@ -171,6 +172,51 @@ def test_valid_synthetic_export_is_loaded_without_inventing_format_metadata(
     assert inventory.concepts_without_reference == 1
     assert inventory.coupled_collections.concept_counterparts_in_latex_documents == 2
     assert loaded.member_sha256[f"{BASE}/collections/concepts.json"]
+
+
+def test_reader_parses_the_anchored_inode_during_a_path_swap(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive = _write_export(
+        tmp_path / "authoritative.zip",
+        collections={"concepts": [_concept("AAAA")]},
+    )
+    replacement = _write_export(
+        tmp_path / "replacement.zip",
+        collections={"concepts": [_concept("BBBB")]},
+    )
+    aside = tmp_path / "authoritative-aside.zip"
+    original_zip_file = zip_reader.zipfile.ZipFile
+    swapped = False
+
+    def swap_during_open(file, *args, **kwargs):
+        nonlocal swapped
+        if not swapped:
+            swapped = True
+            os.replace(archive, aside)
+            os.replace(replacement, archive)
+            try:
+                opened = original_zip_file(file, *args, **kwargs)
+            finally:
+                os.replace(archive, replacement)
+                os.replace(aside, archive)
+            return opened
+        return original_zip_file(file, *args, **kwargs)
+
+    monkeypatch.setattr(zip_reader.zipfile, "ZipFile", swap_during_open)
+
+    try:
+        loaded = read_legacy_export(archive)
+    except InputChangedError:
+        loaded = None
+
+    assert swapped is True
+    if loaded is not None:
+        assert loaded.collections["concepts"][0]["id"] == "AAAA"
+    with zipfile.ZipFile(archive) as restored_archive:
+        restored = json.loads(restored_archive.read(f"{BASE}/collections/concepts.json"))
+    assert restored[0]["id"] == "AAAA"
 
 
 def test_authoritative_export_is_validated_read_only_when_available() -> None:

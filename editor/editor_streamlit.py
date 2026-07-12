@@ -5767,11 +5767,25 @@ elif page == "📥 Database Import":
         )
         import_runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
         tmp_path = validate_mutable_path(
-            import_runtime / Path(uploaded_file.name).name,
+            import_runtime / f"database-import-{uuid4().hex}.zip",
             allowed_root=import_runtime,
         )
-        with open(tmp_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
+        upload_descriptor = os.open(
+            tmp_path,
+            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
+            0o600,
+        )
+        try:
+            upload_bytes = uploaded_file.getbuffer()
+            written = 0
+            while written < len(upload_bytes):
+                count = os.write(upload_descriptor, upload_bytes[written:])
+                if count <= 0:
+                    raise OSError("Unable to persist the uploaded database archive")
+                written += count
+            os.fchmod(upload_descriptor, 0o600)
+        finally:
+            os.close(upload_descriptor)
 
         try:
             info = inspect_export_zip(tmp_path)
@@ -5803,6 +5817,14 @@ elif page == "📥 Database Import":
             if new_db_name:
                 if st.button("🚀 Import into new database"):
                     try:
+                        if new_db_name.casefold() in {
+                            "admin",
+                            "config",
+                            "local",
+                            "mathmongo",
+                            "mathv0",
+                        }:
+                            raise ValueError("Choose a non-protected database name")
                         new_mongo = MathMongo(db_name=new_db_name)
                         import_zip_into_database(tmp_path, new_mongo)
                         st.success(
@@ -5816,6 +5838,8 @@ elif page == "📥 Database Import":
 
         except Exception as e:
             st.error(f"Invalid export: {e}")
+        finally:
+            tmp_path.unlink(missing_ok=True)
 
 
 # Footer

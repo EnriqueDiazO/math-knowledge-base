@@ -113,6 +113,19 @@ def _index_keys(document: dict[str, Any]) -> tuple[tuple[str, int], ...]:
     return tuple((str(field), int(direction)) for field, direction in key)
 
 
+def _unique_matches(document: dict[str, Any], expected: bool) -> bool:
+    """Treat omission as false but reject non-boolean truthy representations."""
+    if "unique" not in document:
+        return expected is False
+    return isinstance(document["unique"], bool) and document["unique"] is expected
+
+
+def _unapproved_options(document: dict[str, Any]) -> tuple[str, ...]:
+    """Exclude only server identity/version fields from semantic option checks."""
+    approved_fields = {"key", "name", "unique", "v", "ns"}
+    return tuple(sorted(str(name) for name in document if name not in approved_fields))
+
+
 class SourceCatalogIndexManager:
     """Plan and explicitly apply only the approved Source Catalog indexes."""
 
@@ -142,15 +155,21 @@ class SourceCatalogIndexManager:
             by_name = next((item for item in existing if item.get("name") == spec.name), None)
             if by_name is not None:
                 keys_match = _index_keys(by_name) == spec.keys
-                unique_matches = bool(by_name.get("unique", False)) == spec.unique
-                if keys_match and unique_matches:
+                unique_matches = _unique_matches(by_name, spec.unique)
+                unapproved_options = _unapproved_options(by_name)
+                if keys_match and unique_matches and not unapproved_options:
                     statuses.append(IndexStatus(spec, IndexState.PRESENT))
                 else:
+                    detail = "stable name exists with different keys or uniqueness"
+                    if keys_match and unique_matches and unapproved_options:
+                        detail = "stable name exists with unapproved options: " + ",".join(
+                            unapproved_options
+                        )
                     statuses.append(
                         IndexStatus(
                             spec,
                             IndexState.CONFLICT,
-                            "stable name exists with different keys or uniqueness",
+                            detail,
                         )
                     )
                 continue
@@ -158,8 +177,7 @@ class SourceCatalogIndexManager:
                 (
                     item
                     for item in existing
-                    if _index_keys(item) == spec.keys
-                    and bool(item.get("unique", False)) == spec.unique
+                    if _index_keys(item) == spec.keys and _unique_matches(item, spec.unique)
                 ),
                 None,
             )
