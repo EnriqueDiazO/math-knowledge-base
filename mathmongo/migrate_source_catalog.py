@@ -1,4 +1,4 @@
-"""Importable entry point for the non-writing S1C1 migration planner."""
+"""Importable entry point for Source Catalog planning and isolated bootstrap."""
 
 from __future__ import annotations
 

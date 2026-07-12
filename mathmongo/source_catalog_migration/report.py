@@ -270,7 +270,7 @@ def render_plan_text(plan: MigrationPlan) -> str:
     lines.extend(
         [
             f"All invariants passed: {plan.invariants.passed}",
-            "Writes: MongoDB=0; ZIP=0; final source_id/reference_id=0; apply=not implemented",
+            "Writes: MongoDB=0; ZIP=0; final source_id/reference_id=0; apply=not run",
         ]
     )
     if plan.live_comparison is not None:
