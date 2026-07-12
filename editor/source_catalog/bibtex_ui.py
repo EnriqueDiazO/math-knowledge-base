@@ -325,7 +325,7 @@ def render_bibtex_input(
             "split the bibliography to process the remainder."
         )
     summaries = [_candidate_summary(candidate) for candidate in visible_candidates]
-    ui.dataframe(summaries, use_container_width=True, hide_index=True)
+    ui.dataframe(summaries, width="stretch", hide_index=True)
     indices = [int(candidate["entry_index"]) for candidate in visible_candidates]
     labels = {
         int(candidate["entry_index"]): (

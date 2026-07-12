@@ -96,7 +96,7 @@ def render_legacy_concepts(
         f"{page.total} conceptos exactos · página {page.page} de {max(page.pages, 1)} · "
         f"valores: {', '.join(page.exact_source_values)}"
     )
-    ui.dataframe(legacy_table_rows(page), use_container_width=True, hide_index=True)
+    ui.dataframe(legacy_table_rows(page), width="stretch", hide_index=True)
     for item in page.items:
         if ui.button(
             f"Open concept {item.id}",

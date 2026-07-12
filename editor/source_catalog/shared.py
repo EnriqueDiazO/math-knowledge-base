@@ -252,7 +252,7 @@ def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSn
         f"sources={'sí' if snapshot.source_collection_exists else 'no'} · "
         f"references={'sí' if snapshot.reference_collection_exists else 'no'}"
     )
-    ui.dataframe(_index_rows(snapshot.index_statuses), use_container_width=True, hide_index=True)
+    ui.dataframe(_index_rows(snapshot.index_statuses), width="stretch", hide_index=True)
     ui.write(
         f"Plan: {len(snapshot.plan.present)} presentes, "
         f"{len(snapshot.plan.missing)} faltantes, "
@@ -262,7 +262,7 @@ def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSn
         ui.write("Índices faltantes que Initialize aplicaría:")
         ui.dataframe(
             _missing_index_rows(snapshot.plan),
-            use_container_width=True,
+            width="stretch",
             hide_index=True,
         )
     if snapshot.plan.conflicts:

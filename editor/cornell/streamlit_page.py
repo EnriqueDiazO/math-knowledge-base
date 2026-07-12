@@ -667,7 +667,7 @@ def _render_navigation() -> str:
         on_change=_sync_view_from_selector,
     )
     st.session_state[SESSION_VIEW] = normalize_cornell_view(view)
-    if st.button("Nueva nota Cornell", use_container_width=True):
+    if st.button("Nueva nota Cornell", width="stretch"):
         _set_current_note(None, None, make_blank_document())
         _request_navigation(VIEW_NEW_NOTE)
         st.rerun()
@@ -831,17 +831,17 @@ def _render_page_controls() -> None:
 
     col_prev, col_count, col_next, col_add, col_dup, col_del = st.columns([1, 1.4, 1, 1, 1, 1])
     with col_prev:
-        if st.button("Anterior", disabled=page_index <= 0, use_container_width=True):
+        if st.button("Anterior", disabled=page_index <= 0, width="stretch"):
             st.session_state[SESSION_PAGE_INDEX] = page_index - 1
             st.rerun()
     with col_count:
         st.markdown(f"**Página {page_index + 1} / {len(pages)}**")
     with col_next:
-        if st.button("Siguiente", disabled=page_index >= len(pages) - 1, use_container_width=True):
+        if st.button("Siguiente", disabled=page_index >= len(pages) - 1, width="stretch"):
             st.session_state[SESSION_PAGE_INDEX] = page_index + 1
             st.rerun()
     with col_add:
-        if st.button("Añadir", use_container_width=True):
+        if st.button("Añadir", width="stretch"):
             st.session_state[SESSION_DOCUMENT], st.session_state[SESSION_PAGE_INDEX] = add_page(
                 document,
                 page_index,
@@ -849,7 +849,7 @@ def _render_page_controls() -> None:
             _mark_dirty()
             st.rerun()
     with col_dup:
-        if st.button("Duplicar", use_container_width=True):
+        if st.button("Duplicar", width="stretch"):
             st.session_state[SESSION_DOCUMENT], st.session_state[SESSION_PAGE_INDEX] = duplicate_page(
                 document,
                 page_index,
@@ -857,7 +857,7 @@ def _render_page_controls() -> None:
             _mark_dirty()
             st.rerun()
     with col_del:
-        if st.button("Eliminar", disabled=len(pages) <= 1, use_container_width=True):
+        if st.button("Eliminar", disabled=len(pages) <= 1, width="stretch"):
             st.session_state[SESSION_DOCUMENT], st.session_state[SESSION_PAGE_INDEX] = delete_page(
                 document,
                 page_index,
@@ -1391,7 +1391,7 @@ def _render_split_proposal(proposal: SplitProposal, page_index: int) -> None:
         st.code(proposal.moved_latex, language="latex")
 
     apply_col, cancel_col = st.columns(2)
-    if apply_col.button("Aplicar división", type="primary", use_container_width=True):
+    if apply_col.button("Aplicar división", type="primary", width="stretch"):
         document = _document_from_inputs()
         st.session_state[SESSION_DOCUMENT] = apply_split_proposal(
             document,
@@ -1402,7 +1402,7 @@ def _render_split_proposal(proposal: SplitProposal, page_index: int) -> None:
         st.session_state.pop(SESSION_SPLIT_PROPOSAL, None)
         _mark_dirty()
         st.rerun()
-    if cancel_col.button("Cancelar", use_container_width=True):
+    if cancel_col.button("Cancelar", width="stretch"):
         st.session_state.pop(SESSION_SPLIT_PROPOSAL, None)
         st.rerun()
 
@@ -1423,7 +1423,7 @@ def _render_overflow_split_controls(
         st.warning("No se encontró la página con overflow en el editor actual.")
         return
 
-    if not st.button("Dividir contenido en nueva página", use_container_width=True):
+    if not st.button("Dividir contenido en nueva página", width="stretch"):
         return
 
     pages = document.ordered_pages()
@@ -1548,16 +1548,16 @@ def _render_current_note_editor(db: Any) -> None:
 
     col_save, col_preview, col_export = st.columns(3)
     with col_save:
-        if st.button("Guardar", type="primary", use_container_width=True):
+        if st.button("Guardar", type="primary", width="stretch"):
             try:
                 _save_current_note(db)
             except Exception as exc:
                 st.error(f"No se pudo guardar: {exc}")
     with col_preview:
-        if st.button("Vista previa PDF", use_container_width=True):
+        if st.button("Vista previa PDF", width="stretch"):
             _preview_pdf(db)
     with col_export:
-        if st.button("Exportar proyecto LaTeX editable", use_container_width=True):
+        if st.button("Exportar proyecto LaTeX editable", width="stretch"):
             _export_editable_project(db)
 
     diagnostics = st.session_state.get(SESSION_FIT_DIAGNOSTICS)
@@ -1576,7 +1576,7 @@ def _render_edit_notes(db: Any) -> None:
     with left:
         st.subheader("Editar nota Cornell")
     with right:
-        if st.button("Volver al listado", use_container_width=True):
+        if st.button("Volver al listado", width="stretch"):
             _set_current_note(None, None, make_blank_document())
             _request_navigation(VIEW_EDIT_NOTES)
             st.rerun()

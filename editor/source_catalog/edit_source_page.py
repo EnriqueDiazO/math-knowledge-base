@@ -257,7 +257,7 @@ def _render_source_search(ui: Any, context: CatalogUIContext) -> Source | None:
         ui.error(f"Database error searching Sources: {safe_error_message(exc)}")
         return None
     ui.caption(f"{page.total} Sources · page {page.page} of {max(page.pages, 1)}")
-    ui.dataframe(_source_rows(page.items), use_container_width=True, hide_index=True)
+    ui.dataframe(_source_rows(page.items), width="stretch", hide_index=True)
     for source in page.items:
         if ui.button(
             f"Select {source.name} ({source.source_id})",
@@ -851,7 +851,7 @@ def _render_references(
         ui.error(f"Database error reading References: {safe_error_message(exc)}")
         return
     ui.caption(f"{page.total} References · page {page.page} of {max(page.pages, 1)}")
-    ui.dataframe(_reference_rows(page.items), use_container_width=True, hide_index=True)
+    ui.dataframe(_reference_rows(page.items), width="stretch", hide_index=True)
     editing_id = ui.session_state.get(state_key("editing_reference_id"))
     for reference in page.items:
         with ui.expander(
