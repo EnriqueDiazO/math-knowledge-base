@@ -98,6 +98,16 @@ def get_media_dir(environment: Mapping[str, str] | None = None) -> Path:
     return get_data_dir(environment) / "media"
 
 
+def get_source_documents_dir(environment: Mapping[str, str] | None = None) -> Path:
+    """Return the persistent XDG data root for Source-associated documents."""
+    return get_data_dir(environment) / "source_documents"
+
+
+def get_source_document_blobs_dir(environment: Mapping[str, str] | None = None) -> Path:
+    """Return the content-addressed PDF blob root without creating it."""
+    return get_source_documents_dir(environment) / "blobs" / "sha256"
+
+
 def get_projects_dir(environment: Mapping[str, str] | None = None) -> Path:
     return get_data_dir(environment) / "projects"
 

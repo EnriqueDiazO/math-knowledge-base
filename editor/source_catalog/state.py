@@ -7,6 +7,8 @@ import json
 from collections.abc import MutableMapping
 from typing import Any
 
+from editor.pdf_preview import clear_pdf_preview
+
 SESSION_PREFIX = "source_catalog_"
 ADD_SOURCE_NAV_LABEL = "➕ Add Source"
 EDIT_SOURCE_NAV_LABEL = "✏️ Edit / Analyze Source"
@@ -89,6 +91,7 @@ def sync_database_state(
     previous = state.get(ACTIVE_DATABASE_IDENTITY)
     if previous == identity:
         return False
+    clear_pdf_preview(state, "source_document")
     for key in tuple(state):
         if str(key).startswith(SESSION_PREFIX):
             state.pop(key, None)

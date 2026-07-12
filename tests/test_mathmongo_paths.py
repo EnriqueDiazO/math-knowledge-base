@@ -21,6 +21,8 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_logs_dir
 from mathmongo.paths import get_media_dir
 from mathmongo.paths import get_runtime_dir
+from mathmongo.paths import get_source_document_blobs_dir
+from mathmongo.paths import get_source_documents_dir
 from mathmongo.paths import get_state_dir
 from mathmongo.paths import get_templates_dir
 from mathmongo.paths import resolve_home_path
@@ -46,6 +48,10 @@ def test_custom_xdg_roots_and_unicode_home(tmp_path: Path) -> None:
     assert get_state_dir(environment) == tmp_path / "estado/mathmongo"
     assert get_logs_dir(environment) == tmp_path / "estado/mathmongo/logs"
     assert get_media_dir(environment) == tmp_path / "datos/mathmongo/media"
+    assert get_source_documents_dir(environment) == tmp_path / "datos/mathmongo/source_documents"
+    assert get_source_document_blobs_dir(environment) == (
+        tmp_path / "datos/mathmongo/source_documents/blobs/sha256"
+    )
 
 
 def test_valid_xdg_runtime_and_safe_fallback(tmp_path: Path) -> None:

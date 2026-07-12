@@ -20,10 +20,14 @@ from mathkb_config import EXPORT_TIMEOUT_SECONDS
 from mathkb_config import LEGACY_PROJECT_ROOT
 from mathkb_config import LOCAL_MEDIA_ROOT
 from mathkb_config import MEDIA_ROOT
+from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
+from mathkb_config import SOURCE_DOCUMENT_COLLECTIONS
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_documents.models import SourceDocument
+from mathmongo.source_documents.storage import SourceDocumentBlobStore
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +214,54 @@ def _identity_unchanged_across_publication(
     return all(before_link[index] == after_link[index] for index in stable_fields)
 
 
-def export_database_to_zip(mongo, out_dir: Path) -> Path:
+def _source_document_model(document: dict) -> SourceDocument:
+    """Validate one BSON document while treating naive Mongo datetimes as UTC."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    for field_name in ("created_at", "updated_at", "archived_at"):
+        value = payload.get(field_name)
+        if isinstance(value, datetime) and value.tzinfo is None:
+            payload[field_name] = value.replace(tzinfo=timezone.utc)
+    pdf = payload.get("pdf")
+    if isinstance(pdf, dict):
+        pdf = dict(pdf)
+        versions = []
+        for raw_version in pdf.get("versions", []):
+            version = dict(raw_version)
+            created_at = version.get("created_at")
+            if isinstance(created_at, datetime) and created_at.tzinfo is None:
+                version["created_at"] = created_at.replace(tzinfo=timezone.utc)
+            versions.append(version)
+        pdf["versions"] = versions
+        payload["pdf"] = pdf
+    return SourceDocument.model_validate(payload)
+
+
+def _source_document_identity(document: SourceDocument) -> tuple[str, str, str]:
+    if document.pdf is not None:
+        return (document.source_id, "pdf", document.pdf.current_version.sha256)
+    assert document.web is not None
+    return (document.source_id, "web", document.web.url_normalized)
+
+
+def _validate_source_document_identities(documents: list[SourceDocument]) -> None:
+    """Reject archives that would violate the service's per-Source identities."""
+    seen: dict[tuple[str, str, str], str] = {}
+    for document in documents:
+        identity = _source_document_identity(document)
+        previous = seen.get(identity)
+        if previous is not None and previous != document.document_id:
+            raise ValueError(
+                "Source Documents contain different document IDs for one Source identity"
+            )
+        seen[identity] = document.document_id
+
+
+def export_database_to_zip(
+    mongo,
+    out_dir: Path,
+    *,
+    source_document_blob_store: SourceDocumentBlobStore | None = None,
+) -> Path:
     """Export the entire MongoDB database to a ZIP archive of JSON files.
 
     - Read-only
@@ -245,6 +296,7 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
         "collections": {},
         "collection_encodings": {},
         "media_files": {},
+        "source_document_blobs": {},
     }
 
     anonymous_descriptor: int | None = None
@@ -255,9 +307,11 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
         existing_collection_names = set(db.list_collection_names())
         always_exported = set(EXPORT_COLLECTIONS)
         optional_catalog = existing_collection_names & set(SOURCE_CATALOG_COLLECTIONS)
-        collection_names = sorted(always_exported | optional_catalog)
+        optional_documents = existing_collection_names & set(SOURCE_DOCUMENT_COLLECTIONS)
+        collection_names = sorted(always_exported | optional_catalog | optional_documents)
         logger.info("Collections scheduled for export: %s", ", ".join(collection_names))
         collection_payloads: dict[str, str] = {}
+        source_documents: list[SourceDocument] = []
         for collection_name in collection_names:
             _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, f"reading {collection_name}")
             collection_started_at = time.monotonic()
@@ -265,7 +319,9 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
             raw_docs = list(cursor)
             metadata["collections"][collection_name] = len(raw_docs)
 
-            if collection_name in SOURCE_CATALOG_COLLECTIONS:
+            if collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS:
+                if collection_name in SOURCE_DOCUMENT_COLLECTIONS:
+                    source_documents = [_source_document_model(document) for document in raw_docs]
                 collection_payloads[collection_name] = bson_json_dumps(
                     raw_docs,
                     json_options=CANONICAL_JSON_OPTIONS,
@@ -287,6 +343,8 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
                 time.monotonic() - collection_started_at,
             )
 
+        _validate_source_document_identities(source_documents)
+
         _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, "copying media files")
         media_payloads = _media_payloads()
         metadata["media_files"] = {name: len(data) for name, data in sorted(media_payloads.items())}
@@ -295,6 +353,28 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
                 "Prepared portable media inventory with %s files",
                 len(media_payloads),
             )
+
+        blob_payloads: dict[str, bytes] = {}
+        if source_documents:
+            blob_store = source_document_blob_store or SourceDocumentBlobStore()
+            for document in source_documents:
+                if document.pdf is None:
+                    continue
+                version = document.pdf.current_version
+                data = blob_store.read_version(version)
+                existing = blob_payloads.get(version.logical_path)
+                if existing is not None and existing != data:
+                    raise ValueError("Source Document SHA path resolved to different PDF bytes")
+                blob_payloads[version.logical_path] = data
+        metadata["source_document_blobs"] = {
+            name: {
+                "sha256": hashlib.sha256(data).hexdigest(),
+                "size_bytes": len(data),
+            }
+            for name, data in sorted(blob_payloads.items())
+        }
+        if blob_payloads:
+            logger.info("Prepared %s portable Source Document PDF blobs", len(blob_payloads))
 
         _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, "writing metadata")
         metadata["snapshot_completed_at"] = (
@@ -330,6 +410,13 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
                         f"zipping {Path(relative_name).name}",
                     )
                     archive.writestr(f"{base_name}/{relative_name}", payload)
+                for logical_path, payload in sorted(blob_payloads.items()):
+                    _raise_if_timed_out(
+                        started_at,
+                        EXPORT_TIMEOUT_SECONDS,
+                        f"zipping Source Document blob {Path(logical_path).name}",
+                    )
+                    archive.writestr(f"{base_name}/{logical_path}", payload)
                 archive.writestr(
                     f"{base_name}/metadata.json",
                     json.dumps(metadata, ensure_ascii=False, indent=2),

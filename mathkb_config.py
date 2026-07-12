@@ -86,5 +86,13 @@ SOURCE_CATALOG_COLLECTIONS = (
     "source_catalog_migration_manifest",
 )
 
+# Source Documents are portable domain data, but they are deliberately not part
+# of the guarded Source Catalog migration collection set.
+SOURCE_DOCUMENT_COLLECTIONS = ("source_documents",)
+PORTABLE_EXTENDED_JSON_COLLECTIONS = (
+    *SOURCE_CATALOG_COLLECTIONS,
+    *SOURCE_DOCUMENT_COLLECTIONS,
+)
+
 EXPORT_COLLECTIONS = CORE_COLLECTIONS + GRAPH_COLLECTIONS + MEDIA_COLLECTIONS + CUADERNO_COLLECTIONS
 IMPORT_COLLECTIONS = EXPORT_COLLECTIONS

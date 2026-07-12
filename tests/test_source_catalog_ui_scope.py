@@ -50,22 +50,14 @@ FORBIDDEN_COLLECTION_NAMES = frozenset(
         "annotations",
         "concept_evidence_link",
         "concept_evidence_links",
-        "document",
-        "documents",
-        "pdf",
-        "pdfs",
         "reading_note",
         "reading_notes",
-        "source_document",
-        "source_documents",
     }
 )
 FORBIDDEN_IMPLEMENTATION_NAMES = (
     "annotation",
     "conceptevidence",
-    "pdf",
     "readingnote",
-    "sourcedocument",
 )
 
 

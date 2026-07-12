@@ -14,7 +14,9 @@ from typing import Any
 from mathmongo.paths import validate_mutable_path
 
 PREVIEW_AUXILIARY_SUFFIXES = frozenset({".aux", ".fdb_latexmk", ".fls", ".log", ".out", ".toc"})
-PDF_PREVIEW_NAMESPACES = frozenset({"add_concept", "edit_concept", "cornell", "cpi"})
+PDF_PREVIEW_NAMESPACES = frozenset(
+    {"add_concept", "edit_concept", "cornell", "cpi", "source_document"}
+)
 PDF_SIGNATURE = b"%PDF-"
 
 

@@ -9,6 +9,8 @@ from typing import Any
 from editor.source_catalog.bibtex_ui import render_bibtex_input
 from editor.source_catalog.data_quality import incomplete_reference_fields
 from editor.source_catalog.data_quality import render_data_quality
+from editor.source_catalog.document_ui import clear_source_document_preview
+from editor.source_catalog.document_ui import render_source_documents
 from editor.source_catalog.legacy_concepts import render_legacy_concepts
 from editor.source_catalog.reference_actions import render_reference_save_plan
 from editor.source_catalog.reference_form import render_reference_form
@@ -38,6 +40,7 @@ from mathmongo.source_catalog.models import SourceType
 SOURCE_SECTIONS = (
     "Overview & Edit",
     "References",
+    "Documents",
     "Concepts — Legacy Read Only",
     "Data Quality",
     "Actions",
@@ -263,6 +266,7 @@ def _render_source_search(ui: Any, context: CatalogUIContext) -> Source | None:
             f"Select {source.name} ({source.source_id})",
             key=state_key("edit_select_source", source.source_id),
         ):
+            clear_source_document_preview(ui.session_state)
             ui.session_state[SELECTED_SOURCE_ID] = source.source_id
             ui.rerun()
     selected_id = ui.session_state.get(SELECTED_SOURCE_ID)
@@ -274,6 +278,7 @@ def _render_source_search(ui: Any, context: CatalogUIContext) -> Source | None:
         ui.error(f"Database error loading Source: {safe_error_message(exc)}")
         return None
     if selected is None:
+        clear_source_document_preview(ui.session_state)
         ui.session_state.pop(SELECTED_SOURCE_ID, None)
         ui.warning("The selected Source no longer exists in this database.")
     return selected
@@ -1065,6 +1070,13 @@ def render_edit_source_page(
         )
     elif section == "References":
         _render_references(
+            ui,
+            context,
+            source,
+            writes_enabled=writes_enabled,
+        )
+    elif section == "Documents":
+        render_source_documents(
             ui,
             context,
             source,

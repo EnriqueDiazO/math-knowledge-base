@@ -6,14 +6,17 @@ import hashlib
 import json
 import logging
 import os
+import re
 import stat
 import time
+import unicodedata
 import zipfile
 from dataclasses import dataclass
 from dataclasses import field
 from datetime import datetime
 from datetime import timezone
 from pathlib import Path
+from pathlib import PurePosixPath
 from typing import TYPE_CHECKING
 from typing import Any
 
@@ -29,6 +32,7 @@ from mathkb_config import IMPORT_COLLECTIONS
 from mathkb_config import IMPORT_TIMEOUT_SECONDS
 from mathkb_config import MEDIA_ASSETS_COLLECTION
 from mathkb_config import MEDIA_ROOT
+from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.paths import validate_mutable_path
 from mathmongo.source_catalog.models import Reference
@@ -39,6 +43,11 @@ from mathmongo.source_catalog_migration.zip_reader import ZipSafetyLimits
 from mathmongo.source_catalog_migration.zip_reader import ZipValidationError
 from mathmongo.source_catalog_migration.zip_reader import _read_member
 from mathmongo.source_catalog_migration.zip_reader import _validate_members
+from mathmongo.source_documents.indexes import SourceDocumentIndexManager
+from mathmongo.source_documents.models import DocumentKind
+from mathmongo.source_documents.models import SourceDocument
+from mathmongo.source_documents.storage import PreparedPdf
+from mathmongo.source_documents.storage import SourceDocumentBlobStore
 
 if TYPE_CHECKING:
     from mathdatabase.mathmongo import MathMongo
@@ -52,7 +61,13 @@ _CATALOG_ID_FIELDS = {
     "references": "reference_id",
     MANIFEST_COLLECTION: "manifest_key",
 }
-_CATALOG_IMPORT_ORDER = ("sources", "references", MANIFEST_COLLECTION)
+_PORTABLE_ID_FIELDS = {**_CATALOG_ID_FIELDS, "source_documents": "document_id"}
+_PORTABLE_IMPORT_ORDER = (
+    "sources",
+    "references",
+    "source_documents",
+    MANIFEST_COLLECTION,
+)
 CATALOG_EXTENDED_JSON_ENCODING = "mongodb_extended_json_v2_canonical"
 _CATALOG_JSON_OPTIONS = CANONICAL_JSON_OPTIONS.with_options(
     tz_aware=True,
@@ -79,6 +94,8 @@ class DatabaseImportReport:
     catalog_conflicts: list[CatalogImportConflict] = field(default_factory=list)
     legacy_inserted: dict[str, int] = field(default_factory=dict)
     legacy_identical: dict[str, int] = field(default_factory=dict)
+    source_document_blobs_created: int = 0
+    source_document_blobs_identical: int = 0
 
 
 @dataclass(frozen=True)
@@ -86,6 +103,11 @@ class _MediaRestorePlan:
     relative_path: Path
     destination: Path
     data: bytes
+
+
+@dataclass(frozen=True)
+class _SourceDocumentBlobPlan:
+    prepared: PreparedPdf
 
 
 class CatalogImportConflictError(RuntimeError):
@@ -326,6 +348,118 @@ def _safe_media_member_path(base_dir: str, member_name: str) -> Path | None:
     if rel_path.is_absolute() or ".." in rel_path.parts:
         raise ValueError(f"Unsafe media path in export ZIP: {member_name}")
     return rel_path
+
+
+_SOURCE_DOCUMENT_BLOB_RE = re.compile(
+    r"^source_documents/blobs/sha256/([0-9a-f]{2})/([0-9a-f]{64})\.pdf$"
+)
+_SUPPORTED_ZIP_COMPRESSION = frozenset({zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED})
+
+
+def _source_document_blob_logical_path(base_dir: str, member_name: str) -> str | None:
+    """Return one exact content-addressed blob path from a portable ZIP member."""
+    prefix = f"{base_dir}/"
+    if not member_name.startswith(prefix):
+        return None
+    relative = member_name[len(prefix) :]
+    match = _SOURCE_DOCUMENT_BLOB_RE.fullmatch(relative)
+    if match is None:
+        return None
+    shard, digest = match.groups()
+    if shard != digest[:2]:
+        raise ValueError("Source Document blob shard does not match its SHA-256")
+    return relative
+
+
+def _is_source_document_zip_member(base_dir: str, member_name: str) -> bool:
+    return member_name == f"{base_dir}/collections/source_documents.json" or member_name.startswith(
+        f"{base_dir}/source_documents/"
+    )
+
+
+def _zip_member_kind(info: zipfile.ZipInfo) -> str:
+    mode = (info.external_attr >> 16) & 0xFFFF
+    if stat.S_IFMT(mode) == 0:
+        return "directory" if info.is_dir() else "regular"
+    if stat.S_ISLNK(mode):
+        return "symlink"
+    if stat.S_ISDIR(mode):
+        return "directory"
+    if stat.S_ISREG(mode):
+        return "regular"
+    return "nonregular"
+
+
+def _validate_source_document_zip_members(
+    infos: list[zipfile.ZipInfo],
+    *,
+    base_dir: str,
+    limits: ZipSafetyLimits,
+) -> tuple[zipfile.ZipInfo, ...]:
+    """Validate S2-only members before excluding them from the legacy validator."""
+    if len(infos) > limits.max_members:
+        raise ZipValidationError("member_limit", "ZIP archive exceeds its member limit")
+    if sum(info.file_size for info in infos) > limits.max_total_bytes:
+        raise ZipValidationError("total_size_limit", "ZIP archive exceeds its total size limit")
+
+    selected: list[zipfile.ZipInfo] = []
+    for info in infos:
+        if not _is_source_document_zip_member(base_dir, info.filename):
+            continue
+        selected.append(info)
+        is_collection = info.filename == f"{base_dir}/collections/source_documents.json"
+        logical_path = _source_document_blob_logical_path(base_dir, info.filename)
+        if not is_collection and logical_path is None:
+            raise ZipValidationError(
+                "unexpected_member",
+                "ZIP archive contains an invalid Source Document member",
+                member=info.filename,
+            )
+        path = PurePosixPath(info.filename)
+        if path.as_posix() != info.filename or any(part in {"", ".", ".."} for part in path.parts):
+            raise ZipValidationError(
+                "unsafe_path",
+                "Source Document ZIP member path is not canonical",
+                member=info.filename,
+            )
+        if info.flag_bits & 0x1:
+            raise ZipValidationError(
+                "encrypted_member",
+                "Encrypted ZIP members are not supported",
+                member=info.filename,
+            )
+        if info.compress_type not in _SUPPORTED_ZIP_COMPRESSION:
+            raise ZipValidationError(
+                "unsupported_compression",
+                "ZIP member uses an unsupported compression method",
+                member=info.filename,
+            )
+        if _zip_member_kind(info) != "regular" or info.is_dir():
+            raise ZipValidationError(
+                "nonregular_member",
+                "Source Document ZIP members must be regular files",
+                member=info.filename,
+            )
+        if info.file_size <= 0:
+            raise ZipValidationError(
+                "empty_regular_member",
+                "ZIP archive contains an empty Source Document member",
+                member=info.filename,
+            )
+        if info.file_size > limits.max_member_bytes:
+            raise ZipValidationError(
+                "member_size_limit",
+                "ZIP member exceeds its size limit",
+                member=info.filename,
+            )
+        ratio = info.file_size / max(info.compress_size, 1)
+        if ratio > float(limits.max_compression_ratio):
+            raise ZipValidationError(
+                "compression_ratio_limit",
+                "ZIP member has an anomalous compression ratio",
+                member=info.filename,
+            )
+    return tuple(selected)
 
 
 def _descriptor_has_bytes(descriptor: int, data: bytes) -> bool:
@@ -718,6 +852,21 @@ def _catalog_member_names(
     }
 
 
+def _portable_member_names(
+    names: list[str],
+    *,
+    base_dir: str,
+) -> dict[str, str]:
+    return {
+        collection_name: member_name
+        for collection_name, member_name in _collection_member_names(
+            names,
+            base_dir=base_dir,
+        ).items()
+        if collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS
+    }
+
+
 def _collection_member_names(
     names: list[str],
     *,
@@ -730,7 +879,7 @@ def _collection_member_names(
     legacy_prefix = f"{base_dir}/"
     modern_members: dict[str, str] = {}
     legacy_members: dict[str, str] = {}
-    allowed_collections = set(IMPORT_COLLECTIONS) | set(SOURCE_CATALOG_COLLECTIONS)
+    allowed_collections = set(IMPORT_COLLECTIONS) | set(PORTABLE_EXTENDED_JSON_COLLECTIONS)
     for name in names:
         if not name.endswith(".json"):
             continue
@@ -768,7 +917,7 @@ def _collection_encodings(metadata: Any) -> dict[str, str]:
         raise ValueError("metadata.collection_encodings must contain an object")
     encodings: dict[str, str] = {}
     for collection_name, encoding in raw.items():
-        if collection_name not in SOURCE_CATALOG_COLLECTIONS:
+        if collection_name not in PORTABLE_EXTENDED_JSON_COLLECTIONS:
             raise ValueError("metadata declares an encoding for an unsupported collection")
         if encoding != CATALOG_EXTENDED_JSON_ENCODING:
             raise ValueError("metadata declares an unsupported collection encoding")
@@ -777,8 +926,29 @@ def _collection_encodings(metadata: Any) -> dict[str, str]:
 
 
 def _validate_zip_safety(zf: zipfile.ZipFile, *, expected_base: str) -> None:
-    """Apply the bounded S1C1 member/type/compression checks before payload reads."""
-    base, _members, _report = _validate_members(zf.infolist(), ZipSafetyLimits())
+    """Apply S1C1 checks plus a separately bounded S2 member namespace."""
+    infos = zf.infolist()
+    raw_names: set[str] = set()
+    normalized_names: set[str] = set()
+    for info in infos:
+        normalized_name = unicodedata.normalize("NFC", info.filename)
+        if info.filename in raw_names or normalized_name in normalized_names:
+            raise ZipValidationError(
+                "duplicate_member",
+                "ZIP archive contains a duplicate member",
+                member=info.filename,
+            )
+        raw_names.add(info.filename)
+        normalized_names.add(normalized_name)
+    limits = ZipSafetyLimits()
+    source_document_infos = _validate_source_document_zip_members(
+        infos,
+        base_dir=expected_base,
+        limits=limits,
+    )
+    excluded = {id(info) for info in source_document_infos}
+    legacy_infos = [info for info in infos if id(info) not in excluded]
+    base, _members, _report = _validate_members(legacy_infos, limits)
     if base != expected_base:
         raise ZipValidationError("ambiguous_root", "ZIP base directory changed")
     corrupt_member = zf.testzip()
@@ -844,10 +1014,10 @@ def _validate_import_metadata(
             raise ValueError("versioned metadata requires a database_name")
         if "media_files" not in metadata:
             raise ValueError("versioned metadata requires an exact media inventory")
-        catalog_members = set(collection_members) & set(SOURCE_CATALOG_COLLECTIONS)
-        if set(encodings) != catalog_members:
+        portable_members = set(collection_members) & set(PORTABLE_EXTENDED_JSON_COLLECTIONS)
+        if set(encodings) != portable_members:
             raise ValueError(
-                "versioned catalog collections require canonical Extended JSON encodings"
+                "versioned portable collections require canonical Extended JSON encodings"
             )
     declared_collections = metadata.get("collections")
     if not isinstance(declared_collections, dict) or any(
@@ -894,6 +1064,51 @@ def _validate_import_metadata(
             raise ValueError("metadata.media_files must contain non-negative integer sizes")
         if declared_media != actual_media:
             raise ValueError("metadata media inventory does not match physical ZIP members")
+
+    actual_source_document_blobs: dict[str, dict[str, Any]] = {}
+    for member_name in names:
+        logical_path = _source_document_blob_logical_path(base_dir, member_name)
+        if logical_path is None:
+            continue
+        info = zf.getinfo(member_name)
+        data = _read_zip_member(zf, member_name)
+        prepared = SourceDocumentBlobStore.prepare_pdf(data)
+        if prepared.logical_path != logical_path:
+            raise ValueError("Physical Source Document blob path does not match its PDF bytes")
+        actual_source_document_blobs[logical_path] = {
+            "sha256": prepared.sha256,
+            "size_bytes": info.file_size,
+        }
+    if "source_documents" in collection_members and format_declared:
+        if "source_document_blobs" not in metadata:
+            raise ValueError("versioned Source Documents require an exact blob inventory")
+    declared_blobs = metadata.get("source_document_blobs", {})
+    if not isinstance(declared_blobs, dict):
+        raise ValueError("metadata.source_document_blobs must contain an object")
+    normalized_blobs: dict[str, dict[str, Any]] = {}
+    for logical_path, identity in declared_blobs.items():
+        if (
+            not isinstance(logical_path, str)
+            or _SOURCE_DOCUMENT_BLOB_RE.fullmatch(logical_path) is None
+            or not isinstance(identity, dict)
+            or set(identity) != {"sha256", "size_bytes"}
+            or not isinstance(identity.get("sha256"), str)
+            or not re.fullmatch(r"[0-9a-f]{64}", identity["sha256"])
+            or isinstance(identity.get("size_bytes"), bool)
+            or not isinstance(identity.get("size_bytes"), int)
+            or identity["size_bytes"] <= 0
+        ):
+            raise ValueError("metadata Source Document blob inventory is invalid")
+        match = _SOURCE_DOCUMENT_BLOB_RE.fullmatch(logical_path)
+        assert match is not None
+        shard, path_sha = match.groups()
+        if shard != path_sha[:2] or identity["sha256"] != path_sha:
+            raise ValueError("metadata Source Document blob identity is not canonical")
+        normalized_blobs[logical_path] = dict(identity)
+    if normalized_blobs != actual_source_document_blobs:
+        raise ValueError(
+            "metadata Source Document blob inventory does not match physical ZIP members"
+        )
     return actual_collections
 
 
@@ -906,7 +1121,7 @@ def _load_legacy_documents(
     """Decode every non-catalog collection before any filesystem or DB mutation."""
     collections: dict[str, list[dict]] = {}
     for collection_name, member_name in collection_members.items():
-        if collection_name in SOURCE_CATALOG_COLLECTIONS:
+        if collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS:
             continue
         raw_documents = _read_collection_documents(
             zf,
@@ -1114,11 +1329,11 @@ def _prepare_catalog_import(
 ) -> dict[str, list[dict]]:
     """Preflight catalog documents without modifying the destination database."""
     pending: dict[str, list[dict]] = {}
-    member_names = _catalog_member_names(
+    member_names = _portable_member_names(
         names,
         base_dir=base_dir,
     )
-    for collection_name in _CATALOG_IMPORT_ORDER:
+    for collection_name in _PORTABLE_IMPORT_ORDER:
         member_name = member_names.get(collection_name)
         if member_name is None:
             continue
@@ -1129,7 +1344,7 @@ def _prepare_catalog_import(
             encodings=encodings,
         )
 
-        id_field = _CATALOG_ID_FIELDS[collection_name]
+        id_field = _PORTABLE_ID_FIELDS[collection_name]
         seen: dict[str, dict] = {}
         seen_storage_ids: dict[Any, str] = {}
         collection_pending: list[dict] = []
@@ -1188,8 +1403,12 @@ def _prepare_catalog_import(
                         )
                     )
                     continue
-            elif collection_name in {"sources", "references"}:
-                model = Source if collection_name == "sources" else Reference
+            elif collection_name in {"sources", "references", "source_documents"}:
+                model = {
+                    "sources": Source,
+                    "references": Reference,
+                    "source_documents": SourceDocument,
+                }[collection_name]
                 portable_payload = {key: value for key, value in document.items() if key != "_id"}
                 try:
                     validated_payload = model.model_validate(portable_payload).model_dump(
@@ -1200,7 +1419,7 @@ def _prepare_catalog_import(
                         CatalogImportConflict(
                             collection_name,
                             domain_id,
-                            f"invalid portable {collection_name[:-1]} document",
+                            f"invalid portable {collection_name.rstrip('s')} document",
                         )
                     )
                     continue
@@ -1214,7 +1433,7 @@ def _prepare_catalog_import(
                         CatalogImportConflict(
                             collection_name,
                             domain_id,
-                            f"non-canonical portable {collection_name[:-1]} document",
+                            f"non-canonical portable {collection_name.rstrip('s')} document",
                         )
                     )
                     continue
@@ -1323,7 +1542,181 @@ def _prepare_catalog_import(
                         "Reference points to a Source ID absent from archive and destination",
                     )
                 )
+    for document in pending.get("source_documents", []):
+        document_id = str(document.get("document_id") or "<document>")
+        source_id = document.get("source_id")
+        if not isinstance(source_id, str):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "source_documents",
+                    document_id,
+                    "Source Document requires a Source ID",
+                )
+            )
+            continue
+        if source_id not in available_source_ids:
+            source_matches = _find_at_most_two(db["sources"], {"source_id": source_id})
+            if len(source_matches) != 1:
+                report.catalog_conflicts.append(
+                    CatalogImportConflict(
+                        "source_documents",
+                        document_id,
+                        "Source Document points to a Source ID absent from archive and destination",
+                    )
+                )
+                continue
+        reference_id = document.get("reference_id")
+        if reference_id is None:
+            continue
+        incoming_reference = next(
+            (
+                item
+                for item in pending.get("references", [])
+                if item.get("reference_id") == reference_id
+            ),
+            None,
+        )
+        if incoming_reference is None:
+            reference_matches = _find_at_most_two(
+                db["references"],
+                {"reference_id": reference_id},
+            )
+            incoming_reference = reference_matches[0] if len(reference_matches) == 1 else None
+        if incoming_reference is None or source_id not in incoming_reference.get("source_ids", []):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "source_documents",
+                    document_id,
+                    "Source Document Reference is absent or does not belong to its Source",
+                )
+            )
+    _preflight_source_document_identities(
+        pending.get("source_documents", []),
+        db=db,
+        report=report,
+    )
     return pending
+
+
+def _source_document_identity(
+    document: SourceDocument,
+) -> tuple[tuple[str, str, str], dict[str, Any]]:
+    if document.pdf is not None:
+        sha256 = document.pdf.current_version.sha256
+        return (
+            (document.source_id, "pdf", sha256),
+            {
+                "source_id": document.source_id,
+                "kind": "pdf",
+                "pdf.versions.sha256": sha256,
+            },
+        )
+    assert document.web is not None
+    normalized_url = document.web.url_normalized
+    return (
+        (document.source_id, "web", normalized_url),
+        {
+            "source_id": document.source_id,
+            "kind": "web",
+            "web.url_normalized": normalized_url,
+        },
+    )
+
+
+def _preflight_source_document_identities(
+    raw_documents: list[dict],
+    *,
+    db,
+    report: DatabaseImportReport,
+) -> None:
+    """Enforce the same PDF/web identities as the S2 service and indexes."""
+    seen: dict[tuple[str, str, str], str] = {}
+    for raw_document in raw_documents:
+        payload = {key: value for key, value in raw_document.items() if key != "_id"}
+        document = SourceDocument.model_validate(payload)
+        identity, query = _source_document_identity(document)
+        previous = seen.get(identity)
+        if previous is not None and previous != document.document_id:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "source_documents",
+                    document.document_id,
+                    "archive contains different document IDs for one Source Document identity",
+                )
+            )
+            continue
+        seen[identity] = document.document_id
+
+        destination_matches = _find_at_most_two(db["source_documents"], query)
+        if len(destination_matches) > 1 or (
+            len(destination_matches) == 1
+            and destination_matches[0].get("document_id") != document.document_id
+        ):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "source_documents",
+                    document.document_id,
+                    "destination contains a different document ID for the same identity",
+                )
+            )
+
+
+def _plan_source_document_blobs(
+    zf: zipfile.ZipFile,
+    *,
+    base_dir: str,
+    portable_documents: dict[str, list[dict]],
+    blob_store: SourceDocumentBlobStore,
+) -> list[_SourceDocumentBlobPlan]:
+    """Bind every PDF model to one exact member and preflight its destination."""
+    referenced: dict[str, Any] = {}
+    for raw_document in portable_documents.get("source_documents", []):
+        payload = {key: value for key, value in raw_document.items() if key != "_id"}
+        document = SourceDocument.model_validate(payload)
+        if document.kind != DocumentKind.PDF:
+            continue
+        assert document.pdf is not None
+        version = document.pdf.current_version
+        existing = referenced.get(version.logical_path)
+        if existing is not None and (
+            existing.sha256 != version.sha256 or existing.size_bytes != version.size_bytes
+        ):
+            raise ValueError("Source Document blob path has conflicting version metadata")
+        referenced.setdefault(version.logical_path, version)
+
+    plans: list[_SourceDocumentBlobPlan] = []
+    for logical_path, version in sorted(referenced.items()):
+        member_name = f"{base_dir}/{logical_path}"
+        try:
+            data = _read_zip_member(zf, member_name)
+        except ValueError as exc:
+            raise ValueError("Source Document PDF blob is missing from the archive") from exc
+        prepared = blob_store.prepare_pdf(data)
+        if (
+            prepared.logical_path != version.logical_path
+            or prepared.sha256 != version.sha256
+            or prepared.size_bytes != version.size_bytes
+        ):
+            raise ValueError("Source Document PDF blob does not match version metadata")
+        try:
+            existing_data = blob_store.read_version(version)
+        except FileNotFoundError:
+            pass
+        except Exception as exc:
+            raise ValueError("Canonical Source Document blob destination conflicts") from exc
+        else:
+            if existing_data != data:
+                raise ValueError("Canonical Source Document blob destination has different bytes")
+        plans.append(_SourceDocumentBlobPlan(prepared))
+
+    physical_paths = {
+        logical_path
+        for member_name in zf.namelist()
+        if (logical_path := _source_document_blob_logical_path(base_dir, member_name)) is not None
+    }
+    if physical_paths != set(referenced):
+        raise ValueError("Source Document archive contains missing or unreferenced PDF blobs")
+    return plans
 
 
 def inspect_export_zip(zip_path: Path) -> dict:
@@ -1382,7 +1775,12 @@ def inspect_export_zip(zip_path: Path) -> dict:
     }
 
 
-def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImportReport:
+def import_zip_into_database(
+    zip_path: Path,
+    mongo: MathMongo,
+    *,
+    source_document_blob_store: SourceDocumentBlobStore | None = None,
+) -> DatabaseImportReport:
     """Import a validated export ZIP into an existing MongoDB database.
 
     Assumes:
@@ -1458,6 +1856,14 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
             if report.catalog_conflicts:
                 raise CatalogImportConflictError(report)
 
+            blob_store = source_document_blob_store or SourceDocumentBlobStore(DATA_DIR)
+            source_document_blob_plans = _plan_source_document_blobs(
+                zf,
+                base_dir=base_dir,
+                portable_documents=catalog_pending,
+                blob_store=blob_store,
+            )
+
             legacy_documents = _load_legacy_documents(
                 zf,
                 collection_members,
@@ -1485,6 +1891,23 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                     {**legacy_pending, **catalog_pending},
                 )
 
+            if "source_documents" in collection_members:
+                # Database import bypasses SourceDocumentService. Establish its
+                # unique concurrency barriers before publishing any PDF blob.
+                SourceDocumentIndexManager(db).ensure()
+
+            for blob_plan in source_document_blob_plans:
+                _raise_if_timed_out(
+                    started_at,
+                    IMPORT_TIMEOUT_SECONDS,
+                    "restoring Source Document PDF blob",
+                )
+                publish_result = blob_store.publish(blob_plan.prepared)
+                if publish_result.created:
+                    report.source_document_blobs_created += 1
+                else:
+                    report.source_document_blobs_identical += 1
+
             for media_plan in media_plans:
                 _raise_if_timed_out(
                     started_at,
@@ -1500,11 +1923,11 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
             ordered_collections = [
                 collection_name
                 for collection_name in collection_members
-                if collection_name not in SOURCE_CATALOG_COLLECTIONS
+                if collection_name not in PORTABLE_EXTENDED_JSON_COLLECTIONS
             ]
             ordered_collections.extend(
                 collection_name
-                for collection_name in _CATALOG_IMPORT_ORDER
+                for collection_name in _PORTABLE_IMPORT_ORDER
                 if collection_name in collection_members
             )
             for coll in ordered_collections:
@@ -1517,9 +1940,9 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                     db.create_collection(coll)
                     existing_collections.add(coll)
 
-                if coll in SOURCE_CATALOG_COLLECTIONS:
+                if coll in PORTABLE_EXTENDED_JSON_COLLECTIONS:
                     docs = catalog_pending.get(coll, [])
-                    id_field = _CATALOG_ID_FIELDS[coll]
+                    id_field = _PORTABLE_ID_FIELDS[coll]
                     for document in docs:
                         domain_id = document[id_field]
                         domain_matches = _find_at_most_two(
@@ -1653,7 +2076,9 @@ def import_zip_into_database(zip_path: Path, mongo: MathMongo) -> DatabaseImport
                 )
 
             required_empty_collections = (
-                set(IMPORT_COLLECTIONS) - imported_collections - set(SOURCE_CATALOG_COLLECTIONS)
+                set(IMPORT_COLLECTIONS)
+                - imported_collections
+                - set(PORTABLE_EXTENDED_JSON_COLLECTIONS)
             )
             for coll in required_empty_collections:
                 _raise_if_timed_out(started_at, IMPORT_TIMEOUT_SECONDS, f"creating {coll}")

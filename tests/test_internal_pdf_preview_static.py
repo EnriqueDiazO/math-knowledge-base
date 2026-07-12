@@ -20,6 +20,7 @@ P1_EXECUTABLE_MODULES = (
     ROOT / "editor/editor_streamlit.py",
     ROOT / "editor/cornell/streamlit_page.py",
     ROOT / "editor/cpi/streamlit_page.py",
+    ROOT / "editor/source_catalog/document_ui.py",
 )
 FORBIDDEN_MESSAGE_FRAGMENTS = (
     "nueva pestaña",
