@@ -104,6 +104,7 @@ class _Collection:
         self.name = name
         self.documents = [copy.deepcopy(document) for document in documents or []]
         self.queries: list[dict] = []
+        self.projections: list[dict[str, Any] | None] = []
         self.indexes: list[dict] = [{"name": "_id_", "key": [("_id", 1)]}]
 
     def insert_one(self, document: dict) -> None:
@@ -121,8 +122,9 @@ class _Collection:
             None,
         )
 
-    def find(self, query: dict):
+    def find(self, query: dict, projection: dict[str, Any] | None = None):
         self.queries.append(copy.deepcopy(query))
+        self.projections.append(copy.deepcopy(projection))
         return _Cursor([document for document in self.documents if _matches(document, query)])
 
     def count_documents(self, query: dict) -> int:
@@ -203,6 +205,26 @@ def test_two_explicit_databases_remain_isolated() -> None:
     assert second_repository.get_by_id(source.source_id) is None
 
 
+def test_source_associations_load_with_one_bounded_bulk_query() -> None:
+    database = _Database()
+    repository = SourceRepository(database)
+    first = repository.insert(Source(name="First"))
+    second = repository.insert(Source(name="Second"))
+    missing_id = Source(name="Missing").source_id
+    query_count = len(database["sources"].queries)
+
+    loaded = repository.get_by_ids([second.source_id, missing_id, first.source_id])
+
+    assert {source.source_id for source in loaded} == {
+        first.source_id,
+        second.source_id,
+    }
+    assert len(database["sources"].queries) == query_count + 1
+    assert database["sources"].queries[-1] == {
+        "source_id": {"$in": [second.source_id, missing_id, first.source_id]}
+    }
+
+
 def test_duplicate_insert_and_immutable_update_are_typed_conflicts() -> None:
     repository = SourceRepository(_Database())
     source = repository.insert(Source(name="Unique"))
@@ -232,6 +254,107 @@ def test_source_search_escapes_regex_and_paginates_server_side() -> None:
     assert page.page == 2
 
 
+def test_source_duplicate_candidates_find_accent_and_punctuation_suggestion() -> None:
+    database = _Database()
+    repository = SourceRepository(database)
+    existing = repository.insert(Source(name="Teoria de Grupos!"))
+
+    candidates = repository.duplicate_candidates(Source(name="Teoría-de Grupos"))
+
+    assert [candidate.source_id for candidate in candidates] == [existing.source_id]
+    query = database["sources"].queries[-1]
+    assert query != {}
+    patterns = [
+        condition["$regex"]
+        for alternative in query["$or"]
+        for condition in alternative.values()
+        if isinstance(condition, dict) and "$regex" in condition
+    ]
+    assert patterns
+    assert all("Teoría-de Grupos" not in pattern for pattern in patterns)
+
+
+@pytest.mark.parametrize(
+    ("existing_data", "candidate_data"),
+    [
+        (
+            {"url": "HTTPS://EXAMPLE.TEST:443/path"},
+            {"url": "https://example.test/path"},
+        ),
+        (
+            {"authors": ["Ada Lovelace"]},
+            {"authors": ["Ada Lovelace"]},
+        ),
+        (
+            {"title": "Theorie des Groupes!", "year": 2020},
+            {"title": "Théorie-des Groupes", "year": 2020},
+        ),
+    ],
+)
+def test_reference_duplicate_candidates_cover_weak_identity_queries(
+    existing_data: dict,
+    candidate_data: dict,
+) -> None:
+    database = _Database()
+    repository = ReferenceRepository(database)
+    existing = repository.insert(Reference(**existing_data))
+
+    candidates = repository.duplicate_candidates(Reference(**candidate_data))
+
+    assert [candidate.reference_id for candidate in candidates] == [existing.reference_id]
+    assert database["references"].queries[-1] != {}
+
+
+def test_reference_duplicate_candidates_prioritize_exact_identity_before_weak_limit() -> None:
+    database = _Database()
+    repository = ReferenceRepository(database)
+    for index in range(120):
+        repository.insert(
+            Reference(
+                title=f"Weak candidate {index}",
+                authors=["Common Author"],
+            )
+        )
+    exact = repository.insert(
+        Reference(
+            title="Exact DOI",
+            authors=["Common Author"],
+            doi="10.1000/exact-priority",
+        )
+    )
+
+    candidates = repository.duplicate_candidates(
+        Reference(authors=["Common Author"], doi="10.1000/exact-priority")
+    )
+
+    assert candidates[0].reference_id == exact.reference_id
+    assert len(candidates) <= 100
+
+
+def test_reference_quality_projection_excludes_raw_bibtex_and_notes() -> None:
+    database = _Database()
+    source = SourceRepository(database).insert(Source(name="Quality"))
+    repository = ReferenceRepository(database)
+    reference = repository.insert(
+        Reference(
+            title="Projected",
+            notes="large private notes",
+            bibtex={"key": "Projected", "raw": "@misc{Projected}"},
+            source_ids=[source.source_id],
+        )
+    )
+
+    page = repository.list_quality_candidates(source_id=source.source_id)
+
+    assert page.total == 1
+    assert page.items[0].reference_id == reference.reference_id
+    projection = database["references"].projections[-1]
+    assert projection is not None
+    assert "bibtex.key" in projection
+    assert "bibtex.raw" not in projection
+    assert "notes" not in projection
+
+
 def test_source_physical_delete_blocks_reference_and_exact_legacy_string() -> None:
     database = _Database()
     sources = SourceRepository(database)
@@ -249,6 +372,20 @@ def test_source_physical_delete_blocks_reference_and_exact_legacy_string() -> No
     references.disassociate_source(reference.reference_id, source.source_id)
     database["concepts"].documents.clear()
     assert sources.physical_delete_if_unused(source.source_id) is True
+
+
+def test_source_physical_delete_blocks_exact_current_name_match() -> None:
+    database = _Database()
+    sources = SourceRepository(database)
+    source = sources.insert(Source(name="Current Exact Name"))
+    database["concepts"].documents.append(
+        {"id": "legacy-current-name", "source": source.name}
+    )
+
+    with pytest.raises(PhysicalDeletionBlockedError) as caught:
+        sources.physical_delete_if_unused(source.source_id)
+
+    assert caught.value.blockers == ("legacy_concepts:1",)
 
 
 def test_reference_association_states_and_safe_physical_delete() -> None:

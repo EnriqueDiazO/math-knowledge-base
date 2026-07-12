@@ -25,6 +25,29 @@ _DOI_PREFIX_RE = re.compile(
 _ISBN_PREFIX_RE = re.compile(r"^isbn(?:-1[03])?\s*:\s*", re.IGNORECASE)
 _ISBN_SEPARATORS_RE = re.compile(r"[\s\-\u00ad\u058a\u2010-\u2015\u2212\ufe58\ufe63\uff0d]+")
 INVALID_ISBN_WARNING_PREFIX = "Invalid legacy ISBN retained for review:"
+MAX_DUPLICATE_REGEX_CHARACTERS = 200
+
+
+def _latin_equivalents() -> dict[str, tuple[str, ...]]:
+    """Build small Latin accent classes for bounded warning-only queries."""
+    values: dict[str, set[str]] = {
+        chr(code): {chr(code)} for code in range(ord("a"), ord("z") + 1)
+    }
+    for codepoint in range(0x00C0, 0x0250):
+        character = chr(codepoint)
+        decomposed = unicodedata.normalize("NFKD", character)
+        base = "".join(
+            item for item in decomposed if not unicodedata.combining(item)
+        ).casefold()
+        if len(base) == 1 and base in values and character.isalpha():
+            values[base].add(character.casefold())
+    return {
+        base: tuple(sorted(characters))
+        for base, characters in values.items()
+    }
+
+
+_LATIN_EQUIVALENTS = _latin_equivalents()
 
 
 def clean_text(value: Any) -> str:
@@ -227,6 +250,77 @@ def suggestion_key(value: Any) -> str:
     return "".join(parts).strip()
 
 
+def suggestion_regex_pattern(
+    value: Any,
+    *,
+    max_characters: int = MAX_DUPLICATE_REGEX_CHARACTERS,
+) -> str | None:
+    """Return a bounded, escaped regex for warning-only suggestion lookup.
+
+    The resulting query tolerates Latin accents and punctuation only. Final
+    duplicate classification must still compare ``suggestion_key`` values;
+    this pattern merely obtains a bounded server-side candidate set.
+    """
+    if isinstance(max_characters, bool) or not isinstance(max_characters, int):
+        raise TypeError("max_characters must be an integer")
+    if max_characters < 1:
+        raise ValueError("max_characters must be positive")
+    key = suggestion_key(value)
+    if not key:
+        return None
+    truncated = len(key) > max_characters
+    bounded = key[:max_characters].rstrip()
+    pieces: list[str] = []
+    for character in bounded:
+        if character == " ":
+            if not pieces or pieces[-1] != r"[\W_]+":
+                pieces.append(r"[\W_]+")
+            continue
+        equivalents = _LATIN_EQUIVALENTS.get(character)
+        if equivalents:
+            pieces.append("[" + "".join(re.escape(item) for item in equivalents) + "]")
+        else:
+            pieces.append(re.escape(character))
+    if not pieces:
+        return None
+    prefix = r"^[\W_]*"
+    suffix = "" if truncated else r"[\W_]*$"
+    return prefix + "".join(pieces) + suffix
+
+
+def url_regex_pattern(
+    value: Any,
+    *,
+    max_characters: int = MAX_DUPLICATE_REGEX_CHARACTERS,
+) -> str | None:
+    """Return a bounded exact-identity URL regex without exposing raw regex."""
+    if isinstance(max_characters, bool) or not isinstance(max_characters, int):
+        raise TypeError("max_characters must be an integer")
+    if max_characters < 1:
+        raise ValueError("max_characters must be positive")
+    normalized = normalize_url(value)
+    if not normalized:
+        return None
+    if len(normalized) > max_characters:
+        return "^" + re.escape(normalized[:max_characters])
+    try:
+        parsed = urlsplit(normalized)
+    except ValueError:
+        return "^" + re.escape(normalized) + "$"
+    if not parsed.scheme or not parsed.netloc:
+        return "^" + re.escape(normalized) + "$"
+    default_port = "443" if parsed.scheme == "https" else "80" if parsed.scheme == "http" else None
+    port_pattern = f"(?::{default_port})?" if default_port and parsed.port is None else ""
+    suffix = urlunsplit(("", "", parsed.path, parsed.query, parsed.fragment))
+    return (
+        "^"
+        + re.escape(f"{parsed.scheme}://{parsed.netloc}")
+        + port_pattern
+        + re.escape(suffix)
+        + "$"
+    )
+
+
 def author_title_year_fingerprint(
     authors: Iterable[Any] | Any,
     title: Any,
@@ -245,6 +339,7 @@ def author_title_year_fingerprint(
 __all__ = [
     "INVALID_ISBN_WARNING_PREFIX",
     "ISBNAnalysis",
+    "MAX_DUPLICATE_REGEX_CHARACTERS",
     "analyze_isbn",
     "author_title_year_fingerprint",
     "clean_text",
@@ -261,4 +356,6 @@ __all__ = [
     "normalize_title",
     "normalize_url",
     "suggestion_key",
+    "suggestion_regex_pattern",
+    "url_regex_pattern",
 ]

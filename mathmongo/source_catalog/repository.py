@@ -7,6 +7,7 @@ an index. Every operation is scoped to the database supplied by its caller.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -22,6 +23,8 @@ from pymongo.errors import DuplicateKeyError
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog.models import utc_now
+from mathmongo.source_catalog.normalization import suggestion_regex_pattern
+from mathmongo.source_catalog.normalization import url_regex_pattern
 
 T = TypeVar("T")
 MAX_PAGE_SIZE = 100
@@ -206,6 +209,19 @@ class SourceRepository:
             Source,
         )
 
+    def get_by_ids(self, source_ids: Iterable[str]) -> tuple[Source, ...]:
+        """Load a caller-bounded set of Sources with one server-side query."""
+        requested = tuple(dict.fromkeys(str(source_id) for source_id in source_ids))
+        if not requested:
+            return ()
+        return tuple(
+            model
+            for document in self._collection.find(
+                {"source_id": {"$in": list(requested)}}
+            ).limit(len(requested))
+            if (model := _model_document(document, Source)) is not None
+        )
+
     def count(
         self,
         *,
@@ -351,19 +367,36 @@ class SourceRepository:
     def duplicate_candidates(self, source: Source | Mapping[str, Any]) -> list[Source]:
         """Fetch a bounded server-side set for pure duplicate classification."""
         candidate = source if isinstance(source, Source) else Source.model_validate(source)
-        normalized = [candidate.name_normalized, *(alias.normalized for alias in candidate.aliases)]
-        query = {
-            "$or": [
-                {"name_normalized": {"$in": normalized}},
-                {"aliases.normalized": {"$in": normalized}},
-                {"name": {"$regex": f"^{re.escape(candidate.name)}$", "$options": "i"}},
-            ]
-        }
-        return [
-            model
-            for document in self._collection.find(query).limit(MAX_PAGE_SIZE)
-            if (model := _model_document(document, Source)) is not None
+        bounded_aliases = candidate.aliases[: MAX_PAGE_SIZE - 1]
+        display_values = [candidate.name, *(alias.value for alias in bounded_aliases)]
+        normalized = [candidate.name_normalized, *(alias.normalized for alias in bounded_aliases)]
+        identity_alternatives: list[dict[str, Any]] = [
+            {"name_normalized": {"$in": normalized}},
+            {"aliases.normalized": {"$in": normalized}},
+            {"name": {"$regex": f"^{re.escape(candidate.name)}$", "$options": "i"}},
         ]
+        suggestion_alternatives: list[dict[str, Any]] = []
+        for display_value in display_values:
+            pattern = suggestion_regex_pattern(display_value)
+            if pattern is None:
+                continue
+            regex = {"$regex": pattern, "$options": "i"}
+            suggestion_alternatives.extend(({"name": regex}, {"aliases.value": regex}))
+
+        results: list[Source] = []
+        seen: set[str] = set()
+        for alternatives in (identity_alternatives, suggestion_alternatives):
+            if not alternatives or len(results) >= MAX_PAGE_SIZE:
+                continue
+            for document in self._collection.find({"$or": alternatives}).limit(MAX_PAGE_SIZE):
+                model = _model_document(document, Source)
+                if model is None or model.source_id in seen:
+                    continue
+                seen.add(model.source_id)
+                results.append(model)
+                if len(results) >= MAX_PAGE_SIZE:
+                    break
+        return results
 
     def deletion_blockers(self, source_id: str) -> tuple[str, ...]:
         """Inspect Reference and exact legacy concept links read-only."""
@@ -378,10 +411,13 @@ class SourceRepository:
         )
         if reference_count:
             blockers.append(f"references:{reference_count}")
-        if source.legacy.source_strings:
+        legacy_source_values = list(
+            dict.fromkeys((source.name, *source.legacy.source_strings))
+        )
+        if legacy_source_values:
             legacy_count = int(
                 self.database["concepts"].count_documents(
-                    {"source": {"$in": source.legacy.source_strings}}
+                    {"source": {"$in": legacy_source_values}}
                 )
             )
             if legacy_count:
@@ -502,6 +538,47 @@ class ReferenceRepository:
             sort=[("updated_at", -1), ("reference_id", 1)],
             model_type=Reference,
         )
+
+    def list_quality_candidates(
+        self,
+        *,
+        source_id: str,
+        page_size: int = 100,
+    ) -> PageResult[Reference]:
+        """Return a bounded diagnostic projection that excludes BibTeX raw and notes."""
+        _page, page_size = _pagination(1, page_size)
+        query = {"source_ids": source_id}
+        projection = {
+            "_id": 0,
+            "reference_id": 1,
+            "source_ids": 1,
+            "reference_type": 1,
+            "bibtex.key": 1,
+            "authors": 1,
+            "title": 1,
+            "year": 1,
+            "year_raw": 1,
+            "journal": 1,
+            "publisher": 1,
+            "isbn": 1,
+            "doi": 1,
+            "url": 1,
+            "accessed_at": 1,
+            "status": 1,
+            "archived_at": 1,
+        }
+        total = int(self._collection.count_documents(query))
+        cursor = (
+            self._collection.find(query, projection)
+            .sort([("updated_at", -1), ("reference_id", 1)])
+            .limit(page_size)
+        )
+        items = tuple(
+            model
+            for document in cursor
+            if (model := _model_document(document, Reference)) is not None
+        )
+        return PageResult(items=items, page=1, page_size=page_size, total=total)
 
     def search(
         self,
@@ -653,38 +730,76 @@ class ReferenceRepository:
         candidate = (
             reference if isinstance(reference, Reference) else Reference.model_validate(reference)
         )
-        alternatives: list[dict[str, Any]] = []
+        identity_groups: list[list[dict[str, Any]]] = []
         if candidate.doi_normalized:
-            alternatives.append({"doi_normalized": candidate.doi_normalized})
+            identity_groups.append([{"doi_normalized": candidate.doi_normalized}])
         if candidate.fingerprints.isbn_normalized:
-            alternatives.append(
-                {
-                    "fingerprints.isbn_normalized": {
-                        "$in": candidate.fingerprints.isbn_normalized
+            identity_groups.append(
+                [
+                    {
+                        "fingerprints.isbn_normalized": {
+                            "$in": candidate.fingerprints.isbn_normalized
+                        }
                     }
-                }
+                ]
             )
         if candidate.bibtex.key_normalized:
-            alternatives.append({"bibtex.key_normalized": candidate.bibtex.key_normalized})
+            identity_groups.append(
+                [{"bibtex.key_normalized": candidate.bibtex.key_normalized}]
+            )
         if candidate.fingerprints.author_title_year:
-            alternatives.append(
-                {
-                    "fingerprints.author_title_year": (
-                        candidate.fingerprints.author_title_year
+            identity_groups.append(
+                [
+                    {
+                        "fingerprints.author_title_year": (
+                            candidate.fingerprints.author_title_year
+                        )
+                    }
+                ]
+            )
+        suggestion_alternatives: list[dict[str, Any]] = []
+        if candidate.title and (pattern := suggestion_regex_pattern(candidate.title)):
+            suggestion_alternatives.append(
+                {"title": {"$regex": pattern, "$options": "i"}}
+            )
+        if candidate.url and (pattern := url_regex_pattern(candidate.url)):
+            suggestion_alternatives.append(
+                {"url": {"$regex": pattern, "$options": "i"}}
+            )
+        for author in candidate.authors[:MAX_PAGE_SIZE]:
+            author_fields = (
+                ("authors.literal", author.literal),
+                ("authors.family", author.family),
+            )
+            populated_primary = any(value for _field, value in author_fields)
+            for field_name, value in author_fields:
+                if value and (pattern := suggestion_regex_pattern(value)):
+                    suggestion_alternatives.append(
+                        {field_name: {"$regex": pattern, "$options": "i"}}
                     )
-                }
-            )
-        if candidate.title:
-            alternatives.append(
-                {"title": {"$regex": f"^{re.escape(candidate.title)}$", "$options": "i"}}
-            )
-        if not alternatives:
+            if not populated_primary and author.given:
+                pattern = suggestion_regex_pattern(author.given)
+                if pattern:
+                    suggestion_alternatives.append(
+                        {"authors.given": {"$regex": pattern, "$options": "i"}}
+                    )
+        if not identity_groups and not suggestion_alternatives:
             return []
-        return [
-            model
-            for document in self._collection.find({"$or": alternatives}).limit(MAX_PAGE_SIZE)
-            if (model := _model_document(document, Reference)) is not None
-        ]
+
+        results: list[Reference] = []
+        seen: set[str] = set()
+        for alternatives in (*identity_groups, suggestion_alternatives):
+            if not alternatives or len(results) >= MAX_PAGE_SIZE:
+                continue
+            for document in self._collection.find({"$or": alternatives}).limit(MAX_PAGE_SIZE):
+                model = _model_document(document, Reference)
+                if model is None or model.reference_id in seen:
+                    continue
+                seen.add(model.reference_id)
+                results.append(model)
+                if len(results) >= MAX_PAGE_SIZE:
+                    break
+        return results
 
     def deletion_blockers(self, reference_id: str) -> tuple[str, ...]:
         """Report Source associations that forbid physical deletion."""

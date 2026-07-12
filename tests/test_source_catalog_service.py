@@ -19,6 +19,7 @@ class _SourceRepository:
         self.database = database
         self.records: dict[str, Source] = {}
         self.blockers: dict[str, list[str]] = {}
+        self.update_calls = 0
 
     def insert(self, source: Source) -> Source:
         self.records[source.source_id] = source
@@ -31,6 +32,7 @@ class _SourceRepository:
         return list(self.records.values())
 
     def update(self, source_id: str, changes: dict) -> Source | None:
+        self.update_calls += 1
         current = self.records.get(source_id)
         if current is None:
             return None
@@ -68,6 +70,7 @@ class _ReferenceRepository:
         self.database = database
         self.records: dict[str, Reference] = {}
         self.blockers: dict[str, list[str]] = {}
+        self.update_calls = 0
 
     def insert(self, reference: Reference) -> Reference:
         self.records[reference.reference_id] = reference
@@ -80,6 +83,7 @@ class _ReferenceRepository:
         return list(self.records.values())
 
     def update(self, reference_id: str, changes: dict) -> Reference | None:
+        self.update_calls += 1
         current = self.records.get(reference_id)
         if current is None:
             return None
@@ -170,6 +174,53 @@ def test_rename_keeps_id_and_optionally_preserves_previous_name() -> None:
     assert [alias.value for alias in renamed.value.aliases] == ["Original"]
 
 
+def test_unified_source_update_writes_name_aliases_and_profile_once() -> None:
+    service, sources, _ = _service()
+    created = service.create_source(
+        {"name": "Original", "aliases": ["Existing"], "description": "Before"}
+    ).value
+
+    updated = service.update_source(
+        created.source_id,
+        {
+            "name": "Renamed",
+            "aliases": ["Manual"],
+            "description": "After",
+        },
+        preserve_previous_name_as_alias=True,
+    )
+
+    assert updated.status == CatalogResultStatus.SUCCESS
+    assert updated.persisted
+    assert updated.value.source_id == created.source_id
+    assert updated.value.name == "Renamed"
+    assert [alias.value for alias in updated.value.aliases] == ["Manual", "Original"]
+    assert updated.value.description == "After"
+    assert sources.update_calls == 1
+
+
+def test_alias_update_duplicate_gate_excludes_self_and_requires_override() -> None:
+    service, sources, _ = _service()
+    existing = service.create_source({"name": "Shared Alias"}).value
+    target = service.create_source({"name": "Target"}).value
+
+    gated = service.update_source(target.source_id, {"aliases": [existing.name]})
+
+    assert gated.status == CatalogResultStatus.WARNING
+    assert gated.persisted is False
+    assert sources.records[target.source_id].aliases == []
+
+    accepted = service.update_source(
+        target.source_id,
+        {"aliases": [existing.name]},
+        allow_duplicate=True,
+    )
+
+    assert accepted.status == CatalogResultStatus.WARNING
+    assert accepted.persisted
+    assert [alias.value for alias in accepted.value.aliases] == [existing.name]
+
+
 def test_reference_never_creates_a_missing_source() -> None:
     service, sources, references = _service()
     unknown = Source(name="Not persisted").source_id
@@ -191,6 +242,37 @@ def test_possible_duplicate_warns_without_write_or_merge() -> None:
     assert warned.status == CatalogResultStatus.WARNING
     assert warned.persisted is False
     assert len(references.records) == 1
+
+
+def test_reference_update_duplicate_gate_excludes_self_and_preserves_raw() -> None:
+    service, _, references = _service()
+    first = service.create_reference({"title": "First", "doi": "10.1000/shared"}).value
+    raw = "@article{second, title={Second}}"
+    second = service.create_reference(
+        {"title": "Second", "doi": "10.1000/second", "bibtex": {"raw": raw}}
+    ).value
+
+    gated = service.update_reference(
+        second.reference_id,
+        {"doi": first.doi},
+    )
+
+    assert gated.status == CatalogResultStatus.CONFLICT
+    assert gated.persisted is False
+    assert references.records[second.reference_id].doi == "10.1000/second"
+
+    accepted = service.update_reference(
+        second.reference_id,
+        {"doi": first.doi},
+        allow_duplicate=True,
+    )
+
+    assert accepted.status == CatalogResultStatus.WARNING
+    assert accepted.persisted
+    assert accepted.value.reference_id == second.reference_id
+    assert accepted.value.bibtex.raw == raw
+    assert all(match.entity_id != second.reference_id for match in accepted.duplicates)
+    assert references.update_calls == 1
 
 
 def test_association_is_idempotent_and_physical_delete_is_guarded() -> None:

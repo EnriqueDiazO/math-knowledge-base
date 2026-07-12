@@ -27,7 +27,10 @@ def test_source_catalog_imports_write_neither_home_checkout_nor_site_packages(
     tmp_path: Path,
 ) -> None:
     project_root = Path(__file__).resolve().parents[1]
-    checkout_roots = [project_root / "mathmongo/source_catalog"]
+    checkout_roots = [
+        project_root / "mathmongo/source_catalog",
+        project_root / "editor/source_catalog",
+    ]
     site_roots: list[Path] = []
     for loaded_name in ("pydantic", "pymongo", "bson", "bibtexparser"):
         module = __import__(loaded_name)
@@ -64,10 +67,23 @@ def test_source_catalog_imports_write_neither_home_checkout_nor_site_packages(
         "import mathmongo.source_catalog.duplicates; "
         "import mathmongo.source_catalog.indexes; "
         "import mathmongo.source_catalog.legacy; "
+        "import mathmongo.source_catalog.legacy_repository; "
         "import mathmongo.source_catalog.models; "
         "import mathmongo.source_catalog.normalization; "
         "import mathmongo.source_catalog.repository; "
-        "import mathmongo.source_catalog.service"
+        "import mathmongo.source_catalog.service; "
+        "import editor.source_catalog; "
+        "import editor.source_catalog.add_source_page; "
+        "import editor.source_catalog.bibtex_ui; "
+        "import editor.source_catalog.data_quality; "
+        "import editor.source_catalog.edit_source_page; "
+        "import editor.source_catalog.legacy_concepts; "
+        "import editor.source_catalog.reference_actions; "
+        "import editor.source_catalog.reference_form; "
+        "import editor.source_catalog.shared; "
+        "import editor.source_catalog.source_form; "
+        "import editor.source_catalog.state; "
+        "import editor.source_catalog.workflows"
     )
 
     completed = subprocess.run(

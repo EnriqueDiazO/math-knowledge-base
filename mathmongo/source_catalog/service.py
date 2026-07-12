@@ -129,12 +129,32 @@ class SourceCatalogService:
 
     _SOURCE_UPDATE_FIELDS = frozenset(
         {
+            "name",
+            "aliases",
             "source_type",
             "description",
             "language",
             "tags",
             "rights_default",
             "legacy",
+        }
+    )
+    _REFERENCE_DUPLICATE_FIELDS = frozenset(
+        {
+            "reference_type",
+            "bibtex",
+            "authors",
+            "title",
+            "year",
+            "year_raw",
+            "journal",
+            "publisher",
+            "volume",
+            "number",
+            "edition",
+            "isbn",
+            "doi",
+            "url",
         }
     )
     _REFERENCE_UPDATE_FIELDS = frozenset(
@@ -182,29 +202,45 @@ class SourceCatalogService:
         self._future_source_link_detectors = tuple(future_source_link_detectors)
         self._future_reference_link_detectors = tuple(future_reference_link_detectors)
 
-    def detect_source_duplicates(self, candidate: Source) -> list[DuplicateMatch]:
+    def detect_source_duplicates(
+        self,
+        candidate: Source,
+        *,
+        exclude_source_id: str | None = None,
+    ) -> list[DuplicateMatch]:
         """Return classified Source matches without changing data."""
         values = self.sources.duplicate_candidates(candidate)
         if values and isinstance(values[0], DuplicateMatch):
-            return list(values)
-        return find_source_duplicates(candidate, values)
+            matches = list(values)
+        else:
+            matches = find_source_duplicates(candidate, values)
+        if exclude_source_id is not None:
+            matches = [match for match in matches if match.entity_id != exclude_source_id]
+        return matches
 
     def detect_reference_duplicates(
         self,
         candidate: Reference,
         *,
         import_context: str | None = None,
+        exclude_reference_id: str | None = None,
     ) -> list[DuplicateMatch]:
         """Return classified Reference matches in Source/import context."""
         values = self.references.duplicate_candidates(candidate)
         if values and isinstance(values[0], DuplicateMatch):
-            return list(values)
-        return find_reference_duplicates(
-            candidate,
-            values,
-            source_context_ids=candidate.source_ids,
-            import_context=import_context,
-        )
+            matches = list(values)
+        else:
+            matches = find_reference_duplicates(
+                candidate,
+                values,
+                source_context_ids=candidate.source_ids,
+                import_context=import_context,
+            )
+        if exclude_reference_id is not None:
+            matches = [
+                match for match in matches if match.entity_id != exclude_reference_id
+            ]
+        return matches
 
     @staticmethod
     def _duplicate_gate(
@@ -281,62 +317,22 @@ class SourceCatalogService:
         allow_duplicate: bool = False,
     ) -> CatalogResult[Source]:
         """Rename while preserving ID and optionally the old name as alias."""
-        try:
-            current_value = self.sources.get_by_id(source_id)
-        except Exception as exc:
-            return CatalogResult(CatalogResultStatus.ERROR, errors=(str(exc),))
-        if current_value is None:
-            return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Source not found.")
-        try:
-            current = _source_from_repository(current_value)
-            candidate = current.renamed(
-                new_name,
-                keep_previous_as_alias=keep_previous_as_alias,
-            )
-            duplicates = [
-                match
-                for match in self.detect_source_duplicates(candidate)
-                if match.entity_id != source_id
-            ]
-            gated = self._duplicate_gate(
-                candidate,
-                duplicates,
-                allow_duplicate=allow_duplicate,
-            )
-            if gated is not None:
-                return gated
-            updated = self.sources.update(
-                source_id,
-                {
-                    "name": candidate.name,
-                    "name_normalized": candidate.name_normalized,
-                    "aliases": [alias.model_dump(mode="python") for alias in candidate.aliases],
-                    "updated_at": candidate.updated_at,
-                },
-            )
-            if updated is None:
-                return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Source not found.")
-            result = _source_from_repository(updated)
-        except (ValidationError, ImmutableFieldError) as exc:
-            return CatalogResult(CatalogResultStatus.ERROR, errors=(str(exc),))
-        except RepositoryConflictError as exc:
-            return CatalogResult(CatalogResultStatus.CONFLICT, errors=(str(exc),))
-        except Exception as exc:
-            return CatalogResult(CatalogResultStatus.ERROR, errors=(str(exc),))
-        return CatalogResult(
-            CatalogResultStatus.WARNING if duplicates else CatalogResultStatus.SUCCESS,
-            value=result,
-            duplicates=tuple(duplicates),
-            warnings=_warning_text(duplicates),
-            persisted=True,
+        return self.update_source(
+            source_id,
+            {"name": new_name},
+            preserve_previous_name_as_alias=keep_previous_as_alias,
+            allow_duplicate=allow_duplicate,
         )
 
     def update_source(
         self,
         source_id: str,
         changes: Mapping[str, Any],
+        *,
+        preserve_previous_name_as_alias: bool = False,
+        allow_duplicate: bool = False,
     ) -> CatalogResult[Source]:
-        """Update only approved non-identity Source fields."""
+        """Update one validated Source profile with duplicate protection."""
         unexpected = set(changes) - self._SOURCE_UPDATE_FIELDS
         if unexpected:
             return CatalogResult(
@@ -353,19 +349,52 @@ class SourceCatalogService:
             current = _source_from_repository(current_value)
             data = current.model_dump(mode="python")
             data.update(dict(changes))
+            changed_fields = set(changes)
+            if preserve_previous_name_as_alias and "name" in changes:
+                aliases_value = data.get("aliases")
+                if aliases_value is None:
+                    aliases: list[Any] = []
+                elif isinstance(aliases_value, (str, Mapping)) or hasattr(
+                    aliases_value,
+                    "model_dump",
+                ):
+                    aliases = [aliases_value]
+                else:
+                    aliases = list(aliases_value)
+                aliases.append({"value": current.name})
+                data["aliases"] = aliases
+                changed_fields.add("aliases")
             data["updated_at"] = utc_now()
             candidate = Source.model_validate(data)
+            duplicates = (
+                self.detect_source_duplicates(
+                    candidate,
+                    exclude_source_id=source_id,
+                )
+                if changed_fields & {"name", "aliases"}
+                else []
+            )
+            gated = self._duplicate_gate(
+                candidate,
+                duplicates,
+                allow_duplicate=allow_duplicate,
+            )
+            if gated is not None:
+                return gated
+            candidate_dump = candidate.model_dump(mode="python")
             controlled = {
-                key: candidate.model_dump(mode="python")[key]
+                key: candidate_dump[key]
                 for key in (*self._SOURCE_UPDATE_FIELDS, "updated_at")
-                if key in changes or key == "updated_at"
+                if key in changed_fields or key == "updated_at"
             }
             updated = self.sources.update(source_id, controlled)
             if updated is None:
                 return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Source not found.")
             return CatalogResult(
-                CatalogResultStatus.SUCCESS,
+                CatalogResultStatus.WARNING if duplicates else CatalogResultStatus.SUCCESS,
                 value=_source_from_repository(updated),
+                duplicates=tuple(duplicates),
+                warnings=_warning_text(duplicates),
                 persisted=True,
             )
         except (ValidationError, ImmutableFieldError) as exc:
@@ -450,6 +479,8 @@ class SourceCatalogService:
         self,
         reference_id: str,
         changes: Mapping[str, Any],
+        *,
+        allow_duplicate: bool = False,
     ) -> CatalogResult[Reference]:
         """Update approved bibliographic fields and derived fingerprints."""
         unexpected = set(changes) - self._REFERENCE_UPDATE_FIELDS
@@ -470,6 +501,21 @@ class SourceCatalogService:
             data.update(dict(changes))
             data["updated_at"] = utc_now()
             candidate = Reference.model_validate(data)
+            duplicates = (
+                self.detect_reference_duplicates(
+                    candidate,
+                    exclude_reference_id=reference_id,
+                )
+                if set(changes) & self._REFERENCE_DUPLICATE_FIELDS
+                else []
+            )
+            gated = self._duplicate_gate(
+                candidate,
+                duplicates,
+                allow_duplicate=allow_duplicate,
+            )
+            if gated is not None:
+                return gated
             controlled_dump = candidate.model_dump(mode="python")
             controlled = {
                 key: controlled_dump[key]
@@ -487,8 +533,10 @@ class SourceCatalogService:
             if updated is None:
                 return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Reference not found.")
             return CatalogResult(
-                CatalogResultStatus.SUCCESS,
+                CatalogResultStatus.WARNING if duplicates else CatalogResultStatus.SUCCESS,
                 value=_reference_from_repository(updated),
+                duplicates=tuple(duplicates),
+                warnings=_warning_text(duplicates),
                 persisted=True,
             )
         except (ValidationError, ImmutableFieldError) as exc:

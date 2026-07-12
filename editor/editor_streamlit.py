@@ -32,6 +32,18 @@ from editor.helpers.tipo_referencia import TipoReferencia
 from editor.helpers.tipo_relacion import TipoRelacion
 from editor.helpers.tipo_simbolico import NivelSimbolico
 from editor.helpers.tipo_titulo import TipoTitulo
+from editor.source_catalog.add_source_page import render_add_source_page
+from editor.source_catalog.edit_source_page import render_edit_source_page
+from editor.source_catalog.shared import build_catalog_context
+from editor.source_catalog.shared import safe_error_message as safe_catalog_error
+from editor.source_catalog.state import ADD_SOURCE_NAV_LABEL
+from editor.source_catalog.state import EDIT_SOURCE_NAV_LABEL
+from editor.source_catalog.state import NAVIGATION_WIDGET
+from editor.source_catalog.state import add_source_catalog_navigation
+from editor.source_catalog.state import apply_pending_navigation
+from editor.source_catalog.state import consume_legacy_concept_open
+from editor.source_catalog.state import state_key as source_catalog_state_key
+from editor.source_catalog.state import sync_database_state
 from editor.utils.cleanup_exports import cleanup_old_graph_runtime_files
 from editor.utils.cleanup_exports import delete_files_safely
 from editor.utils.cleanup_exports import empty_directory_contents_safely
@@ -1160,6 +1172,21 @@ st.sidebar.markdown("---")
 
 # Get current database connection
 db = st.session_state.db_manager.get_current_connection()
+catalog_context = None
+catalog_context_error = None
+if db is not None:
+    try:
+        catalog_context = build_catalog_context(current_db or "<unlabeled connection>", db)
+        sync_database_state(
+            st.session_state,
+            connection_label=catalog_context.connection_label,
+            database_name=catalog_context.database_name,
+            database=catalog_context.database,
+        )
+    except Exception as exc:
+        catalog_context_error = safe_catalog_error(exc)
+
+
 def _cuaderno_is_installed(conn) -> bool:
     """Detecta si el modo cuaderno está instalado en la DB actual.
 
@@ -1202,17 +1229,44 @@ nav_options = [
     "🧹 Maintenance",
     "⚙️ Settings",
 ]
+nav_options = add_source_catalog_navigation(nav_options)
 if _cuaderno_is_installed(db):
     nav_options.append("🧪 Cuaderno")
     nav_options.append("🧾 Cornell")
     nav_options.append(CPI_NAV_LABEL)
 
-selected_page = st.sidebar.selectbox("Navigation", nav_options)
+apply_pending_navigation(st.session_state, nav_options)
+if st.session_state.get(NAVIGATION_WIDGET) not in nav_options:
+    st.session_state.pop(NAVIGATION_WIDGET, None)
+selected_page = st.sidebar.selectbox(
+    "Navigation",
+    nav_options,
+    key=NAVIGATION_WIDGET,
+)
 page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page
 
 
+# Source Catalog pages
+if page == ADD_SOURCE_NAV_LABEL:
+    if catalog_context is None:
+        st.error(
+            "Source Catalog is unavailable for the selected connection: "
+            f"{catalog_context_error or 'no active MongoDB database.'}"
+        )
+    else:
+        render_add_source_page(catalog_context)
+
+elif page == EDIT_SOURCE_NAV_LABEL:
+    if catalog_context is None:
+        st.error(
+            "Source Catalog is unavailable for the selected connection: "
+            f"{catalog_context_error or 'no active MongoDB database.'}"
+        )
+    else:
+        render_edit_source_page(catalog_context)
+
 # Dashboard page
-if page == "🏠 Dashboard":
+elif page == "🏠 Dashboard":
     st.markdown('<h1 class="main-header">Math Knowledge Base</h1>', unsafe_allow_html=True)
 
     if db is None:
@@ -2410,15 +2464,57 @@ elif page == "✏️ Edit Concept":
     # Concept selection
     st.subheader("🔍 Select Concept to Edit")
 
+    legacy_target = consume_legacy_concept_open(st.session_state)
+    legacy_source_key = source_catalog_state_key("legacy_edit_filter_source")
+    legacy_type_key = source_catalog_state_key("legacy_edit_filter_type")
+    legacy_concept_key = source_catalog_state_key("legacy_edit_concept")
+    legacy_last_selected_key = source_catalog_state_key("legacy_last_selected_concept")
+    available_legacy_sources = [
+        value
+        for value in db.concepts.distinct("source")
+        if isinstance(value, str) and value
+    ]
+    source_options = ["All", *available_legacy_sources]
+    type_options = [
+        "All",
+        *[
+            value
+            for value in db.concepts.distinct("tipo")
+            if isinstance(value, str) and value
+        ],
+    ]
+    if legacy_target is not None:
+        if legacy_target["source"] in available_legacy_sources:
+            st.session_state[legacy_source_key] = legacy_target["source"]
+            st.session_state[legacy_type_key] = "All"
+            st.info(
+                "Opened from Source Catalog using the exact legacy identity "
+                f"`{legacy_target['id']}@{legacy_target['source']}`."
+            )
+        else:
+            st.warning("The exact legacy Source is not available in the active database.")
+    if st.session_state.get(legacy_source_key) not in source_options:
+        st.session_state.pop(legacy_source_key, None)
+    if st.session_state.get(legacy_type_key) not in type_options:
+        st.session_state.pop(legacy_type_key, None)
+
     col1, col2 = st.columns(2)
 
     with col1:
         # Filter by source
-        filter_source = st.selectbox("Filter by Source", ["All"] + list(db.concepts.distinct("source")))
+        filter_source = st.selectbox(
+            "Filter by Source",
+            source_options,
+            key=legacy_source_key,
+        )
 
     with col2:
         # Filter by type
-        filter_type = st.selectbox("Filter by Type", ["All"] + list(db.concepts.distinct("tipo")))
+        filter_type = st.selectbox(
+            "Filter by Type",
+            type_options,
+            key=legacy_type_key,
+        )
 
     # Build query for concept selection
     query = {}
@@ -2439,26 +2535,52 @@ elif page == "✏️ Edit Concept":
     concept_map = {}
 
     for concept in concepts:
-        display_name = f"{concept.get('titulo', concept['id'])} ({concept['tipo']} - {concept['source']})"
+        display_name = (
+            f"{concept.get('titulo', concept['id'])} "
+            f"({concept['tipo']} - {concept['source']}) · {concept['id']}"
+        )
         concept_options.append(display_name)
         concept_map[display_name] = concept
+
+    if legacy_target is not None:
+        target_display = next(
+            (
+                display
+                for display, concept in concept_map.items()
+                if str(concept.get("id")) == legacy_target["id"]
+                and concept.get("source") == legacy_target["source"]
+            ),
+            None,
+        )
+        if target_display is not None:
+            st.session_state[legacy_concept_key] = target_display
+        else:
+            st.warning("The exact legacy concept was not found with the active filters.")
+    if st.session_state.get(legacy_concept_key) not in concept_options:
+        st.session_state.pop(legacy_concept_key, None)
 
     # Concept selector
     selected_concept_display = st.selectbox(
         "Choose Concept to Edit",
         concept_options,
-        help="Select the concept you want to edit"
+        help="Select the concept you want to edit",
+        key=legacy_concept_key,
     )
     # Handle concept selection and data loading
     if selected_concept_display:
         selected_concept = concept_map[selected_concept_display]
 
         # Check if concept has changed and update session state
-        if ("last_selected_id" not in st.session_state or
-            st.session_state.last_selected_id != selected_concept["id"]):
+        selected_concept_key = (
+            str(selected_concept["id"]),
+            str(selected_concept["source"]),
+        )
+        if (
+            st.session_state.get(legacy_last_selected_key) != selected_concept_key
+        ):
 
-            # Update last selected ID
-            st.session_state.last_selected_id = selected_concept["id"]
+            # IDs are only unique together with their exact legacy Source.
+            st.session_state[legacy_last_selected_key] = selected_concept_key
 
             # Get LaTeX content from database
             latex_doc = db.latex_documents.find_one({
