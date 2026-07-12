@@ -13,6 +13,7 @@ from mathkb_config import EXPORT_TIMEOUT_SECONDS
 from mathkb_config import LEGACY_PROJECT_ROOT
 from mathkb_config import LOCAL_MEDIA_ROOT
 from mathkb_config import MEDIA_ROOT
+from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
@@ -94,8 +95,12 @@ def export_database_to_zip(mongo, out_dir: Path) -> Path:
     }
 
     try:
-        # Export existing collections plus expected empty collections.
-        collection_names = sorted(set(db.list_collection_names()) | set(EXPORT_COLLECTIONS))
+        # Historical collections keep their existing backup behavior. Source
+        # Catalog collections are optional and are exported only after they
+        # have actually been created in the selected database.
+        existing_collection_names = set(db.list_collection_names())
+        always_exported = set(EXPORT_COLLECTIONS) - set(SOURCE_CATALOG_COLLECTIONS)
+        collection_names = sorted(existing_collection_names | always_exported)
         logger.info("Collections scheduled for export: %s", ", ".join(collection_names))
         for collection_name in collection_names:
             _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, f"reading {collection_name}")
