@@ -69,7 +69,7 @@ def _values(value: Any) -> tuple[str, ...]:
     return tuple(dict.fromkeys(text for item in values if (text := _text(item))))
 
 
-def _identity_text(value: Any) -> str | None:
+def legacy_identity_text(value: Any) -> str | None:
     """Preserve an exact legacy string while rejecting unusable identities."""
     if value is None:
         return None
@@ -82,8 +82,8 @@ def _identity_text(value: Any) -> str | None:
 
 
 def _choice(document: Mapping[str, Any]) -> LegacyConceptChoice | None:
-    concept_id = _identity_text(document.get("id"))
-    source = _identity_text(document.get("source"))
+    concept_id = legacy_identity_text(document.get("id"))
+    source = legacy_identity_text(document.get("source"))
     if concept_id is None or source is None:
         return None
     return LegacyConceptChoice(
@@ -260,5 +260,6 @@ __all__ = [
     "MAX_CONCEPT_QUERY_LENGTH",
     "find_legacy_concepts",
     "get_legacy_concept_choice",
+    "legacy_identity_text",
     "render_concept_picker",
 ]

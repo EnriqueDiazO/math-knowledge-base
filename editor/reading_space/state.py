@@ -31,7 +31,7 @@ WORKSPACE_TABS = (
     "Documents",
     "Recent",
     "Notes",
-    "Evidence",
+    "Concepts",
     "Page Map",
     "Maintenance",
 )
@@ -178,6 +178,18 @@ def apply_pending_workspace_tab(state: MutableMapping[str, Any]) -> str | None:
         return None
     state[WORKSPACE_TAB] = pending
     return str(pending)
+
+
+def migrate_legacy_workspace_tab(state: MutableMapping[str, Any]) -> bool:
+    """Map the former Evidence label before Streamlit instantiates the tabs widget."""
+    changed = False
+    if state.get(WORKSPACE_TAB) == "Evidence":
+        state[WORKSPACE_TAB] = "Concepts"
+        changed = True
+    if state.get(PENDING_WORKSPACE_TAB) == "Evidence":
+        state[PENDING_WORKSPACE_TAB] = "Concepts"
+        changed = True
+    return changed
 
 
 def apply_pending_document_widget_clears(state: MutableMapping[str, Any]) -> tuple[str, ...]:
@@ -395,6 +407,7 @@ __all__ = [
     "clear_reading_space_state",
     "consume_pending_target",
     "database_identity",
+    "migrate_legacy_workspace_tab",
     "request_reading_space_navigation",
     "queue_document_widget_clear",
     "queue_document_widget_clear_for_selected",

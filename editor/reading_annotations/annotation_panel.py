@@ -475,6 +475,7 @@ def render_workspace_notes_panel(
         is_pdf=is_pdf,
         actions_enabled=writable,
         archive_enabled=initialized,
+        show_list=False,
         quick_expanded=focus == "annotation",
         page_labeler=page_labeler,
     )
@@ -492,6 +493,33 @@ def render_workspace_notes_panel(
         quick_expanded=focus == "note",
         page_labeler=page_labeler,
     )
+    with ui.expander("Todas las anotaciones", expanded=False):
+        _render_annotations(
+            ui,
+            context.database,
+            service,
+            document=document,
+            suggested_page=suggested_page,
+            is_pdf=is_pdf,
+            actions_enabled=writable,
+            archive_enabled=initialized,
+            show_quick=False,
+            page_labeler=page_labeler,
+        )
+    with ui.expander("Todas las notas de lectura", expanded=False):
+        render_note_panel(
+            ui,
+            context.database,
+            service,
+            document=document,
+            references=_references(context, document.source_id),
+            suggested_page=suggested_page,
+            is_pdf=is_pdf,
+            actions_enabled=initialized,
+            document_active=document_active,
+            show_quick=False,
+            page_labeler=page_labeler,
+        )
 
 
 def render_notes_tab(

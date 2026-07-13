@@ -93,3 +93,6 @@ embeddings, scraping ni overlay visual. No cambia Concepts legacy,
 `source_documents`, `document_reading_state`, annotations, notes, evidence o
 blobs existentes. El scroll y zoom del documento continúan siendo capacidades
 nativas del visor de Streamlit.
+
+La experiencia guiada posterior para asociar conceptos con estas evidencias se
+documenta en [Asociación guiada de conceptos — S4.3](CONCEPT_LINKING_UX_S4_3.md).

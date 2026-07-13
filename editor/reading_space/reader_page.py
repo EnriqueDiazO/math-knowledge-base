@@ -6,12 +6,15 @@ import hashlib
 from types import SimpleNamespace
 from typing import Any
 
+from editor.concept_linking import render_concepts_tab
+from editor.concept_linking import render_workspace_concept_panel
+from editor.concept_linking.state import sync_context as sync_concept_linking_context
 from editor.pdf_preview import PdfPreviewPayload
 from editor.pdf_preview import get_pdf_preview
 from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import render_pdf_preview
 from editor.pdf_preview import store_pdf_preview
-from editor.reading_annotations import render_evidence_tab
+from editor.reading_annotations import render_evidence_tab  # noqa: F401  # Test seam.
 from editor.reading_annotations import render_notes_and_evidence_panel as _render_s4_panel
 from editor.reading_annotations import render_notes_evidence_maintenance
 from editor.reading_annotations import render_notes_tab
@@ -41,6 +44,7 @@ from editor.reading_space.state import apply_pending_document_widget_clears
 from editor.reading_space.state import apply_pending_workspace_tab
 from editor.reading_space.state import clear_reader_preview
 from editor.reading_space.state import consume_pending_target
+from editor.reading_space.state import migrate_legacy_workspace_tab
 from editor.reading_space.state import queue_current_page_value
 from editor.reading_space.state import queue_current_page_widget_clear
 from editor.reading_space.state import queue_workspace_tab
@@ -662,6 +666,7 @@ def _render_reading_workspace(
     *,
     actions_enabled: bool,
     reader: ReaderContext | None = None,
+    annotation_service: ReadingAnnotationService | None = None,
     page_map_service: DocumentPageMapService | None = None,
     page_map_actions_enabled: bool = False,
 ) -> None:
@@ -727,15 +732,25 @@ def _render_reading_workspace(
             page_map_actions_enabled=page_map_actions_enabled,
         )
         if stacked_reader is not None and hasattr(context.database, "__getitem__"):
-            render_workspace_notes_panel(
+            linking_service = annotation_service or ReadingAnnotationService(context.database)
+            labeler = (
+                page_labeler(page_map_service, stacked_reader.document.document_id)
+                if page_map_service is not None
+                else None
+            )
+            render_workspace_concept_panel(
                 context,
                 stacked_reader,
                 ui=ui,
-                page_labeler=(
-                    page_labeler(page_map_service, stacked_reader.document.document_id)
-                    if page_map_service is not None
-                    else None
+                service=linking_service,
+                page_map_service=page_map_service,
+                page_labeler=labeler,
+                actions_enabled=(
+                    _manager_ready(linking_service.index_manager)
+                    and stacked_reader.document.status == DocumentStatus.ACTIVE
                 ),
+                lifecycle_enabled=_manager_ready(linking_service.index_manager),
+                legacy_panel=render_workspace_notes_panel,
                 focus=ui.session_state.get(WORKSPACE_FOCUS),
             )
         return
@@ -758,15 +773,25 @@ def _render_reading_workspace(
             ui.subheader("Notes & Evidence")
             ui.info("Select a Document to open its notes and concept evidence.")
         elif hasattr(context.database, "__getitem__"):
-            render_workspace_notes_panel(
+            linking_service = annotation_service or ReadingAnnotationService(context.database)
+            labeler = (
+                page_labeler(page_map_service, reader.document.document_id)
+                if page_map_service is not None
+                else None
+            )
+            render_workspace_concept_panel(
                 context,
                 reader,
                 ui=ui,
-                page_labeler=(
-                    page_labeler(page_map_service, reader.document.document_id)
-                    if page_map_service is not None
-                    else None
+                service=linking_service,
+                page_map_service=page_map_service,
+                page_labeler=labeler,
+                actions_enabled=(
+                    _manager_ready(linking_service.index_manager)
+                    and reader.document.status == DocumentStatus.ACTIVE
                 ),
+                lifecycle_enabled=_manager_ready(linking_service.index_manager),
+                legacy_panel=render_workspace_notes_panel,
                 focus=ui.session_state.get(WORKSPACE_FOCUS),
             )
         else:
@@ -1021,6 +1046,15 @@ def render_reading_space_page(
         database_name=context.database_name,
         database=context.database,
     )
+    sync_concept_linking_context(
+        ui.session_state,
+        connection_label=context.connection_label,
+        database_name=context.database_name,
+        database=context.database,
+        user_scope=USER_SCOPE,
+        source_id=ui.session_state.get(SELECTED_SOURCE_ID),
+        document_id=ui.session_state.get(SELECTED_DOCUMENT_ID),
+    )
     target = consume_pending_target(ui.session_state)
     if target is not None:
         select_source(ui.session_state, target["source_id"])
@@ -1029,6 +1063,7 @@ def render_reading_space_page(
     apply_pending_document_widget_clears(ui.session_state)
     apply_pending_current_page_widget_clears(ui.session_state)
     apply_pending_current_page_value(ui.session_state)
+    migrate_legacy_workspace_tab(ui.session_state)
     apply_pending_workspace_tab(ui.session_state)
     actions_enabled = _manager_ready(reading_service.index_manager)
     annotation_actions_enabled = bool(
@@ -1069,7 +1104,7 @@ def render_reading_space_page(
         documents_tab,
         recent_tab,
         notes_tab,
-        evidence_tab,
+        concepts_tab,
         page_map_tab,
         maintenance_tab,
     ) = tabs
@@ -1081,6 +1116,7 @@ def render_reading_space_page(
                 reading_service,
                 actions_enabled=actions_enabled,
                 reader=reader,
+                annotation_service=annotation_service,
                 page_map_service=page_map_service,
                 page_map_actions_enabled=(
                     page_map_actions_enabled
@@ -1125,21 +1161,27 @@ def render_reading_space_page(
                         else None
                     ),
                 )
-    if getattr(evidence_tab, "open", True):
-        with evidence_tab:
+    if getattr(concepts_tab, "open", True):
+        with concepts_tab:
             if reader is None or annotation_service is None:
-                _render_missing_reader(ui, "Select a Document to browse Concept Evidence.")
+                _render_missing_reader(ui, "Select a Document to browse Concepts & Evidence.")
             else:
-                render_evidence_tab(
+                render_concepts_tab(
                     context,
                     reader,
                     ui=ui,
                     service=annotation_service,
+                    page_map_service=page_map_service,
                     page_labeler=(
                         page_labeler(page_map_service, reader.document.document_id)
                         if page_map_service is not None
                         else None
                     ),
+                    actions_enabled=(
+                        annotation_actions_enabled
+                        and reader.document.status == DocumentStatus.ACTIVE
+                    ),
+                    lifecycle_enabled=annotation_actions_enabled,
                 )
     if getattr(page_map_tab, "open", True):
         with page_map_tab:
