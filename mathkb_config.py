@@ -94,10 +94,20 @@ SOURCE_DOCUMENT_COLLECTIONS = ("source_documents",)
 # independent from both the guarded Source Catalog migration set and the S2
 # document/blob collection set.
 READING_SPACE_COLLECTIONS = ("document_reading_state",)
+
+# Reading annotations are optional portable intellectual-work records.  They
+# remain separate from Sources/Documents, reading progress, and legacy
+# concepts, and their indexes are initialized only through the explicit S4 UI.
+READING_ANNOTATION_COLLECTIONS = (
+    "document_annotations",
+    "reading_notes",
+    "concept_evidence_links",
+)
 PORTABLE_EXTENDED_JSON_COLLECTIONS = (
     *SOURCE_CATALOG_COLLECTIONS,
     *SOURCE_DOCUMENT_COLLECTIONS,
     *READING_SPACE_COLLECTIONS,
+    *READING_ANNOTATION_COLLECTIONS,
 )
 
 EXPORT_COLLECTIONS = CORE_COLLECTIONS + GRAPH_COLLECTIONS + MEDIA_COLLECTIONS + CUADERNO_COLLECTIONS

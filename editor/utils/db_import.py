@@ -33,8 +33,12 @@ from mathkb_config import IMPORT_TIMEOUT_SECONDS
 from mathkb_config import MEDIA_ASSETS_COLLECTION
 from mathkb_config import MEDIA_ROOT
 from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
+from mathkb_config import READING_ANNOTATION_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.paths import validate_mutable_path
+from mathmongo.reading_annotations.models import ConceptEvidenceLink
+from mathmongo.reading_annotations.models import DocumentAnnotation
+from mathmongo.reading_annotations.models import ReadingNote
 from mathmongo.reading_space.models import DocumentReadingState
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
@@ -66,12 +70,18 @@ _PORTABLE_ID_FIELDS = {
     **_CATALOG_ID_FIELDS,
     "source_documents": "document_id",
     "document_reading_state": "reading_state_id",
+    "document_annotations": "annotation_id",
+    "reading_notes": "note_id",
+    "concept_evidence_links": "evidence_link_id",
 }
 _PORTABLE_IMPORT_ORDER = (
     "sources",
     "references",
     "source_documents",
     "document_reading_state",
+    "document_annotations",
+    "reading_notes",
+    "concept_evidence_links",
     MANIFEST_COLLECTION,
 )
 CATALOG_EXTENDED_JSON_ENCODING = "mongodb_extended_json_v2_canonical"
@@ -206,6 +216,21 @@ _DATETIME_FIELDS_BY_COLLECTION = {
         "completed_at",
         "created_at",
         "updated_at",
+    ),
+    "document_annotations": (
+        "created_at",
+        "updated_at",
+        "archived_at",
+    ),
+    "reading_notes": (
+        "created_at",
+        "updated_at",
+        "archived_at",
+    ),
+    "concept_evidence_links": (
+        "created_at",
+        "updated_at",
+        "archived_at",
     ),
     MANIFEST_COLLECTION: (
         "created_at",
@@ -389,6 +414,7 @@ def _is_portable_extension_zip_member(base_dir: str, member_name: str) -> bool:
     return member_name in {
         f"{base_dir}/collections/source_documents.json",
         f"{base_dir}/collections/document_reading_state.json",
+        *(f"{base_dir}/collections/{name}.json" for name in READING_ANNOTATION_COLLECTIONS),
     } or member_name.startswith(f"{base_dir}/source_documents/")
 
 
@@ -411,7 +437,7 @@ def _validate_portable_extension_zip_members(
     base_dir: str,
     limits: ZipSafetyLimits,
 ) -> tuple[zipfile.ZipInfo, ...]:
-    """Validate S2/S3 members before excluding them from the legacy validator."""
+    """Validate S2-S4 members before excluding them from the legacy validator."""
     if len(infos) > limits.max_members:
         raise ZipValidationError("member_limit", "ZIP archive exceeds its member limit")
     if sum(info.file_size for info in infos) > limits.max_total_bytes:
@@ -425,6 +451,7 @@ def _validate_portable_extension_zip_members(
         is_collection = info.filename in {
             f"{base_dir}/collections/source_documents.json",
             f"{base_dir}/collections/document_reading_state.json",
+            *(f"{base_dir}/collections/{name}.json" for name in READING_ANNOTATION_COLLECTIONS),
         }
         logical_path = _source_document_blob_logical_path(base_dir, info.filename)
         if not is_collection and logical_path is None:
@@ -461,7 +488,7 @@ def _validate_portable_extension_zip_members(
         if info.file_size <= 0:
             raise ZipValidationError(
                 "empty_regular_member",
-                "ZIP archive contains an empty Source Document member",
+                "ZIP archive contains an empty portable extension member",
                 member=info.filename,
             )
         if info.file_size > limits.max_member_bytes:
@@ -944,7 +971,7 @@ def _collection_encodings(metadata: Any) -> dict[str, str]:
 
 
 def _validate_zip_safety(zf: zipfile.ZipFile, *, expected_base: str) -> None:
-    """Apply S1C1 checks plus a separately bounded S2 member namespace."""
+    """Apply S1C1 checks plus the separately bounded S2-S4 member namespace."""
     infos = zf.infolist()
     raw_names: set[str] = set()
     normalized_names: set[str] = set()
@@ -1344,6 +1371,7 @@ def _prepare_catalog_import(
     report: DatabaseImportReport,
     started_at: float,
     encodings: dict[str, str],
+    legacy_concepts: list[dict],
 ) -> dict[str, list[dict]]:
     """Preflight catalog documents without modifying the destination database."""
     pending: dict[str, list[dict]] = {}
@@ -1426,12 +1454,18 @@ def _prepare_catalog_import(
                 "references",
                 "source_documents",
                 "document_reading_state",
+                "document_annotations",
+                "reading_notes",
+                "concept_evidence_links",
             }:
                 model = {
                     "sources": Source,
                     "references": Reference,
                     "source_documents": SourceDocument,
                     "document_reading_state": DocumentReadingState,
+                    "document_annotations": DocumentAnnotation,
+                    "reading_notes": ReadingNote,
+                    "concept_evidence_links": ConceptEvidenceLink,
                 }[collection_name]
                 portable_payload = {key: value for key, value in document.items() if key != "_id"}
                 try:
@@ -1625,6 +1659,17 @@ def _prepare_catalog_import(
         db=db,
         report=report,
     )
+    _preflight_reading_annotation_relationships(
+        raw_annotations=pending.get("document_annotations", []),
+        raw_notes=pending.get("reading_notes", []),
+        raw_evidence_links=pending.get("concept_evidence_links", []),
+        sources=pending.get("sources", []),
+        references=pending.get("references", []),
+        source_documents=pending.get("source_documents", []),
+        legacy_concepts=legacy_concepts,
+        db=db,
+        report=report,
+    )
     return pending
 
 
@@ -1718,6 +1763,322 @@ def _preflight_reading_state_relationships(
                     state.reading_state_id,
                     "destination contains a different reading-state ID for the same identity",
                 )
+            )
+
+
+def _evidence_identity_query(document: dict) -> dict[str, object]:
+    """Return the exact S4 evidence identity used for conflict detection."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    link = ConceptEvidenceLink.model_validate(payload)
+    return {
+        "concept_legacy_source": link.concept_legacy_source,
+        "concept_legacy_id": link.concept_legacy_id,
+        "source_id": link.source_id,
+        "reference_id": link.reference_id,
+        "document_id": link.document_id,
+        "annotation_id": link.annotation_id,
+        "note_id": link.note_id,
+        "page_number": link.page_number,
+        "link_type": link.link_type.value,
+    }
+
+
+def _preflight_reading_annotation_relationships(
+    *,
+    raw_annotations: list[dict],
+    raw_notes: list[dict],
+    raw_evidence_links: list[dict],
+    sources: list[dict],
+    references: list[dict],
+    source_documents: list[dict],
+    legacy_concepts: list[dict],
+    db,
+    report: DatabaseImportReport,
+) -> None:
+    """Validate every S4 foreign key and exact evidence identity before writes."""
+    incoming_sources = {
+        str(document["source_id"]): document
+        for document in sources
+        if isinstance(document.get("source_id"), str)
+    }
+    incoming_references = {
+        str(document["reference_id"]): document
+        for document in references
+        if isinstance(document.get("reference_id"), str)
+    }
+    incoming_documents = {
+        str(document["document_id"]): document
+        for document in source_documents
+        if isinstance(document.get("document_id"), str)
+    }
+    incoming_annotations = {
+        str(document["annotation_id"]): document
+        for document in raw_annotations
+        if isinstance(document.get("annotation_id"), str)
+    }
+    incoming_notes = {
+        str(document["note_id"]): document
+        for document in raw_notes
+        if isinstance(document.get("note_id"), str)
+    }
+
+    def resolve(
+        collection_name: str,
+        id_field: str,
+        domain_id: str,
+        incoming: dict[str, dict],
+    ) -> dict | None:
+        document = incoming.get(domain_id)
+        if document is not None:
+            return document
+        matches = _find_at_most_two(db[collection_name], {id_field: domain_id})
+        return matches[0] if len(matches) == 1 else None
+
+    def add_conflict(collection: str, domain_id: str, reason: str) -> None:
+        report.catalog_conflicts.append(CatalogImportConflict(collection, domain_id, reason))
+
+    def source_exists(collection: str, domain_id: str, source_id: str) -> bool:
+        if resolve("sources", "source_id", source_id, incoming_sources) is not None:
+            return True
+        add_conflict(collection, domain_id, "Source is absent from archive and destination")
+        return False
+
+    def reference_matches_source(
+        collection: str,
+        domain_id: str,
+        source_id: str,
+        reference_id: str | None,
+    ) -> bool:
+        if reference_id is None:
+            return True
+        reference = resolve(
+            "references",
+            "reference_id",
+            reference_id,
+            incoming_references,
+        )
+        if reference is not None and source_id in reference.get("source_ids", []):
+            return True
+        add_conflict(
+            collection,
+            domain_id,
+            "Reference is absent or does not belong to the S4 record's Source",
+        )
+        return False
+
+    for raw_annotation in raw_annotations:
+        payload = {key: value for key, value in raw_annotation.items() if key != "_id"}
+        annotation = DocumentAnnotation.model_validate(payload)
+        source_exists(
+            "document_annotations",
+            annotation.annotation_id,
+            annotation.source_id,
+        )
+        source_document = resolve(
+            "source_documents",
+            "document_id",
+            annotation.document_id,
+            incoming_documents,
+        )
+        if source_document is None:
+            add_conflict(
+                "document_annotations",
+                annotation.annotation_id,
+                "Annotation points to a Source Document absent from archive and destination",
+            )
+            continue
+        if source_document.get("source_id") != annotation.source_id:
+            add_conflict(
+                "document_annotations",
+                annotation.annotation_id,
+                "Annotation Source does not match its Source Document",
+            )
+        if (
+            annotation.reference_id is not None
+            and source_document.get("reference_id") != annotation.reference_id
+        ):
+            add_conflict(
+                "document_annotations",
+                annotation.annotation_id,
+                "Annotation Reference does not match its Source Document",
+            )
+        reference_matches_source(
+            "document_annotations",
+            annotation.annotation_id,
+            annotation.source_id,
+            annotation.reference_id,
+        )
+
+    for raw_note in raw_notes:
+        payload = {key: value for key, value in raw_note.items() if key != "_id"}
+        note = ReadingNote.model_validate(payload)
+        source_exists("reading_notes", note.note_id, note.source_id)
+        if note.document_id is not None:
+            source_document = resolve(
+                "source_documents",
+                "document_id",
+                note.document_id,
+                incoming_documents,
+            )
+            if source_document is None:
+                add_conflict(
+                    "reading_notes",
+                    note.note_id,
+                    "Reading Note points to a Source Document absent from archive and destination",
+                )
+            elif source_document.get("source_id") != note.source_id:
+                add_conflict(
+                    "reading_notes",
+                    note.note_id,
+                    "Reading Note Source does not match its Source Document",
+                )
+        reference_matches_source(
+            "reading_notes",
+            note.note_id,
+            note.source_id,
+            note.reference_id,
+        )
+
+    incoming_concept_counts: dict[tuple[str, str], int] = {}
+    for concept in legacy_concepts:
+        if concept.get("id") is None or concept.get("source") is None:
+            continue
+        key = (str(concept["id"]), str(concept["source"]))
+        incoming_concept_counts[key] = incoming_concept_counts.get(key, 0) + 1
+
+    seen_evidence_identities: dict[tuple[tuple[str, object], ...], str] = {}
+    for raw_link in raw_evidence_links:
+        payload = {key: value for key, value in raw_link.items() if key != "_id"}
+        link = ConceptEvidenceLink.model_validate(payload)
+        source_exists("concept_evidence_links", link.evidence_link_id, link.source_id)
+        reference_matches_source(
+            "concept_evidence_links",
+            link.evidence_link_id,
+            link.source_id,
+            link.reference_id,
+        )
+
+        concept_key = (link.concept_legacy_id, link.concept_legacy_source)
+        incoming_count = incoming_concept_counts.get(concept_key, 0)
+        destination_concepts = _find_at_most_two(
+            db["concepts"],
+            {"id": concept_key[0], "source": concept_key[1]},
+        )
+        if incoming_count > 1 or (incoming_count == 0 and len(destination_concepts) != 1):
+            add_conflict(
+                "concept_evidence_links",
+                link.evidence_link_id,
+                "Legacy Concept is absent or ambiguous in archive and destination",
+            )
+
+        target_source_id: str | None = None
+        target_reference_id: str | None = None
+        target_document_id: str | None = None
+        if link.annotation_id is not None:
+            raw_target = resolve(
+                "document_annotations",
+                "annotation_id",
+                link.annotation_id,
+                incoming_annotations,
+            )
+            if raw_target is None:
+                add_conflict(
+                    "concept_evidence_links",
+                    link.evidence_link_id,
+                    "Evidence points to an Annotation absent from archive and destination",
+                )
+            else:
+                target_source_id = raw_target.get("source_id")
+                target_reference_id = raw_target.get("reference_id")
+                target_document_id = raw_target.get("document_id")
+        elif link.note_id is not None:
+            raw_target = resolve(
+                "reading_notes",
+                "note_id",
+                link.note_id,
+                incoming_notes,
+            )
+            if raw_target is None:
+                add_conflict(
+                    "concept_evidence_links",
+                    link.evidence_link_id,
+                    "Evidence points to a Reading Note absent from archive and destination",
+                )
+            else:
+                target_source_id = raw_target.get("source_id")
+                target_reference_id = raw_target.get("reference_id")
+                target_document_id = raw_target.get("document_id")
+        elif link.document_id is not None:
+            raw_target = resolve(
+                "source_documents",
+                "document_id",
+                link.document_id,
+                incoming_documents,
+            )
+            if raw_target is None:
+                add_conflict(
+                    "concept_evidence_links",
+                    link.evidence_link_id,
+                    "Evidence points to a Source Document absent from archive and destination",
+                )
+            else:
+                target_source_id = raw_target.get("source_id")
+                target_reference_id = raw_target.get("reference_id")
+                target_document_id = raw_target.get("document_id")
+        if target_source_id is not None and target_source_id != link.source_id:
+            add_conflict(
+                "concept_evidence_links",
+                link.evidence_link_id,
+                "Evidence Source does not match its target",
+            )
+        if link.reference_id is not None and link.reference_id != target_reference_id:
+            add_conflict(
+                "concept_evidence_links",
+                link.evidence_link_id,
+                "Evidence Reference does not match its target",
+            )
+        if target_document_id is not None:
+            target_document = resolve(
+                "source_documents",
+                "document_id",
+                target_document_id,
+                incoming_documents,
+            )
+            if target_document is None:
+                add_conflict(
+                    "concept_evidence_links",
+                    link.evidence_link_id,
+                    "Evidence target's Source Document is absent from archive and destination",
+                )
+            elif target_document.get("source_id") != link.source_id:
+                add_conflict(
+                    "concept_evidence_links",
+                    link.evidence_link_id,
+                    "Evidence target's Source Document does not belong to its Source",
+                )
+
+        identity_query = _evidence_identity_query(raw_link)
+        identity = tuple(sorted(identity_query.items()))
+        previous = seen_evidence_identities.get(identity)
+        if previous is not None and previous != link.evidence_link_id:
+            add_conflict(
+                "concept_evidence_links",
+                link.evidence_link_id,
+                "archive contains different evidence-link IDs for one exact identity",
+            )
+        seen_evidence_identities[identity] = link.evidence_link_id
+        destination_matches = _find_at_most_two(
+            db["concept_evidence_links"],
+            identity_query,
+        )
+        if len(destination_matches) > 1 or (
+            len(destination_matches) == 1
+            and destination_matches[0].get("evidence_link_id") != link.evidence_link_id
+        ):
+            add_conflict(
+                "concept_evidence_links",
+                link.evidence_link_id,
+                "destination contains a different evidence-link ID for the same exact identity",
             )
 
 
@@ -1967,6 +2328,11 @@ def import_zip_into_database(
                     "An unversioned same-name MathV0 restore requires a physically empty target"
                 )
 
+            legacy_documents = _load_legacy_documents(
+                zf,
+                collection_members,
+                encodings=encodings,
+            )
             catalog_pending = _prepare_catalog_import(
                 zf,
                 names,
@@ -1975,6 +2341,7 @@ def import_zip_into_database(
                 report=report,
                 started_at=started_at,
                 encodings=encodings,
+                legacy_concepts=legacy_documents.get("concepts", []),
             )
             if report.catalog_conflicts:
                 raise CatalogImportConflictError(report)
@@ -1987,11 +2354,6 @@ def import_zip_into_database(
                 blob_store=blob_store,
             )
 
-            legacy_documents = _load_legacy_documents(
-                zf,
-                collection_members,
-                encodings=encodings,
-            )
             media_plans, path_remap = _plan_media_restores(
                 zf,
                 names,
@@ -2082,6 +2444,23 @@ def import_zip_into_database(
                                         coll,
                                         domain_id,
                                         "destination reading-state identity changed after preflight",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
+                        elif coll == "concept_evidence_links":
+                            identity_matches = _find_at_most_two(
+                                db[coll],
+                                _evidence_identity_query(document),
+                            )
+                            if len(identity_matches) > 1 or (
+                                len(identity_matches) == 1
+                                and identity_matches[0].get(id_field) != domain_id
+                            ):
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "destination evidence identity changed after preflight",
                                     )
                                 )
                                 raise CatalogImportConflictError(report)
@@ -2180,6 +2559,23 @@ def import_zip_into_database(
                                         coll,
                                         domain_id,
                                         "concurrent insert produced duplicate reading-state identities",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
+                        elif coll == "concept_evidence_links":
+                            identity_matches = _find_at_most_two(
+                                db[coll],
+                                _evidence_identity_query(document),
+                            )
+                            if (
+                                len(identity_matches) != 1
+                                or identity_matches[0].get(id_field) != domain_id
+                            ):
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "concurrent insert produced duplicate evidence identities",
                                     )
                                 )
                                 raise CatalogImportConflictError(report)

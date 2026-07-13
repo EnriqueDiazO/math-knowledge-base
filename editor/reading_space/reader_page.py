@@ -1,4 +1,4 @@
-"""Dedicated Streamlit page for persistent, annotation-free Document reading."""
+"""Dedicated Streamlit page for persistent Document reading."""
 
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ from editor.pdf_preview import get_pdf_preview
 from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import render_pdf_preview
 from editor.pdf_preview import store_pdf_preview
+from editor.reading_annotations import render_notes_and_evidence_panel as _render_s4_panel
+from editor.reading_annotations.state import apply_pending_page_suggestion
 from editor.reading_space.document_picker import render_document_picker
 from editor.reading_space.filters import Choice
 from editor.reading_space.filters import render_filters
@@ -455,6 +457,10 @@ def _render_reader_panel(
         _render_result(ui, result, success="Reader loaded.")
         return
     reader = result.value
+    apply_pending_page_suggestion(
+        ui.session_state,
+        total_pages=getattr(reader.reading_state, "total_pages", None),
+    )
     if reader.document.kind == DocumentKind.PDF:
         _render_pdf_reader(
             ui,
@@ -469,6 +475,12 @@ def _render_reader_panel(
             service,
             reader,
             actions_enabled=actions_enabled,
+        )
+    if hasattr(context.database, "__getitem__"):
+        _render_s4_panel(
+            context,
+            reader,
+            ui=ui,
         )
 
 
@@ -523,7 +535,6 @@ def render_reading_space_page(
         ui.session_state[state_key("filter_source")] = target["source_id"]
     apply_pending_document_widget_clears(ui.session_state)
     apply_pending_current_page_widget_clears(ui.session_state)
-
     actions_enabled = _render_index_status(ui, context, reading_service)
     ui.divider()
     filters = render_filters(

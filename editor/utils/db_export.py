@@ -21,12 +21,16 @@ from mathkb_config import LEGACY_PROJECT_ROOT
 from mathkb_config import LOCAL_MEDIA_ROOT
 from mathkb_config import MEDIA_ROOT
 from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
+from mathkb_config import READING_ANNOTATION_COLLECTIONS
 from mathkb_config import READING_SPACE_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathkb_config import SOURCE_DOCUMENT_COLLECTIONS
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.reading_annotations.models import ConceptEvidenceLink
+from mathmongo.reading_annotations.models import DocumentAnnotation
+from mathmongo.reading_annotations.models import ReadingNote
 from mathmongo.reading_space.models import DocumentReadingState
 from mathmongo.source_documents.models import SourceDocument
 from mathmongo.source_documents.storage import SourceDocumentBlobStore
@@ -254,6 +258,63 @@ def _reading_state_model(document: dict) -> DocumentReadingState:
     return DocumentReadingState.model_validate(payload)
 
 
+def _reading_annotation_model(document: dict) -> DocumentAnnotation:
+    """Validate one S4 annotation while normalizing Mongo's naive UTC dates."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    for field_name in ("created_at", "updated_at", "archived_at"):
+        value = payload.get(field_name)
+        if isinstance(value, datetime) and value.tzinfo is None:
+            payload[field_name] = value.replace(tzinfo=timezone.utc)
+    return DocumentAnnotation.model_validate(payload)
+
+
+def _reading_note_model(document: dict) -> ReadingNote:
+    """Validate one S4 reading note while normalizing Mongo's naive UTC dates."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    for field_name in ("created_at", "updated_at", "archived_at"):
+        value = payload.get(field_name)
+        if isinstance(value, datetime) and value.tzinfo is None:
+            payload[field_name] = value.replace(tzinfo=timezone.utc)
+    return ReadingNote.model_validate(payload)
+
+
+def _concept_evidence_model(document: dict) -> ConceptEvidenceLink:
+    """Validate one S4 evidence link while normalizing Mongo's naive UTC dates."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    for field_name in ("created_at", "updated_at", "archived_at"):
+        value = payload.get(field_name)
+        if isinstance(value, datetime) and value.tzinfo is None:
+            payload[field_name] = value.replace(tzinfo=timezone.utc)
+    return ConceptEvidenceLink.model_validate(payload)
+
+
+def _validate_canonical_s4_documents(
+    collection_name: str,
+    raw_documents: list[dict],
+    models: list[DocumentAnnotation] | list[ReadingNote] | list[ConceptEvidenceLink],
+) -> None:
+    """Reject a backup that the strict importer would reject as non-canonical."""
+    for raw_document, model in zip(raw_documents, models, strict=True):
+        raw_payload = {key: value for key, value in raw_document.items() if key != "_id"}
+        validated_payload = model.model_dump(mode="python")
+        raw_identity = json.loads(
+            bson_json_dumps(
+                raw_payload,
+                json_options=CANONICAL_JSON_OPTIONS,
+                ensure_ascii=False,
+            )
+        )
+        validated_identity = json.loads(
+            bson_json_dumps(
+                validated_payload,
+                json_options=CANONICAL_JSON_OPTIONS,
+                ensure_ascii=False,
+            )
+        )
+        if raw_identity != validated_identity:
+            raise ValueError(f"{collection_name} contains a non-canonical portable document")
+
+
 def _source_document_identity(document: SourceDocument) -> tuple[str, str, str]:
     if document.pdf is not None:
         return (document.source_id, "pdf", document.pdf.current_version.sha256)
@@ -306,6 +367,183 @@ def _validate_reading_state_portability(
             raise ValueError("Reading state Source does not match its Source Document")
         if state.reference_id is not None and state.reference_id != document.reference_id:
             raise ValueError("Reading state Reference does not match its Source Document")
+
+
+def _evidence_identity(link: ConceptEvidenceLink) -> tuple[object, ...]:
+    """Return the immutable exact-link identity enforced by the S4 domain."""
+    return (
+        link.concept_legacy_source,
+        link.concept_legacy_id,
+        link.source_id,
+        link.reference_id,
+        link.document_id,
+        link.annotation_id,
+        link.note_id,
+        link.page_number,
+        link.link_type.value,
+    )
+
+
+def _validate_reading_annotation_portability(
+    annotations: list[DocumentAnnotation],
+    notes: list[ReadingNote],
+    evidence_links: list[ConceptEvidenceLink],
+    *,
+    source_documents: list[SourceDocument],
+    raw_sources: list[dict],
+    raw_references: list[dict],
+    raw_concepts: list[dict],
+) -> None:
+    """Reject dangling or ambiguous S4 intellectual-work records on export."""
+    if not annotations and not notes and not evidence_links:
+        return
+
+    source_ids: set[str] = set()
+    for document in raw_sources:
+        source_id = document.get("source_id") if isinstance(document, dict) else None
+        if not isinstance(source_id, str):
+            continue
+        if source_id in source_ids:
+            raise ValueError("Sources contain a duplicate source_id")
+        source_ids.add(source_id)
+
+    references_by_id: dict[str, dict] = {}
+    for document in raw_references:
+        reference_id = document.get("reference_id") if isinstance(document, dict) else None
+        if not isinstance(reference_id, str):
+            continue
+        if reference_id in references_by_id:
+            raise ValueError("References contain a duplicate reference_id")
+        references_by_id[reference_id] = document
+    documents_by_id: dict[str, SourceDocument] = {}
+    for document in source_documents:
+        if document.document_id in documents_by_id:
+            raise ValueError("Source Documents contain a duplicate document_id")
+        documents_by_id[document.document_id] = document
+    concept_counts: dict[tuple[str, str], int] = {}
+    for document in raw_concepts:
+        if (
+            not isinstance(document, dict)
+            or document.get("id") is None
+            or document.get("source") is None
+        ):
+            continue
+        key = (str(document["id"]), str(document["source"]))
+        concept_counts[key] = concept_counts.get(key, 0) + 1
+
+    def require_source(domain_name: str, domain_id: str, source_id: str) -> None:
+        if source_id not in source_ids:
+            raise ValueError(f"{domain_name} {domain_id} points to a Source absent from the export")
+
+    def require_reference(
+        domain_name: str,
+        domain_id: str,
+        source_id: str,
+        reference_id: str | None,
+    ) -> None:
+        if reference_id is None:
+            return
+        reference = references_by_id.get(reference_id)
+        if reference is None or source_id not in reference.get("source_ids", []):
+            raise ValueError(
+                f"{domain_name} {domain_id} Reference is absent or does not belong to its Source"
+            )
+
+    annotations_by_id: dict[str, DocumentAnnotation] = {}
+    for annotation in annotations:
+        if annotation.annotation_id in annotations_by_id:
+            raise ValueError("Document Annotations contain a duplicate annotation_id")
+        annotations_by_id[annotation.annotation_id] = annotation
+        require_source("Document Annotation", annotation.annotation_id, annotation.source_id)
+        document = documents_by_id.get(annotation.document_id)
+        if document is None:
+            raise ValueError("Document Annotation points to a Source Document absent from export")
+        if document.source_id != annotation.source_id:
+            raise ValueError("Document Annotation Source does not match its Source Document")
+        if annotation.reference_id is not None and annotation.reference_id != document.reference_id:
+            raise ValueError("Document Annotation Reference does not match its Source Document")
+        require_reference(
+            "Document Annotation",
+            annotation.annotation_id,
+            annotation.source_id,
+            annotation.reference_id,
+        )
+
+    notes_by_id: dict[str, ReadingNote] = {}
+    for note in notes:
+        if note.note_id in notes_by_id:
+            raise ValueError("Reading Notes contain a duplicate note_id")
+        notes_by_id[note.note_id] = note
+        require_source("Reading Note", note.note_id, note.source_id)
+        if note.document_id is not None:
+            document = documents_by_id.get(note.document_id)
+            if document is None:
+                raise ValueError("Reading Note points to a Source Document absent from export")
+            if document.source_id != note.source_id:
+                raise ValueError("Reading Note Source does not match its Source Document")
+        require_reference("Reading Note", note.note_id, note.source_id, note.reference_id)
+
+    seen_evidence_ids: set[str] = set()
+    seen_evidence_identities: dict[tuple[object, ...], str] = {}
+    for link in evidence_links:
+        if link.evidence_link_id in seen_evidence_ids:
+            raise ValueError("Concept Evidence Links contain a duplicate evidence_link_id")
+        seen_evidence_ids.add(link.evidence_link_id)
+        identity = _evidence_identity(link)
+        previous = seen_evidence_identities.get(identity)
+        if previous is not None and previous != link.evidence_link_id:
+            raise ValueError("Concept Evidence Links contain different IDs for one exact link")
+        seen_evidence_identities[identity] = link.evidence_link_id
+
+        require_source("Concept Evidence Link", link.evidence_link_id, link.source_id)
+        require_reference(
+            "Concept Evidence Link",
+            link.evidence_link_id,
+            link.source_id,
+            link.reference_id,
+        )
+        if concept_counts.get((link.concept_legacy_id, link.concept_legacy_source)) != 1:
+            raise ValueError(
+                "Concept Evidence Link points to a legacy Concept absent or ambiguous in export"
+            )
+
+        target_source_id: str
+        target_document_id: str | None
+        target_reference_id: str | None
+        if link.annotation_id is not None:
+            annotation = annotations_by_id.get(link.annotation_id)
+            if annotation is None:
+                raise ValueError("Concept Evidence Link points to an Annotation absent from export")
+            target_source_id = annotation.source_id
+            target_document_id = annotation.document_id
+            target_reference_id = annotation.reference_id
+        elif link.note_id is not None:
+            note = notes_by_id.get(link.note_id)
+            if note is None:
+                raise ValueError(
+                    "Concept Evidence Link points to a Reading Note absent from export"
+                )
+            target_source_id = note.source_id
+            target_document_id = note.document_id
+            target_reference_id = note.reference_id
+        else:
+            if link.document_id is None:
+                raise ValueError("Concept Evidence Link has no portable evidence target")
+            document = documents_by_id.get(link.document_id)
+            if document is None:
+                raise ValueError(
+                    "Concept Evidence Link points to a Source Document absent from export"
+                )
+            target_source_id = document.source_id
+            target_document_id = document.document_id
+            target_reference_id = document.reference_id
+
+        if target_source_id != link.source_id:
+            raise ValueError("Concept Evidence Link Source does not match its evidence target")
+        if link.document_id is not None and link.document_id != target_document_id:
+            raise ValueError("Concept Evidence Link Document does not match its evidence target")
+        if link.reference_id is not None and link.reference_id != target_reference_id:
+            raise ValueError("Concept Evidence Link Reference does not match its evidence target")
 
 
 def export_database_to_zip(
@@ -361,13 +599,24 @@ def export_database_to_zip(
         optional_catalog = existing_collection_names & set(SOURCE_CATALOG_COLLECTIONS)
         optional_documents = existing_collection_names & set(SOURCE_DOCUMENT_COLLECTIONS)
         optional_reading = existing_collection_names & set(READING_SPACE_COLLECTIONS)
+        optional_annotations = existing_collection_names & set(READING_ANNOTATION_COLLECTIONS)
         collection_names = sorted(
-            always_exported | optional_catalog | optional_documents | optional_reading
+            always_exported
+            | optional_catalog
+            | optional_documents
+            | optional_reading
+            | optional_annotations
         )
         logger.info("Collections scheduled for export: %s", ", ".join(collection_names))
         collection_payloads: dict[str, str] = {}
         source_documents: list[SourceDocument] = []
         reading_states: list[DocumentReadingState] = []
+        annotations: list[DocumentAnnotation] = []
+        notes: list[ReadingNote] = []
+        evidence_links: list[ConceptEvidenceLink] = []
+        raw_sources: list[dict] = []
+        raw_references: list[dict] = []
+        raw_concepts: list[dict] = []
         for collection_name in collection_names:
             _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, f"reading {collection_name}")
             collection_started_at = time.monotonic()
@@ -375,11 +624,27 @@ def export_database_to_zip(
             raw_docs = list(cursor)
             metadata["collections"][collection_name] = len(raw_docs)
 
+            if collection_name == "sources":
+                raw_sources = raw_docs
+            elif collection_name == "references":
+                raw_references = raw_docs
+            elif collection_name == "concepts":
+                raw_concepts = raw_docs
+
             if collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS:
                 if collection_name in SOURCE_DOCUMENT_COLLECTIONS:
                     source_documents = [_source_document_model(document) for document in raw_docs]
                 elif collection_name in READING_SPACE_COLLECTIONS:
                     reading_states = [_reading_state_model(document) for document in raw_docs]
+                elif collection_name == "document_annotations":
+                    annotations = [_reading_annotation_model(document) for document in raw_docs]
+                    _validate_canonical_s4_documents(collection_name, raw_docs, annotations)
+                elif collection_name == "reading_notes":
+                    notes = [_reading_note_model(document) for document in raw_docs]
+                    _validate_canonical_s4_documents(collection_name, raw_docs, notes)
+                elif collection_name == "concept_evidence_links":
+                    evidence_links = [_concept_evidence_model(document) for document in raw_docs]
+                    _validate_canonical_s4_documents(collection_name, raw_docs, evidence_links)
                 collection_payloads[collection_name] = bson_json_dumps(
                     raw_docs,
                     json_options=CANONICAL_JSON_OPTIONS,
@@ -403,6 +668,15 @@ def export_database_to_zip(
 
         _validate_source_document_identities(source_documents)
         _validate_reading_state_portability(reading_states, source_documents)
+        _validate_reading_annotation_portability(
+            annotations,
+            notes,
+            evidence_links,
+            source_documents=source_documents,
+            raw_sources=raw_sources,
+            raw_references=raw_references,
+            raw_concepts=raw_concepts,
+        )
 
         _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, "copying media files")
         media_payloads = _media_payloads()
