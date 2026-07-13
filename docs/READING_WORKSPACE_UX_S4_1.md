@@ -242,3 +242,9 @@ PDF y web, alternar ambos layouts, ejercitar Quick forms y Evidence, revisar log
 sin tracebacks ni el warning de `use_container_width`, y limpiar todos los
 recursos temporales al finalizar. Ninguna validación debe escribir en MathV0 ni
 en los blobs reales del usuario.
+
+## Continuidad
+
+S4.2 continúa este trabajo con tabs, controles de página y Page Maps manuales,
+además del pulido visual de diagnósticos y Cuaderno. La organización vigente y
+sus límites están documentados en `docs/READING_SPACE_POLISH_S4_2.md`.

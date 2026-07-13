@@ -7,6 +7,7 @@ from typing import Any
 
 from editor.reading_space.state import SELECTED_DOCUMENT_ID
 from editor.reading_space.state import SELECTED_SOURCE_ID
+from editor.reading_space.state import queue_workspace_tab
 from editor.reading_space.state import select_document
 from editor.reading_space.state import select_source
 from editor.reading_space.state import state_key as reading_space_key
@@ -251,6 +252,7 @@ def open_document_at_page(
     select_document(state, document_id)
     state[SELECTED_SOURCE_ID] = source_id
     state[SELECTED_DOCUMENT_ID] = document_id
+    queue_workspace_tab(state, "Workspace")
     if isinstance(page_number, int) and not isinstance(page_number, bool) and page_number >= 1:
         state[PENDING_PAGE_SUGGESTION] = {
             "document_id": document_id,

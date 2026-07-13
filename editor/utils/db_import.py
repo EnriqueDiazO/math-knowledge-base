@@ -28,6 +28,7 @@ from bson.json_util import loads as bson_json_loads
 from pymongo.errors import DuplicateKeyError
 
 from mathkb_config import DATA_DIR
+from mathkb_config import DOCUMENT_PAGE_MAP_COLLECTIONS
 from mathkb_config import IMPORT_COLLECTIONS
 from mathkb_config import IMPORT_TIMEOUT_SECONDS
 from mathkb_config import MEDIA_ASSETS_COLLECTION
@@ -35,6 +36,7 @@ from mathkb_config import MEDIA_ROOT
 from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
 from mathkb_config import READING_ANNOTATION_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
+from mathmongo.document_page_maps.models import DocumentPageMap
 from mathmongo.paths import validate_mutable_path
 from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
@@ -73,12 +75,14 @@ _PORTABLE_ID_FIELDS = {
     "document_annotations": "annotation_id",
     "reading_notes": "note_id",
     "concept_evidence_links": "evidence_link_id",
+    "document_page_maps": "page_map_id",
 }
 _PORTABLE_IMPORT_ORDER = (
     "sources",
     "references",
     "source_documents",
     "document_reading_state",
+    "document_page_maps",
     "document_annotations",
     "reading_notes",
     "concept_evidence_links",
@@ -228,6 +232,11 @@ _DATETIME_FIELDS_BY_COLLECTION = {
         "archived_at",
     ),
     "concept_evidence_links": (
+        "created_at",
+        "updated_at",
+        "archived_at",
+    ),
+    "document_page_maps": (
         "created_at",
         "updated_at",
         "archived_at",
@@ -414,6 +423,7 @@ def _is_portable_extension_zip_member(base_dir: str, member_name: str) -> bool:
     return member_name in {
         f"{base_dir}/collections/source_documents.json",
         f"{base_dir}/collections/document_reading_state.json",
+        *(f"{base_dir}/collections/{name}.json" for name in DOCUMENT_PAGE_MAP_COLLECTIONS),
         *(f"{base_dir}/collections/{name}.json" for name in READING_ANNOTATION_COLLECTIONS),
     } or member_name.startswith(f"{base_dir}/source_documents/")
 
@@ -451,6 +461,7 @@ def _validate_portable_extension_zip_members(
         is_collection = info.filename in {
             f"{base_dir}/collections/source_documents.json",
             f"{base_dir}/collections/document_reading_state.json",
+            *(f"{base_dir}/collections/{name}.json" for name in DOCUMENT_PAGE_MAP_COLLECTIONS),
             *(f"{base_dir}/collections/{name}.json" for name in READING_ANNOTATION_COLLECTIONS),
         }
         logical_path = _source_document_blob_logical_path(base_dir, info.filename)
@@ -1454,6 +1465,7 @@ def _prepare_catalog_import(
                 "references",
                 "source_documents",
                 "document_reading_state",
+                "document_page_maps",
                 "document_annotations",
                 "reading_notes",
                 "concept_evidence_links",
@@ -1463,6 +1475,7 @@ def _prepare_catalog_import(
                     "references": Reference,
                     "source_documents": SourceDocument,
                     "document_reading_state": DocumentReadingState,
+                    "document_page_maps": DocumentPageMap,
                     "document_annotations": DocumentAnnotation,
                     "reading_notes": ReadingNote,
                     "concept_evidence_links": ConceptEvidenceLink,
@@ -1659,6 +1672,12 @@ def _prepare_catalog_import(
         db=db,
         report=report,
     )
+    _preflight_page_map_relationships(
+        pending.get("document_page_maps", []),
+        source_documents=pending.get("source_documents", []),
+        db=db,
+        report=report,
+    )
     _preflight_reading_annotation_relationships(
         raw_annotations=pending.get("document_annotations", []),
         raw_notes=pending.get("reading_notes", []),
@@ -1762,6 +1781,102 @@ def _preflight_reading_state_relationships(
                     "document_reading_state",
                     state.reading_state_id,
                     "destination contains a different reading-state ID for the same identity",
+                )
+            )
+
+
+def _active_page_map_identity_query(document: dict) -> dict[str, str] | None:
+    """Return the unique active Page Map identity, or None when archived."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    page_map = DocumentPageMap.model_validate(payload)
+    if page_map.status.value != "active":
+        return None
+    return {
+        "user_scope": page_map.user_scope,
+        "document_id": page_map.document_id,
+        "status": "active",
+    }
+
+
+def _preflight_page_map_relationships(
+    raw_page_maps: list[dict],
+    *,
+    source_documents: list[dict],
+    db,
+    report: DatabaseImportReport,
+) -> None:
+    """Validate Page Map foreign keys and its one-active-map identity."""
+    incoming_documents = {
+        str(document["document_id"]): document
+        for document in source_documents
+        if isinstance(document.get("document_id"), str)
+    }
+    seen_active_identities: dict[tuple[str, str], str] = {}
+    for raw_page_map in raw_page_maps:
+        payload = {key: value for key, value in raw_page_map.items() if key != "_id"}
+        page_map = DocumentPageMap.model_validate(payload)
+
+        source_document = incoming_documents.get(page_map.document_id)
+        if source_document is None:
+            document_matches = _find_at_most_two(
+                db["source_documents"],
+                {"document_id": page_map.document_id},
+            )
+            source_document = document_matches[0] if len(document_matches) == 1 else None
+        if source_document is None:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_page_maps",
+                    page_map.page_map_id,
+                    "Page Map points to a Source Document absent from archive and destination",
+                )
+            )
+            continue
+        if source_document.get("kind") != DocumentKind.PDF.value:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_page_maps",
+                    page_map.page_map_id,
+                    "Page Map points to a non-PDF Source Document",
+                )
+            )
+            continue
+        if source_document.get("source_id") != page_map.source_id:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_page_maps",
+                    page_map.page_map_id,
+                    "Page Map Source does not match its Source Document",
+                )
+            )
+            continue
+
+        identity_query = _active_page_map_identity_query(raw_page_map)
+        if identity_query is None:
+            continue
+        identity = (page_map.user_scope, page_map.document_id)
+        previous = seen_active_identities.get(identity)
+        if previous is not None and previous != page_map.page_map_id:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_page_maps",
+                    page_map.page_map_id,
+                    "archive contains different active Page Map IDs for one user/document identity",
+                )
+            )
+            continue
+        seen_active_identities[identity] = page_map.page_map_id
+
+        destination_matches = _find_at_most_two(db["document_page_maps"], identity_query)
+        if len(destination_matches) > 1 or (
+            len(destination_matches) == 1
+            and destination_matches[0].get("page_map_id") != page_map.page_map_id
+        ):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_page_maps",
+                    page_map.page_map_id,
+                    "destination contains a different active Page Map ID for the same identity",
                 )
             )
 
@@ -2447,6 +2562,25 @@ def import_zip_into_database(
                                     )
                                 )
                                 raise CatalogImportConflictError(report)
+                        elif coll == "document_page_maps":
+                            identity_query = _active_page_map_identity_query(document)
+                            identity_matches = (
+                                _find_at_most_two(db[coll], identity_query)
+                                if identity_query is not None
+                                else ()
+                            )
+                            if len(identity_matches) > 1 or (
+                                len(identity_matches) == 1
+                                and identity_matches[0].get(id_field) != domain_id
+                            ):
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "destination active Page Map identity changed after preflight",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
                         elif coll == "concept_evidence_links":
                             identity_matches = _find_at_most_two(
                                 db[coll],
@@ -2559,6 +2693,25 @@ def import_zip_into_database(
                                         coll,
                                         domain_id,
                                         "concurrent insert produced duplicate reading-state identities",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
+                        elif coll == "document_page_maps":
+                            identity_query = _active_page_map_identity_query(document)
+                            identity_matches = (
+                                _find_at_most_two(db[coll], identity_query)
+                                if identity_query is not None
+                                else ()
+                            )
+                            if identity_query is not None and (
+                                len(identity_matches) != 1
+                                or identity_matches[0].get(id_field) != domain_id
+                            ):
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "concurrent insert produced duplicate active Page Map identities",
                                     )
                                 )
                                 raise CatalogImportConflictError(report)

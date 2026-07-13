@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from editor.reading_annotations.concept_picker import get_legacy_concept_choice
@@ -25,6 +26,8 @@ EVIDENCE_LINK_TYPES = (
     "question",
     "related_context",
 )
+
+PageLabeler = Callable[[int], str | None]
 
 
 def render_link_form(
@@ -86,14 +89,33 @@ def render_link_form(
         ui.rerun()
 
 
-def evidence_origin(item: Any) -> str:
+def _page_display(page_number: int, page_labeler: PageLabeler | None) -> str:
+    if page_labeler is not None:
+        book_page = page_labeler(page_number)
+        if book_page:
+            return f"Book page {book_page} · PDF page {page_number}"
+        return f"PDF page {page_number}"
+    return f"page {page_number}"
+
+
+def evidence_origin(
+    item: Any,
+    *,
+    page_labeler: PageLabeler | None = None,
+    page_number: int | None = None,
+) -> str:
     """Return the explicit logical origin of one evidence link."""
-    if item.annotation_id:
-        return f"Annotation · {item.annotation_id}"
-    if item.note_id:
-        return f"Reading Note · {item.note_id}"
-    page = f" · page {item.page_number}" if item.page_number is not None else ""
-    return f"Document{page} · {item.document_id}"
+    annotation_id = getattr(item, "annotation_id", None)
+    note_id = getattr(item, "note_id", None)
+    origin_page = page_number
+    if annotation_id is None and note_id is None and origin_page is None:
+        origin_page = getattr(item, "page_number", None)
+    page = f" · {_page_display(origin_page, page_labeler)}" if origin_page is not None else ""
+    if annotation_id:
+        return f"Annotation{page} · {annotation_id}"
+    if note_id:
+        return f"Reading Note{page} · {note_id}"
+    return f"Document{page} · {getattr(item, 'document_id', None)}"
 
 
 def _legacy_titles(database: Any, items: tuple[Any, ...]) -> dict[tuple[str, str], str]:
@@ -119,15 +141,22 @@ def evidence_rows(
     items: tuple[Any, ...] | list[Any],
     *,
     legacy_titles: dict[tuple[str, str], str] | None = None,
+    page_labeler: PageLabeler | None = None,
+    origin_pages: dict[str, int] | None = None,
 ) -> list[dict[str, Any]]:
     """Build compact display-only rows from evidence metadata."""
     titles = legacy_titles or {}
+    pages = origin_pages or {}
     return [
         {
             "concept": f"{item.concept_legacy_id} [{item.concept_legacy_source}]",
             "legacy_title": titles.get((item.concept_legacy_id, item.concept_legacy_source), ""),
             "type": enum_value(item.link_type),
-            "origin": evidence_origin(item),
+            "origin": evidence_origin(
+                item,
+                page_labeler=page_labeler,
+                page_number=pages.get(item.evidence_link_id),
+            ),
             "status": enum_value(item.status),
             "comment": item.comment,
             "evidence_link_id": item.evidence_link_id,
@@ -218,6 +247,39 @@ def _render_evidence_lifecycle(
             ui.rerun()
 
 
+def _resolve_origin_pages(service: Any, items: tuple[Any, ...]) -> dict[str, int]:
+    """Resolve bounded annotation/note page metadata for display only."""
+    subject_pages: dict[tuple[str, str], int | None] = {}
+    pages: dict[str, int] = {}
+    for item in items:
+        if item.annotation_id:
+            subject = ("annotation", item.annotation_id)
+            getter = service.get_annotation
+        elif item.note_id:
+            subject = ("note", item.note_id)
+            getter = service.get_note
+        else:
+            continue
+        if subject not in subject_pages:
+            try:
+                result = getter(subject[1], user_scope="local")
+            except Exception:
+                result = None
+            target = getattr(result, "value", None) if result_ok(result) else None
+            page_number = getattr(target, "page_number", None) or getattr(
+                target, "page_start", None
+            )
+            subject_pages[subject] = (
+                page_number
+                if isinstance(page_number, int) and not isinstance(page_number, bool)
+                else None
+            )
+        page_number = subject_pages[subject]
+        if page_number is not None:
+            pages[item.evidence_link_id] = page_number
+    return pages
+
+
 def _open_evidence_target(ui: Any, service: Any, item: Any) -> None:
     """Resolve a logical evidence target and navigate without URLs or paths."""
     target = None
@@ -257,6 +319,7 @@ def render_document_evidence(
     *,
     document_id: str,
     actions_enabled: bool,
+    page_labeler: PageLabeler | None = None,
 ) -> None:
     """List and lifecycle-manage bounded evidence links for the Document."""
     result = service.list_document_evidence(document_id, status=None, page=1, page_size=50)
@@ -269,8 +332,14 @@ def render_document_evidence(
         ui.caption("No concept evidence linked to this Document.")
         return
     titles = _legacy_titles(database, items)
+    origin_pages = _resolve_origin_pages(service, items) if page_labeler is not None else {}
     ui.dataframe(
-        evidence_rows(items, legacy_titles=titles),
+        evidence_rows(
+            items,
+            legacy_titles=titles,
+            page_labeler=page_labeler,
+            origin_pages=origin_pages,
+        ),
         width="stretch",
         hide_index=True,
     )
@@ -278,7 +347,12 @@ def render_document_evidence(
         status = enum_value(item.status)
         legacy_title = titles.get((item.concept_legacy_id, item.concept_legacy_source), "")
         title = legacy_title or item.concept_legacy_id
-        with ui.expander(f"{title} · {evidence_origin(item)}", expanded=False):
+        origin = evidence_origin(
+            item,
+            page_labeler=page_labeler,
+            page_number=origin_pages.get(item.evidence_link_id),
+        )
+        with ui.expander(f"{title} · {origin}", expanded=False):
             ui.write(
                 {
                     "concept_legacy_id": item.concept_legacy_id,

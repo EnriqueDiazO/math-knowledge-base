@@ -33,7 +33,9 @@ from editor.reading_space.state import READER_SUBJECT
 from editor.reading_space.state import READING_SPACE_NAV_LABEL
 from editor.reading_space.state import SELECTED_DOCUMENT_ID
 from editor.reading_space.state import SELECTED_SOURCE_ID
+from editor.reading_space.state import WORKSPACE_FOCUS
 from editor.reading_space.state import add_reading_space_navigation
+from editor.reading_space.state import apply_pending_current_page_value
 from editor.reading_space.state import apply_pending_current_page_widget_clears
 from editor.reading_space.state import apply_pending_document_widget_clears
 from editor.reading_space.state import apply_pending_navigation
@@ -78,6 +80,7 @@ class FakeUI:
         self.column_calls: list[tuple[Any, dict[str, Any]]] = []
         self.expanders: list[tuple[str, bool]] = []
         self.layout_events: list[tuple[str, Any]] = []
+        self.tab_calls: list[tuple[tuple[str, ...], dict[str, Any]]] = []
 
     def _message(self, level: str, value: object) -> None:
         self.messages.append((level, str(value)))
@@ -89,6 +92,9 @@ class FakeUI:
 
     def title(self, value: object) -> None:
         self._message("title", value)
+
+    def header(self, value: object) -> None:
+        self._message("header", value)
 
     def subheader(self, value: object) -> None:
         self._message("subheader", value)
@@ -121,6 +127,15 @@ class FakeUI:
 
     def container(self, *, key: str | None = None, **_kwargs: Any):
         self.layout_events.append(("container", key))
+        return nullcontext(self)
+
+    def tabs(self, labels, **_kwargs):
+        self.layout_events.append(("tabs", tuple(labels)))
+        self.tab_calls.append((tuple(labels), dict(_kwargs)))
+        return [nullcontext(self) for _label in labels]
+
+    def popover(self, label: str, **_kwargs: Any):
+        self.layout_events.append(("popover", label))
         return nullcontext(self)
 
     def expander(self, label: str, *, expanded: bool = False, **_kwargs: Any):
@@ -529,7 +544,7 @@ def test_current_page_and_reading_status_actions_call_typed_service() -> None:
     reader = _reader(document, source, opened=False)
     ui = FakeUI(
         values={state_key("current_page", document.document_id): 7},
-        clicked={"Save current page", "Completed", "Deferred", "Reset"},
+        clicked={"Save PDF page", "Completed", "Deferred", "Reset"},
     )
 
     _render_reading_state_actions(ui, service, reader, actions_enabled=True)
@@ -540,6 +555,105 @@ def test_current_page_and_reading_status_actions_call_typed_service() -> None:
     assert service.reset == [document.document_id]
     assert apply_pending_current_page_widget_clears(ui.session_state) == (document.document_id,)
     assert state_key("current_page", document.document_id) not in ui.session_state
+
+
+class FakePageMapService:
+    def __init__(self, label: str | None = None) -> None:
+        self.label = label
+        self.quick_rules: list[tuple[str, int, str]] = []
+
+    def compute_page_label(self, document_id: str, pdf_page: int, *, user_scope: str):
+        del document_id, pdf_page, user_scope
+        if self.label is None:
+            return FakeResult(status="not_found", message="No active map")
+        return FakeResult(SimpleNamespace(book_page_label=self.label))
+
+    def set_quick_rule(
+        self,
+        document_id: str,
+        *,
+        current_pdf_page: int,
+        user_scope: str,
+    ):
+        self.quick_rules.append((document_id, current_pdf_page, user_scope))
+        return FakeResult(SimpleNamespace())
+
+
+def test_previous_and_next_change_manual_page_without_persisting_s3() -> None:
+    source = Source(name="Manual paging")
+    document = _pdf_document(source)
+    service = FakeService(source, (document,))
+    reader = _reader(document, source, opened=False)
+    ui = FakeUI(
+        values={state_key("current_page", document.document_id): 7},
+        clicked={"Next"},
+    )
+    ui.session_state[SELECTED_DOCUMENT_ID] = document.document_id
+
+    _render_reading_state_actions(ui, service, reader, actions_enabled=True)
+
+    assert service.page_updates == []
+    assert apply_pending_current_page_value(ui.session_state) == (document.document_id, 8)
+    assert ui.session_state[state_key("current_page", document.document_id)] == 8
+
+    previous = FakeUI(
+        values={state_key("current_page", document.document_id): 8},
+        clicked={"Previous"},
+    )
+    previous.session_state[SELECTED_DOCUMENT_ID] = document.document_id
+    _render_reading_state_actions(previous, service, reader, actions_enabled=True)
+    assert apply_pending_current_page_value(previous.session_state) == (
+        document.document_id,
+        7,
+    )
+    assert service.page_updates == []
+
+
+def test_viewer_page_map_and_quick_capture_controls_are_separate() -> None:
+    source = Source(name="Page map controls")
+    document = _pdf_document(source)
+    service = FakeService(source, (document,))
+    reader = _reader(document, source, opened=False)
+    page_maps = FakePageMapService(label="1")
+    ui = FakeUI(
+        values={state_key("current_page", document.document_id): 9},
+        clicked={"Set as Book page 1", "Quick annotation"},
+    )
+
+    _render_reading_state_actions(
+        ui,
+        service,
+        reader,
+        actions_enabled=True,
+        page_map_service=page_maps,  # type: ignore[arg-type]
+        page_map_actions_enabled=True,
+    )
+
+    assert page_maps.quick_rules == [(document.document_id, 9, "local")]
+    assert ui.session_state[WORKSPACE_FOCUS] == "annotation"
+    rendered = " ".join(message for _level, message in ui.messages)
+    assert "Book page 1 · PDF page 9" in rendered
+    assert "viewer scroll is manual" in rendered
+
+
+def test_reader_metadata_is_compact_with_closed_technical_details() -> None:
+    source = Source(name="Metadata card")
+    document = _pdf_document(source)
+    service = FakeService(source, (document,))
+    ui = FakeUI()
+
+    _render_pdf_reader(
+        ui,
+        _context(source),
+        service,
+        _reader(document, source, opened=False),
+        actions_enabled=True,
+    )
+
+    assert ("Technical details", False) in ui.expanders
+    rendered = " ".join(message for _level, message in ui.messages)
+    assert "Kind: PDF" in rendered
+    assert "Integrity: OK" in rendered
 
 
 def test_web_reader_requires_registration_before_external_link() -> None:
@@ -585,6 +699,7 @@ def test_full_page_filters_and_lists_without_loading_pdf() -> None:
     rendered = " ".join(message for _level, message in ui.messages)
     assert "Reading Space" in rendered
     assert "Recent Documents" in rendered
+    assert ui.tab_calls[0][1]["default"] == "Documents"
     assert any(row["document_id"] == document.document_id for table in ui.rows for row in table)
     assert not any(label in {"Change Document", "Recent Documents"} for label, _ in ui.expanders)
     assert ("container", state_key("workspace")) not in ui.layout_events
@@ -608,8 +723,15 @@ def test_selected_document_uses_split_workspace_and_compact_top_bar(
     s4_calls: list[str] = []
     monkeypatch.setattr(
         reading_page_module,
-        "_render_s4_panel",
+        "render_workspace_notes_panel",
         lambda _context, reader, **_kwargs: s4_calls.append(reader.document.document_id),
+    )
+    monkeypatch.setattr(reading_page_module, "render_notes_tab", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(reading_page_module, "render_evidence_tab", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        reading_page_module,
+        "render_notes_evidence_maintenance",
+        lambda *_args, **_kwargs: True,
     )
 
     render_reading_space_page(
@@ -621,17 +743,16 @@ def test_selected_document_uses_split_workspace_and_compact_top_bar(
     assert service.context_calls == [document.document_id]
     assert ui.session_state[state_key("workspace_layout")] == "Split workspace"
     assert ([0.58, 0.42], {"gap": "large"}) in ui.column_calls
-    workspace_expanders = [
-        item for item in ui.expanders if item[0] in {"Change Document", "Recent Documents"}
-    ]
-    assert workspace_expanders == [("Change Document", False), ("Recent Documents", False)]
-    assert ui.layout_events[0] == ("container", state_key("workspace"))
+    assert not any(item[0] in {"Change Document", "Recent Documents"} for item in ui.expanders)
+    assert ("tabs", tuple(reading_page_module.WORKSPACE_TABS)) in ui.layout_events
+    assert ui.tab_calls[0][1]["default"] == "Workspace"
+    assert ui.tab_calls[0][1]["on_change"] == "rerun"
     assert s4_calls == [document.document_id]
     rendered = " ".join(message for _level, message in ui.messages)
     assert "Reading Workspace" in rendered
     assert "PDF reading" in rendered
     assert "Workspace Source" in rendered
-    assert "Current page" in rendered
+    assert "PDF page" in rendered
     assert "in_progress" in rendered
 
 
@@ -653,8 +774,15 @@ def test_selected_document_can_use_stacked_layout_without_split_columns(
     s4_calls: list[str] = []
     monkeypatch.setattr(
         reading_page_module,
-        "_render_s4_panel",
+        "render_workspace_notes_panel",
         lambda _context, reader, **_kwargs: s4_calls.append(reader.document.document_id),
+    )
+    monkeypatch.setattr(reading_page_module, "render_notes_tab", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(reading_page_module, "render_evidence_tab", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        reading_page_module,
+        "render_notes_evidence_maintenance",
+        lambda *_args, **_kwargs: True,
     )
 
     render_reading_space_page(

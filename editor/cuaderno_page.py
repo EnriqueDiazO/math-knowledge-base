@@ -1996,10 +1996,6 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     col4.metric("Deliverables", c_deliv)
     col5.metric("Diario", c_notes)
 
-    st.info(
-        "Este módulo es experimental. En los siguientes MVP mejoraremos los sectores: "
-        "Worklog → Backlog → Weekly Review → Deliverables → Kanban."
-    )
     with st.expander("Instalación / Estado", expanded=False):
         st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
 

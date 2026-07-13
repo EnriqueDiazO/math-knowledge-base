@@ -95,6 +95,10 @@ SOURCE_DOCUMENT_COLLECTIONS = ("source_documents",)
 # document/blob collection set.
 READING_SPACE_COLLECTIONS = ("document_reading_state",)
 
+# Manual PDF-page to book-page labels are optional portable metadata. They are
+# independent from reading progress and never contain Source Document bytes.
+DOCUMENT_PAGE_MAP_COLLECTIONS = ("document_page_maps",)
+
 # Reading annotations are optional portable intellectual-work records.  They
 # remain separate from Sources/Documents, reading progress, and legacy
 # concepts, and their indexes are initialized only through the explicit S4 UI.
@@ -107,6 +111,7 @@ PORTABLE_EXTENDED_JSON_COLLECTIONS = (
     *SOURCE_CATALOG_COLLECTIONS,
     *SOURCE_DOCUMENT_COLLECTIONS,
     *READING_SPACE_COLLECTIONS,
+    *DOCUMENT_PAGE_MAP_COLLECTIONS,
     *READING_ANNOTATION_COLLECTIONS,
 )
 

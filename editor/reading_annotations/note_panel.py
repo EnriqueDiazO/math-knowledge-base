@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from editor.reading_annotations.evidence_panel import render_link_form
@@ -18,19 +19,45 @@ from editor.reading_annotations.state import queue_draft_clear
 from editor.reading_annotations.state import select_note
 from editor.reading_annotations.state import state_key
 
+PageLabeler = Callable[[int], str | None]
 
-def note_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
+
+def _page_display(page_number: int, page_labeler: PageLabeler) -> str:
+    book_page = page_labeler(page_number)
+    if book_page:
+        return f"Book page {book_page} · PDF page {page_number}"
+    return f"PDF page {page_number}"
+
+
+def _note_pages(item: Any, page_labeler: PageLabeler | None) -> str:
+    page_start = getattr(item, "page_start", None)
+    page_end = getattr(item, "page_end", None)
+    if page_labeler is None:
+        return (
+            f"{page_start}–{page_end}"
+            if page_start is not None and page_end is not None
+            else str(page_start or "")
+        )
+    if page_start is None:
+        return ""
+    start = _page_display(page_start, page_labeler)
+    if page_end is None:
+        return start
+    return f"{start} – {_page_display(page_end, page_labeler)}"
+
+
+def note_rows(
+    items: tuple[Any, ...] | list[Any],
+    *,
+    page_labeler: PageLabeler | None = None,
+) -> list[dict[str, Any]]:
     """Return compact metadata-only rows without rendering note text as markup."""
     return [
         {
             "title": item.title,
             "type": enum_value(item.note_type),
             "scope": "Document" if item.document_id is not None else "Source only",
-            "pages": (
-                f"{item.page_start}–{item.page_end}"
-                if item.page_start is not None and item.page_end is not None
-                else str(item.page_start or "")
-            ),
+            "pages": _note_pages(item, page_labeler),
             "status": enum_value(item.status),
             "tags": ", ".join(item.tags),
             "note_id": item.note_id,
@@ -50,43 +77,53 @@ def render_note_panel(
     is_pdf: bool,
     actions_enabled: bool,
     document_active: bool,
+    show_quick: bool = True,
+    show_list: bool = True,
+    quick_expanded: bool = True,
+    page_labeler: PageLabeler | None = None,
 ) -> None:
     """Render creation, editing, archive/reactivation, and evidence for notes."""
+    if not show_quick and not show_list:
+        return
     document_id = document.document_id
     ui.subheader("Reading Notes")
-    with ui.expander("Quick Reading Note", expanded=True):
-        ui.caption("Capture a compact plain-text note for this Document or its Source.")
-        draft = render_note_form(
-            ui,
-            source_id=document.source_id,
-            document_id=document_id,
-            is_pdf=is_pdf,
-            suggested_page=suggested_page,
-            references=references,
-            form_key="quick_note",
-            actions_enabled=actions_enabled,
-            compact=True,
-        )
-        if draft is not None:
-            result = service.create_note(
+    if show_quick:
+        with ui.expander("Quick Reading Note", expanded=quick_expanded):
+            ui.caption("Capture a compact plain-text note for this Document or its Source.")
+            draft = render_note_form(
+                ui,
                 source_id=document.source_id,
-                document_id=draft.document_id,
-                reference_id=draft.reference_id,
-                user_scope="local",
-                title=draft.title,
-                body=draft.body,
-                note_type=draft.note_type,
-                page_start=draft.page_start,
-                page_end=draft.page_end,
-                tags=draft.tags,
+                document_id=document_id,
+                is_pdf=is_pdf,
+                suggested_page=suggested_page,
+                references=references,
+                form_key="quick_note",
+                actions_enabled=actions_enabled,
+                compact=True,
             )
-            if render_result(ui, result, success="Reading Note added."):
-                queue_draft_clear(
-                    ui.session_state,
-                    form_key="quick_note",
-                    document_id=document_id,
+            if draft is not None:
+                result = service.create_note(
+                    source_id=document.source_id,
+                    document_id=draft.document_id,
+                    reference_id=draft.reference_id,
+                    user_scope="local",
+                    title=draft.title,
+                    body=draft.body,
+                    note_type=draft.note_type,
+                    page_start=draft.page_start,
+                    page_end=draft.page_end,
+                    tags=draft.tags,
                 )
-                ui.rerun()
+                if render_result(ui, result, success="Reading Note added."):
+                    queue_draft_clear(
+                        ui.session_state,
+                        form_key="quick_note",
+                        document_id=document_id,
+                    )
+                    ui.rerun()
+
+    if not show_list:
+        return
 
     query = ui.text_input(
         "Filter notes by title, text, or tags",
@@ -142,11 +179,19 @@ def render_note_panel(
     ):
         if values:
             ui.caption(f"{label} · {len(values)}")
-            ui.dataframe(note_rows(values), width="stretch", hide_index=True)
+            ui.dataframe(
+                note_rows(values, page_labeler=page_labeler),
+                width="stretch",
+                hide_index=True,
+            )
     for item in (*document_notes, *source_notes):
         status = enum_value(item.status)
         note_write_enabled = actions_enabled and (item.document_id is None or document_active)
-        with ui.expander(f"{item.title} · {enum_value(item.note_type)} · {status}"):
+        card_title = f"{item.title} · {enum_value(item.note_type)} · {status}"
+        pages = _note_pages(item, page_labeler)
+        if page_labeler is not None and pages:
+            card_title = f"{card_title} · {pages}"
+        with ui.expander(card_title):
             ui.write(
                 {
                     "title": item.title,

@@ -22,6 +22,19 @@ CONFIRMED_WEB_DOCUMENT_ID = f"{SESSION_PREFIX}confirmed_web_document_id"
 APPLIED_FILTER_SOURCE_ID = f"{SESSION_PREFIX}applied_filter_source_id"
 PENDING_DOCUMENT_WIDGET_CLEARS = f"{SESSION_PREFIX}pending_document_widget_clears"
 PENDING_CURRENT_PAGE_WIDGET_CLEARS = f"{SESSION_PREFIX}pending_current_page_widget_clears"
+PENDING_CURRENT_PAGE_VALUE = f"{SESSION_PREFIX}pending_current_page_value"
+PENDING_WORKSPACE_TAB = f"{SESSION_PREFIX}pending_workspace_tab"
+WORKSPACE_TAB = f"{SESSION_PREFIX}workspace_tabs"
+WORKSPACE_FOCUS = f"{SESSION_PREFIX}workspace_focus"
+WORKSPACE_TABS = (
+    "Workspace",
+    "Documents",
+    "Recent",
+    "Notes",
+    "Evidence",
+    "Page Map",
+    "Maintenance",
+)
 
 DOCUMENT_WIDGET_NAMES = frozenset(
     {
@@ -36,7 +49,12 @@ DOCUMENT_WIDGET_NAMES = frozenset(
         "reader_reset",
         "register_web_open",
         "reset",
+        "page_next",
+        "page_previous",
+        "quick_annotation_focus",
+        "quick_note_focus",
         "save_page",
+        "set_book_page_one",
         "source_entrypoint",
     }
 )
@@ -72,8 +90,14 @@ def clear_document_widgets(state: MutableMapping[str, Any], document_id: str | N
     """Remove every widget value bound to one Document identity."""
     if not isinstance(document_id, str) or not document_id:
         return
+    state.pop(WORKSPACE_FOCUS, None)
     for name in DOCUMENT_WIDGET_NAMES:
         state.pop(state_key(name, document_id), None)
+    suffix = f"_{document_id}"
+    for key in tuple(state):
+        text = str(key)
+        if text.startswith(f"{SESSION_PREFIX}page_map_") and text.endswith(suffix):
+            state.pop(key, None)
 
 
 def queue_document_widget_clear(
@@ -96,6 +120,64 @@ def queue_current_page_widget_clear(
     document_ids = set(pending) if isinstance(pending, (list, tuple, set)) else set()
     document_ids.add(document_id)
     state[PENDING_CURRENT_PAGE_WIDGET_CLEARS] = sorted(document_ids)
+
+
+def queue_current_page_value(
+    state: MutableMapping[str, Any],
+    *,
+    document_id: str,
+    page_number: int,
+) -> None:
+    """Queue a manual PDF page value for application before its widget exists."""
+    if (
+        not isinstance(document_id, str)
+        or not document_id
+        or isinstance(page_number, bool)
+        or not isinstance(page_number, int)
+        or page_number < 1
+    ):
+        return
+    state[PENDING_CURRENT_PAGE_VALUE] = {
+        "document_id": document_id,
+        "page_number": page_number,
+    }
+
+
+def apply_pending_current_page_value(
+    state: MutableMapping[str, Any],
+) -> tuple[str, int] | None:
+    """Apply one queued manual page without persisting S3 reading state."""
+    pending = state.pop(PENDING_CURRENT_PAGE_VALUE, None)
+    if not isinstance(pending, dict):
+        return None
+    document_id = pending.get("document_id")
+    page_number = pending.get("page_number")
+    if (
+        not isinstance(document_id, str)
+        or not document_id
+        or isinstance(page_number, bool)
+        or not isinstance(page_number, int)
+        or page_number < 1
+        or state.get(SELECTED_DOCUMENT_ID) != document_id
+    ):
+        return None
+    state[state_key("current_page", document_id)] = page_number
+    return document_id, page_number
+
+
+def queue_workspace_tab(state: MutableMapping[str, Any], tab_name: str) -> None:
+    """Queue one approved top-level Reading Space tab for the next rerun."""
+    if tab_name in WORKSPACE_TABS:
+        state[PENDING_WORKSPACE_TAB] = tab_name
+
+
+def apply_pending_workspace_tab(state: MutableMapping[str, Any]) -> str | None:
+    """Apply a queued tab choice before ``st.tabs`` creates its widget."""
+    pending = state.pop(PENDING_WORKSPACE_TAB, None)
+    if pending not in WORKSPACE_TABS:
+        return None
+    state[WORKSPACE_TAB] = pending
+    return str(pending)
 
 
 def apply_pending_document_widget_clears(state: MutableMapping[str, Any]) -> tuple[str, ...]:
@@ -161,6 +243,7 @@ def sync_user_scope(state: MutableMapping[str, Any], user_scope: str) -> bool:
     for key in (SELECTED_SOURCE_ID, SELECTED_DOCUMENT_ID, CONFIRMED_WEB_DOCUMENT_ID):
         state.pop(key, None)
     state[ACTIVE_USER_SCOPE] = user_scope
+    queue_workspace_tab(state, "Documents")
     return previous is not None
 
 
@@ -173,6 +256,7 @@ def select_source(state: MutableMapping[str, Any], source_id: str | None) -> boo
     clear_reader_preview(state)
     state.pop(SELECTED_DOCUMENT_ID, None)
     state.pop(CONFIRMED_WEB_DOCUMENT_ID, None)
+    queue_workspace_tab(state, "Documents")
     if source_id is None:
         state.pop(SELECTED_SOURCE_ID, None)
     else:
@@ -191,8 +275,10 @@ def select_document(state: MutableMapping[str, Any], document_id: str | None) ->
     state.pop(CONFIRMED_WEB_DOCUMENT_ID, None)
     if document_id is None:
         state.pop(SELECTED_DOCUMENT_ID, None)
+        queue_workspace_tab(state, "Documents")
     else:
         state[SELECTED_DOCUMENT_ID] = document_id
+        queue_workspace_tab(state, "Workspace")
     return True
 
 
@@ -286,17 +372,24 @@ __all__ = [
     "PDF_PREVIEW_NAMESPACE",
     "PENDING_DOCUMENT_WIDGET_CLEARS",
     "PENDING_CURRENT_PAGE_WIDGET_CLEARS",
+    "PENDING_CURRENT_PAGE_VALUE",
     "PENDING_NAVIGATION",
     "PENDING_TARGET",
+    "PENDING_WORKSPACE_TAB",
     "READER_SUBJECT",
     "READING_SPACE_NAV_LABEL",
     "SELECTED_DOCUMENT_ID",
     "SELECTED_SOURCE_ID",
     "SESSION_PREFIX",
+    "WORKSPACE_FOCUS",
+    "WORKSPACE_TAB",
+    "WORKSPACE_TABS",
     "add_reading_space_navigation",
     "apply_pending_navigation",
     "apply_pending_document_widget_clears",
     "apply_pending_current_page_widget_clears",
+    "apply_pending_current_page_value",
+    "apply_pending_workspace_tab",
     "clear_document_widgets",
     "clear_reader_preview",
     "clear_reading_space_state",
@@ -306,6 +399,8 @@ __all__ = [
     "queue_document_widget_clear",
     "queue_document_widget_clear_for_selected",
     "queue_current_page_widget_clear",
+    "queue_current_page_value",
+    "queue_workspace_tab",
     "select_document",
     "select_source",
     "state_key",

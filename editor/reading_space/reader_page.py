@@ -11,23 +11,39 @@ from editor.pdf_preview import get_pdf_preview
 from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import render_pdf_preview
 from editor.pdf_preview import store_pdf_preview
+from editor.reading_annotations import render_evidence_tab
 from editor.reading_annotations import render_notes_and_evidence_panel as _render_s4_panel
+from editor.reading_annotations import render_notes_evidence_maintenance
+from editor.reading_annotations import render_notes_tab
+from editor.reading_annotations import render_workspace_notes_panel
 from editor.reading_annotations.state import apply_pending_page_suggestion
 from editor.reading_annotations.state import sync_database_context as sync_s4_database_context
 from editor.reading_space.document_picker import render_document_picker
 from editor.reading_space.filters import Choice
 from editor.reading_space.filters import render_filters
+from editor.reading_space.page_map_panel import current_book_page
+from editor.reading_space.page_map_panel import page_labeler
+from editor.reading_space.page_map_panel import render_page_map_maintenance
+from editor.reading_space.page_map_panel import render_page_map_panel
+from editor.reading_space.page_map_panel import set_current_as_book_page_one
 from editor.reading_space.recent_reads import render_recent_documents
 from editor.reading_space.state import CONFIRMED_WEB_DOCUMENT_ID
 from editor.reading_space.state import PDF_PREVIEW_NAMESPACE
 from editor.reading_space.state import READER_SUBJECT
 from editor.reading_space.state import SELECTED_DOCUMENT_ID
 from editor.reading_space.state import SELECTED_SOURCE_ID
+from editor.reading_space.state import WORKSPACE_FOCUS
+from editor.reading_space.state import WORKSPACE_TAB
+from editor.reading_space.state import WORKSPACE_TABS
+from editor.reading_space.state import apply_pending_current_page_value
 from editor.reading_space.state import apply_pending_current_page_widget_clears
 from editor.reading_space.state import apply_pending_document_widget_clears
+from editor.reading_space.state import apply_pending_workspace_tab
 from editor.reading_space.state import clear_reader_preview
 from editor.reading_space.state import consume_pending_target
+from editor.reading_space.state import queue_current_page_value
 from editor.reading_space.state import queue_current_page_widget_clear
+from editor.reading_space.state import queue_workspace_tab
 from editor.reading_space.state import select_document
 from editor.reading_space.state import select_source
 from editor.reading_space.state import state_key
@@ -36,6 +52,8 @@ from editor.reading_space.state import sync_user_scope
 from editor.source_catalog.shared import CatalogUIContext
 from editor.source_catalog.shared import render_active_database
 from editor.source_catalog.shared import safe_error_message
+from mathmongo.document_page_maps.service import DocumentPageMapService
+from mathmongo.reading_annotations.service import ReadingAnnotationService
 from mathmongo.reading_space.service import ReaderContext
 from mathmongo.reading_space.service import ReadingOperationStatus
 from mathmongo.reading_space.service import ReadingServiceResult
@@ -129,9 +147,16 @@ def _index_rows(statuses: Any) -> list[dict[str, Any]]:
     return rows
 
 
-def _render_index_status(ui: Any, context: CatalogUIContext, service: ReadingSpaceService) -> bool:
+def _render_index_status(
+    ui: Any,
+    context: CatalogUIContext,
+    service: ReadingSpaceService,
+    *,
+    maintenance: bool = False,
+) -> bool:
     """Inspect indexes read-only and apply them only after explicit confirmation."""
-    ui.subheader("Reading Space Status")
+    if maintenance:
+        ui.subheader("Reading Space Status")
     try:
         statuses = tuple(service.index_manager.status())
         plan = service.index_manager.plan()
@@ -141,25 +166,28 @@ def _render_index_status(ui: Any, context: CatalogUIContext, service: ReadingSpa
     initialized = bool(getattr(plan, "initialized", False))
     conflicts = tuple(getattr(plan, "conflicts", ()))
     if initialized:
-        ui.success(f"Reading Space inicializado en {context.database_name}.")
+        ui.success(f"✅ Reading Space ready on {context.database_name}.")
     elif conflicts:
         ui.error("Los índices de Reading Space tienen conflictos; no se aplicarán cambios.")
     else:
-        ui.info("Reading Space no inicializado. Abrir esta página no crea índices.")
-    ui.dataframe(_index_rows(statuses), width="stretch", hide_index=True)
-    with ui.form(key=state_key("initialize_indexes_form")):
-        confirmation = ui.text_input(
-            "Escribe el nombre real de la base para inicializar Reading Space",
-            key=state_key("initialize_indexes_database"),
-        )
-        confirmed = ui.checkbox(
-            f"Confirmo aplicar sólo los índices S3 en {context.database_name}",
-            key=state_key("initialize_indexes_confirm"),
-        )
-        submitted = ui.form_submit_button(
-            "Initialize Reading Space indexes",
-            disabled=initialized or bool(conflicts),
-        )
+        ui.warning("Reading Space needs initialization in Maintenance.")
+    if not maintenance:
+        return initialized
+    with ui.expander("Advanced Reading Space diagnostics", expanded=False):
+        ui.dataframe(_index_rows(statuses), width="stretch", hide_index=True)
+        with ui.form(key=state_key("initialize_indexes_form")):
+            confirmation = ui.text_input(
+                "Escribe el nombre real de la base para inicializar Reading Space",
+                key=state_key("initialize_indexes_database"),
+            )
+            confirmed = ui.checkbox(
+                f"Confirmo aplicar sólo los índices S3 en {context.database_name}",
+                key=state_key("initialize_indexes_confirm"),
+            )
+            submitted = ui.form_submit_button(
+                "Initialize Reading Space indexes",
+                disabled=initialized or bool(conflicts),
+            )
     if not submitted:
         return initialized
     if not confirmed or str(confirmation or "").strip() != context.database_name:
@@ -260,9 +288,12 @@ def _render_reading_state_actions(
     *,
     actions_enabled: bool,
     show_page_controls: bool = True,
-) -> None:
+    page_map_service: DocumentPageMapService | None = None,
+    page_map_actions_enabled: bool = False,
+) -> int | None:
     document_id = reader.document.document_id
     reading = reader.reading_state
+    entered_page: int | None = None
     if show_page_controls:
         current_page = getattr(reading, "current_page", None) or 1
         total_pages = getattr(reading, "total_pages", None)
@@ -275,55 +306,139 @@ def _render_reading_state_actions(
         }
         if isinstance(total_pages, int):
             kwargs["max_value"] = total_pages
-        entered_page = int(ui.number_input("Current page", **kwargs))
+        entered_page = int(ui.number_input("PDF page", **kwargs))
+        book_page = (
+            current_book_page(page_map_service, document_id, entered_page)
+            if page_map_service is not None
+            else None
+        )
+        total_label = f" of {total_pages}" if isinstance(total_pages, int) else ""
+        ui.caption(
+            f"Book page {book_page or '—'} · PDF page {entered_page}{total_label} · "
+            f"Status {_status_value(reader.effective_status)}"
+        )
+        previous, following, save = ui.columns(3, gap="small")
+        with previous:
+            if ui.button(
+                "Previous",
+                key=state_key("page_previous", document_id),
+                disabled=entered_page <= 1,
+                width="stretch",
+            ):
+                queue_current_page_value(
+                    ui.session_state,
+                    document_id=document_id,
+                    page_number=entered_page - 1,
+                )
+                ui.rerun()
+        with following:
+            if ui.button(
+                "Next",
+                key=state_key("page_next", document_id),
+                disabled=isinstance(total_pages, int) and entered_page >= total_pages,
+                width="stretch",
+            ):
+                queue_current_page_value(
+                    ui.session_state,
+                    document_id=document_id,
+                    page_number=entered_page + 1,
+                )
+                ui.rerun()
+        with save:
+            if ui.button(
+                "Save PDF page",
+                key=state_key("save_page", document_id),
+                disabled=not actions_enabled,
+                width="stretch",
+            ):
+                _run_state_action(
+                    ui,
+                    service.update_current_page(
+                        document_id,
+                        entered_page,
+                        user_scope=USER_SCOPE,
+                        total_pages=total_pages,
+                    ),
+                    success="PDF page saved.",
+                )
+        set_page, quick_note, quick_annotation = ui.columns(3, gap="small")
+        with set_page:
+            if (
+                ui.button(
+                    "Set as Book page 1",
+                    key=state_key("set_book_page_one", document_id),
+                    disabled=page_map_service is None or not page_map_actions_enabled,
+                    width="stretch",
+                )
+                and page_map_service is not None
+            ):
+                if set_current_as_book_page_one(
+                    ui,
+                    page_map_service,
+                    document_id=document_id,
+                    pdf_page=entered_page,
+                ):
+                    ui.rerun()
+        with quick_note:
+            if ui.button(
+                "Quick note",
+                key=state_key("quick_note_focus", document_id),
+                width="stretch",
+            ):
+                ui.session_state[WORKSPACE_FOCUS] = "note"
+                queue_workspace_tab(ui.session_state, "Workspace")
+        with quick_annotation:
+            if ui.button(
+                "Quick annotation",
+                key=state_key("quick_annotation_focus", document_id),
+                width="stretch",
+            ):
+                ui.session_state[WORKSPACE_FOCUS] = "annotation"
+                queue_workspace_tab(ui.session_state, "Workspace")
+        ui.caption(
+            "The PDF viewer scroll is manual; MathMongo stores the page metadata separately."
+        )
+    completed, deferred, reset_column = ui.columns(3, gap="small")
+    with completed:
         if ui.button(
-            "Save current page",
-            key=state_key("save_page", document_id),
+            "Completed",
+            key=state_key("reader_completed", document_id),
             disabled=not actions_enabled,
+            width="stretch",
         ):
             _run_state_action(
                 ui,
-                service.update_current_page(
-                    document_id,
-                    entered_page,
-                    user_scope=USER_SCOPE,
-                    total_pages=total_pages,
-                ),
-                success="Current page saved.",
+                service.mark_completed(document_id, user_scope=USER_SCOPE),
+                success="Document marked completed.",
             )
-    if ui.button(
-        "Completed",
-        key=state_key("reader_completed", document_id),
-        disabled=not actions_enabled,
-    ):
-        _run_state_action(
-            ui,
-            service.mark_completed(document_id, user_scope=USER_SCOPE),
-            success="Document marked completed.",
-        )
-    if ui.button(
-        "Deferred",
-        key=state_key("reader_deferred", document_id),
-        disabled=not actions_enabled,
-    ):
-        _run_state_action(
-            ui,
-            service.mark_deferred(document_id, user_scope=USER_SCOPE),
-            success="Document marked deferred.",
-        )
-    if ui.button(
-        "Reset",
-        key=state_key("reader_reset", document_id),
-        disabled=not actions_enabled or reading is None,
-    ):
-        reset = _run_state_action(
-            ui,
-            service.reset_reading_state(document_id, user_scope=USER_SCOPE),
-            success="Reading state reset.",
-        )
-        if reset:
-            queue_current_page_widget_clear(ui.session_state, document_id)
-            ui.rerun()
+    with deferred:
+        if ui.button(
+            "Deferred",
+            key=state_key("reader_deferred", document_id),
+            disabled=not actions_enabled,
+            width="stretch",
+        ):
+            _run_state_action(
+                ui,
+                service.mark_deferred(document_id, user_scope=USER_SCOPE),
+                success="Document marked deferred.",
+            )
+    with reset_column:
+        if ui.button(
+            "Reset",
+            key=state_key("reader_reset", document_id),
+            disabled=not actions_enabled or reading is None,
+            width="stretch",
+        ):
+            reset = _run_state_action(
+                ui,
+                service.reset_reading_state(document_id, user_scope=USER_SCOPE),
+                success="Reading state reset.",
+            )
+            if reset:
+                queue_current_page_widget_clear(ui.session_state, document_id)
+                ui.rerun()
+    return entered_page
 
 
 def _render_pdf_reader(
@@ -333,6 +448,8 @@ def _render_pdf_reader(
     reader: ReaderContext,
     *,
     actions_enabled: bool,
+    page_map_service: DocumentPageMapService | None = None,
+    page_map_actions_enabled: bool = False,
 ) -> None:
     document = reader.document
     version = document.pdf.current_version
@@ -348,27 +465,38 @@ def _render_pdf_reader(
         context_identity=_subject_identity(expected),
     )
     integrity_ok = bool(getattr(integrity, "ok", False) or verified_payload is not None)
-    ui.write(
-        {
-            "title": document.title,
-            "source": reader.source.name if reader.source is not None else document.source_id,
-            "reference": (
-                reader.reference.title or reader.reference.reference_id
-                if reader.reference is not None
-                else None
-            ),
-            "filename": version.original_filename,
-            "size_bytes": version.size_bytes,
-            "sha256": version.sha256[:16],
-            "integrity": "ok" if integrity_ok else "not verified or invalid",
-            "reading_status": _status_value(reader.effective_status),
-        }
+    source_label = reader.source.name if reader.source is not None else document.source_id
+    reference_label = (
+        reader.reference.title or reader.reference.reference_id
+        if reader.reference is not None
+        else "—"
     )
+    with ui.container(border=True):
+        ui.subheader("Document")
+        ui.write(document.title)
+        ui.caption(f"Source: {source_label} · Reference: {reference_label}")
+        ui.caption(
+            f"Kind: PDF · Integrity: {'OK' if integrity_ok else 'Not verified'} · "
+            f"Size: {version.size_bytes / (1024 * 1024):.1f} MB · SHA: {version.sha256[:12]}…"
+        )
+    with ui.expander("Technical details", expanded=False):
+        ui.write(
+            {
+                "document_id": document.document_id,
+                "source_id": document.source_id,
+                "filename": version.original_filename,
+                "size_bytes": version.size_bytes,
+                "sha256": version.sha256,
+                "reading_status": _status_value(reader.effective_status),
+            }
+        )
     _render_reading_state_actions(
         ui,
         service,
         reader,
         actions_enabled=actions_enabled,
+        page_map_service=page_map_service,
+        page_map_actions_enabled=page_map_actions_enabled,
     )
     if ui.button(
         "Open PDF",
@@ -401,24 +529,31 @@ def _render_web_reader(
     document = reader.document
     web = document.web
     reading = reader.reading_state
-    ui.write(
-        {
-            "title": document.title,
-            "source": reader.source.name if reader.source is not None else document.source_id,
-            "reference": (
-                reader.reference.title or reader.reference.reference_id
-                if reader.reference is not None
-                else None
-            ),
-            "url_normalized": web.url_normalized,
-            "url_raw": web.url_raw,
-            "accessed_at": getattr(web, "accessed_at", None),
-            "description": document.description,
-            "reading_status": _status_value(reader.effective_status),
-            "last_opened_at": getattr(reading, "last_opened_at", None),
-            "open_count": getattr(reading, "open_count", 0),
-        }
+    source_label = reader.source.name if reader.source is not None else document.source_id
+    reference_label = (
+        reader.reference.title or reader.reference.reference_id
+        if reader.reference is not None
+        else "—"
     )
+    with ui.container(border=True):
+        ui.subheader("Document")
+        ui.write(document.title)
+        ui.caption(f"Source: {source_label} · Reference: {reference_label}")
+        ui.caption(f"Kind: Web · Status: {_status_value(reader.effective_status)}")
+        if document.description:
+            ui.write(document.description)
+    with ui.expander("Technical details", expanded=False):
+        ui.write(
+            {
+                "document_id": document.document_id,
+                "source_id": document.source_id,
+                "url_normalized": web.url_normalized,
+                "url_raw": web.url_raw,
+                "accessed_at": getattr(web, "accessed_at", None),
+                "last_opened_at": getattr(reading, "last_opened_at", None),
+                "open_count": getattr(reading, "open_count", 0),
+            }
+        )
     _render_reading_state_actions(
         ui,
         service,
@@ -451,6 +586,8 @@ def _render_reader_panel(
     render_s4: bool = True,
     reader: ReaderContext | None = None,
     reader_loaded: bool = False,
+    page_map_service: DocumentPageMapService | None = None,
+    page_map_actions_enabled: bool = False,
 ) -> ReaderContext | None:
     ui.subheader("Reader")
     if not reader_loaded:
@@ -478,6 +615,8 @@ def _render_reader_panel(
             service,
             reader,
             actions_enabled=actions_enabled,
+            page_map_service=page_map_service,
+            page_map_actions_enabled=page_map_actions_enabled,
         )
     else:
         _render_web_reader(
@@ -522,10 +661,14 @@ def _render_reading_workspace(
     service: ReadingSpaceService,
     *,
     actions_enabled: bool,
+    reader: ReaderContext | None = None,
+    page_map_service: DocumentPageMapService | None = None,
+    page_map_actions_enabled: bool = False,
 ) -> None:
     """Render the selected Document first in split or stacked workspace form."""
     selected_document_id = ui.session_state.get(SELECTED_DOCUMENT_ID)
-    reader = _load_selected_reader(ui, service)
+    if reader is None:
+        reader = _load_selected_reader(ui, service)
     with ui.container(border=True):
         heading, layout_control = ui.columns([0.68, 0.32], gap="medium")
         with heading:
@@ -543,12 +686,21 @@ def _render_reading_workspace(
                     state_key("current_page", document.document_id),
                     getattr(reading, "current_page", None),
                 )
+                book_page = (
+                    current_book_page(
+                        page_map_service,
+                        document.document_id,
+                        int(current_page or 1),
+                    )
+                    if page_map_service is not None
+                    else None
+                )
                 ui.caption(
                     f"Document: {document.title} · Source: {source_label} · "
                     f"Reference: {reference_label or '—'}"
                 )
                 ui.caption(
-                    f"Current page: {current_page or '—'} · "
+                    f"PDF page: {current_page or '—'} · Book page: {book_page or '—'} · "
                     f"Reading status: {_status_value(reader.effective_status)}"
                 )
             elif isinstance(selected_document_id, str):
@@ -563,14 +715,29 @@ def _render_reading_workspace(
             )
 
     if workspace_layout == STACKED_WORKSPACE:
-        _render_reader_panel(
+        stacked_reader = _render_reader_panel(
             ui,
             context,
             service,
             actions_enabled=actions_enabled,
+            render_s4=False,
             reader=reader,
             reader_loaded=True,
+            page_map_service=page_map_service,
+            page_map_actions_enabled=page_map_actions_enabled,
         )
+        if stacked_reader is not None and hasattr(context.database, "__getitem__"):
+            render_workspace_notes_panel(
+                context,
+                stacked_reader,
+                ui=ui,
+                page_labeler=(
+                    page_labeler(page_map_service, stacked_reader.document.document_id)
+                    if page_map_service is not None
+                    else None
+                ),
+                focus=ui.session_state.get(WORKSPACE_FOCUS),
+            )
         return
 
     reader_column, notes_column = ui.columns([0.58, 0.42], gap="large")
@@ -583,16 +750,24 @@ def _render_reading_workspace(
             render_s4=False,
             reader=reader,
             reader_loaded=True,
+            page_map_service=page_map_service,
+            page_map_actions_enabled=page_map_actions_enabled,
         )
     with notes_column:
         if reader is None:
             ui.subheader("Notes & Evidence")
             ui.info("Select a Document to open its notes and concept evidence.")
         elif hasattr(context.database, "__getitem__"):
-            _render_s4_panel(
+            render_workspace_notes_panel(
                 context,
                 reader,
                 ui=ui,
+                page_labeler=(
+                    page_labeler(page_map_service, reader.document.document_id)
+                    if page_map_service is not None
+                    else None
+                ),
+                focus=ui.session_state.get(WORKSPACE_FOCUS),
             )
         else:
             ui.subheader("Notes & Evidence")
@@ -608,17 +783,14 @@ def _render_summary(ui: Any, service: ReadingSpaceService, source_id: str | None
         return
     summary = result.value
     ui.subheader("Source Reading Summary")
-    fields = (
-        "total_documents",
-        "pdf_documents",
-        "web_documents",
-        "unread",
-        "in_progress",
-        "completed",
-        "deferred",
-        "last_opened_at",
+    ui.caption(
+        f"{summary.total_documents} documents · {summary.pdf_documents} PDF · "
+        f"{summary.web_documents} web · {summary.unread} unread · "
+        f"{summary.in_progress} in progress · {summary.completed} completed · "
+        f"{summary.deferred} deferred"
     )
-    ui.write({field: getattr(summary, field, None) for field in fields})
+    if summary.last_opened_at is not None:
+        ui.caption(f"Last opened: {summary.last_opened_at}")
 
 
 def _recent_page(result: ReadingServiceResult) -> Any:
@@ -745,6 +917,80 @@ def _render_recent_reads(
     )
 
 
+def _manager_ready(manager: Any) -> bool:
+    try:
+        return bool(getattr(manager.plan(), "initialized", False))
+    except Exception:
+        return False
+
+
+def _render_compact_header(
+    ui: Any,
+    reader: ReaderContext | None,
+    page_maps: DocumentPageMapService | None,
+) -> None:
+    with ui.container(border=True):
+        if reader is None:
+            ui.subheader("Reading Space")
+            ui.caption("Choose a Document in the Documents tab to begin.")
+            return
+        document = reader.document
+        source_label = reader.source.name if reader.source is not None else document.source_id
+        reference_label = (
+            reader.reference.title or reader.reference.reference_id
+            if reader.reference is not None
+            else "—"
+        )
+        reading = reader.reading_state
+        current_page = int(
+            ui.session_state.get(
+                state_key("current_page", document.document_id),
+                getattr(reading, "current_page", None) or 1,
+            )
+        )
+        book_page = (
+            current_book_page(page_maps, document.document_id, current_page)
+            if page_maps is not None and document.kind == DocumentKind.PDF
+            else None
+        )
+        ui.subheader(document.title)
+        ui.caption(f"Source: {source_label} · Reference: {reference_label}")
+        if document.kind == DocumentKind.PDF:
+            total = getattr(reading, "total_pages", None)
+            total_label = f" of {total}" if isinstance(total, int) else ""
+            ui.caption(
+                f"Book page {book_page or '—'} · PDF page {current_page}{total_label} · "
+                f"{_status_value(reader.effective_status)}"
+            )
+        else:
+            ui.caption(f"Web Document · {_status_value(reader.effective_status)}")
+
+
+def _render_missing_reader(ui: Any, message: str) -> None:
+    ui.info(message)
+
+
+def _render_hidden_pdf_preview(
+    ui: Any,
+    context: CatalogUIContext,
+    reader: ReaderContext | None,
+) -> None:
+    """Keep the active PDF media registered while another lazy tab is open."""
+    if reader is None or reader.document.kind != DocumentKind.PDF:
+        return
+    subject = ui.session_state.get(READER_SUBJECT)
+    expected = _subject(context, reader)
+    if subject != expected:
+        return
+    render_pdf_preview(
+        ui,
+        ui.session_state,
+        PDF_PREVIEW_NAMESPACE,
+        context_identity=_subject_identity(expected),
+        height=800,
+    )
+
+
 def render_reading_space_page(
     context: CatalogUIContext,
     *,
@@ -756,6 +1002,16 @@ def render_reading_space_page(
         import streamlit as ui
 
     reading_service = service or ReadingSpaceService(context.database)
+    page_map_service = (
+        DocumentPageMapService(context.database)
+        if hasattr(context.database, "__getitem__")
+        else None
+    )
+    annotation_service = (
+        ReadingAnnotationService(context.database)
+        if hasattr(context.database, "__getitem__")
+        else None
+    )
     ui.title("📖 Reading Space")
     render_active_database(ui, context)
     sync_user_scope(ui.session_state, USER_SCOPE)
@@ -772,49 +1028,156 @@ def render_reading_space_page(
         ui.session_state[state_key("filter_source")] = target["source_id"]
     apply_pending_document_widget_clears(ui.session_state)
     apply_pending_current_page_widget_clears(ui.session_state)
-    actions_enabled = _render_index_status(ui, context, reading_service)
-    ui.divider()
+    apply_pending_current_page_value(ui.session_state)
+    apply_pending_workspace_tab(ui.session_state)
+    actions_enabled = _manager_ready(reading_service.index_manager)
+    annotation_actions_enabled = bool(
+        annotation_service is not None and _manager_ready(annotation_service.index_manager)
+    )
+    page_map_actions_enabled = bool(
+        page_map_service is not None and _manager_ready(page_map_service.index_manager)
+    )
     if target is not None and target["kind"] == "pdf" and actions_enabled:
         _open_pdf(ui, context, reading_service, target["document_id"])
-    has_selected_document = isinstance(ui.session_state.get(SELECTED_DOCUMENT_ID), str)
-    if not has_selected_document:
-        _render_document_browser(
-            ui,
-            context,
-            reading_service,
-            actions_enabled=actions_enabled,
+    reader = _load_selected_reader(ui, reading_service)
+    _render_compact_header(ui, reader, page_map_service)
+    readiness = ["✅ Reading Space ready" if actions_enabled else "⚠️ Reading Space setup"]
+    if annotation_service is not None:
+        readiness.append(
+            "✅ Notes & Evidence ready"
+            if annotation_actions_enabled
+            else "⚠️ Notes & Evidence setup"
         )
-        ui.subheader("Recent Documents")
-        _render_recent_reads(
-            ui,
-            context,
-            reading_service,
-            actions_enabled=actions_enabled,
-        )
-        return
+    if page_map_service is not None:
+        readiness.append("✅ Page Map ready" if page_map_actions_enabled else "⚠️ Page Map setup")
+    ui.caption(" · ".join(readiness))
+    if not actions_enabled:
+        ui.warning("Reading Space needs initialization in Maintenance before writes are enabled.")
+    if page_map_service is not None and not page_map_actions_enabled:
+        ui.caption("Page Map writes are available after S4.2 initialization in Maintenance.")
 
-    workspace = ui.container(key=state_key("workspace"))
-    with ui.expander("Change Document", expanded=False):
-        _render_document_browser(
-            ui,
-            context,
-            reading_service,
-            actions_enabled=actions_enabled,
-        )
-    with ui.expander("Recent Documents", expanded=False):
-        _render_recent_reads(
-            ui,
-            context,
-            reading_service,
-            actions_enabled=actions_enabled,
-        )
-    with workspace:
-        _render_reading_workspace(
-            ui,
-            context,
-            reading_service,
-            actions_enabled=actions_enabled,
-        )
+    default_tab = "Workspace" if reader is not None else "Documents"
+    tabs = ui.tabs(
+        list(WORKSPACE_TABS),
+        default=default_tab,
+        key=WORKSPACE_TAB,
+        width="stretch",
+        on_change="rerun",
+    )
+    (
+        workspace_tab,
+        documents_tab,
+        recent_tab,
+        notes_tab,
+        evidence_tab,
+        page_map_tab,
+        maintenance_tab,
+    ) = tabs
+    if getattr(workspace_tab, "open", True):
+        with workspace_tab:
+            _render_reading_workspace(
+                ui,
+                context,
+                reading_service,
+                actions_enabled=actions_enabled,
+                reader=reader,
+                page_map_service=page_map_service,
+                page_map_actions_enabled=(
+                    page_map_actions_enabled
+                    and reader is not None
+                    and reader.document.status == DocumentStatus.ACTIVE
+                ),
+            )
+    else:
+        with workspace_tab:
+            _render_hidden_pdf_preview(ui, context, reader)
+    if getattr(documents_tab, "open", True):
+        with documents_tab:
+            ui.header("Documents")
+            _render_document_browser(
+                ui,
+                context,
+                reading_service,
+                actions_enabled=actions_enabled,
+            )
+    if getattr(recent_tab, "open", True):
+        with recent_tab:
+            ui.header("Recent Documents")
+            _render_recent_reads(
+                ui,
+                context,
+                reading_service,
+                actions_enabled=actions_enabled,
+            )
+    if getattr(notes_tab, "open", True):
+        with notes_tab:
+            if reader is None or annotation_service is None:
+                _render_missing_reader(ui, "Select a Document to browse Reading Notes.")
+            else:
+                render_notes_tab(
+                    context,
+                    reader,
+                    ui=ui,
+                    service=annotation_service,
+                    page_labeler=(
+                        page_labeler(page_map_service, reader.document.document_id)
+                        if page_map_service is not None
+                        else None
+                    ),
+                )
+    if getattr(evidence_tab, "open", True):
+        with evidence_tab:
+            if reader is None or annotation_service is None:
+                _render_missing_reader(ui, "Select a Document to browse Concept Evidence.")
+            else:
+                render_evidence_tab(
+                    context,
+                    reader,
+                    ui=ui,
+                    service=annotation_service,
+                    page_labeler=(
+                        page_labeler(page_map_service, reader.document.document_id)
+                        if page_map_service is not None
+                        else None
+                    ),
+                )
+    if getattr(page_map_tab, "open", True):
+        with page_map_tab:
+            if reader is None or reader.document.kind != DocumentKind.PDF:
+                _render_missing_reader(ui, "Select a PDF Document to manage its Page Map.")
+            elif page_map_service is not None:
+                current_page = int(
+                    ui.session_state.get(
+                        state_key("current_page", reader.document.document_id),
+                        getattr(reader.reading_state, "current_page", None) or 1,
+                    )
+                )
+                render_page_map_panel(
+                    ui,
+                    page_map_service,
+                    document=reader.document,
+                    current_pdf_page=current_page,
+                    book_page_label=current_book_page(
+                        page_map_service,
+                        reader.document.document_id,
+                        current_page,
+                    ),
+                    actions_enabled=(
+                        page_map_actions_enabled and reader.document.status == DocumentStatus.ACTIVE
+                    ),
+                )
+    if getattr(maintenance_tab, "open", True):
+        with maintenance_tab:
+            ui.header("Maintenance")
+            _render_index_status(ui, context, reading_service, maintenance=True)
+            if annotation_service is not None:
+                render_notes_evidence_maintenance(
+                    context,
+                    ui=ui,
+                    service=annotation_service,
+                )
+            if page_map_service is not None:
+                render_page_map_maintenance(ui, context, page_map_service)
 
 
 __all__ = ["render_reading_space_page"]

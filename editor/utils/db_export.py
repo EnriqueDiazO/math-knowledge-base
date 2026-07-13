@@ -15,6 +15,7 @@ from bson import ObjectId
 from bson.json_util import CANONICAL_JSON_OPTIONS
 from bson.json_util import dumps as bson_json_dumps
 
+from mathkb_config import DOCUMENT_PAGE_MAP_COLLECTIONS
 from mathkb_config import EXPORT_COLLECTIONS
 from mathkb_config import EXPORT_TIMEOUT_SECONDS
 from mathkb_config import LEGACY_PROJECT_ROOT
@@ -25,6 +26,7 @@ from mathkb_config import READING_ANNOTATION_COLLECTIONS
 from mathkb_config import READING_SPACE_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathkb_config import SOURCE_DOCUMENT_COLLECTIONS
+from mathmongo.document_page_maps.models import DocumentPageMap
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
@@ -32,6 +34,7 @@ from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.models import ReadingNote
 from mathmongo.reading_space.models import DocumentReadingState
+from mathmongo.source_documents.models import DocumentKind
 from mathmongo.source_documents.models import SourceDocument
 from mathmongo.source_documents.storage import SourceDocumentBlobStore
 
@@ -288,12 +291,27 @@ def _concept_evidence_model(document: dict) -> ConceptEvidenceLink:
     return ConceptEvidenceLink.model_validate(payload)
 
 
-def _validate_canonical_s4_documents(
+def _document_page_map_model(document: dict) -> DocumentPageMap:
+    """Validate one Page Map while normalizing Mongo's naive UTC dates."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    for field_name in ("created_at", "updated_at", "archived_at"):
+        value = payload.get(field_name)
+        if isinstance(value, datetime) and value.tzinfo is None:
+            payload[field_name] = value.replace(tzinfo=timezone.utc)
+    return DocumentPageMap.model_validate(payload)
+
+
+def _validate_canonical_portable_documents(
     collection_name: str,
     raw_documents: list[dict],
-    models: list[DocumentAnnotation] | list[ReadingNote] | list[ConceptEvidenceLink],
+    models: (
+        list[DocumentAnnotation]
+        | list[ReadingNote]
+        | list[ConceptEvidenceLink]
+        | list[DocumentPageMap]
+    ),
 ) -> None:
-    """Reject a backup that the strict importer would reject as non-canonical."""
+    """Reject a portable backup that its strict importer would reject."""
     for raw_document, model in zip(raw_documents, models, strict=True):
         raw_payload = {key: value for key, value in raw_document.items() if key != "_id"}
         validated_payload = model.model_dump(mode="python")
@@ -367,6 +385,43 @@ def _validate_reading_state_portability(
             raise ValueError("Reading state Source does not match its Source Document")
         if state.reference_id is not None and state.reference_id != document.reference_id:
             raise ValueError("Reading state Reference does not match its Source Document")
+
+
+def _validate_page_map_portability(
+    page_maps: list[DocumentPageMap],
+    source_documents: list[SourceDocument],
+) -> None:
+    """Reject dangling, duplicate, or ambiguous Page Maps before export."""
+    if not page_maps:
+        return
+    documents_by_id: dict[str, SourceDocument] = {}
+    for document in source_documents:
+        if document.document_id in documents_by_id:
+            raise ValueError("Source Documents contain a duplicate document_id")
+        documents_by_id[document.document_id] = document
+
+    seen_ids: set[str] = set()
+    active_identities: dict[tuple[str, str], str] = {}
+    for page_map in page_maps:
+        if page_map.page_map_id in seen_ids:
+            raise ValueError("Document Page Maps contain a duplicate page_map_id")
+        seen_ids.add(page_map.page_map_id)
+        if page_map.status.value == "active":
+            identity = (page_map.user_scope, page_map.document_id)
+            previous = active_identities.get(identity)
+            if previous is not None and previous != page_map.page_map_id:
+                raise ValueError(
+                    "Document Page Maps contain different active IDs for one user/document identity"
+                )
+            active_identities[identity] = page_map.page_map_id
+
+        document = documents_by_id.get(page_map.document_id)
+        if document is None:
+            raise ValueError("Page Map points to a Source Document absent from the export")
+        if document.kind != DocumentKind.PDF:
+            raise ValueError("Page Map points to a non-PDF Source Document")
+        if document.source_id != page_map.source_id:
+            raise ValueError("Page Map Source does not match its Source Document")
 
 
 def _evidence_identity(link: ConceptEvidenceLink) -> tuple[object, ...]:
@@ -599,12 +654,14 @@ def export_database_to_zip(
         optional_catalog = existing_collection_names & set(SOURCE_CATALOG_COLLECTIONS)
         optional_documents = existing_collection_names & set(SOURCE_DOCUMENT_COLLECTIONS)
         optional_reading = existing_collection_names & set(READING_SPACE_COLLECTIONS)
+        optional_page_maps = existing_collection_names & set(DOCUMENT_PAGE_MAP_COLLECTIONS)
         optional_annotations = existing_collection_names & set(READING_ANNOTATION_COLLECTIONS)
         collection_names = sorted(
             always_exported
             | optional_catalog
             | optional_documents
             | optional_reading
+            | optional_page_maps
             | optional_annotations
         )
         logger.info("Collections scheduled for export: %s", ", ".join(collection_names))
@@ -614,6 +671,7 @@ def export_database_to_zip(
         annotations: list[DocumentAnnotation] = []
         notes: list[ReadingNote] = []
         evidence_links: list[ConceptEvidenceLink] = []
+        page_maps: list[DocumentPageMap] = []
         raw_sources: list[dict] = []
         raw_references: list[dict] = []
         raw_concepts: list[dict] = []
@@ -636,15 +694,22 @@ def export_database_to_zip(
                     source_documents = [_source_document_model(document) for document in raw_docs]
                 elif collection_name in READING_SPACE_COLLECTIONS:
                     reading_states = [_reading_state_model(document) for document in raw_docs]
+                elif collection_name in DOCUMENT_PAGE_MAP_COLLECTIONS:
+                    page_maps = [_document_page_map_model(document) for document in raw_docs]
+                    _validate_canonical_portable_documents(collection_name, raw_docs, page_maps)
                 elif collection_name == "document_annotations":
                     annotations = [_reading_annotation_model(document) for document in raw_docs]
-                    _validate_canonical_s4_documents(collection_name, raw_docs, annotations)
+                    _validate_canonical_portable_documents(collection_name, raw_docs, annotations)
                 elif collection_name == "reading_notes":
                     notes = [_reading_note_model(document) for document in raw_docs]
-                    _validate_canonical_s4_documents(collection_name, raw_docs, notes)
+                    _validate_canonical_portable_documents(collection_name, raw_docs, notes)
                 elif collection_name == "concept_evidence_links":
                     evidence_links = [_concept_evidence_model(document) for document in raw_docs]
-                    _validate_canonical_s4_documents(collection_name, raw_docs, evidence_links)
+                    _validate_canonical_portable_documents(
+                        collection_name,
+                        raw_docs,
+                        evidence_links,
+                    )
                 collection_payloads[collection_name] = bson_json_dumps(
                     raw_docs,
                     json_options=CANONICAL_JSON_OPTIONS,
@@ -668,6 +733,7 @@ def export_database_to_zip(
 
         _validate_source_document_identities(source_documents)
         _validate_reading_state_portability(reading_states, source_documents)
+        _validate_page_map_portability(page_maps, source_documents)
         _validate_reading_annotation_portability(
             annotations,
             notes,

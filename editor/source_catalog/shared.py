@@ -238,38 +238,41 @@ def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSn
         ui.error(f"Database error while reading catalog status: {safe_error_message(exc)}")
         return None
 
+    missing_count = len(snapshot.plan.missing)
+    conflict_count = len(snapshot.plan.conflicts)
     if snapshot.initialized:
-        ui.success(f"Catálogo Source inicializado en {context.database_name}.")
-    elif snapshot.source_collection_exists or snapshot.reference_collection_exists:
-        ui.warning("El catálogo existe parcialmente o tiene índices pendientes/conflictivos.")
+        ui.success(f"Catalog ready · Source y Reference en {context.database_name}.")
     else:
-        ui.info(
-            "Catálogo Source: no inicializado. Abrir esta página no crea colecciones ni índices."
+        ui.warning(
+            "Catalog missing · "
+            f"{missing_count} índice(s) pendiente(s), "
+            f"{conflict_count} conflicto(s)."
         )
 
-    ui.caption(
-        "Colecciones: "
-        f"sources={'sí' if snapshot.source_collection_exists else 'no'} · "
-        f"references={'sí' if snapshot.reference_collection_exists else 'no'}"
-    )
-    ui.dataframe(_index_rows(snapshot.index_statuses), width="stretch", hide_index=True)
-    ui.write(
-        f"Plan: {len(snapshot.plan.present)} presentes, "
-        f"{len(snapshot.plan.missing)} faltantes, "
-        f"{len(snapshot.plan.conflicts)} diferencias."
-    )
-    if snapshot.plan.missing:
-        ui.write("Índices faltantes que Initialize aplicaría:")
-        ui.dataframe(
-            _missing_index_rows(snapshot.plan),
-            width="stretch",
-            hide_index=True,
+    with ui.expander("Advanced catalog diagnostics", expanded=False):
+        ui.caption(
+            "Colecciones: "
+            f"sources={'sí' if snapshot.source_collection_exists else 'no'} · "
+            f"references={'sí' if snapshot.reference_collection_exists else 'no'}"
         )
-    if snapshot.plan.conflicts:
-        ui.error(
-            "Hay conflictos de definición de índices. Initialize no puede resolverlos; "
-            "se requiere revisión humana antes de escribir."
+        ui.dataframe(_index_rows(snapshot.index_statuses), width="stretch", hide_index=True)
+        ui.write(
+            f"Plan: {len(snapshot.plan.present)} presentes, "
+            f"{missing_count} faltantes, "
+            f"{conflict_count} diferencias."
         )
+        if snapshot.plan.missing:
+            ui.write("Índices faltantes que Initialize aplicaría:")
+            ui.dataframe(
+                _missing_index_rows(snapshot.plan),
+                width="stretch",
+                hide_index=True,
+            )
+        if snapshot.plan.conflicts:
+            ui.error(
+                "Hay conflictos de definición de índices. Initialize no puede resolverlos; "
+                "se requiere revisión humana antes de escribir."
+            )
 
     plan_fingerprint = _index_plan_fingerprint(snapshot.plan)
     plan_state_key = state_key("index_plan_fingerprint")

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any
 
 from editor.reading_annotations.evidence_panel import render_document_evidence
@@ -40,8 +41,14 @@ def _index_rows(statuses: Any) -> list[dict[str, str]]:
     ]
 
 
-def _render_index_status(ui: Any, context: Any, service: Any) -> bool:
-    """Inspect S4 indexes and apply only after an exact explicit confirmation."""
+def _render_index_status(
+    ui: Any,
+    context: Any,
+    service: Any,
+    *,
+    maintenance: bool = False,
+) -> bool:
+    """Render a compact readiness summary and optional maintenance diagnostics."""
     manager = service.index_manager
     try:
         statuses = tuple(manager.status())
@@ -51,13 +58,15 @@ def _render_index_status(ui: Any, context: Any, service: Any) -> bool:
         return False
     initialized = bool(getattr(plan, "initialized", False))
     conflicts = tuple(getattr(plan, "conflicts", ()))
-    with ui.expander("Notes & Evidence index status", expanded=not initialized):
-        if initialized:
-            ui.success(f"Notes & Evidence initialized in {context.database_name}.")
-        elif conflicts:
-            ui.error("Notes & Evidence indexes have conflicts; no changes will be applied.")
-        else:
-            ui.info("Notes & Evidence is not initialized. Opening the panel creates no indexes.")
+    if initialized:
+        ui.success(f"✅ Notes & Evidence ready on {context.database_name}.")
+    elif conflicts:
+        ui.error("Notes & Evidence index conflicts require Maintenance.")
+    else:
+        ui.warning("Notes & Evidence needs initialization in Maintenance.")
+    if not maintenance:
+        return initialized
+    with ui.expander("Advanced Notes & Evidence diagnostics", expanded=False):
         ui.dataframe(_index_rows(statuses), width="stretch", hide_index=True)
         with ui.form(key=state_key("initialize_indexes_form")):
             confirmation = ui.text_input(
@@ -88,7 +97,23 @@ def _render_index_status(ui: Any, context: Any, service: Any) -> bool:
     return initialized
 
 
-def annotation_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
+PageLabeler = Callable[[int], str | None]
+
+
+def _page_heading(page_number: int | None, page_labeler: PageLabeler | None) -> str:
+    if page_number is None:
+        return "No page"
+    book_page = page_labeler(page_number) if page_labeler is not None else None
+    if book_page:
+        return f"Book page {book_page} · PDF page {page_number}"
+    return f"PDF page {page_number}"
+
+
+def annotation_rows(
+    items: tuple[Any, ...] | list[Any],
+    *,
+    page_labeler: PageLabeler | None = None,
+) -> list[dict[str, Any]]:
     """Return compact annotation rows with bounded plain-text previews."""
 
     def preview(value: object, limit: int = 120) -> str:
@@ -99,7 +124,7 @@ def annotation_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
         {
             "kind": enum_value(item.kind),
             "status": enum_value(item.status),
-            "page_number": item.page_number,
+            "page": _page_heading(item.page_number, page_labeler),
             "quote": preview(item.quote_text),
             "comment": preview(item.body),
             "tags": ", ".join(item.tags),
@@ -256,43 +281,51 @@ def _render_annotations(
     is_pdf: bool,
     actions_enabled: bool,
     archive_enabled: bool,
+    show_quick: bool = True,
+    show_list: bool = True,
+    quick_expanded: bool = True,
+    page_labeler: PageLabeler | None = None,
 ) -> None:
     document_id = document.document_id
-    ui.subheader("Document Annotations")
-    with ui.expander("Quick Annotation", expanded=True):
-        ui.caption(
-            "Logical annotation only: enter quoted text and comments manually. "
-            "No PDF selection or visual overlay is created."
-        )
-        draft = render_annotation_form(
-            ui,
-            document_id=document_id,
-            is_pdf=is_pdf,
-            suggested_page=suggested_page,
-            form_key="quick_annotation",
-            actions_enabled=actions_enabled,
-            compact=True,
-        )
-        if draft is not None:
-            result = service.create_annotation(
-                document_id,
-                user_scope="local",
-                kind=draft.kind,
-                page_number=draft.page_number,
-                page_label=draft.page_label,
-                quote_text=draft.quote_text,
-                body=draft.body,
-                color_label=draft.color_label,
-                tags=draft.tags,
+    if show_quick:
+        ui.subheader("Quick Annotation")
+    if show_quick:
+        with ui.expander("Quick Annotation form", expanded=quick_expanded):
+            ui.caption(
+                "Logical annotation only: enter quoted text and comments manually. "
+                "No PDF selection or visual overlay is created."
             )
-            if render_result(ui, result, success="Annotation added."):
-                queue_draft_clear(
-                    ui.session_state,
-                    form_key="quick_annotation",
-                    document_id=document_id,
+            draft = render_annotation_form(
+                ui,
+                document_id=document_id,
+                is_pdf=is_pdf,
+                suggested_page=suggested_page,
+                form_key="quick_annotation",
+                actions_enabled=actions_enabled,
+                compact=True,
+            )
+            if draft is not None:
+                result = service.create_annotation(
+                    document_id,
+                    user_scope="local",
+                    kind=draft.kind,
+                    page_number=draft.page_number,
+                    page_label=draft.page_label,
+                    quote_text=draft.quote_text,
+                    body=draft.body,
+                    color_label=draft.color_label,
+                    tags=draft.tags,
                 )
-                ui.rerun()
-
+                if render_result(ui, result, success="Annotation added."):
+                    queue_draft_clear(
+                        ui.session_state,
+                        form_key="quick_annotation",
+                        document_id=document_id,
+                    )
+                    ui.rerun()
+    if not show_list:
+        return
+    ui.subheader("Document Annotations")
     query = ui.text_input(
         "Filter annotations by text or tags",
         key=state_key("annotation_filter", document_id),
@@ -327,9 +360,13 @@ def _render_annotations(
         return
     grouped = annotation_groups(items)
     for page_number, page_items in grouped:
-        label = f"Page {page_number}" if page_number is not None else "No page"
+        label = _page_heading(page_number, page_labeler)
         ui.caption(f"{label} · {len(page_items)} annotation(s)")
-        ui.dataframe(annotation_rows(page_items), width="stretch", hide_index=True)
+        ui.dataframe(
+            annotation_rows(page_items, page_labeler=page_labeler),
+            width="stretch",
+            hide_index=True,
+        )
         for item in page_items:
             _render_annotation_card(
                 ui,
@@ -350,6 +387,184 @@ def _references(context: Any, source_id: str) -> tuple[Any, ...]:
     except Exception:
         return ()
     return tuple(getattr(page, "items", ()))
+
+
+def _sync_panel_context(context: Any, reader: Any, ui: Any) -> None:
+    document = reader.document
+    sync_context(
+        ui.session_state,
+        connection_label=context.connection_label,
+        database_name=context.database_name,
+        database=context.database,
+        source_id=document.source_id,
+        document_id=document.document_id,
+        user_scope="local",
+    )
+    apply_pending_draft_clears(ui.session_state)
+    apply_pending_draft_values(ui.session_state)
+
+
+def _panel_permissions(service: Any, document: Any) -> tuple[bool, bool]:
+    try:
+        initialized = bool(getattr(service.index_manager.plan(), "initialized", False))
+    except Exception:
+        initialized = False
+    document_active = enum_value(document.status) == DocumentStatus.ACTIVE.value
+    return initialized, document_active
+
+
+def _suggested_page(ui: Any, reader: Any) -> tuple[bool, int | None]:
+    document = reader.document
+    is_pdf = enum_value(document.kind) == DocumentKind.PDF.value
+    if not is_pdf:
+        return False, None
+    return True, suggested_current_page(
+        ui.session_state,
+        document_id=document.document_id,
+        persisted_page=getattr(getattr(reader, "reading_state", None), "current_page", None),
+    )
+
+
+def _completed_count(result: Any) -> int:
+    return len(result_items(result)) if getattr(result, "completed", False) else 0
+
+
+def _render_workspace_counts(ui: Any, service: Any, document_id: str) -> None:
+    annotations = service.list_document_annotations(
+        document_id, status=None, page=1, page_size=50, user_scope="local"
+    )
+    notes = service.list_document_notes(
+        document_id, status=None, page=1, page_size=50, user_scope="local"
+    )
+    evidence = service.list_document_evidence(document_id, status=None, page=1, page_size=50)
+    ui.caption(
+        f"{_completed_count(annotations)} annotations · "
+        f"{_completed_count(notes)} notes · {_completed_count(evidence)} evidence links"
+    )
+
+
+def render_workspace_notes_panel(
+    context: Any,
+    reader: Any,
+    *,
+    ui: Any,
+    service: Any | None = None,
+    page_labeler: PageLabeler | None = None,
+    focus: str | None = None,
+) -> None:
+    """Render compact quick capture and page-grouped annotations beside the reader."""
+    if service is None:
+        from mathmongo.reading_annotations.service import ReadingAnnotationService
+
+        service = ReadingAnnotationService(context.database)
+    _sync_panel_context(context, reader, ui)
+    document = reader.document
+    initialized, document_active = _panel_permissions(service, document)
+    writable = initialized and document_active
+    is_pdf, suggested_page = _suggested_page(ui, reader)
+    ui.subheader("Notes & Evidence")
+    _render_workspace_counts(ui, service, document.document_id)
+    if not initialized:
+        ui.caption("Writes require Notes & Evidence initialization in Maintenance.")
+    _render_annotations(
+        ui,
+        context.database,
+        service,
+        document=document,
+        suggested_page=suggested_page,
+        is_pdf=is_pdf,
+        actions_enabled=writable,
+        archive_enabled=initialized,
+        quick_expanded=focus == "annotation",
+        page_labeler=page_labeler,
+    )
+    render_note_panel(
+        ui,
+        context.database,
+        service,
+        document=document,
+        references=_references(context, document.source_id),
+        suggested_page=suggested_page,
+        is_pdf=is_pdf,
+        actions_enabled=initialized,
+        document_active=document_active,
+        show_list=False,
+        quick_expanded=focus == "note",
+        page_labeler=page_labeler,
+    )
+
+
+def render_notes_tab(
+    context: Any,
+    reader: Any,
+    *,
+    ui: Any,
+    service: Any | None = None,
+    page_labeler: PageLabeler | None = None,
+) -> None:
+    """Render the filtered Document and Source Reading Notes list."""
+    if service is None:
+        from mathmongo.reading_annotations.service import ReadingAnnotationService
+
+        service = ReadingAnnotationService(context.database)
+    _sync_panel_context(context, reader, ui)
+    document = reader.document
+    initialized, document_active = _panel_permissions(service, document)
+    is_pdf, suggested_page = _suggested_page(ui, reader)
+    ui.header("Reading Notes")
+    render_note_panel(
+        ui,
+        context.database,
+        service,
+        document=document,
+        references=_references(context, document.source_id),
+        suggested_page=suggested_page,
+        is_pdf=is_pdf,
+        actions_enabled=initialized,
+        document_active=document_active,
+        show_quick=False,
+        page_labeler=page_labeler,
+    )
+
+
+def render_evidence_tab(
+    context: Any,
+    reader: Any,
+    *,
+    ui: Any,
+    service: Any | None = None,
+    page_labeler: PageLabeler | None = None,
+) -> None:
+    """Render Concept Evidence cards for the selected Document."""
+    if service is None:
+        from mathmongo.reading_annotations.service import ReadingAnnotationService
+
+        service = ReadingAnnotationService(context.database)
+    _sync_panel_context(context, reader, ui)
+    initialized, _ = _panel_permissions(service, reader.document)
+    ui.header("Concept Evidence")
+    render_document_evidence(
+        ui,
+        context.database,
+        service,
+        document_id=reader.document.document_id,
+        actions_enabled=initialized,
+        page_labeler=page_labeler,
+    )
+
+
+def render_notes_evidence_maintenance(
+    context: Any,
+    *,
+    ui: Any,
+    service: Any | None = None,
+) -> bool:
+    """Render S4 readiness and technical index rows only in Maintenance."""
+    if service is None:
+        from mathmongo.reading_annotations.service import ReadingAnnotationService
+
+        service = ReadingAnnotationService(context.database)
+    return _render_index_status(ui, context, service, maintenance=True)
 
 
 def render_notes_and_evidence_panel(
@@ -429,4 +644,12 @@ def render_notes_and_evidence_panel(
     )
 
 
-__all__ = ["annotation_groups", "annotation_rows", "render_notes_and_evidence_panel"]
+__all__ = [
+    "annotation_groups",
+    "annotation_rows",
+    "render_evidence_tab",
+    "render_notes_and_evidence_panel",
+    "render_notes_evidence_maintenance",
+    "render_notes_tab",
+    "render_workspace_notes_panel",
+]
