@@ -14,23 +14,25 @@ from editor.reading_annotations.panel_utils import local_match
 from editor.reading_annotations.panel_utils import render_result
 from editor.reading_annotations.panel_utils import result_items
 from editor.reading_annotations.state import SELECTED_NOTE_ID
+from editor.reading_annotations.state import queue_draft_clear
 from editor.reading_annotations.state import select_note
 from editor.reading_annotations.state import state_key
 
 
 def note_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
-    """Return metadata-only rows without rendering note text as markup."""
+    """Return compact metadata-only rows without rendering note text as markup."""
     return [
         {
             "title": item.title,
-            "note_type": enum_value(item.note_type),
+            "type": enum_value(item.note_type),
+            "scope": "Document" if item.document_id is not None else "Source only",
+            "pages": (
+                f"{item.page_start}–{item.page_end}"
+                if item.page_start is not None and item.page_end is not None
+                else str(item.page_start or "")
+            ),
             "status": enum_value(item.status),
-            "page_start": item.page_start,
-            "page_end": item.page_end,
             "tags": ", ".join(item.tags),
-            "document_id": item.document_id,
-            "reference_id": item.reference_id,
-            "updated_at": item.updated_at,
             "note_id": item.note_id,
         }
         for item in items
@@ -52,7 +54,8 @@ def render_note_panel(
     """Render creation, editing, archive/reactivation, and evidence for notes."""
     document_id = document.document_id
     ui.subheader("Reading Notes")
-    with ui.expander("Add Reading Note", expanded=False):
+    with ui.expander("Quick Reading Note", expanded=True):
+        ui.caption("Capture a compact plain-text note for this Document or its Source.")
         draft = render_note_form(
             ui,
             source_id=document.source_id,
@@ -60,8 +63,9 @@ def render_note_panel(
             is_pdf=is_pdf,
             suggested_page=suggested_page,
             references=references,
-            form_key="add_note",
+            form_key="quick_note",
             actions_enabled=actions_enabled,
+            compact=True,
         )
         if draft is not None:
             result = service.create_note(
@@ -77,6 +81,11 @@ def render_note_panel(
                 tags=draft.tags,
             )
             if render_result(ui, result, success="Reading Note added."):
+                queue_draft_clear(
+                    ui.session_state,
+                    form_key="quick_note",
+                    document_id=document_id,
+                )
                 ui.rerun()
 
     query = ui.text_input(
@@ -125,8 +134,16 @@ def render_note_panel(
     if not items:
         ui.caption("No Reading Notes match this Document and filter.")
         return
-    ui.dataframe(note_rows(items), width="stretch", hide_index=True)
-    for item in items:
+    document_notes = tuple(item for item in items if item.document_id is not None)
+    source_notes = tuple(item for item in items if item.document_id is None)
+    for label, values in (
+        ("Document Notes", document_notes),
+        ("Source-only Notes", source_notes),
+    ):
+        if values:
+            ui.caption(f"{label} · {len(values)}")
+            ui.dataframe(note_rows(values), width="stretch", hide_index=True)
+    for item in (*document_notes, *source_notes):
         status = enum_value(item.status)
         note_write_enabled = actions_enabled and (item.document_id is None or document_active)
         with ui.expander(f"{item.title} · {enum_value(item.note_type)} · {status}"):
@@ -204,6 +221,11 @@ def render_note_panel(
                         tags=draft.tags,
                     )
                     if render_result(ui, updated, success="Reading Note updated."):
+                        queue_draft_clear(
+                            ui.session_state,
+                            form_key=f"edit_note_{item.note_id}",
+                            document_id=document_id,
+                        )
                         select_note(ui.session_state, None)
                         ui.rerun()
             show_evidence = ui.checkbox(
@@ -226,6 +248,7 @@ def render_note_panel(
             ):
                 render_subject_evidence(
                     ui,
+                    database,
                     service,
                     annotation_id=None,
                     note_id=item.note_id,

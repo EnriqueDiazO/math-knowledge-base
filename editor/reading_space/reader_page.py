@@ -13,6 +13,7 @@ from editor.pdf_preview import render_pdf_preview
 from editor.pdf_preview import store_pdf_preview
 from editor.reading_annotations import render_notes_and_evidence_panel as _render_s4_panel
 from editor.reading_annotations.state import apply_pending_page_suggestion
+from editor.reading_annotations.state import sync_database_context as sync_s4_database_context
 from editor.reading_space.document_picker import render_document_picker
 from editor.reading_space.filters import Choice
 from editor.reading_space.filters import render_filters
@@ -45,6 +46,8 @@ from mathmongo.source_documents.models import DocumentStatus
 USER_SCOPE = "local"
 DOCUMENT_PAGE_SIZE = 20
 RECENT_PAGE_SIZE = 10
+SPLIT_WORKSPACE = "Split workspace"
+STACKED_WORKSPACE = "Stacked layout"
 
 
 def _status_value(value: Any) -> str:
@@ -445,22 +448,29 @@ def _render_reader_panel(
     service: ReadingSpaceService,
     *,
     actions_enabled: bool,
-) -> None:
+    render_s4: bool = True,
+    reader: ReaderContext | None = None,
+    reader_loaded: bool = False,
+) -> ReaderContext | None:
     ui.subheader("Reader")
-    document_id = ui.session_state.get(SELECTED_DOCUMENT_ID)
-    if not isinstance(document_id, str):
+    if not reader_loaded:
+        document_id = ui.session_state.get(SELECTED_DOCUMENT_ID)
+        if not isinstance(document_id, str):
+            ui.info("Open a Document from the list or Recent Documents.")
+            return None
+        result = service.get_reader_context(document_id, user_scope=USER_SCOPE)
+        if not _result_ok(result) or result.value is None:
+            clear_reader_preview(ui.session_state)
+            _render_result(ui, result, success="Reader loaded.")
+            return None
+        reader = result.value
+        apply_pending_page_suggestion(
+            ui.session_state,
+            total_pages=getattr(reader.reading_state, "total_pages", None),
+        )
+    if reader is None:
         ui.info("Open a Document from the list or Recent Documents.")
-        return
-    result = service.get_reader_context(document_id, user_scope=USER_SCOPE)
-    if not _result_ok(result) or result.value is None:
-        clear_reader_preview(ui.session_state)
-        _render_result(ui, result, success="Reader loaded.")
-        return
-    reader = result.value
-    apply_pending_page_suggestion(
-        ui.session_state,
-        total_pages=getattr(reader.reading_state, "total_pages", None),
-    )
+        return None
     if reader.document.kind == DocumentKind.PDF:
         _render_pdf_reader(
             ui,
@@ -476,12 +486,117 @@ def _render_reader_panel(
             reader,
             actions_enabled=actions_enabled,
         )
-    if hasattr(context.database, "__getitem__"):
+    if render_s4 and hasattr(context.database, "__getitem__"):
         _render_s4_panel(
             context,
             reader,
             ui=ui,
         )
+    return reader
+
+
+def _load_selected_reader(
+    ui: Any,
+    service: ReadingSpaceService,
+) -> ReaderContext | None:
+    """Load one selected ReaderContext and apply pending page state pre-widget."""
+    document_id = ui.session_state.get(SELECTED_DOCUMENT_ID)
+    if not isinstance(document_id, str):
+        return None
+    result = service.get_reader_context(document_id, user_scope=USER_SCOPE)
+    if not _result_ok(result) or result.value is None:
+        clear_reader_preview(ui.session_state)
+        _render_result(ui, result, success="Reader loaded.")
+        return None
+    reader = result.value
+    apply_pending_page_suggestion(
+        ui.session_state,
+        total_pages=getattr(reader.reading_state, "total_pages", None),
+    )
+    return reader
+
+
+def _render_reading_workspace(
+    ui: Any,
+    context: CatalogUIContext,
+    service: ReadingSpaceService,
+    *,
+    actions_enabled: bool,
+) -> None:
+    """Render the selected Document first in split or stacked workspace form."""
+    selected_document_id = ui.session_state.get(SELECTED_DOCUMENT_ID)
+    reader = _load_selected_reader(ui, service)
+    with ui.container(border=True):
+        heading, layout_control = ui.columns([0.68, 0.32], gap="medium")
+        with heading:
+            ui.subheader("Reading Workspace")
+            if reader is not None:
+                document = reader.document
+                reading = reader.reading_state
+                source_label = (
+                    reader.source.name if reader.source is not None else document.source_id
+                )
+                reference_label = None
+                if reader.reference is not None:
+                    reference_label = reader.reference.title or reader.reference.reference_id
+                current_page = ui.session_state.get(
+                    state_key("current_page", document.document_id),
+                    getattr(reading, "current_page", None),
+                )
+                ui.caption(
+                    f"Document: {document.title} · Source: {source_label} · "
+                    f"Reference: {reference_label or '—'}"
+                )
+                ui.caption(
+                    f"Current page: {current_page or '—'} · "
+                    f"Reading status: {_status_value(reader.effective_status)}"
+                )
+            elif isinstance(selected_document_id, str):
+                ui.caption(f"Selected Document: {selected_document_id}")
+            else:
+                ui.caption("Select a Document to begin reading and taking notes.")
+        with layout_control:
+            workspace_layout = ui.selectbox(
+                "Workspace layout",
+                options=(SPLIT_WORKSPACE, STACKED_WORKSPACE),
+                key=state_key("workspace_layout"),
+            )
+
+    if workspace_layout == STACKED_WORKSPACE:
+        _render_reader_panel(
+            ui,
+            context,
+            service,
+            actions_enabled=actions_enabled,
+            reader=reader,
+            reader_loaded=True,
+        )
+        return
+
+    reader_column, notes_column = ui.columns([0.58, 0.42], gap="large")
+    with reader_column:
+        reader = _render_reader_panel(
+            ui,
+            context,
+            service,
+            actions_enabled=actions_enabled,
+            render_s4=False,
+            reader=reader,
+            reader_loaded=True,
+        )
+    with notes_column:
+        if reader is None:
+            ui.subheader("Notes & Evidence")
+            ui.info("Select a Document to open its notes and concept evidence.")
+        elif hasattr(context.database, "__getitem__"):
+            _render_s4_panel(
+                context,
+                reader,
+                ui=ui,
+            )
+        else:
+            ui.subheader("Notes & Evidence")
+            ui.info("Notes & Evidence requires an active database context.")
 
 
 def _render_summary(ui: Any, service: ReadingSpaceService, source_id: str | None) -> None:
@@ -514,29 +629,14 @@ def _recent_page(result: ReadingServiceResult) -> Any:
     return SimpleNamespace(items=items, page=1, pages=1 if items else 0, total=len(items))
 
 
-def render_reading_space_page(
+def _render_document_browser(
+    ui: Any,
     context: CatalogUIContext,
+    service: ReadingSpaceService,
     *,
-    ui: Any | None = None,
-    service: ReadingSpaceService | None = None,
+    actions_enabled: bool,
 ) -> None:
-    """Render S3 filters, metadata lists, history, reader, and reading state."""
-    if ui is None:
-        import streamlit as ui
-
-    reading_service = service or ReadingSpaceService(context.database)
-    ui.title("📖 Reading Space")
-    render_active_database(ui, context)
-    sync_user_scope(ui.session_state, USER_SCOPE)
-    target = consume_pending_target(ui.session_state)
-    if target is not None:
-        select_source(ui.session_state, target["source_id"])
-        select_document(ui.session_state, target["document_id"])
-        ui.session_state[state_key("filter_source")] = target["source_id"]
-    apply_pending_document_widget_clears(ui.session_state)
-    apply_pending_current_page_widget_clears(ui.session_state)
-    actions_enabled = _render_index_status(ui, context, reading_service)
-    ui.divider()
+    """Render bounded filters and selection controls inside Change Document."""
     filters = render_filters(
         ui,
         sources=_source_choices(ui, context),
@@ -553,11 +653,7 @@ def render_reading_space_page(
             width="stretch",
         )
     )
-
-    if target is not None and target["kind"] == "pdf" and actions_enabled:
-        _open_pdf(ui, context, reading_service, target["document_id"])
-
-    list_result = reading_service.list_readable_documents(
+    list_result = service.list_readable_documents(
         filters=filters,
         user_scope=USER_SCOPE,
         page=page_number,
@@ -572,19 +668,20 @@ def render_reading_space_page(
             select_source(ui.session_state, document.source_id)
             select_document(ui.session_state, document.document_id)
             if document.kind == DocumentKind.PDF:
-                _open_pdf(ui, context, reading_service, document.document_id)
+                _open_pdf(ui, context, service, document.document_id)
+            ui.rerun()
 
         def complete_item(item: Any) -> None:
             _run_state_action(
                 ui,
-                reading_service.mark_completed(item.document.document_id, user_scope=USER_SCOPE),
+                service.mark_completed(item.document.document_id, user_scope=USER_SCOPE),
                 success="Document marked completed.",
             )
 
         def defer_item(item: Any) -> None:
             _run_state_action(
                 ui,
-                reading_service.mark_deferred(item.document.document_id, user_scope=USER_SCOPE),
+                service.mark_deferred(item.document.document_id, user_scope=USER_SCOPE),
                 success="Document marked deferred.",
             )
 
@@ -592,7 +689,7 @@ def render_reading_space_page(
             document_id = item.document.document_id
             reset = _run_state_action(
                 ui,
-                reading_service.reset_reading_state(
+                service.reset_reading_state(
                     document_id,
                     user_scope=USER_SCOPE,
                 ),
@@ -612,37 +709,112 @@ def render_reading_space_page(
             on_reset=reset_item,
         )
 
-    _render_summary(ui, reading_service, filters.source_id)
-    ui.subheader("Recent Documents")
-    recent_result = reading_service.list_recent_documents(
+    _render_summary(ui, service, filters.source_id)
+
+
+def _render_recent_reads(
+    ui: Any,
+    context: CatalogUIContext,
+    service: ReadingSpaceService,
+    *,
+    actions_enabled: bool,
+) -> None:
+    """Render bounded recent reads without displacing the active workspace."""
+    recent_result = service.list_recent_documents(
         user_scope=USER_SCOPE,
         page=1,
         page_size=RECENT_PAGE_SIZE,
     )
     if not _result_ok(recent_result):
         _render_result(ui, recent_result, success="Recent Documents loaded.")
-    else:
+        return
 
-        def open_recent(item: Any) -> None:
-            document = item.document
-            select_source(ui.session_state, document.source_id)
-            select_document(ui.session_state, document.document_id)
-            if document.kind == DocumentKind.PDF:
-                _open_pdf(ui, context, reading_service, document.document_id)
+    def open_recent(item: Any) -> None:
+        document = item.document
+        select_source(ui.session_state, document.source_id)
+        select_document(ui.session_state, document.document_id)
+        if document.kind == DocumentKind.PDF:
+            _open_pdf(ui, context, service, document.document_id)
+        ui.rerun()
 
-        render_recent_documents(
-            ui,
-            _recent_page(recent_result),
-            actions_enabled=actions_enabled,
-            on_open=open_recent,
-        )
-
-    _render_reader_panel(
+    render_recent_documents(
         ui,
-        context,
-        reading_service,
+        _recent_page(recent_result),
         actions_enabled=actions_enabled,
+        on_open=open_recent,
     )
+
+
+def render_reading_space_page(
+    context: CatalogUIContext,
+    *,
+    ui: Any | None = None,
+    service: ReadingSpaceService | None = None,
+) -> None:
+    """Render S3 filters, metadata lists, history, reader, and reading state."""
+    if ui is None:
+        import streamlit as ui
+
+    reading_service = service or ReadingSpaceService(context.database)
+    ui.title("📖 Reading Space")
+    render_active_database(ui, context)
+    sync_user_scope(ui.session_state, USER_SCOPE)
+    sync_s4_database_context(
+        ui.session_state,
+        connection_label=context.connection_label,
+        database_name=context.database_name,
+        database=context.database,
+    )
+    target = consume_pending_target(ui.session_state)
+    if target is not None:
+        select_source(ui.session_state, target["source_id"])
+        select_document(ui.session_state, target["document_id"])
+        ui.session_state[state_key("filter_source")] = target["source_id"]
+    apply_pending_document_widget_clears(ui.session_state)
+    apply_pending_current_page_widget_clears(ui.session_state)
+    actions_enabled = _render_index_status(ui, context, reading_service)
+    ui.divider()
+    if target is not None and target["kind"] == "pdf" and actions_enabled:
+        _open_pdf(ui, context, reading_service, target["document_id"])
+    has_selected_document = isinstance(ui.session_state.get(SELECTED_DOCUMENT_ID), str)
+    if not has_selected_document:
+        _render_document_browser(
+            ui,
+            context,
+            reading_service,
+            actions_enabled=actions_enabled,
+        )
+        ui.subheader("Recent Documents")
+        _render_recent_reads(
+            ui,
+            context,
+            reading_service,
+            actions_enabled=actions_enabled,
+        )
+        return
+
+    workspace = ui.container(key=state_key("workspace"))
+    with ui.expander("Change Document", expanded=False):
+        _render_document_browser(
+            ui,
+            context,
+            reading_service,
+            actions_enabled=actions_enabled,
+        )
+    with ui.expander("Recent Documents", expanded=False):
+        _render_recent_reads(
+            ui,
+            context,
+            reading_service,
+            actions_enabled=actions_enabled,
+        )
+    with workspace:
+        _render_reading_workspace(
+            ui,
+            context,
+            reading_service,
+            actions_enabled=actions_enabled,
+        )
 
 
 __all__ = ["render_reading_space_page"]

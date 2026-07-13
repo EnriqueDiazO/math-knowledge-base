@@ -11,22 +11,32 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+from editor.reading_annotations.annotation_panel import annotation_groups
+from editor.reading_annotations.annotation_panel import annotation_rows
 from editor.reading_annotations.annotation_panel import render_notes_and_evidence_panel
 from editor.reading_annotations.concept_picker import find_legacy_concepts
+from editor.reading_annotations.evidence_panel import evidence_origin
 from editor.reading_annotations.evidence_panel import evidence_rows
 from editor.reading_annotations.forms import render_annotation_form
 from editor.reading_annotations.forms import render_note_form
 from editor.reading_annotations.navigation import render_open_document
+from editor.reading_annotations.note_panel import note_rows
 from editor.reading_annotations.panel_utils import local_match
 from editor.reading_annotations.state import ACTIVE_CONTEXT
+from editor.reading_annotations.state import PENDING_DRAFT_CLEARS
+from editor.reading_annotations.state import PENDING_DRAFT_VALUES
 from editor.reading_annotations.state import PENDING_PAGE_SUGGESTION
 from editor.reading_annotations.state import SELECTED_ANNOTATION_ID
 from editor.reading_annotations.state import SELECTED_CONCEPT_IDENTITY
 from editor.reading_annotations.state import SELECTED_NOTE_ID
 from editor.reading_annotations.state import SESSION_PREFIX
+from editor.reading_annotations.state import apply_pending_draft_clears
+from editor.reading_annotations.state import apply_pending_draft_values
 from editor.reading_annotations.state import apply_pending_page_suggestion
 from editor.reading_annotations.state import state_key
+from editor.reading_annotations.state import suggested_current_page
 from editor.reading_annotations.state import sync_context
+from editor.reading_annotations.state import sync_database_context
 from editor.reading_space import reader_page as reading_page_module
 from editor.reading_space.reader_page import _render_reader_panel
 from editor.reading_space.state import SELECTED_DOCUMENT_ID
@@ -119,7 +129,7 @@ class FakeUI:
     def form_submit_button(self, label, *, key, disabled=False, **_kwargs):
         self.labels.append(str(label))
         assert key.startswith(SESSION_PREFIX)
-        return not disabled and label in self.submitted
+        return not disabled and (label in self.submitted or key in self.submitted)
 
     def button(self, label, *, key, disabled=False, **_kwargs):
         self.labels.append(str(label))
@@ -153,6 +163,18 @@ class FakeCollection:
         self.queries.append(query)
         self.projections.append(projection)
         return FakeCursor(dict(document) for document in self.documents)
+
+    def find_one(self, query, projection):
+        self.queries.append(query)
+        self.projections.append(projection)
+        return next(
+            (
+                dict(document)
+                for document in self.documents
+                if all(document.get(key) == value for key, value in query.items())
+            ),
+            None,
+        )
 
 
 class FakeDatabase:
@@ -200,7 +222,12 @@ class FakeIndexManager:
         raise AssertionError("initialized S4 indexes must not be applied")
 
 
-def _annotation(*, status: str = "active", document_id: str = "doc-pdf") -> Any:
+def _annotation(
+    *,
+    status: str = "active",
+    document_id: str = "doc-pdf",
+    page_number: int | None = 7,
+) -> Any:
     return SimpleNamespace(
         annotation_id="ann-1",
         document_id=document_id,
@@ -209,7 +236,7 @@ def _annotation(*, status: str = "active", document_id: str = "doc-pdf") -> Any:
         user_scope="local",
         kind=SimpleNamespace(value="highlight"),
         status=SimpleNamespace(value=status),
-        page_number=7 if document_id == "doc-pdf" else None,
+        page_number=page_number if document_id == "doc-pdf" else None,
         page_label=None,
         quote_text="manual quote",
         body="plain annotation",
@@ -249,10 +276,10 @@ def _evidence(*, status: str = "active", target: str = "annotation") -> Any:
         concept_legacy_source="Legacy Book",
         source_id="src-1",
         reference_id="ref-1",
-        document_id=None,
+        document_id="doc-pdf" if target == "document" else None,
         annotation_id="ann-1" if target == "annotation" else None,
         note_id="note-1" if target == "note" else None,
-        page_number=None,
+        page_number=4 if target == "document" else None,
         link_type=SimpleNamespace(value="definition_source"),
         status=SimpleNamespace(value=status),
         comment="supports the definition",
@@ -442,6 +469,136 @@ def test_pdf_annotation_uses_s3_current_page_as_suggestion() -> None:
     call = next(value for name, value in service.calls if name == "create_annotation")
     assert call[1]["page_number"] == 7
     assert "Page number" in ui.labels
+    assert "Use current page" in ui.labels
+    assert any("Logical annotation only" in message for _level, message in ui.messages)
+    assert ("quick_annotation", "doc-pdf") in ui.session_state[PENDING_DRAFT_CLEARS]
+
+
+def test_quick_note_defaults_to_current_page_with_optional_end() -> None:
+    ui = FakeUI(
+        values={
+            state_key("quick_note", "title", "doc-pdf"): "Quick",
+            state_key("quick_note", "body", "doc-pdf"): "Body",
+        },
+        submitted={"Add Reading Note"},
+    )
+    service = FakeService()
+
+    _render(ui, service)
+
+    call = next(value for name, value in service.calls if name == "create_note")
+    assert call["page_start"] == 7
+    assert call["page_end"] is None
+    assert "Use current page" in ui.labels
+    assert ("quick_note", "doc-pdf") in ui.session_state[PENDING_DRAFT_CLEARS]
+
+
+def test_use_current_page_queues_safe_widget_values_before_rerun() -> None:
+    page_key = state_key("quick_annotation", "page", "doc-pdf")
+    ui = FakeUI(
+        values={page_key: 19},
+        submitted={state_key("quick_annotation", "use_current_page", "doc-pdf")},
+    )
+
+    assert (
+        render_annotation_form(
+            ui,
+            document_id="doc-pdf",
+            is_pdf=True,
+            suggested_page=7,
+            form_key="quick_annotation",
+            compact=True,
+        )
+        is None
+    )
+    assert ui.session_state[page_key] == 19
+    assert ui.session_state[PENDING_DRAFT_VALUES][page_key] == 7
+
+    ui.values.clear()
+    ui.submitted = {"Add Annotation"}
+    apply_pending_draft_values(ui.session_state)
+    draft = render_annotation_form(
+        ui,
+        document_id="doc-pdf",
+        is_pdf=True,
+        suggested_page=7,
+        form_key="quick_annotation",
+        compact=True,
+    )
+    assert draft is not None and draft.page_number == 7
+
+
+def test_clear_quick_form_queues_and_applies_draft_cleanup() -> None:
+    body_key = state_key("quick_annotation", "body", "doc-pdf")
+    ui = FakeUI(
+        values={body_key: "discard"},
+        submitted={state_key("quick_annotation", "clear", "doc-pdf")},
+    )
+
+    render_annotation_form(
+        ui,
+        document_id="doc-pdf",
+        is_pdf=True,
+        suggested_page=7,
+        form_key="quick_annotation",
+        compact=True,
+    )
+
+    assert ui.session_state[body_key] == "discard"
+    assert ("quick_annotation", "doc-pdf") in ui.session_state[PENDING_DRAFT_CLEARS]
+    assert apply_pending_draft_clears(ui.session_state) == (("quick_annotation", "doc-pdf"),)
+    assert body_key not in ui.session_state
+
+
+def test_quick_annotation_prioritizes_fields_by_kind() -> None:
+    comment_ui = FakeUI(values={state_key("quick_comment", "kind", "doc-pdf"): "comment"})
+    render_annotation_form(
+        comment_ui,
+        document_id="doc-pdf",
+        is_pdf=True,
+        suggested_page=7,
+        form_key="quick_comment",
+        compact=True,
+    )
+    comment_position = comment_ui.labels.index("Comment (required)")
+    quote_position = comment_ui.labels.index("Supporting quote (manual, optional)")
+    assert comment_position < quote_position
+
+    highlight_ui = FakeUI()
+    render_annotation_form(
+        highlight_ui,
+        document_id="doc-pdf",
+        is_pdf=True,
+        suggested_page=7,
+        form_key="quick_highlight",
+        compact=True,
+    )
+    quote_position = highlight_ui.labels.index("Quoted text (primary, manual)")
+    comment_position = highlight_ui.labels.index("Comment (optional)")
+    assert quote_position < comment_position
+
+
+def test_quick_annotation_creates_core_kinds_without_clearing_reader_context() -> None:
+    for kind in ("highlight", "underline", "comment"):
+        ui = FakeUI(
+            values={
+                state_key("quick_annotation", "kind", "doc-pdf"): kind,
+                state_key("quick_annotation", "quote", "doc-pdf"): "manual quote",
+                state_key("quick_annotation", "body", "doc-pdf"): "required comment",
+            },
+            submitted={"Add Annotation"},
+        )
+        viewer_marker = reading_space_key("viewer_marker")
+        ui.session_state[SELECTED_DOCUMENT_ID] = "doc-pdf"
+        ui.session_state[viewer_marker] = "open-pdf"
+        service = FakeService()
+
+        _render(ui, service)
+
+        call = next(value for name, value in service.calls if name == "create_annotation")
+        assert call[1]["kind"] == kind
+        assert ui.session_state[SELECTED_DOCUMENT_ID] == "doc-pdf"
+        assert ui.session_state[viewer_marker] == "open-pdf"
 
 
 def test_web_annotation_and_note_render_without_page_controls() -> None:
@@ -455,16 +612,17 @@ def test_web_annotation_and_note_render_without_page_controls() -> None:
     assert annotation[1]["page_number"] is None
     assert note["page_start"] is None and note["page_end"] is None
     assert not any("Page " in label or "PDF page" in label for label in ui.labels)
+    assert "Use current page" not in ui.labels
 
 
 def test_add_source_only_reading_note_uses_plain_text_values() -> None:
     document_id = "doc-pdf"
     ui = FakeUI(
         values={
-            state_key("add_note", "title", document_id): "  Main idea  ",
-            state_key("add_note", "body", document_id): "  User text  ",
-            state_key("add_note", "link_document", document_id): False,
-            state_key("add_note", "tags", document_id): "one, two",
+            state_key("quick_note", "title", document_id): "  Main idea  ",
+            state_key("quick_note", "body", document_id): "  User text  ",
+            state_key("quick_note", "link_document", document_id): False,
+            state_key("quick_note", "tags", document_id): "one, two",
         },
         submitted={"Add Reading Note"},
     )
@@ -489,6 +647,40 @@ def test_source_only_note_remains_visible_beside_current_document() -> None:
 
     assert any(row.get("note_id") == "note-source-only" for table in ui.rows for row in table)
     assert service.source_note_list_kwargs["source_only"] is True
+
+
+def test_compact_note_rows_separate_document_and_source_scope() -> None:
+    rows = note_rows((_note(), _note(document_id=None, note_id="note-source")))
+
+    assert rows[0]["scope"] == "Document"
+    assert rows[0]["pages"] == "7–8"
+    assert rows[1]["scope"] == "Source only"
+    assert "body" not in rows[0]
+
+
+def test_annotations_group_by_ascending_page_with_no_page_last() -> None:
+    items = (
+        _annotation(page_number=None),
+        _annotation(page_number=10),
+        _annotation(page_number=2),
+        _annotation(page_number=2),
+    )
+
+    groups = annotation_groups(items)
+
+    assert [page for page, _values in groups] == [2, 10, None]
+    assert [len(values) for _page, values in groups] == [2, 1, 1]
+
+
+def test_annotation_rows_include_bounded_quote_and_comment_previews() -> None:
+    annotation = _annotation()
+    annotation.quote_text = "q" * 180
+    annotation.body = "comment body"
+
+    row = annotation_rows((annotation,))[0]
+
+    assert row["quote"].endswith("…") and len(row["quote"]) == 120
+    assert row["comment"] == "comment body"
 
 
 def test_uninitialized_s4_indexes_disable_add_forms_independently() -> None:
@@ -589,9 +781,31 @@ def test_evidence_list_is_metadata_only_and_archive_action_is_available() -> Non
     _render(ui, service)
 
     row = evidence_rows((_evidence(),))[0]
-    assert row["concept_id"] == "C-1"
+    assert row["concept"] == "C-1 [Legacy Book]"
+    assert row["origin"] == "Annotation · ann-1"
     assert "pdf_bytes" not in row
     assert ("archive_evidence", "ev-1") in service.calls
+
+
+def test_evidence_origin_names_annotation_note_and_direct_document_page() -> None:
+    assert evidence_origin(_evidence()) == "Annotation · ann-1"
+    assert evidence_origin(_evidence(target="note")) == "Reading Note · note-1"
+    assert evidence_origin(_evidence(target="document")) == "Document · page 4 · doc-pdf"
+
+
+def test_document_evidence_uses_projected_legacy_title() -> None:
+    ui = FakeUI()
+    service = FakeService(evidence=(_evidence(),))
+
+    _render(ui, service)
+
+    evidence_row = next(
+        row
+        for table in ui.rows
+        for row in table
+        if row.get("evidence_link_id") == "ev-1" and "legacy_title" in row
+    )
+    assert evidence_row["legacy_title"] == "Compactness"
 
 
 def test_existing_evidence_can_be_shown_inside_annotation() -> None:
@@ -795,6 +1009,41 @@ def test_context_change_clears_s4_state_for_same_database_name_different_endpoin
     )
     assert state_key("draft") not in state
     assert isinstance(state[ACTIVE_CONTEXT][2], str)
+
+
+def test_database_context_clears_drafts_even_without_selected_document() -> None:
+    first = FakeDatabase()
+    second = FakeDatabase()
+    state: dict[str, Any] = {}
+    sync_database_context(
+        state,
+        connection_label="one",
+        database_name="shared",
+        database=first,
+    )
+    state[state_key("quick_annotation", "body", "doc-old")] = "stale"
+
+    assert sync_database_context(
+        state,
+        connection_label="two",
+        database_name="shared",
+        database=second,
+    )
+    assert state_key("quick_annotation", "body", "doc-old") not in state
+    assert state[ACTIVE_CONTEXT][3:] == (None, None, None)
+
+
+def test_live_s3_page_widget_overrides_persisted_page_for_quick_forms() -> None:
+    state: dict[str, Any] = {reading_space_key("current_page", "doc-pdf"): 14}
+
+    assert (
+        suggested_current_page(
+            state,
+            document_id="doc-pdf",
+            persisted_page=7,
+        )
+        == 14
+    )
 
 
 def test_s4_ui_has_no_local_urls_network_pdfjs_or_executable_html() -> None:

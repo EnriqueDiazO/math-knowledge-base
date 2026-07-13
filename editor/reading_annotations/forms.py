@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any
 
+from editor.reading_annotations.state import queue_draft_clear
+from editor.reading_annotations.state import queue_draft_values
 from editor.reading_annotations.state import state_key
 from editor.source_catalog.shared import split_values
 
@@ -103,6 +105,7 @@ def render_annotation_form(
     initial: Any | None = None,
     submit_label: str = "Add Annotation",
     actions_enabled: bool = True,
+    compact: bool = False,
 ) -> AnnotationDraft | None:
     """Render an annotation form; web Documents never receive PDF page controls."""
     initial_kind = str(
@@ -122,12 +125,32 @@ def render_annotation_form(
             index=kind_index,
             key=state_key(form_key, "kind", document_id),
         )
+        if str(kind) in {"highlight", "underline"}:
+            ui.caption("Quoted text is the primary field for this logical annotation.")
+        elif str(kind) in {"comment", "question"}:
+            ui.caption("Comment is required for this logical annotation kind.")
+        else:
+            ui.caption("This is a logical bookmark; no PDF overlay is created.")
         page_number: int | None = None
         page_label: str | None = None
+        use_current_submitted = False
+        current_page: int | None = None
         if is_pdf:
+            current_page = (
+                suggested_page
+                if isinstance(suggested_page, int)
+                and not isinstance(suggested_page, bool)
+                and suggested_page >= 1
+                else None
+            )
+            if current_page is not None:
+                use_current_submitted = ui.form_submit_button(
+                    "Use current page",
+                    key=state_key(form_key, "use_current_page", document_id),
+                )
             attach_page = ui.checkbox(
                 "Attach to PDF page",
-                value=initial_page is not None or suggested_page is not None,
+                value=initial_page is not None or (compact and current_page is not None),
                 key=state_key(form_key, "attach_page", document_id),
             )
             if attach_page:
@@ -141,6 +164,7 @@ def render_annotation_form(
                         width="stretch",
                     )
                 )
+            if page_number is not None and not compact:
                 page_label = _optional_text(
                     ui.text_input(
                         "Page label (optional)",
@@ -148,28 +172,51 @@ def render_annotation_form(
                         key=state_key(form_key, "page_label", document_id),
                     )
                 )
-        quote_text = _optional_text(
-            ui.text_area(
-                "Quoted text (manual, optional)",
-                value=str(getattr(initial, "quote_text", None) or ""),
-                key=state_key(form_key, "quote", document_id),
-            )
+        quote_label = (
+            "Quoted text (primary, manual)"
+            if str(kind) in {"highlight", "underline"}
+            else "Supporting quote (manual, optional)"
         )
-        body = str(
-            ui.text_area(
-                "Comment",
-                value=str(getattr(initial, "body", "") or ""),
-                key=state_key(form_key, "body", document_id),
-            )
-            or ""
-        ).strip()
-        color_label = _optional_text(
-            ui.text_input(
-                "Color label (optional)",
-                value=str(getattr(initial, "color_label", None) or ""),
-                key=state_key(form_key, "color", document_id),
-            )
+        body_label = (
+            "Comment (required)" if str(kind) in {"comment", "question"} else "Comment (optional)"
         )
+
+        def quote_widget() -> str | None:
+            return _optional_text(
+                ui.text_area(
+                    quote_label,
+                    value=str(getattr(initial, "quote_text", None) or ""),
+                    key=state_key(form_key, "quote", document_id),
+                    height=100 if compact else None,
+                )
+            )
+
+        def body_widget() -> str:
+            return str(
+                ui.text_area(
+                    body_label,
+                    value=str(getattr(initial, "body", "") or ""),
+                    key=state_key(form_key, "body", document_id),
+                    height=100 if compact else None,
+                )
+                or ""
+            ).strip()
+
+        if str(kind) in {"comment", "question"}:
+            body = body_widget()
+            quote_text = quote_widget()
+        else:
+            quote_text = quote_widget()
+            body = body_widget()
+        color_label = None
+        if not compact:
+            color_label = _optional_text(
+                ui.text_input(
+                    "Color label (optional)",
+                    value=str(getattr(initial, "color_label", None) or ""),
+                    key=state_key(form_key, "color", document_id),
+                )
+            )
         tags_value = ui.text_input(
             "Tags (comma separated)",
             value=", ".join(getattr(initial, "tags", ()) or ()),
@@ -180,6 +227,30 @@ def render_annotation_form(
             key=state_key(form_key, "submit", document_id),
             disabled=not actions_enabled,
         )
+        clear_submitted = False
+        if compact:
+            clear_submitted = ui.form_submit_button(
+                "Clear form",
+                key=state_key(form_key, "clear", document_id),
+            )
+    if use_current_submitted and current_page is not None:
+        queue_draft_values(
+            ui.session_state,
+            {
+                state_key(form_key, "attach_page", document_id): True,
+                state_key(form_key, "page", document_id): current_page,
+            },
+        )
+        ui.rerun()
+        return None
+    if clear_submitted:
+        queue_draft_clear(
+            ui.session_state,
+            form_key=form_key,
+            document_id=document_id,
+        )
+        ui.rerun()
+        return None
     if not submitted:
         return None
     return AnnotationDraft(
@@ -205,6 +276,7 @@ def render_note_form(
     initial: Any | None = None,
     submit_label: str = "Add Reading Note",
     actions_enabled: bool = True,
+    compact: bool = False,
 ) -> ReadingNoteDraft | None:
     """Render a plain-text note that can target Document, Source, or Reference."""
     del source_id  # The Source identity is supplied directly to the domain service.
@@ -239,6 +311,7 @@ def render_note_form(
                 "Body (plain text)",
                 value=str(getattr(initial, "body", "") or ""),
                 key=state_key(form_key, "body", document_id),
+                height=100 if compact else None,
             )
             or ""
         ).strip()
@@ -255,15 +328,28 @@ def render_note_form(
         )
         page_start: int | None = None
         page_end: int | None = None
+        use_current_submitted = False
+        current_page: int | None = None
         if is_pdf and link_document:
+            current_page = (
+                suggested_page
+                if isinstance(suggested_page, int)
+                and not isinstance(suggested_page, bool)
+                and suggested_page >= 1
+                else None
+            )
+            if current_page is not None:
+                use_current_submitted = ui.form_submit_button(
+                    "Use current page",
+                    key=state_key(form_key, "use_current_page", document_id),
+                )
             attach_pages = ui.checkbox(
-                "Attach PDF page range",
-                value=initial_page_start is not None,
+                "Attach PDF page",
+                value=initial_page_start is not None or (compact and current_page is not None),
                 key=state_key(form_key, "attach_pages", document_id),
             )
             if attach_pages:
                 start_default = initial_page_start or suggested_page or 1
-                end_default = initial_page_end or start_default
                 page_start = int(
                     ui.number_input(
                         "Page start",
@@ -274,16 +360,22 @@ def render_note_form(
                         width="stretch",
                     )
                 )
-                page_end = int(
-                    ui.number_input(
-                        "Page end",
-                        min_value=1,
-                        value=int(end_default),
-                        step=1,
-                        key=state_key(form_key, "page_end", document_id),
-                        width="stretch",
-                    )
+                include_page_end = ui.checkbox(
+                    "Include page end",
+                    value=initial_page_end is not None,
+                    key=state_key(form_key, "include_page_end", document_id),
                 )
+                if include_page_end:
+                    page_end = int(
+                        ui.number_input(
+                            "Page end",
+                            min_value=1,
+                            value=int(initial_page_end or page_start),
+                            step=1,
+                            key=state_key(form_key, "page_end", document_id),
+                            width="stretch",
+                        )
+                    )
         tags_value = ui.text_input(
             "Tags (comma separated)",
             value=", ".join(getattr(initial, "tags", ()) or ()),
@@ -294,6 +386,31 @@ def render_note_form(
             key=state_key(form_key, "submit", document_id),
             disabled=not actions_enabled,
         )
+        clear_submitted = False
+        if compact:
+            clear_submitted = ui.form_submit_button(
+                "Clear form",
+                key=state_key(form_key, "clear", document_id),
+            )
+    if use_current_submitted and current_page is not None:
+        queue_draft_values(
+            ui.session_state,
+            {
+                state_key(form_key, "attach_pages", document_id): True,
+                state_key(form_key, "page_start", document_id): current_page,
+                state_key(form_key, "include_page_end", document_id): False,
+            },
+        )
+        ui.rerun()
+        return None
+    if clear_submitted:
+        queue_draft_clear(
+            ui.session_state,
+            form_key=form_key,
+            document_id=document_id,
+        )
+        ui.rerun()
+        return None
     if not submitted:
         return None
     return ReadingNoteDraft(

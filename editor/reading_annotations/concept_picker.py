@@ -163,11 +163,33 @@ def find_legacy_concepts(
     return tuple(choices)
 
 
+def get_legacy_concept_choice(
+    database: Any,
+    *,
+    concept_id: str,
+    concept_source: str,
+) -> LegacyConceptChoice | None:
+    """Resolve one exact legacy identity through the bounded safe projection."""
+    if database is None or not hasattr(database, "__getitem__"):
+        raise ValueError("An explicit database is required")
+    document = database["concepts"].find_one(
+        {"id": concept_id, "source": concept_source},
+        dict(_PROJECTION),
+    )
+    if not isinstance(document, Mapping):
+        return None
+    choice = _choice(document)
+    if choice is None or choice.concept_id != concept_id or choice.concept_source != concept_source:
+        return None
+    return choice
+
+
 def render_concept_picker(
     ui: Any,
     database: Any,
     *,
     subject_key: str,
+    compact: bool = False,
 ) -> LegacyConceptChoice | None:
     """Render concept search without retaining query results or DB handles in session."""
     search = ui.text_input(
@@ -178,17 +200,19 @@ def render_concept_picker(
         "Legacy concept source",
         key=state_key("concept_source", subject_key),
     )
-    page = int(
-        ui.number_input(
-            "Concept results page",
-            min_value=1,
-            max_value=MAX_CONCEPT_PAGE,
-            value=1,
-            step=1,
-            key=state_key("concept_page", subject_key),
-            width="stretch",
+    page = 1
+    if not compact:
+        page = int(
+            ui.number_input(
+                "Concept results page",
+                min_value=1,
+                max_value=MAX_CONCEPT_PAGE,
+                value=1,
+                step=1,
+                key=state_key("concept_page", subject_key),
+                width="stretch",
+            )
         )
-    )
     try:
         choices = find_legacy_concepts(
             database,
@@ -235,5 +259,6 @@ __all__ = [
     "MAX_CONCEPT_PAGE",
     "MAX_CONCEPT_QUERY_LENGTH",
     "find_legacy_concepts",
+    "get_legacy_concept_choice",
     "render_concept_picker",
 ]

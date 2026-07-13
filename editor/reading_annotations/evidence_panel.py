@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from typing import Any
 
+from editor.reading_annotations.concept_picker import get_legacy_concept_choice
 from editor.reading_annotations.concept_picker import render_concept_picker
 from editor.reading_annotations.panel_utils import enum_value
 from editor.reading_annotations.panel_utils import render_result
@@ -43,7 +44,12 @@ def render_link_form(
     subject_type = "annotation" if annotation_id is not None else "note"
     subject_id = annotation_id or note_id or ""
     ui.caption(f"Link this {subject_type} to a legacy concept (read-only).")
-    concept = render_concept_picker(ui, database, subject_key=f"{subject_type}_{subject_id}")
+    concept = render_concept_picker(
+        ui,
+        database,
+        subject_key=f"{subject_type}_{subject_id}",
+        compact=True,
+    )
     with ui.form(key=state_key("evidence_form", subject_type, subject_id)):
         link_type = ui.selectbox(
             "Evidence link type",
@@ -80,17 +86,49 @@ def render_link_form(
         ui.rerun()
 
 
-def evidence_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
-    """Build display-only rows from evidence metadata."""
+def evidence_origin(item: Any) -> str:
+    """Return the explicit logical origin of one evidence link."""
+    if item.annotation_id:
+        return f"Annotation · {item.annotation_id}"
+    if item.note_id:
+        return f"Reading Note · {item.note_id}"
+    page = f" · page {item.page_number}" if item.page_number is not None else ""
+    return f"Document{page} · {item.document_id}"
+
+
+def _legacy_titles(database: Any, items: tuple[Any, ...]) -> dict[tuple[str, str], str]:
+    """Resolve bounded projected titles without retaining concepts in session state."""
+    titles: dict[tuple[str, str], str] = {}
+    for item in items:
+        identity = (item.concept_legacy_id, item.concept_legacy_source)
+        if identity in titles:
+            continue
+        try:
+            concept = get_legacy_concept_choice(
+                database,
+                concept_id=identity[0],
+                concept_source=identity[1],
+            )
+        except Exception:
+            concept = None
+        titles[identity] = concept.title if concept is not None else ""
+    return titles
+
+
+def evidence_rows(
+    items: tuple[Any, ...] | list[Any],
+    *,
+    legacy_titles: dict[tuple[str, str], str] | None = None,
+) -> list[dict[str, Any]]:
+    """Build compact display-only rows from evidence metadata."""
+    titles = legacy_titles or {}
     return [
         {
-            "concept_id": item.concept_legacy_id,
-            "concept_source": item.concept_legacy_source,
-            "link_type": enum_value(item.link_type),
+            "concept": f"{item.concept_legacy_id} [{item.concept_legacy_source}]",
+            "legacy_title": titles.get((item.concept_legacy_id, item.concept_legacy_source), ""),
+            "type": enum_value(item.link_type),
+            "origin": evidence_origin(item),
             "status": enum_value(item.status),
-            "annotation_id": item.annotation_id,
-            "note_id": item.note_id,
-            "page_number": item.page_number,
             "comment": item.comment,
             "evidence_link_id": item.evidence_link_id,
         }
@@ -100,6 +138,7 @@ def evidence_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
 
 def render_subject_evidence(
     ui: Any,
+    database: Any,
     service: Any,
     *,
     annotation_id: str | None,
@@ -125,7 +164,11 @@ def render_subject_evidence(
     items = result_items(result)
     if items:
         ui.caption("Existing concept evidence")
-        ui.dataframe(evidence_rows(items), width="stretch", hide_index=True)
+        ui.dataframe(
+            evidence_rows(items, legacy_titles=_legacy_titles(database, items)),
+            width="stretch",
+            hide_index=True,
+        )
         if manage_lifecycle:
             for item in items:
                 ui.caption(
@@ -209,6 +252,7 @@ def _open_evidence_target(ui: Any, service: Any, item: Any) -> None:
 
 def render_document_evidence(
     ui: Any,
+    database: Any,
     service: Any,
     *,
     document_id: str,
@@ -224,13 +268,17 @@ def render_document_evidence(
     if not items:
         ui.caption("No concept evidence linked to this Document.")
         return
-    ui.dataframe(evidence_rows(items), width="stretch", hide_index=True)
+    titles = _legacy_titles(database, items)
+    ui.dataframe(
+        evidence_rows(items, legacy_titles=titles),
+        width="stretch",
+        hide_index=True,
+    )
     for item in items:
         status = enum_value(item.status)
-        with ui.expander(
-            f"{item.concept_legacy_id} [{item.concept_legacy_source}] · {enum_value(item.link_type)}",
-            expanded=False,
-        ):
+        legacy_title = titles.get((item.concept_legacy_id, item.concept_legacy_source), "")
+        title = legacy_title or item.concept_legacy_id
+        with ui.expander(f"{title} · {evidence_origin(item)}", expanded=False):
             ui.write(
                 {
                     "concept_legacy_id": item.concept_legacy_id,
@@ -267,6 +315,7 @@ def render_document_evidence(
 
 __all__ = [
     "EVIDENCE_LINK_TYPES",
+    "evidence_origin",
     "evidence_rows",
     "render_document_evidence",
     "render_link_form",

@@ -11,6 +11,9 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
+import pytest
+
+import editor.reading_space.reader_page as reading_page_module
 from editor.pdf_preview import PdfPreviewPayload
 from editor.pdf_preview import get_pdf_preview
 from editor.pdf_preview import store_pdf_preview
@@ -72,6 +75,9 @@ class FakeUI:
         self.download_calls: list[dict[str, Any]] = []
         self.links: list[str] = []
         self.reruns = 0
+        self.column_calls: list[tuple[Any, dict[str, Any]]] = []
+        self.expanders: list[tuple[str, bool]] = []
+        self.layout_events: list[tuple[str, Any]] = []
 
     def _message(self, level: str, value: object) -> None:
         self.messages.append((level, str(value)))
@@ -108,10 +114,18 @@ class FakeUI:
     def divider(self) -> None:
         return None
 
-    def columns(self, count: int):
+    def columns(self, spec: Any, **kwargs: Any):
+        self.column_calls.append((spec, dict(kwargs)))
+        count = spec if isinstance(spec, int) else len(spec)
         return [nullcontext(self) for _index in range(count)]
 
-    def expander(self, *_args, **_kwargs):
+    def container(self, *, key: str | None = None, **_kwargs: Any):
+        self.layout_events.append(("container", key))
+        return nullcontext(self)
+
+    def expander(self, label: str, *, expanded: bool = False, **_kwargs: Any):
+        self.expanders.append((label, expanded))
+        self.layout_events.append(("expander", label))
         return nullcontext(self)
 
     def form(self, *_args, **_kwargs):
@@ -570,7 +584,89 @@ def test_full_page_filters_and_lists_without_loading_pdf() -> None:
     assert ui.pdf_calls == []
     rendered = " ".join(message for _level, message in ui.messages)
     assert "Reading Space" in rendered
+    assert "Recent Documents" in rendered
     assert any(row["document_id"] == document.document_id for table in ui.rows for row in table)
+    assert not any(label in {"Change Document", "Recent Documents"} for label, _ in ui.expanders)
+    assert ("container", state_key("workspace")) not in ui.layout_events
+
+
+def test_selected_document_uses_split_workspace_and_compact_top_bar(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = Source(name="Workspace Source")
+    document = _pdf_document(source)
+    service = FakeService(source, (document,))
+    ui = FakeUI()
+    ui.session_state.update(
+        {
+            ACTIVE_USER_SCOPE: "local",
+            SELECTED_DOCUMENT_ID: document.document_id,
+        }
+    )
+    context = _context(source)
+    context.database = {}
+    s4_calls: list[str] = []
+    monkeypatch.setattr(
+        reading_page_module,
+        "_render_s4_panel",
+        lambda _context, reader, **_kwargs: s4_calls.append(reader.document.document_id),
+    )
+
+    render_reading_space_page(
+        context,
+        ui=ui,
+        service=service,  # type: ignore[arg-type]
+    )
+
+    assert service.context_calls == [document.document_id]
+    assert ui.session_state[state_key("workspace_layout")] == "Split workspace"
+    assert ([0.58, 0.42], {"gap": "large"}) in ui.column_calls
+    workspace_expanders = [
+        item for item in ui.expanders if item[0] in {"Change Document", "Recent Documents"}
+    ]
+    assert workspace_expanders == [("Change Document", False), ("Recent Documents", False)]
+    assert ui.layout_events[0] == ("container", state_key("workspace"))
+    assert s4_calls == [document.document_id]
+    rendered = " ".join(message for _level, message in ui.messages)
+    assert "Reading Workspace" in rendered
+    assert "PDF reading" in rendered
+    assert "Workspace Source" in rendered
+    assert "Current page" in rendered
+    assert "in_progress" in rendered
+
+
+def test_selected_document_can_use_stacked_layout_without_split_columns(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    source = Source(name="Stacked Source")
+    document = _web_document(source)
+    service = FakeService(source, (document,))
+    ui = FakeUI(values={state_key("workspace_layout"): "Stacked layout"})
+    ui.session_state.update(
+        {
+            ACTIVE_USER_SCOPE: "local",
+            SELECTED_DOCUMENT_ID: document.document_id,
+        }
+    )
+    context = _context(source)
+    context.database = {}
+    s4_calls: list[str] = []
+    monkeypatch.setattr(
+        reading_page_module,
+        "_render_s4_panel",
+        lambda _context, reader, **_kwargs: s4_calls.append(reader.document.document_id),
+    )
+
+    render_reading_space_page(
+        context,
+        ui=ui,
+        service=service,  # type: ignore[arg-type]
+    )
+
+    assert service.context_calls == [document.document_id]
+    assert ([0.58, 0.42], {"gap": "large"}) not in ui.column_calls
+    assert ui.session_state[state_key("workspace_layout")] == "Stacked layout"
+    assert s4_calls == [document.document_id]
 
 
 def test_all_required_filters_are_typed_and_passed_to_the_service() -> None:
@@ -636,7 +732,8 @@ def test_open_document_persists_when_all_source_filter_is_unchanged() -> None:
         service=service,  # type: ignore[arg-type]
     )
     assert ui.session_state[SELECTED_DOCUMENT_ID] == document.document_id
-    assert len(ui.pdf_calls) == 1
+    assert ui.pdf_calls == []
+    assert ui.reruns == 1
 
     ui.clicked.clear()
     render_reading_space_page(
@@ -647,6 +744,13 @@ def test_open_document_persists_when_all_source_filter_is_unchanged() -> None:
 
     assert ui.session_state[SELECTED_DOCUMENT_ID] == document.document_id
     assert service.open_calls == [document.document_id]
+    assert len(ui.pdf_calls) == 1
+
+    render_reading_space_page(
+        context,
+        ui=ui,
+        service=service,  # type: ignore[arg-type]
+    )
     assert len(ui.pdf_calls) == 2
 
 
@@ -698,15 +802,25 @@ def test_recent_document_action_reopens_pdf() -> None:
     recent.state = _reading(document)
     service.list_recent_documents = lambda **_kwargs: FakeResult(FakePage((recent,)))
     ui = FakeUI(clicked={state_key("open_recent", document.document_id)})
+    context = _context(source)
 
     render_reading_space_page(
-        _context(source),
+        context,
         ui=ui,
         service=service,  # type: ignore[arg-type]
     )
 
     assert service.open_calls == [document.document_id]
     assert ui.session_state[SELECTED_DOCUMENT_ID] == document.document_id
+    assert ui.pdf_calls == []
+    assert ui.reruns == 1
+
+    ui.clicked.clear()
+    render_reading_space_page(
+        context,
+        ui=ui,
+        service=service,  # type: ignore[arg-type]
+    )
     assert ui.pdf_calls
 
 

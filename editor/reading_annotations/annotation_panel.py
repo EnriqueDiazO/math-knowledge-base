@@ -16,8 +16,12 @@ from editor.reading_annotations.panel_utils import local_match
 from editor.reading_annotations.panel_utils import render_result
 from editor.reading_annotations.panel_utils import result_items
 from editor.reading_annotations.state import SELECTED_ANNOTATION_ID
+from editor.reading_annotations.state import apply_pending_draft_clears
+from editor.reading_annotations.state import apply_pending_draft_values
+from editor.reading_annotations.state import queue_draft_clear
 from editor.reading_annotations.state import select_annotation
 from editor.reading_annotations.state import state_key
+from editor.reading_annotations.state import suggested_current_page
 from editor.reading_annotations.state import sync_context
 from editor.source_catalog.shared import safe_error_message
 from mathmongo.source_documents.models import DocumentKind
@@ -85,19 +89,161 @@ def _render_index_status(ui: Any, context: Any, service: Any) -> bool:
 
 
 def annotation_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
-    """Return metadata-only annotation rows without interpreting quote/body."""
+    """Return compact annotation rows with bounded plain-text previews."""
+
+    def preview(value: object, limit: int = 120) -> str:
+        text = " ".join(str(value or "").split())
+        return text if len(text) <= limit else text[: limit - 1].rstrip() + "…"
+
     return [
         {
             "kind": enum_value(item.kind),
             "status": enum_value(item.status),
             "page_number": item.page_number,
-            "page_label": item.page_label,
+            "quote": preview(item.quote_text),
+            "comment": preview(item.body),
             "tags": ", ".join(item.tags),
-            "updated_at": item.updated_at,
             "annotation_id": item.annotation_id,
         }
         for item in items
     ]
+
+
+def annotation_groups(
+    items: tuple[Any, ...] | list[Any],
+) -> tuple[tuple[int | None, tuple[Any, ...]], ...]:
+    """Group annotations by ascending page, placing unpaged work last."""
+    ordered = sorted(
+        items,
+        key=lambda item: (
+            getattr(item, "page_number", None) is None,
+            getattr(item, "page_number", None) or 0,
+        ),
+    )
+    groups: list[tuple[int | None, list[Any]]] = []
+    for item in ordered:
+        page_number = getattr(item, "page_number", None)
+        if not groups or groups[-1][0] != page_number:
+            groups.append((page_number, []))
+        groups[-1][1].append(item)
+    return tuple((page, tuple(values)) for page, values in groups)
+
+
+def _render_annotation_card(
+    ui: Any,
+    database: Any,
+    service: Any,
+    *,
+    item: Any,
+    document_id: str,
+    suggested_page: int | None,
+    is_pdf: bool,
+    actions_enabled: bool,
+    archive_enabled: bool,
+) -> None:
+    """Render one annotation's details and controlled actions inside its page group."""
+    status = enum_value(item.status)
+    title = f"{enum_value(item.kind)} · {status} · {item.annotation_id}"
+    with ui.expander(title, expanded=False):
+        ui.write(
+            {
+                "quote_text": item.quote_text,
+                "body": item.body,
+                "page_label": item.page_label,
+                "color_label": item.color_label,
+                "tags": item.tags,
+                "status": status,
+            }
+        )
+        render_open_document(
+            ui,
+            source_id=item.source_id,
+            document_id=item.document_id,
+            page_number=item.page_number,
+            subject_id=item.annotation_id,
+        )
+        if status == "archived":
+            if ui.button(
+                "Reactivate annotation",
+                key=state_key("reactivate_annotation", item.annotation_id),
+                disabled=not actions_enabled,
+            ) and render_result(
+                ui,
+                service.reactivate_annotation(item.annotation_id, user_scope="local"),
+                success="Annotation reactivated.",
+            ):
+                ui.rerun()
+        elif ui.button(
+            "Archive annotation",
+            key=state_key("archive_annotation", item.annotation_id),
+            disabled=not archive_enabled,
+        ) and render_result(
+            ui,
+            service.archive_annotation(item.annotation_id, user_scope="local"),
+            success="Annotation archived.",
+        ):
+            ui.rerun()
+        if ui.button(
+            "Edit annotation",
+            key=state_key("edit_annotation", item.annotation_id),
+            disabled=not actions_enabled or status == "archived",
+        ):
+            select_annotation(ui.session_state, item.annotation_id)
+        if ui.session_state.get(SELECTED_ANNOTATION_ID) == item.annotation_id:
+            draft = render_annotation_form(
+                ui,
+                document_id=document_id,
+                is_pdf=is_pdf,
+                suggested_page=item.page_number or suggested_page,
+                form_key=f"edit_annotation_{item.annotation_id}",
+                initial=item,
+                submit_label="Save Annotation",
+                actions_enabled=actions_enabled and status == "active",
+            )
+            if draft is not None:
+                updated = service.update_annotation(
+                    item.annotation_id,
+                    user_scope="local",
+                    kind=draft.kind,
+                    page_number=draft.page_number,
+                    page_label=draft.page_label,
+                    quote_text=draft.quote_text,
+                    body=draft.body,
+                    color_label=draft.color_label,
+                    tags=draft.tags,
+                )
+                if render_result(ui, updated, success="Annotation updated."):
+                    queue_draft_clear(
+                        ui.session_state,
+                        form_key=f"edit_annotation_{item.annotation_id}",
+                        document_id=document_id,
+                    )
+                    select_annotation(ui.session_state, None)
+                    ui.rerun()
+        if ui.checkbox(
+            "Link to Concept",
+            key=state_key("show_annotation_evidence", item.annotation_id),
+        ):
+            render_link_form(
+                ui,
+                database,
+                service,
+                source_id=item.source_id,
+                reference_id=item.reference_id,
+                annotation_id=item.annotation_id,
+                actions_enabled=actions_enabled and status == "active",
+            )
+        if ui.checkbox(
+            "Show existing evidence",
+            key=state_key("show_annotation_links", item.annotation_id),
+        ):
+            render_subject_evidence(
+                ui,
+                database,
+                service,
+                annotation_id=item.annotation_id,
+                note_id=None,
+            )
 
 
 def _render_annotations(
@@ -113,14 +259,19 @@ def _render_annotations(
 ) -> None:
     document_id = document.document_id
     ui.subheader("Document Annotations")
-    with ui.expander("Add Annotation", expanded=False):
+    with ui.expander("Quick Annotation", expanded=True):
+        ui.caption(
+            "Logical annotation only: enter quoted text and comments manually. "
+            "No PDF selection or visual overlay is created."
+        )
         draft = render_annotation_form(
             ui,
             document_id=document_id,
             is_pdf=is_pdf,
             suggested_page=suggested_page,
-            form_key="add_annotation",
+            form_key="quick_annotation",
             actions_enabled=actions_enabled,
+            compact=True,
         )
         if draft is not None:
             result = service.create_annotation(
@@ -135,6 +286,11 @@ def _render_annotations(
                 tags=draft.tags,
             )
             if render_result(ui, result, success="Annotation added."):
+                queue_draft_clear(
+                    ui.session_state,
+                    form_key="quick_annotation",
+                    document_id=document_id,
+                )
                 ui.rerun()
 
     query = ui.text_input(
@@ -169,108 +325,23 @@ def _render_annotations(
     if not items:
         ui.caption("No annotations match this Document and filter.")
         return
-    ui.dataframe(annotation_rows(items), width="stretch", hide_index=True)
-    for item in items:
-        status = enum_value(item.status)
-        title = f"{enum_value(item.kind)} · page {item.page_number or 'general'} · {status}"
-        with ui.expander(title, expanded=False):
-            ui.write(
-                {
-                    "kind": enum_value(item.kind),
-                    "page_number": item.page_number,
-                    "page_label": item.page_label,
-                    "quote_text": item.quote_text,
-                    "body": item.body,
-                    "color_label": item.color_label,
-                    "tags": item.tags,
-                    "status": status,
-                }
-            )
-            render_open_document(
+    grouped = annotation_groups(items)
+    for page_number, page_items in grouped:
+        label = f"Page {page_number}" if page_number is not None else "No page"
+        ui.caption(f"{label} · {len(page_items)} annotation(s)")
+        ui.dataframe(annotation_rows(page_items), width="stretch", hide_index=True)
+        for item in page_items:
+            _render_annotation_card(
                 ui,
-                source_id=item.source_id,
-                document_id=item.document_id,
-                page_number=item.page_number,
-                subject_id=item.annotation_id,
+                database,
+                service,
+                item=item,
+                document_id=document_id,
+                suggested_page=suggested_page,
+                is_pdf=is_pdf,
+                actions_enabled=actions_enabled,
+                archive_enabled=archive_enabled,
             )
-            if status == "archived":
-                if ui.button(
-                    "Reactivate annotation",
-                    key=state_key("reactivate_annotation", item.annotation_id),
-                    disabled=not actions_enabled,
-                ) and render_result(
-                    ui,
-                    service.reactivate_annotation(item.annotation_id, user_scope="local"),
-                    success="Annotation reactivated.",
-                ):
-                    ui.rerun()
-            else:
-                if ui.button(
-                    "Archive annotation",
-                    key=state_key("archive_annotation", item.annotation_id),
-                    disabled=not archive_enabled,
-                ) and render_result(
-                    ui,
-                    service.archive_annotation(item.annotation_id, user_scope="local"),
-                    success="Annotation archived.",
-                ):
-                    ui.rerun()
-            if ui.button(
-                "Edit annotation",
-                key=state_key("edit_annotation", item.annotation_id),
-                disabled=not actions_enabled or status == "archived",
-            ):
-                select_annotation(ui.session_state, item.annotation_id)
-            if ui.session_state.get(SELECTED_ANNOTATION_ID) == item.annotation_id:
-                draft = render_annotation_form(
-                    ui,
-                    document_id=document_id,
-                    is_pdf=is_pdf,
-                    suggested_page=item.page_number or suggested_page,
-                    form_key=f"edit_annotation_{item.annotation_id}",
-                    initial=item,
-                    submit_label="Save Annotation",
-                    actions_enabled=actions_enabled and status == "active",
-                )
-                if draft is not None:
-                    updated = service.update_annotation(
-                        item.annotation_id,
-                        user_scope="local",
-                        kind=draft.kind,
-                        page_number=draft.page_number,
-                        page_label=draft.page_label,
-                        quote_text=draft.quote_text,
-                        body=draft.body,
-                        color_label=draft.color_label,
-                        tags=draft.tags,
-                    )
-                    if render_result(ui, updated, success="Annotation updated."):
-                        select_annotation(ui.session_state, None)
-                        ui.rerun()
-            show_evidence = ui.checkbox(
-                "Link to Concept",
-                key=state_key("show_annotation_evidence", item.annotation_id),
-            )
-            if show_evidence:
-                render_link_form(
-                    ui,
-                    database,
-                    service,
-                    source_id=item.source_id,
-                    reference_id=item.reference_id,
-                    annotation_id=item.annotation_id,
-                    actions_enabled=actions_enabled and status == "active",
-                )
-            if ui.checkbox(
-                "Show existing evidence",
-                key=state_key("show_annotation_links", item.annotation_id),
-            ):
-                render_subject_evidence(
-                    ui,
-                    service,
-                    annotation_id=item.annotation_id,
-                    note_id=None,
-                )
 
 
 def _references(context: Any, source_id: str) -> tuple[Any, ...]:
@@ -303,6 +374,8 @@ def render_notes_and_evidence_panel(
         document_id=document.document_id,
         user_scope="local",
     )
+    apply_pending_draft_clears(ui.session_state)
+    apply_pending_draft_values(ui.session_state)
     ui.divider()
     ui.header("Notes & Evidence")
     s4_initialized = _render_index_status(ui, context, service)
@@ -318,7 +391,13 @@ def render_notes_and_evidence_panel(
         )
     is_pdf = enum_value(document.kind) == DocumentKind.PDF.value
     suggested_page = (
-        getattr(getattr(reader, "reading_state", None), "current_page", None) if is_pdf else None
+        suggested_current_page(
+            ui.session_state,
+            document_id=document.document_id,
+            persisted_page=getattr(getattr(reader, "reading_state", None), "current_page", None),
+        )
+        if is_pdf
+        else None
     )
     _render_annotations(
         ui,
@@ -343,10 +422,11 @@ def render_notes_and_evidence_panel(
     )
     render_document_evidence(
         ui,
+        context.database,
         service,
         document_id=document.document_id,
         actions_enabled=s4_initialized,
     )
 
 
-__all__ = ["annotation_rows", "render_notes_and_evidence_panel"]
+__all__ = ["annotation_groups", "annotation_rows", "render_notes_and_evidence_panel"]
