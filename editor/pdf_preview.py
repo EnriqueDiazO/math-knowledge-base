@@ -15,7 +15,14 @@ from mathmongo.paths import validate_mutable_path
 
 PREVIEW_AUXILIARY_SUFFIXES = frozenset({".aux", ".fdb_latexmk", ".fls", ".log", ".out", ".toc"})
 PDF_PREVIEW_NAMESPACES = frozenset(
-    {"add_concept", "edit_concept", "cornell", "cpi", "source_document"}
+    {
+        "add_concept",
+        "edit_concept",
+        "cornell",
+        "cpi",
+        "reading_space",
+        "source_document",
+    }
 )
 PDF_SIGNATURE = b"%PDF-"
 
@@ -42,7 +49,16 @@ class PdfPreviewPayload:
 def _state_key(namespace: str) -> str:
     if namespace not in PDF_PREVIEW_NAMESPACES:
         raise ValueError(f"Unknown PDF preview namespace: {namespace}")
-    return f"pdf_preview_{namespace}_current"
+    return f"{_preview_key_prefix(namespace)}_current"
+
+
+def _preview_key_prefix(namespace: str) -> str:
+    """Keep Reading Space keys inside its literal session-state namespace."""
+    if namespace not in PDF_PREVIEW_NAMESPACES:
+        raise ValueError(f"Unknown PDF preview namespace: {namespace}")
+    if namespace == "reading_space":
+        return "reading_space_pdf_preview"
+    return f"pdf_preview_{namespace}"
 
 
 def pdf_preview_context(*parts: object) -> str:
@@ -259,7 +275,7 @@ def render_pdf_preview(
         ui.pdf(
             payload.pdf_bytes,
             height=height,
-            key=f"pdf_preview_{namespace}_viewer_{key_suffix}",
+            key=f"{_preview_key_prefix(namespace)}_viewer_{key_suffix}",
         )
     except Exception:
         ui.error(
@@ -273,11 +289,11 @@ def render_pdf_preview(
         data=payload.pdf_bytes,
         file_name=payload.file_name,
         mime="application/pdf",
-        key=f"pdf_preview_{namespace}_download_{key_suffix}",
+        key=f"{_preview_key_prefix(namespace)}_download_{key_suffix}",
     )
     if ui.button(
         "Cerrar vista previa",
-        key=f"pdf_preview_{namespace}_close_{key_suffix}",
+        key=f"{_preview_key_prefix(namespace)}_close_{key_suffix}",
     ):
         clear_pdf_preview(state, namespace)
         ui.rerun()

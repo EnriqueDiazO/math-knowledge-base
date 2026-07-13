@@ -19,6 +19,11 @@ from editor.pdf_preview import clear_pdf_preview
 from editor.pdf_preview import generate_pdf_preview
 from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import render_pdf_preview
+from editor.reading_space.reader_page import render_reading_space_page
+from editor.reading_space.state import READING_SPACE_NAV_LABEL
+from editor.reading_space.state import add_reading_space_navigation
+from editor.reading_space.state import apply_pending_navigation as apply_pending_reading_navigation
+from editor.reading_space.state import sync_database_state as sync_reading_database_state
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1237,6 +1242,12 @@ if db is not None:
             database_name=catalog_context.database_name,
             database=catalog_context.database,
         )
+        sync_reading_database_state(
+            st.session_state,
+            connection_label=catalog_context.connection_label,
+            database_name=catalog_context.database_name,
+            database=catalog_context.database,
+        )
     except Exception as exc:
         catalog_context_error = safe_catalog_error(exc)
 
@@ -1284,12 +1295,18 @@ nav_options = [
     "⚙️ Settings",
 ]
 nav_options = add_source_catalog_navigation(nav_options)
+nav_options = add_reading_space_navigation(nav_options)
 if _cuaderno_is_installed(db):
     nav_options.append("🧪 Cuaderno")
     nav_options.append("🧾 Cornell")
     nav_options.append(CPI_NAV_LABEL)
 
 apply_pending_navigation(st.session_state, nav_options)
+apply_pending_reading_navigation(
+    st.session_state,
+    nav_options,
+    navigation_key=NAVIGATION_WIDGET,
+)
 if st.session_state.get(NAVIGATION_WIDGET) not in nav_options:
     st.session_state.pop(NAVIGATION_WIDGET, None)
 selected_page = st.sidebar.selectbox(
@@ -1318,6 +1335,15 @@ elif page == EDIT_SOURCE_NAV_LABEL:
         )
     else:
         render_edit_source_page(catalog_context)
+
+elif page == READING_SPACE_NAV_LABEL:
+    if catalog_context is None:
+        st.error(
+            "Reading Space is unavailable for the selected connection: "
+            f"{catalog_context_error or 'no active MongoDB database.'}"
+        )
+    else:
+        render_reading_space_page(catalog_context)
 
 # Dashboard page
 elif page == "🏠 Dashboard":

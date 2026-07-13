@@ -35,6 +35,7 @@ from mathkb_config import MEDIA_ROOT
 from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.paths import validate_mutable_path
+from mathmongo.reading_space.models import DocumentReadingState
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog_migration.manifest import MANIFEST_COLLECTION
@@ -61,11 +62,16 @@ _CATALOG_ID_FIELDS = {
     "references": "reference_id",
     MANIFEST_COLLECTION: "manifest_key",
 }
-_PORTABLE_ID_FIELDS = {**_CATALOG_ID_FIELDS, "source_documents": "document_id"}
+_PORTABLE_ID_FIELDS = {
+    **_CATALOG_ID_FIELDS,
+    "source_documents": "document_id",
+    "document_reading_state": "reading_state_id",
+}
 _PORTABLE_IMPORT_ORDER = (
     "sources",
     "references",
     "source_documents",
+    "document_reading_state",
     MANIFEST_COLLECTION,
 )
 CATALOG_EXTENDED_JSON_ENCODING = "mongodb_extended_json_v2_canonical"
@@ -193,6 +199,13 @@ _DATETIME_FIELDS_BY_COLLECTION = {
         "updated_at",
         "archived_at",
         "accessed_at",
+    ),
+    "document_reading_state": (
+        "last_opened_at",
+        "first_opened_at",
+        "completed_at",
+        "created_at",
+        "updated_at",
     ),
     MANIFEST_COLLECTION: (
         "created_at",
@@ -371,10 +384,12 @@ def _source_document_blob_logical_path(base_dir: str, member_name: str) -> str |
     return relative
 
 
-def _is_source_document_zip_member(base_dir: str, member_name: str) -> bool:
-    return member_name == f"{base_dir}/collections/source_documents.json" or member_name.startswith(
-        f"{base_dir}/source_documents/"
-    )
+def _is_portable_extension_zip_member(base_dir: str, member_name: str) -> bool:
+    """Identify portable members unknown to the frozen legacy ZIP validator."""
+    return member_name in {
+        f"{base_dir}/collections/source_documents.json",
+        f"{base_dir}/collections/document_reading_state.json",
+    } or member_name.startswith(f"{base_dir}/source_documents/")
 
 
 def _zip_member_kind(info: zipfile.ZipInfo) -> str:
@@ -390,13 +405,13 @@ def _zip_member_kind(info: zipfile.ZipInfo) -> str:
     return "nonregular"
 
 
-def _validate_source_document_zip_members(
+def _validate_portable_extension_zip_members(
     infos: list[zipfile.ZipInfo],
     *,
     base_dir: str,
     limits: ZipSafetyLimits,
 ) -> tuple[zipfile.ZipInfo, ...]:
-    """Validate S2-only members before excluding them from the legacy validator."""
+    """Validate S2/S3 members before excluding them from the legacy validator."""
     if len(infos) > limits.max_members:
         raise ZipValidationError("member_limit", "ZIP archive exceeds its member limit")
     if sum(info.file_size for info in infos) > limits.max_total_bytes:
@@ -404,15 +419,18 @@ def _validate_source_document_zip_members(
 
     selected: list[zipfile.ZipInfo] = []
     for info in infos:
-        if not _is_source_document_zip_member(base_dir, info.filename):
+        if not _is_portable_extension_zip_member(base_dir, info.filename):
             continue
         selected.append(info)
-        is_collection = info.filename == f"{base_dir}/collections/source_documents.json"
+        is_collection = info.filename in {
+            f"{base_dir}/collections/source_documents.json",
+            f"{base_dir}/collections/document_reading_state.json",
+        }
         logical_path = _source_document_blob_logical_path(base_dir, info.filename)
         if not is_collection and logical_path is None:
             raise ZipValidationError(
                 "unexpected_member",
-                "ZIP archive contains an invalid Source Document member",
+                "ZIP archive contains an invalid portable extension member",
                 member=info.filename,
             )
         path = PurePosixPath(info.filename)
@@ -437,7 +455,7 @@ def _validate_source_document_zip_members(
         if _zip_member_kind(info) != "regular" or info.is_dir():
             raise ZipValidationError(
                 "nonregular_member",
-                "Source Document ZIP members must be regular files",
+                "Portable extension ZIP members must be regular files",
                 member=info.filename,
             )
         if info.file_size <= 0:
@@ -941,12 +959,12 @@ def _validate_zip_safety(zf: zipfile.ZipFile, *, expected_base: str) -> None:
         raw_names.add(info.filename)
         normalized_names.add(normalized_name)
     limits = ZipSafetyLimits()
-    source_document_infos = _validate_source_document_zip_members(
+    portable_extension_infos = _validate_portable_extension_zip_members(
         infos,
         base_dir=expected_base,
         limits=limits,
     )
-    excluded = {id(info) for info in source_document_infos}
+    excluded = {id(info) for info in portable_extension_infos}
     legacy_infos = [info for info in infos if id(info) not in excluded]
     base, _members, _report = _validate_members(legacy_infos, limits)
     if base != expected_base:
@@ -1403,11 +1421,17 @@ def _prepare_catalog_import(
                         )
                     )
                     continue
-            elif collection_name in {"sources", "references", "source_documents"}:
+            elif collection_name in {
+                "sources",
+                "references",
+                "source_documents",
+                "document_reading_state",
+            }:
                 model = {
                     "sources": Source,
                     "references": Reference,
                     "source_documents": SourceDocument,
+                    "document_reading_state": DocumentReadingState,
                 }[collection_name]
                 portable_payload = {key: value for key, value in document.items() if key != "_id"}
                 try:
@@ -1595,7 +1619,106 @@ def _prepare_catalog_import(
         db=db,
         report=report,
     )
+    _preflight_reading_state_relationships(
+        pending.get("document_reading_state", []),
+        source_documents=pending.get("source_documents", []),
+        db=db,
+        report=report,
+    )
     return pending
+
+
+def _reading_state_identity_query(document: dict) -> dict[str, str]:
+    """Return the immutable S3 identity query for one validated state."""
+    return {
+        "user_scope": str(document["user_scope"]),
+        "document_id": str(document["document_id"]),
+    }
+
+
+def _preflight_reading_state_relationships(
+    raw_states: list[dict],
+    *,
+    source_documents: list[dict],
+    db,
+    report: DatabaseImportReport,
+) -> None:
+    """Validate S3 foreign keys and unique identities before any import write."""
+    incoming_documents = {
+        str(document["document_id"]): document
+        for document in source_documents
+        if isinstance(document.get("document_id"), str)
+    }
+    seen_identities: dict[tuple[str, str], str] = {}
+    for raw_state in raw_states:
+        payload = {key: value for key, value in raw_state.items() if key != "_id"}
+        state = DocumentReadingState.model_validate(payload)
+        identity = (state.user_scope, state.document_id)
+        previous = seen_identities.get(identity)
+        if previous is not None and previous != state.reading_state_id:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_reading_state",
+                    state.reading_state_id,
+                    "archive contains different reading-state IDs for one user/document identity",
+                )
+            )
+            continue
+        seen_identities[identity] = state.reading_state_id
+
+        source_document = incoming_documents.get(state.document_id)
+        if source_document is None:
+            document_matches = _find_at_most_two(
+                db["source_documents"],
+                {"document_id": state.document_id},
+            )
+            source_document = document_matches[0] if len(document_matches) == 1 else None
+        if source_document is None:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_reading_state",
+                    state.reading_state_id,
+                    "Reading state points to a Source Document absent from archive and destination",
+                )
+            )
+            continue
+        if source_document.get("source_id") != state.source_id:
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_reading_state",
+                    state.reading_state_id,
+                    "Reading state Source does not match its Source Document",
+                )
+            )
+            continue
+        if (
+            state.reference_id is not None
+            and source_document.get("reference_id") != state.reference_id
+        ):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_reading_state",
+                    state.reading_state_id,
+                    "Reading state Reference does not match its Source Document",
+                )
+            )
+            continue
+
+        destination_matches = _find_at_most_two(
+            db["document_reading_state"],
+            _reading_state_identity_query(raw_state),
+        )
+        if len(destination_matches) > 1 or (
+            len(destination_matches) == 1
+            and destination_matches[0].get("reading_state_id") != state.reading_state_id
+        ):
+            report.catalog_conflicts.append(
+                CatalogImportConflict(
+                    "document_reading_state",
+                    state.reading_state_id,
+                    "destination contains a different reading-state ID for the same identity",
+                )
+            )
 
 
 def _source_document_identity(
@@ -1945,6 +2068,23 @@ def import_zip_into_database(
                     id_field = _PORTABLE_ID_FIELDS[coll]
                     for document in docs:
                         domain_id = document[id_field]
+                        if coll == "document_reading_state":
+                            identity_matches = _find_at_most_two(
+                                db[coll],
+                                _reading_state_identity_query(document),
+                            )
+                            if len(identity_matches) > 1 or (
+                                len(identity_matches) == 1
+                                and identity_matches[0].get(id_field) != domain_id
+                            ):
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "destination reading-state identity changed after preflight",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
                         domain_matches = _find_at_most_two(
                             db[coll],
                             {id_field: domain_id},
@@ -2026,6 +2166,23 @@ def import_zip_into_database(
                                 )
                             )
                             raise CatalogImportConflictError(report)
+                        if coll == "document_reading_state":
+                            identity_matches = _find_at_most_two(
+                                db[coll],
+                                _reading_state_identity_query(document),
+                            )
+                            if (
+                                len(identity_matches) != 1
+                                or identity_matches[0].get(id_field) != domain_id
+                            ):
+                                report.catalog_conflicts.append(
+                                    CatalogImportConflict(
+                                        coll,
+                                        domain_id,
+                                        "concurrent insert produced duplicate reading-state identities",
+                                    )
+                                )
+                                raise CatalogImportConflictError(report)
                         report.catalog_inserted[coll] = report.catalog_inserted.get(coll, 0) + 1
                     imported_counts[coll] = validated_counts[coll]
                     report.imported_counts[coll] = validated_counts[coll]

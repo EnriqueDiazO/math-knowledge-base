@@ -89,9 +89,15 @@ SOURCE_CATALOG_COLLECTIONS = (
 # Source Documents are portable domain data, but they are deliberately not part
 # of the guarded Source Catalog migration collection set.
 SOURCE_DOCUMENT_COLLECTIONS = ("source_documents",)
+
+# Reading state is an optional portable domain collection.  It remains
+# independent from both the guarded Source Catalog migration set and the S2
+# document/blob collection set.
+READING_SPACE_COLLECTIONS = ("document_reading_state",)
 PORTABLE_EXTENDED_JSON_COLLECTIONS = (
     *SOURCE_CATALOG_COLLECTIONS,
     *SOURCE_DOCUMENT_COLLECTIONS,
+    *READING_SPACE_COLLECTIONS,
 )
 
 EXPORT_COLLECTIONS = CORE_COLLECTIONS + GRAPH_COLLECTIONS + MEDIA_COLLECTIONS + CUADERNO_COLLECTIONS

@@ -21,11 +21,13 @@ from mathkb_config import LEGACY_PROJECT_ROOT
 from mathkb_config import LOCAL_MEDIA_ROOT
 from mathkb_config import MEDIA_ROOT
 from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
+from mathkb_config import READING_SPACE_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathkb_config import SOURCE_DOCUMENT_COLLECTIONS
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.reading_space.models import DocumentReadingState
 from mathmongo.source_documents.models import SourceDocument
 from mathmongo.source_documents.storage import SourceDocumentBlobStore
 
@@ -236,6 +238,22 @@ def _source_document_model(document: dict) -> SourceDocument:
     return SourceDocument.model_validate(payload)
 
 
+def _reading_state_model(document: dict) -> DocumentReadingState:
+    """Validate one reading state while treating naive Mongo datetimes as UTC."""
+    payload = {key: value for key, value in document.items() if key != "_id"}
+    for field_name in (
+        "last_opened_at",
+        "first_opened_at",
+        "completed_at",
+        "created_at",
+        "updated_at",
+    ):
+        value = payload.get(field_name)
+        if isinstance(value, datetime) and value.tzinfo is None:
+            payload[field_name] = value.replace(tzinfo=timezone.utc)
+    return DocumentReadingState.model_validate(payload)
+
+
 def _source_document_identity(document: SourceDocument) -> tuple[str, str, str]:
     if document.pdf is not None:
         return (document.source_id, "pdf", document.pdf.current_version.sha256)
@@ -254,6 +272,40 @@ def _validate_source_document_identities(documents: list[SourceDocument]) -> Non
                 "Source Documents contain different document IDs for one Source identity"
             )
         seen[identity] = document.document_id
+
+
+def _validate_reading_state_portability(
+    reading_states: list[DocumentReadingState],
+    source_documents: list[SourceDocument],
+) -> None:
+    """Reject dangling or ambiguous reading state before creating an archive."""
+    if not reading_states:
+        return
+    documents_by_id: dict[str, SourceDocument] = {}
+    for document in source_documents:
+        if document.document_id in documents_by_id:
+            raise ValueError("Source Documents contain a duplicate document_id")
+        documents_by_id[document.document_id] = document
+
+    seen_ids: set[str] = set()
+    seen_identities: dict[tuple[str, str], str] = {}
+    for state in reading_states:
+        if state.reading_state_id in seen_ids:
+            raise ValueError("Reading states contain a duplicate reading_state_id")
+        seen_ids.add(state.reading_state_id)
+        identity = (state.user_scope, state.document_id)
+        previous = seen_identities.get(identity)
+        if previous is not None and previous != state.reading_state_id:
+            raise ValueError("Reading states contain different IDs for one user/document identity")
+        seen_identities[identity] = state.reading_state_id
+
+        document = documents_by_id.get(state.document_id)
+        if document is None:
+            raise ValueError("Reading state points to a Source Document absent from the export")
+        if state.source_id != document.source_id:
+            raise ValueError("Reading state Source does not match its Source Document")
+        if state.reference_id is not None and state.reference_id != document.reference_id:
+            raise ValueError("Reading state Reference does not match its Source Document")
 
 
 def export_database_to_zip(
@@ -308,10 +360,14 @@ def export_database_to_zip(
         always_exported = set(EXPORT_COLLECTIONS)
         optional_catalog = existing_collection_names & set(SOURCE_CATALOG_COLLECTIONS)
         optional_documents = existing_collection_names & set(SOURCE_DOCUMENT_COLLECTIONS)
-        collection_names = sorted(always_exported | optional_catalog | optional_documents)
+        optional_reading = existing_collection_names & set(READING_SPACE_COLLECTIONS)
+        collection_names = sorted(
+            always_exported | optional_catalog | optional_documents | optional_reading
+        )
         logger.info("Collections scheduled for export: %s", ", ".join(collection_names))
         collection_payloads: dict[str, str] = {}
         source_documents: list[SourceDocument] = []
+        reading_states: list[DocumentReadingState] = []
         for collection_name in collection_names:
             _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, f"reading {collection_name}")
             collection_started_at = time.monotonic()
@@ -322,6 +378,8 @@ def export_database_to_zip(
             if collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS:
                 if collection_name in SOURCE_DOCUMENT_COLLECTIONS:
                     source_documents = [_source_document_model(document) for document in raw_docs]
+                elif collection_name in READING_SPACE_COLLECTIONS:
+                    reading_states = [_reading_state_model(document) for document in raw_docs]
                 collection_payloads[collection_name] = bson_json_dumps(
                     raw_docs,
                     json_options=CANONICAL_JSON_OPTIONS,
@@ -344,6 +402,7 @@ def export_database_to_zip(
             )
 
         _validate_source_document_identities(source_documents)
+        _validate_reading_state_portability(reading_states, source_documents)
 
         _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, "copying media files")
         media_payloads = _media_payloads()

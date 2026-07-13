@@ -12,6 +12,7 @@ from editor.pdf_preview import clear_pdf_preview
 from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import render_pdf_preview
 from editor.pdf_preview import store_pdf_preview
+from editor.reading_space.source_entrypoints import render_reading_space_entrypoint
 from editor.source_catalog.shared import CatalogUIContext
 from editor.source_catalog.shared import safe_error_message
 from editor.source_catalog.shared import split_values
@@ -581,6 +582,9 @@ def _render_list(
                     "Abrir recurso web",
                     document.web.url_normalized,
                 )
+            if render_reading_space_entrypoint(ui, document):
+                clear_source_document_preview(ui.session_state)
+                ui.rerun()
             _render_metadata_editor(
                 ui,
                 context,
