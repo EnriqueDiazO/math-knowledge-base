@@ -16,11 +16,14 @@ from urllib.request import ProxyHandler
 from urllib.request import build_opener
 
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
-sys.path.insert(0, str(REPOSITORY_ROOT))
+PACKAGE_ROOT_VALUE = os.environ.get("MATHMONGO_E2E_PACKAGE_ROOT")
+PACKAGE_ROOT = Path(PACKAGE_ROOT_VALUE).resolve() if PACKAGE_ROOT_VALUE else None
+sys.path.insert(0, str(PACKAGE_ROOT or REPOSITORY_ROOT))
 
 from advanced_reader_test_support import synthetic_text_pdf  # noqa: E402
 from pymongo import MongoClient  # noqa: E402
 
+import mathmongo  # noqa: E402
 from mathmongo.advanced_reader.streamlit_link import build_advanced_reader_url  # noqa: E402
 from mathmongo.document_page_maps.indexes import DocumentPageMapIndexManager  # noqa: E402
 from mathmongo.document_page_maps.service import DocumentPageMapService  # noqa: E402
@@ -94,6 +97,9 @@ def main() -> int:
     """Create, exercise, and fully remove one isolated S5A runtime fixture."""
     if not PYTHON.is_file() or not Path(CHROME_PATH).is_file():
         raise RuntimeError("Project Python and system Chrome are required for S5A E2E")
+    package_origin = Path(mathmongo.__file__).resolve()
+    if PACKAGE_ROOT is not None and not package_origin.is_relative_to(PACKAGE_ROOT):
+        raise RuntimeError("Offline E2E did not import MathMongo from the installed wheel")
 
     token = os.urandom(8).hex()
     database_name = f"s5a_e2e_{token}"
@@ -107,8 +113,11 @@ def main() -> int:
     process: subprocess.Popen[str] | None = None
     server_stdout = ""
     server_stderr = ""
+    temporary_root: Path | None = None
     port = _free_port()
     base_url = f"http://127.0.0.1:{port}"
+    managed_environment_keys = ("HOME", "XDG_DATA_HOME", "XDG_CONFIG_HOME", "XDG_CACHE_HOME")
+    original_environment = {key: os.environ.get(key) for key in managed_environment_keys}
 
     try:
         with tempfile.TemporaryDirectory(prefix="mathmongo-s5a-e2e-") as temporary:
@@ -132,14 +141,9 @@ def main() -> int:
                     "PYTHONDONTWRITEBYTECODE": "1",
                 }
             )
-            os.environ.update(
-                {
-                    "HOME": str(home),
-                    "XDG_DATA_HOME": str(xdg_data),
-                    "XDG_CONFIG_HOME": str(xdg_config),
-                    "XDG_CACHE_HOME": str(xdg_cache),
-                }
-            )
+            if PACKAGE_ROOT is not None:
+                environment["PYTHONPATH"] = str(PACKAGE_ROOT)
+            os.environ.update({key: environment[key] for key in managed_environment_keys})
 
             source = Source(name=f"S5A synthetic source {token}")
             reference = Reference(
@@ -150,10 +154,11 @@ def main() -> int:
             database["references"].insert_one(reference.model_dump(mode="python"))
 
             document_service = SourceDocumentService(database)
+            synthetic_pdf = synthetic_text_pdf()
             created = document_service.create_pdf_document(
                 source_id=source.source_id,
                 reference_id=reference.reference_id,
-                pdf_bytes=synthetic_text_pdf(),
+                pdf_bytes=synthetic_pdf,
                 original_filename="s5a-synthetic.pdf",
                 title="S5A synthetic Advanced Reader PDF",
             )
@@ -195,7 +200,7 @@ def main() -> int:
                     "--log-level",
                     "warning",
                 ],
-                cwd=REPOSITORY_ROOT,
+                cwd=temporary_root if PACKAGE_ROOT is not None else REPOSITORY_ROOT,
                 env=environment,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
@@ -209,6 +214,7 @@ def main() -> int:
                     "MATHMONGO_ADVANCED_READER_E2E_URL": base_url,
                     "MATHMONGO_ADVANCED_READER_E2E_DOCUMENT_ID": document.document_id,
                     "MATHMONGO_ADVANCED_READER_E2E_EXPECTED_PAGES": "3",
+                    "MATHMONGO_ADVANCED_READER_E2E_EXPECTED_PDF_SIZE": str(len(synthetic_pdf)),
                     "MATHMONGO_ADVANCED_READER_E2E_BOOK_LABEL": "Book page 1",
                     "MATHMONGO_ADVANCED_READER_E2E_SEARCH_TEXT": "searchable theorem",
                     "MATHMONGO_CHROME_PATH": CHROME_PATH,
@@ -265,18 +271,41 @@ def main() -> int:
                 "reading_state_page": persisted.value.reading_state.current_page,
                 "streamlit_url": streamlit_url_ok,
                 "st_pdf_fallback": fallback_present,
+                "package_origin": "installed_wheel" if PACKAGE_ROOT is not None else "checkout",
             }
             print(json.dumps(summary, sort_keys=True))
     finally:
+        cleanup_errors: list[str] = []
         if process is not None:
-            server_stdout, server_stderr = _stop_server(process)
-        client.drop_database(database_name)
-        client.close()
+            try:
+                server_stdout, server_stderr = _stop_server(process)
+            except Exception:  # pragma: no cover - defensive cleanup reporting
+                cleanup_errors.append("server_stop_failed")
+        try:
+            client.drop_database(database_name)
+            if database_name in client.list_database_names():
+                cleanup_errors.append("temporary_database_remained")
+        except Exception:  # pragma: no cover - defensive cleanup reporting
+            cleanup_errors.append("temporary_database_cleanup_failed")
+        finally:
+            client.close()
+        for key, value in original_environment.items():
+            if value is None:
+                os.environ.pop(key, None)
+            else:
+                os.environ[key] = value
         if "Traceback (most recent call last)" in server_stdout + server_stderr:
-            raise RuntimeError("Advanced Reader emitted a backend traceback during E2E")
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
-            probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            probe.bind(("127.0.0.1", port))
+            cleanup_errors.append("backend_traceback_observed")
+        if temporary_root is not None and temporary_root.exists():
+            cleanup_errors.append("temporary_xdg_remained")
+        try:
+            with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as probe:
+                probe.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                probe.bind(("127.0.0.1", port))
+        except OSError:  # pragma: no cover - defensive cleanup reporting
+            cleanup_errors.append("temporary_port_remained_bound")
+        if cleanup_errors:
+            raise RuntimeError("Advanced Reader E2E cleanup failed: " + ", ".join(cleanup_errors))
     return 0
 
 

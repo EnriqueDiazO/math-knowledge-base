@@ -29,7 +29,7 @@ import type {
   ZoomChangedEventV1,
 } from "../types/events";
 
-type Phase = "loading_metadata" | "loading_pdf" | "ready" | "error";
+type Phase = "loading_metadata" | "loading_pdf" | "ready" | "page_render_failed" | "error";
 type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 interface AppError {
@@ -60,6 +60,7 @@ const PUBLIC_ERROR_CODES = new Set<PublicReaderErrorCode>([
   "internal_error",
   "api_unavailable",
   "pdfjs_load_error",
+  "page_render_failed",
   "unsupported_document",
 ]);
 
@@ -176,6 +177,13 @@ function appError(error: unknown): AppError {
       message: "Reactiva el Document desde MathMongo antes de abrirlo.",
     };
   }
+  if (code === "page_render_failed") {
+    return {
+      code,
+      title: "No se pudo renderizar la página",
+      message: "PDF.js cargó el Document, pero no produjo píxeles visibles.",
+    };
+  }
   return {
     code,
     title: "No se pudo abrir el lector",
@@ -210,11 +218,13 @@ export function AdvancedReaderApp({
   const [selection, setSelection] = useState<TextSelectionEvent | null>(null);
   const [selectionPageLabel, setSelectionPageLabel] = useState<PageLabel | null>(null);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
+  const [pageRenderFailure, setPageRenderFailure] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<PdfReaderController | null>(null);
+  const currentPageRef = useRef(1);
   const totalPagesRef = useRef(0);
   const selectionRef = useRef<TextSelectionEvent | null>(null);
   const zoomModeRef = useRef<ZoomChangedEventV1["mode"]>("fit_width");
@@ -241,11 +251,14 @@ export function AdvancedReaderApp({
     setSearchStatus("idle");
     setSearchCurrent(0);
     setSearchTotal(0);
+    setPageRenderFailure(null);
+    currentPageRef.current = 1;
     api.getMetadata(documentId, abortController.signal)
       .then((value) => {
         if (!abortController.signal.aborted) {
           setMetadata(value);
           const initialPage = value.reading_state.current_page ?? 1;
+          currentPageRef.current = initialPage;
           setCurrentPage(initialPage);
           setPageLabel(value.page_label ?? fallbackPageLabel(initialPage));
           setPhase("loading_pdf");
@@ -289,6 +302,23 @@ export function AdvancedReaderApp({
     setSelectionPageLabel(null);
     let pageLabelController: AbortController | null = null;
     let selectionLabelController: AbortController | null = null;
+    const renderedPages = new Set<number>();
+    const failedPages = new Set<number>();
+    let pageRenderFailureEmitted = false;
+
+    const showCurrentPageRenderFailure = () => {
+      setPhase("page_render_failed");
+      if (!pageRenderFailureEmitted) {
+        pageRenderFailureEmitted = true;
+        emitEvent({
+          schema_version: 1,
+          event_type: "document_load_failed",
+          document_id: metadata.document_id,
+          version_id: metadata.version.version_id,
+          error_code: "page_render_failed",
+        });
+      }
+    };
 
     const clearSelectionEvent = (reason: SelectionClearReason) => {
       const hadSelection = selectionRef.current !== null;
@@ -356,24 +386,38 @@ export function AdvancedReaderApp({
       handlers: {
         onReady(pages) {
           const safePages = safeTotalPageCount(pages);
-          const initialPage = safePdfPage(metadata.reading_state.current_page, safePages);
           totalPagesRef.current = safePages;
           setTotalPages(safePages);
-          setPhase("ready");
           emitEvent({
             schema_version: 1,
             event_type: "document_loaded",
             document_id: metadata.document_id,
             version_id: metadata.version.version_id,
             total_pages: safePages,
-            initial_pdf_page: initialPage,
+            initial_pdf_page: safePdfPage(metadata.reading_state.current_page, safePages),
           });
+        },
+        onPageRendered(pdfPage) {
+          renderedPages.add(pdfPage);
+          failedPages.delete(pdfPage);
+          setPageRenderFailure((current) =>
+            current === pdfPage ? (failedPages.values().next().value ?? null) : current,
+          );
+          if (pdfPage === currentPageRef.current) setPhase("ready");
+        },
+        onPageRenderFailed(pdfPage) {
+          failedPages.add(pdfPage);
+          setPageRenderFailure(pdfPage);
+          if (pdfPage === currentPageRef.current) showCurrentPageRenderFailure();
         },
         onPageChanged(pdfPage, origin) {
           clearSelectionEvent("page_change");
           const pages = safeTotalPageCount(totalPagesRef.current);
           const safePage = safePdfPage(pdfPage, pages);
+          currentPageRef.current = safePage;
           setCurrentPage(safePage);
+          if (failedPages.has(safePage)) showCurrentPageRenderFailure();
+          else if (renderedPages.has(safePage)) setPhase("ready");
           setSaveStatus("idle");
           loadPageLabel(safePage);
           const initialLabel = metadata.page_label?.pdf_page === safePage
@@ -466,7 +510,7 @@ export function AdvancedReaderApp({
     };
   }, [api, controllerFactory, emitEvent, metadata]);
 
-  const ready = phase === "ready";
+  const ready = phase === "ready" || phase === "page_render_failed";
   const executeSearch = (direction: SearchDirection, again: boolean) => {
     if (metadata === null) return;
     const query = normalizeSearchQuery(searchQuery);
@@ -602,6 +646,25 @@ export function AdvancedReaderApp({
         <main className="pdf-stage" aria-label="Documento PDF">
           {phase === "loading_pdf" && (
             <div className="pdf-loading" role="status">Renderizando PDF con PDF.js…</div>
+          )}
+          {pageRenderFailure !== null && (
+            <div
+              className="pdf-render-failure"
+              role="alert"
+              data-error-code="page_render_failed"
+            >
+              <strong>No se pudo renderizar PDF page {pageRenderFailure}.</strong>
+              <span>El lector no ocultará una página en blanco.</span>
+              <button
+                type="button"
+                onClick={() => {
+                  if (phase === "page_render_failed") setPhase("loading_pdf");
+                  controllerRef.current?.retryPage(pageRenderFailure);
+                }}
+              >
+                Reintentar página
+              </button>
+            </div>
           )}
           <div ref={containerRef} id="viewerContainer" tabIndex={0}>
             <div ref={viewerRef} id="viewer" className="pdfViewer" />

@@ -81,6 +81,9 @@ export class FakePdfController implements PdfReaderController {
   total = 12;
   scale = 1;
   rotation = 0;
+
+  constructor(readonly autoPaint = true) {}
+
   readonly mount = vi.fn(async (options: PdfControllerMountOptions) => {
     this.options = options;
     this.page = options.initialPage;
@@ -93,6 +96,7 @@ export class FakePdfController implements PdfReaderController {
     options.handlers.onReady(this.total);
     options.handlers.onPageChanged(this.page, "initial");
     options.handlers.onZoomChanged(this.scale);
+    if (this.autoPaint) options.handlers.onPageRendered(this.page);
   });
   readonly destroy = vi.fn(() => undefined);
   readonly goToPage = vi.fn((page: number, origin: PageChangeOrigin = "toolbar") => {
@@ -120,6 +124,9 @@ export class FakePdfController implements PdfReaderController {
     this.options?.handlers.onSelectionChanged(null, "rotation_change");
     this.rotation = (this.rotation + 270) % 360;
     this.options?.handlers.onRotationChanged(this.rotation, "counterclockwise");
+  });
+  readonly retryPage = vi.fn((page: number) => {
+    this.options?.handlers.onPageRendered(page);
   });
   readonly search = vi.fn(
     (query: string, _direction: SearchDirection, _options: SearchOptions, _again: boolean) => {

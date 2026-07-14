@@ -203,8 +203,9 @@ La política que aplica el middleware es exacta por ruta:
 
 - HTML de `/` y `/reader`, favicon y demás rutas de frontend:
   `Cache-Control: no-cache`;
-- assets bajo `/assets/`, cuyos nombres llevan hash:
-  `Cache-Control: public, max-age=31536000, immutable`;
+- assets bajo `/assets/`: `Cache-Control: public, max-age=31536000, immutable`;
+  chunks y worker llevan hash, y los auxiliares PDF.js quedan fijados por el
+  namespace de versión `pdfjs-6.1.200` y su inventario validado;
 - todas las rutas `/api/`, incluido el PDF completo o parcial:
   `Cache-Control: no-store, private`.
 
@@ -219,8 +220,12 @@ configuración observable de S5A reduce superficie de ataque de esta forma:
 
 - el worker se empaqueta en el mismo origen y CSP limita `worker-src` a
   `'self'`;
-- `getDocument(...)` usa `isEvalSupported=false`, `enableXfa=false` y
-  `stopAtErrors=true`;
+- `getDocument(...)` usa `isEvalSupported=false`, `enableXfa=false`,
+  `stopAtErrors=true` y URLs same-origin versionadas para CMaps, fuentes
+  estándar, ICC y decodificadores;
+- los fallbacks JavaScript oficiales JBIG2/OpenJPEG se seleccionan con
+  `useWasm=false`; así no se añade `wasm-unsafe-eval` a CSP. Los recursos no se
+  obtienen de CDN y el runtime QuickJS no se distribuye;
 - `PDFViewer` recibe `annotationMode=AnnotationMode.ENABLE`, no
   `ENABLE_FORMS`, por lo que muestra la capa de anotaciones sin renderizar
   formularios interactivos; el editor se desactiva con
@@ -333,8 +338,10 @@ en sus chunks separados; no se presenta como código de aplicación ni como una
 llamada de red. El source y el entrypoint propios deben permanecer libres de
 ambos.
 
-Wheel y sdist incluyen HTML, JS, CSS, worker y notices/licencias. La instalación
-offline se prueba sin resolver dependencias desde la red.
+Wheel y sdist incluyen HTML, JS, CSS, worker, recursos PDF.js versionados y sus
+notices/licencias. La instalación offline se prueba sin resolver dependencias
+desde la red y desde el wheel instalado se exige una página sintética realmente
+pintada, no sólo health o metadata.
 
 ## Validación de seguridad prevista
 

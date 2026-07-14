@@ -18,6 +18,7 @@ import workerUrl from "../../generated/pdf.worker.min.mjs?url";
 import { captureTextSelection, clearBrowserSelection } from "../selection/captureSelection";
 import type { PageChangeOrigin, SelectionClearReason } from "../types/events";
 import { ThumbnailManager } from "./ThumbnailManager";
+import { inspectCanvasPaint } from "./canvasPaint";
 import { normalizeSearchQuery } from "./search";
 import type {
   PdfControllerMountOptions,
@@ -33,6 +34,15 @@ const RANGE_CHUNK_SIZE = 64 * 1024;
 const MIN_APP_SCALE = 0.25;
 const MAX_APP_SCALE = 5;
 const SCALE_STEP = 1.1;
+
+export const PDFJS_VERSION = "6.1.200";
+export const PDFJS_RESOURCE_BASE_URL = `/assets/pdfjs-${PDFJS_VERSION}`;
+export const PDFJS_RESOURCE_URLS = Object.freeze({
+  cMapUrl: `${PDFJS_RESOURCE_BASE_URL}/cmaps/`,
+  standardFontDataUrl: `${PDFJS_RESOURCE_BASE_URL}/standard_fonts/`,
+  wasmUrl: `${PDFJS_RESOURCE_BASE_URL}/wasm/`,
+  iccUrl: `${PDFJS_RESOURCE_BASE_URL}/iccs/`,
+});
 
 GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -51,6 +61,19 @@ interface ScaleChangingEvent {
 
 interface RotationChangingEvent {
   pagesRotation: number;
+  pageNumber: number;
+}
+
+interface PageRenderEvent {
+  pageNumber: number;
+  cssTransform?: boolean;
+  isDetailView?: boolean;
+  error?: unknown;
+}
+
+interface RetryablePageView {
+  div: HTMLDivElement;
+  reset(): void;
 }
 
 function safePage(value: number, total: number): number {
@@ -78,6 +101,7 @@ export class PdfJsController implements PdfReaderController {
   #matches: SearchUpdate = { status: "idle", current: 0, total: 0 };
   #nextPageOrigin: PageChangeOrigin = "pdfjs";
   #rotationDirection: "clockwise" | "counterclockwise" = "clockwise";
+  readonly #failedPages = new Set<number>();
 
   async mount(options: PdfControllerMountOptions): Promise<void> {
     this.destroy();
@@ -98,7 +122,9 @@ export class PdfJsController implements PdfReaderController {
       writable: false,
     });
     const findController = new PDFFindController({ eventBus, linkService });
-    const viewer = new PDFViewer({
+    const viewerOptions: ConstructorParameters<typeof PDFViewer>[0] & {
+      abortSignal: AbortSignal;
+    } = {
       container: options.container,
       viewer: options.viewer,
       eventBus,
@@ -109,18 +135,55 @@ export class PdfJsController implements PdfReaderController {
       enableAutoLinking: false,
       enableSelectionRendering: true,
       imagesRightClickMinSize: -1,
-    });
+      abortSignal: abortController.signal,
+    };
+    const viewer = new PDFViewer(viewerOptions);
     linkService.setViewer(viewer);
     this.#eventBus = eventBus;
     this.#viewer = viewer;
 
     const pagesInitialized = new Promise<void>((resolve) => {
-      eventBus.on("pagesinit", () => resolve(), {
+      const settle = () => {
+        abortController.signal.removeEventListener("abort", settle);
+        resolve();
+      };
+      abortController.signal.addEventListener("abort", settle, { once: true });
+      eventBus.on("pagesinit", settle, {
         once: true,
         signal: abortController.signal,
       });
     });
 
+    eventBus.on(
+      "pagerender",
+      ({ pageNumber }: PageRenderEvent) => {
+        this.#clearPageError(pageNumber);
+      },
+      { signal: abortController.signal },
+    );
+    eventBus.on(
+      "pagerendered",
+      ({ pageNumber, error, isDetailView }: PageRenderEvent) => {
+        if (isDetailView) return;
+        const pageView = viewer.getPageView(pageNumber - 1) as RetryablePageView | undefined;
+        if (pageView === undefined) {
+          this.#reportPageFailure(pageNumber);
+          return;
+        }
+        const canvas = pageView?.div.querySelector(".canvasWrapper canvas");
+        const paint =
+          canvas instanceof HTMLCanvasElement ? inspectCanvasPaint(canvas) : null;
+        if (error || paint?.painted !== true) {
+          this.#reportPageFailure(pageNumber);
+          return;
+        }
+        this.#failedPages.delete(pageNumber);
+        this.#clearPageError(pageNumber);
+        pageView.div.dataset.renderStatus = "painted";
+        this.#handlers?.onPageRendered(pageNumber);
+      },
+      { signal: abortController.signal },
+    );
     eventBus.on(
       "pagechanging",
       ({ pageNumber }: PageChangingEvent) => {
@@ -148,8 +211,9 @@ export class PdfJsController implements PdfReaderController {
     );
     eventBus.on(
       "rotationchanging",
-      ({ pagesRotation }: RotationChangingEvent) => {
+      ({ pagesRotation, pageNumber }: RotationChangingEvent) => {
         this.clearSelection("rotation_change");
+        viewer.currentPageNumber = pageNumber;
         this.#thumbnailManager?.setRotation(pagesRotation);
         this.#handlers?.onRotationChanged(pagesRotation, this.#rotationDirection);
       },
@@ -214,8 +278,11 @@ export class PdfJsController implements PdfReaderController {
     try {
       const loadingTask = getDocument({
         url: options.pdfUrl,
+        ...PDFJS_RESOURCE_URLS,
+        cMapPacked: true,
         withCredentials: false,
         isEvalSupported: false,
+        useWasm: false,
         disableRange: false,
         disableStream: true,
         disableAutoFetch: true,
@@ -227,12 +294,13 @@ export class PdfJsController implements PdfReaderController {
       const pdfDocument = await loadingTask.promise;
       if (abortController.signal.aborted) return;
       this.#pdfDocument = pdfDocument;
-      viewer.setDocument(pdfDocument);
       linkService.setDocument(pdfDocument, null);
+      viewer.setDocument(pdfDocument);
       const thumbnails = new ThumbnailManager(
         options.thumbnails,
         pdfDocument,
         (page) => this.goToPage(page, "thumbnail"),
+        eventBus,
       );
       this.#thumbnailManager = thumbnails;
       thumbnails.mount();
@@ -278,6 +346,7 @@ export class PdfJsController implements PdfReaderController {
     }
     this.#handlers = null;
     this.#matches = { status: "idle", current: 0, total: 0 };
+    this.#failedPages.clear();
   }
 
   goToPage(page: number, origin: PageChangeOrigin = "toolbar"): void {
@@ -333,6 +402,19 @@ export class PdfJsController implements PdfReaderController {
     }
   }
 
+  retryPage(page: number): void {
+    if (this.#viewer === null || this.#pdfDocument === null) return;
+    const target = safePage(page, this.#pdfDocument.numPages);
+    const pageView = this.#viewer.getPageView(target - 1) as RetryablePageView | undefined;
+    if (pageView === undefined) return;
+    this.#failedPages.delete(target);
+    this.#clearPageError(target);
+    pageView.reset();
+    this.#viewer.currentPageNumber = target;
+    this.#viewer.update();
+    this.#viewer.forceRendering(undefined);
+  }
+
   search(
     query: string,
     direction: SearchDirection,
@@ -363,6 +445,48 @@ export class PdfJsController implements PdfReaderController {
   clearSelection(reason: SelectionClearReason = "user"): void {
     clearBrowserSelection();
     this.#handlers?.onSelectionChanged(null, reason);
+  }
+
+  #pageView(pageNumber: number): RetryablePageView | null {
+    const view = this.#viewer?.getPageView(pageNumber - 1) as RetryablePageView | undefined;
+    return view?.div instanceof HTMLDivElement ? view : null;
+  }
+
+  #clearPageError(pageNumber: number): void {
+    const page = this.#pageView(pageNumber)?.div;
+    if (page === undefined) return;
+    page.classList.remove("has-render-error");
+    delete page.dataset.renderStatus;
+    page.querySelector(":scope > .page-render-error")?.remove();
+  }
+
+  #reportPageFailure(pageNumber: number): void {
+    const page = this.#pageView(pageNumber)?.div;
+    if (page !== undefined) {
+      page.dataset.renderStatus = "failed";
+      page.classList.add("has-render-error");
+      if (page.querySelector(":scope > .page-render-error") === null) {
+        const error = document.createElement("div");
+        error.className = "page-render-error";
+        error.dataset.errorCode = "page_render_failed";
+        error.setAttribute("role", "alert");
+        const message = document.createElement("p");
+        message.textContent = `No se pudo renderizar PDF page ${pageNumber}.`;
+        const retry = document.createElement("button");
+        retry.type = "button";
+        retry.textContent = "Reintentar página";
+        retry.addEventListener("click", () => this.retryPage(pageNumber), {
+          signal: this.#abortController?.signal,
+        });
+        error.append(message, retry);
+        page.append(error);
+      }
+    }
+    if (!this.#failedPages.has(pageNumber)) {
+      this.#failedPages.add(pageNumber);
+      console.error(`Advanced Reader page_render_failed for PDF page ${pageNumber}.`);
+      this.#handlers?.onPageRenderFailed(pageNumber);
+    }
   }
 }
 

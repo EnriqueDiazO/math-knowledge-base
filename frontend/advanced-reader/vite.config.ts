@@ -26,6 +26,7 @@ function normalizeGeneratedSvgWhitespace(): Plugin {
 export default defineConfig({
   plugins: [react(), normalizeGeneratedSvgWhitespace()],
   base: "/",
+  publicDir: "generated/public",
   define: {
     process: "undefined",
   },

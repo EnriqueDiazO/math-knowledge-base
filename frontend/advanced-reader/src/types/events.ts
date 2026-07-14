@@ -20,6 +20,7 @@ export type PublicReaderErrorCode =
   | "internal_error"
   | "api_unavailable"
   | "pdfjs_load_error"
+  | "page_render_failed"
   | "unsupported_document";
 
 export type PageChangeOrigin =

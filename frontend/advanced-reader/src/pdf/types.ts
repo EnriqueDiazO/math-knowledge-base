@@ -21,6 +21,8 @@ export interface SearchUpdate {
 
 export interface PdfControllerHandlers {
   onReady(totalPages: number): void;
+  onPageRendered(pdfPage: number): void;
+  onPageRenderFailed(pdfPage: number): void;
   onPageChanged(pdfPage: number, origin: PageChangeOrigin): void;
   onZoomChanged(scale: number): void;
   onRotationChanged(rotation: number, direction: "clockwise" | "counterclockwise"): void;
@@ -54,6 +56,7 @@ export interface PdfReaderController {
   setScaleMode(mode: ScaleMode): void;
   rotateClockwise(): void;
   rotateCounterclockwise(): void;
+  retryPage(page: number): void;
   search(query: string, direction: SearchDirection, options: SearchOptions, again: boolean): void;
   clearSelection(reason?: SelectionClearReason): void;
 }

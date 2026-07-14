@@ -10,7 +10,8 @@ contratos correspondientes y no se duplican aquí.
 
 No se usa CDN ni se descarga código en runtime. `node_modules` y las
 dependencias de build/test no se distribuyen en wheel o sdist; sólo se incluyen
-los assets compilados necesarios, el worker PDF.js y los avisos de licencia.
+los assets compilados necesarios, el worker y recursos runtime PDF.js y los
+avisos de licencia.
 
 ## Runtime Python
 
@@ -36,6 +37,18 @@ de MathMongo; no introduce una segunda capa de persistencia.
 `pdfjs-dist` se consume mediante sus APIs públicas. No se copia sin revisión el
 viewer demo completo. El worker se empaqueta en el mismo origen; no se usa el
 worker de un CDN ni se habilita ejecución de JavaScript embebido en el PDF.
+
+El paquete también distribuye los recursos oficiales de `pdfjs-dist 6.1.200`
+necesarios por el renderer: CMaps empaquetados, fuentes estándar, el perfil ICC
+y los decodificadores JBIG2/OpenJPEG/QCMS. Los archivos de licencia específicos
+permanecen junto a esos recursos. La configuración S5A usa los fallbacks
+JavaScript oficiales JBIG2/OpenJPEG (`useWasm=false`) para conservar la CSP sin
+compilación WASM; no incorpora el runtime QuickJS, porque el scripting PDF no
+está conectado ni habilitado.
+
+Como cambio de empaquetado, MathMongo sustituye el marcador HOME virtual
+embebido por upstream por `/virtual/web_user` en el worker y fallback aplicable;
+no altera la lógica de los decodificadores.
 
 ## Build, tipos, lint y pruebas frontend
 
@@ -89,10 +102,11 @@ versiones transitivas nuevas.
   proporciona.
 
 El build de producción debe publicar un directorio de notices/licencias junto a
-los assets del Advanced Reader. Wheel y sdist deben incluirlo. La minificación
-no autoriza a retirar banners o avisos exigidos; cuando un banner no pueda
-conservarse en cada chunk, el notice agregado debe ser accesible dentro de la
-distribución.
+los assets del Advanced Reader. Las licencias propias de CMaps, fuentes, ICC y
+decodificadores se conservan además dentro del árbol local versionado de PDF.js.
+Wheel y sdist deben incluir ambos. La minificación no autoriza a retirar banners
+o avisos exigidos; cuando un banner no pueda conservarse en cada chunk, el
+notice agregado debe ser accesible dentro de la distribución.
 
 ## Exclusiones
 

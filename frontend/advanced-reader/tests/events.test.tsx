@@ -205,6 +205,53 @@ describe("AdvancedReaderEventV1 local event contract", () => {
     expect(JSON.stringify(emittedEvents(observer))).not.toContain("/home/private");
   });
 
+  it("requires the current page to paint even when an adjacent prefetched page succeeds", async () => {
+    const observer = vi.fn<(event: AdvancedReaderEventV1) => void>();
+    const controller = new FakePdfController(false);
+    const { user } = await renderWithEvents(observer, controller);
+
+    expect(document.querySelector(".reader-app")).toHaveAttribute("data-phase", "loading_pdf");
+    expect(screen.getByLabelText("Página siguiente")).toBeDisabled();
+
+    act(() => controller.options?.handlers.onPageRenderFailed(4));
+    expect(document.querySelector(".reader-app")).toHaveAttribute("data-phase", "loading_pdf");
+    expect(
+      emittedEvents(observer).filter(
+        (event) =>
+          event.event_type === "document_load_failed" &&
+          event.error_code === "page_render_failed",
+      ),
+    ).toHaveLength(0);
+
+    act(() => controller.options?.handlers.onPageRendered(4));
+    expect(document.querySelector(".reader-app")).toHaveAttribute("data-phase", "loading_pdf");
+    expect(screen.queryByText("No se pudo renderizar PDF page 4.")).not.toBeInTheDocument();
+
+    act(() => controller.options?.handlers.onPageRenderFailed(3));
+
+    expect(document.querySelector(".reader-app")).toHaveAttribute(
+      "data-phase",
+      "page_render_failed",
+    );
+    expect(screen.getByRole("alert")).toHaveAttribute("data-error-code", "page_render_failed");
+    expect(screen.getByText("El lector no ocultará una página en blanco.")).toBeVisible();
+    expect(screen.getByLabelText("Página siguiente")).toBeEnabled();
+    expect(
+      emittedEvents(observer).filter(
+        (event) =>
+          event.event_type === "document_load_failed" &&
+          event.error_code === "page_render_failed",
+      ),
+    ).toHaveLength(1);
+
+    await user.click(screen.getByRole("button", { name: "Reintentar página" }));
+    expect(controller.retryPage).toHaveBeenCalledWith(3);
+    await waitFor(() =>
+      expect(document.querySelector(".reader-app")).toHaveAttribute("data-phase", "ready"),
+    );
+    expect(screen.queryByText("El lector no ocultará una página en blanco.")).not.toBeInTheDocument();
+  });
+
   it("uses metadata capabilities to disable unsupported toolbar operations", async () => {
     const observer = vi.fn<(event: AdvancedReaderEventV1) => void>();
     const restrictedMetadata = {

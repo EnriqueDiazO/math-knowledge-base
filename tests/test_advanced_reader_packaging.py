@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import re
@@ -21,12 +22,27 @@ except ImportError:  # pragma: no cover - Python 3.10 in the project environment
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_ROOT = REPOSITORY_ROOT / "frontend" / "advanced-reader"
 STATIC_ROOT = REPOSITORY_ROOT / "mathmongo" / "advanced_reader" / "static" / "advanced_reader"
+PDFJS_VERSION = "6.1.200"
+PDFJS_ASSET_INVENTORIES = {
+    "cmaps": (169, "95e459bcb13faa8998861ebf9954a86ac2ec362342318cef04ad67d38bfcc4d7"),
+    "standard_fonts": (
+        16,
+        "73e5de7c412df8ddaa70bad216fd9dc53b2af875cdbd0f8ece6ede4743a5ac9b",
+    ),
+    "iccs": (2, "8fd90bf5a81a9b10ea806bc1a50d878dc063e1439026a335853579e1ab544d3d"),
+    "wasm": (11, "10c87199f10de4a521ef246d65adb3b011706c14e06f1de8ebb99b64dc4e85ed"),
+}
 
 
 def _load_json(path: Path) -> dict[str, Any]:
     payload = json.loads(path.read_text(encoding="utf-8"))
     assert isinstance(payload, dict)
     return payload
+
+
+def _filename_inventory_sha256(directory: Path) -> str:
+    names = sorted(item.name for item in directory.iterdir())
+    return hashlib.sha256(("\n".join(names) + "\n").encode()).hexdigest()
 
 
 def test_advanced_reader_import_is_offline_and_creates_no_xdg_or_home_state(
@@ -207,6 +223,46 @@ def test_packaged_frontend_has_hashed_local_runtime_worker_and_notices() -> None
     assert "/src/" not in html
     assert "http://" not in html and "https://" not in html
     assert "file://" not in html and "mongodb://" not in html
+
+
+def test_packaged_pdfjs_auxiliary_assets_are_local_versioned_and_allowlisted() -> None:
+    assets = STATIC_ROOT / "assets"
+    pdfjs_root = assets / f"pdfjs-{PDFJS_VERSION}"
+    assert pdfjs_root.is_dir() and not pdfjs_root.is_symlink()
+    assert {item.name for item in assets.iterdir() if item.is_dir()} == {pdfjs_root.name}
+    assert {item.name for item in pdfjs_root.iterdir() if item.is_dir()} == set(
+        PDFJS_ASSET_INVENTORIES
+    )
+
+    for directory_name, (expected_count, expected_digest) in PDFJS_ASSET_INVENTORIES.items():
+        directory = pdfjs_root / directory_name
+        entries = list(directory.iterdir())
+        assert len(entries) == expected_count
+        assert all(item.is_file() and not item.is_symlink() for item in entries)
+        assert _filename_inventory_sha256(directory) == expected_digest
+
+    wasm_names = {item.name for item in (pdfjs_root / "wasm").iterdir()}
+    assert {
+        "jbig2.wasm",
+        "jbig2_nowasm_fallback.js",
+        "openjpeg.wasm",
+        "openjpeg_nowasm_fallback.js",
+        "qcms_bg.wasm",
+    } <= wasm_names
+    assert all("quickjs" not in item.name.casefold() for item in pdfjs_root.rglob("*"))
+
+    preparation = (FRONTEND_ROOT / "scripts" / "prepare-pdf-worker.mjs").read_text(encoding="utf-8")
+    vite_configuration = (FRONTEND_ROOT / "vite.config.ts").read_text(encoding="utf-8")
+    publisher = (FRONTEND_ROOT / "scripts" / "publish-build.mjs").read_text(encoding="utf-8")
+    assert f'const PDFJS_VERSION = "{PDFJS_VERSION}"' in preparation
+    assert f'const PDFJS_VERSION = "{PDFJS_VERSION}"' in publisher
+    assert 'publicDir: "generated/public"' in vite_configuration
+
+
+def test_packaged_frontend_publication_leaves_no_staging_or_backup_tree() -> None:
+    static_parent = STATIC_ROOT.parent
+    assert not tuple(static_parent.glob(f"{STATIC_ROOT.name}.publish-*"))
+    assert not tuple(static_parent.glob(f"{STATIC_ROOT.name}.backup-*"))
 
 
 def test_packaged_static_tree_excludes_development_user_and_sensitive_artifacts() -> None:

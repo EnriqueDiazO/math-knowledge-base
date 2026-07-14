@@ -5,3 +5,7 @@ React 19.2.7 — MIT — https://github.com/facebook/react
 React DOM 19.2.7 — MIT — https://github.com/facebook/react
 
 The corresponding license texts are distributed in this directory.
+PDF.js runtime resources and their applicable upstream license files are
+distributed under /assets/pdfjs-6.1.200/.
+MathMongo replaces an embedded upstream virtual HOME marker with
+/virtual/web_user during packaging; decoder behavior is unchanged.

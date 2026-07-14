@@ -14,7 +14,7 @@ def synthetic_text_pdf(
     *,
     padding_bytes: int = 320_000,
 ) -> bytes:
-    """Build a valid multipage Helvetica PDF with selectable text and inert padding."""
+    """Build a multipage PDF with selectable text and conspicuous vector paint."""
     texts = tuple(
         page_texts
         or (
@@ -45,6 +45,15 @@ def synthetic_text_pdf(
             + f"/Contents {content_number} 0 R >>".encode()
         )
         content = (
+            b"q\n"
+            b"0.10 0.22 0.52 rg\n"
+            b"72 545 216 72 re f\n"
+            b"0.92 0.58 0.12 rg\n"
+            b"312 545 108 72 re f\n"
+            b"0 0 0 RG 4 w\n"
+            b"72 505 m 468 505 l S\n"
+            b"72 455 m 270 425 l 468 455 l S\n"
+            b"Q\n"
             b"BT /F1 18 Tf 72 700 Td ("
             + _pdf_literal(text)
             + b") Tj ET\n"

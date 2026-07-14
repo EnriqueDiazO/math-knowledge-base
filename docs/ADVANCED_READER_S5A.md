@@ -311,9 +311,10 @@ servidor puede cortar la conexión, pero ya no puede responder con un envelope
 JSON `integrity_error`.
 
 La política de caché del proceso local distingue rutas: `/` y `/reader` usan
-`no-cache`; `/assets/` usa `public, max-age=31536000, immutable` porque los
-nombres están versionados por hash; toda ruta `/api/`, incluido el PDF y sus
-respuestas 206, usa `no-store, private`.
+`no-cache`; `/assets/` usa `public, max-age=31536000, immutable`. Los chunks y
+el worker se nombran por hash, mientras los recursos auxiliares viven bajo el
+namespace fijado `pdfjs-6.1.200` y un inventario exacto. Toda ruta `/api/`,
+incluido el PDF y sus respuestas 206, usa `no-store, private`.
 
 ## Frontend React/TypeScript
 
@@ -376,6 +377,54 @@ El link service usa `externalLinkEnabled=false`, `externalLinkTarget=NONE` y
 resolución de attachments se sustituye por una operación sin contenido y la UI
 no ofrece descarga o ejecución. CSP mantiene scripts, worker y conexiones en el
 mismo origen, bloquea objetos y formularios, y no habilita `unsafe-eval`.
+
+### Blank canvas rendering incident
+
+La primera publicación de S5A podía cargar el PDF, emitir `pagesinit` y mostrar
+306 páginas mientras el canvas principal y las miniaturas permanecían blancos.
+La reproducción en Chrome del Document real identificó la causa: el
+`getDocument(...)` de PDF.js 6.1.200 no recibía `wasmUrl`. Al llegar a los
+streams de imagen JBIG2/JPX, el decodificador intentaba inicializar WASM sin esa
+ruta y después resolver un fallback desde una URL inválida. La consola mostraba
+el fallo de `instantiateWasm` y la solicitud de
+`nulljbig2_nowasm_fallback.js`; el render terminaba sin contenido visible.
+
+Metadata, integridad y total de páginas sí funcionaban porque PDF.js obtiene el
+catálogo, el árbol de páginas y los diccionarios antes de decodificar las
+imágenes de cada página. Conocer `numPages` no demuestra que un `renderTask`
+haya producido píxeles, y `document_loaded` conserva precisamente esa semántica
+estructural. La UI sólo pasa a estado visual listo después de inspeccionar un
+canvas pintado.
+
+La corrección publica, bajo `/assets/pdfjs-6.1.200/`, CMaps, fuentes estándar,
+perfil ICC y los decodificadores oficiales JBIG2/OpenJPEG/QCMS con sus licencias.
+`getDocument(...)` recibe URLs locales versionadas y `cMapPacked=true`. Se usa
+`useWasm=false`, junto con los fallbacks JavaScript oficiales de PDF.js, para
+mantener la CSP sin `wasm-unsafe-eval`; no hay CDN ni descarga en runtime. El
+worker sigue siendo local, versionado y nombrado por hash.
+
+Cada `pagerendered` y cada miniatura se comprueban mediante una muestra reducida
+del canvas, sin OCR ni interpretación de contenido. Un canvas completamente
+blanco ya no se acepta como éxito: muestra `page_render_failed` dentro de la
+página o miniatura y ofrece reintento. `document_loaded` puede preceder ese
+error, pero el lector no afirma estar listo hasta que al menos una página queda
+pintada.
+
+La prueba E2E genera un PDF temporal de tres páginas con texto y formas y exige
+dimensiones, píxeles no blancos, regiones oscuras y varianza en página inicial,
+página interior, miniatura, tamaño real, fit width, fit page, rotación y recarga.
+También verifica consola, red, Range, navegación, búsqueda, selección y cleanup.
+La validación read-only del Document real confirmó 306 páginas, página 1,
+miniatura y página 153 pintadas, zoom/fit/rotación y búsqueda, sin errores de
+consola ni requests remotos o mutadores. Reading State, bytes y SHA del blob se
+compararon antes y después y permanecieron idénticos; no se copió el PDF ni se
+conservó su screenshot.
+
+El publicador reemplaza el árbol estático de forma atómica, valida inventarios
+exactos por versión y rechaza assets huérfanos. El cambio produjo nuevos hashes
+para el entrypoint y CSS; HTML usa revalidación, los chunks/worker hasheados y el
+namespace auxiliar fijado usan cache immutable, por lo que una página antigua
+no referencia chunks de otra compilación.
 
 Éste es hardening por configuración y defensa en profundidad, no una afirmación
 de seguridad absoluta frente a PDFs maliciosos. Las pruebas funcionales y E2E

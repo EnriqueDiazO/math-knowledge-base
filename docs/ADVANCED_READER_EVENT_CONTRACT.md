@@ -82,7 +82,9 @@ total de páginas.
 
 No contiene título, SHA, filename, Source ni Reference. Es local y no se
 persiste. Si PDF.js no completa la carga, se emite `document_load_failed` en su
-lugar.
+lugar. Este evento confirma estructura y total de páginas, no que un canvas ya
+tenga píxeles: la preparación visual termina sólo después de un
+`pagerendered` comprobado.
 
 ## `document_load_failed`
 
@@ -100,9 +102,12 @@ PDF.js.
 ```
 
 `error_code` sólo puede ser un código público de la API o uno de
-`api_unavailable`, `pdfjs_load_error` y `unsupported_document`. No se incluye
-`Error.message`, response body crudo, traceback, URL completa o path. El evento
-sirve para seleccionar un estado visible; no se registra ni persiste.
+`api_unavailable`, `pdfjs_load_error`, `page_render_failed` y
+`unsupported_document`. `page_render_failed` puede seguir a
+`document_loaded`: significa que la estructura se cargó, pero ninguna página
+ha superado la comprobación visual. No se incluye `Error.message`, response body
+crudo, traceback, URL completa o path. El evento sirve para seleccionar un
+estado visible; no se registra ni persiste.
 
 ## `page_changed`
 
