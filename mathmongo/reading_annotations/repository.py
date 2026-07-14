@@ -33,6 +33,7 @@ from mathmongo.reading_annotations.models import utc_now
 from mathmongo.reading_annotations.models import validate_annotation_id
 from mathmongo.reading_annotations.models import validate_evidence_link_id
 from mathmongo.reading_annotations.models import validate_note_id
+from mathmongo.source_documents.models import validate_document_id
 
 T = TypeVar("T", bound=BaseModel)
 MAX_PAGE_SIZE = 100
@@ -54,6 +55,28 @@ class S4Page(Generic[T]):
 AnnotationPage = S4Page[DocumentAnnotation]
 ReadingNotePage = S4Page[ReadingNote]
 ConceptEvidencePage = S4Page[ConceptEvidenceLink]
+
+DOCUMENT_ANNOTATION_PROJECTION = {
+    "_id": 0,
+    "schema_version": 1,
+    "annotation_id": 1,
+    "document_id": 1,
+    "source_id": 1,
+    "reference_id": 1,
+    "user_scope": 1,
+    "kind": 1,
+    "status": 1,
+    "page_number": 1,
+    "page_label": 1,
+    "quote_text": 1,
+    "body": 1,
+    "color_label": 1,
+    "tags": 1,
+    "visual_anchor": 1,
+    "created_at": 1,
+    "updated_at": 1,
+    "archived_at": 1,
+}
 
 
 def _pagination(page: int, page_size: int) -> tuple[int, int]:
@@ -110,10 +133,13 @@ def _page(
     page_size: int,
     sort: list[tuple[str, int]],
     model_type: type[T],
+    projection: dict[str, int] | None = None,
 ) -> S4Page[T]:
     page, page_size = _pagination(page, page_size)
     total = int(collection.count_documents(query))
-    cursor = collection.find(query).sort(sort).skip((page - 1) * page_size).limit(page_size)
+    cursor = (
+        collection.find(query, projection).sort(sort).skip((page - 1) * page_size).limit(page_size)
+    )
     items = tuple(item for raw in cursor if (item := _model(raw, model_type)) is not None)
     return S4Page(items, page, page_size, total)
 
@@ -151,6 +177,105 @@ class AnnotationRepository:
         return _model(
             self._collection.find_one({"annotation_id": annotation_id}),
             DocumentAnnotation,
+        )
+
+    def get_visual_by_annotation_id(self, annotation_id: str) -> DocumentAnnotation | None:
+        validate_annotation_id(annotation_id)
+        return _model(
+            self._collection.find_one(
+                {
+                    "annotation_id": annotation_id,
+                    "visual_anchor": {"$exists": True, "$ne": None},
+                },
+                DOCUMENT_ANNOTATION_PROJECTION,
+            ),
+            DocumentAnnotation,
+        )
+
+    @staticmethod
+    def _visual_kind(kind: AnnotationKind | str | None) -> AnnotationKind | None:
+        if kind is None:
+            return None
+        parsed = AnnotationKind(kind)
+        if parsed not in {AnnotationKind.HIGHLIGHT, AnnotationKind.UNDERLINE}:
+            raise ValueError("visual annotation kind must be highlight or underline")
+        return parsed
+
+    @staticmethod
+    def _visual_query(
+        document_id: str,
+        *,
+        user_scope: str,
+        status: AnnotationStatus | str | None,
+        kind: AnnotationKind | str | None,
+    ) -> dict[str, Any]:
+        validate_document_id(document_id)
+        query: dict[str, Any] = {
+            "document_id": document_id,
+            "user_scope": user_scope,
+            "visual_anchor": {"$exists": True, "$ne": None},
+        }
+        if status is not None:
+            query["status"] = AnnotationStatus(status).value
+        parsed_kind = AnnotationRepository._visual_kind(kind)
+        if parsed_kind is not None:
+            query["kind"] = parsed_kind.value
+        return query
+
+    def list_visual_by_document(
+        self,
+        document_id: str,
+        *,
+        user_scope: str = "local",
+        status: AnnotationStatus | str | None = AnnotationStatus.ACTIVE,
+        kind: AnnotationKind | str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> AnnotationPage:
+        query = self._visual_query(
+            document_id,
+            user_scope=user_scope,
+            status=status,
+            kind=kind,
+        )
+        return _page(
+            self._collection,
+            query,
+            page=page,
+            page_size=page_size,
+            sort=[("page_number", 1), ("updated_at", -1), ("annotation_id", 1)],
+            model_type=DocumentAnnotation,
+            projection=DOCUMENT_ANNOTATION_PROJECTION,
+        )
+
+    def list_visual_by_page(
+        self,
+        document_id: str,
+        pdf_page: int,
+        *,
+        user_scope: str = "local",
+        status: AnnotationStatus | str | None = AnnotationStatus.ACTIVE,
+        kind: AnnotationKind | str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> AnnotationPage:
+        if not isinstance(pdf_page, int) or isinstance(pdf_page, bool) or pdf_page < 1:
+            raise ValueError("pdf_page must be a positive strict integer")
+        query = self._visual_query(
+            document_id,
+            user_scope=user_scope,
+            status=status,
+            kind=kind,
+        )
+        query["page_number"] = pdf_page
+        return _page(
+            self._collection,
+            query,
+            page=page,
+            page_size=page_size,
+            sort=[("updated_at", -1), ("annotation_id", 1)],
+            model_type=DocumentAnnotation,
+            projection=DOCUMENT_ANNOTATION_PROJECTION,
         )
 
     def list_by_document(
@@ -269,6 +394,8 @@ class AnnotationRepository:
         current = self.get_by_id(annotation_id)
         if current is None:
             return None
+        if current.visual_anchor is not None:
+            raise ValueError("visual annotations must use the presentation-only update operation")
         payload = current.model_dump(mode="python")
         payload.update(
             {
@@ -297,6 +424,31 @@ class AnnotationRepository:
             return None
         payload = current.model_dump(mode="python")
         payload.update({"tags": list(tags), "updated_at": at or utc_now()})
+        return self._replace(DocumentAnnotation.model_validate(payload))
+
+    def update_visual_presentation(
+        self,
+        annotation_id: str,
+        *,
+        kind: AnnotationKind | str,
+        color_label: str,
+        body: str,
+        tags: list[str] | tuple[str, ...],
+        at: datetime | None = None,
+    ) -> DocumentAnnotation | None:
+        current = self.get_visual_by_annotation_id(annotation_id)
+        if current is None:
+            return None
+        payload = current.model_dump(mode="python")
+        payload.update(
+            {
+                "kind": kind,
+                "color_label": color_label,
+                "body": body,
+                "tags": list(tags),
+                "updated_at": at or utc_now(),
+            }
+        )
         return self._replace(DocumentAnnotation.model_validate(payload))
 
     def archive(

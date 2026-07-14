@@ -67,14 +67,19 @@ def _render_index_status(
     if not maintenance:
         return initialized
     with ui.expander("Advanced Notes & Evidence diagnostics", expanded=False):
+        ui.caption(
+            "The approved plan includes visual-annotation indexes when required. "
+            "Opening Reading Space or importing a backup never applies this plan."
+        )
         ui.dataframe(_index_rows(statuses), width="stretch", hide_index=True)
         with ui.form(key=state_key("initialize_indexes_form")):
             confirmation = ui.text_input(
-                "Type the real database name to initialize S4 indexes",
+                "Type the real database name to initialize Notes & Evidence indexes",
                 key=state_key("initialize_indexes_database"),
             )
             confirmed = ui.checkbox(
-                f"I confirm applying only S4 indexes in {context.database_name}",
+                "I confirm applying only the approved Notes & Evidence indexes "
+                f"in {context.database_name}",
                 key=state_key("initialize_indexes_confirm"),
             )
             submitted = ui.form_submit_button(
@@ -89,7 +94,10 @@ def _render_index_status(
                 try:
                     applied = manager.apply()
                 except Exception as exc:
-                    ui.error(f"Could not initialize S4 indexes: {safe_error_message(exc)}")
+                    ui.error(
+                        "Could not initialize Notes & Evidence indexes: "
+                        f"{safe_error_message(exc)}"
+                    )
                 else:
                     initialized = bool(getattr(applied, "initialized", True))
                     if initialized:
@@ -109,6 +117,40 @@ def _page_heading(page_number: int | None, page_labeler: PageLabeler | None) -> 
     return f"PDF page {page_number}"
 
 
+def is_visual_annotation(item: Any) -> bool:
+    """Return whether one validated annotation carries the optional S5B anchor."""
+    return getattr(item, "visual_anchor", None) is not None
+
+
+def visual_annotation_details(item: Any) -> dict[str, Any]:
+    """Return bounded technical metadata without exposing persisted rectangles."""
+    anchor = getattr(item, "visual_anchor", None)
+    if anchor is None:
+        return {}
+
+    def value(field_name: str, default: Any = None) -> Any:
+        if isinstance(anchor, dict):
+            return anchor.get(field_name, default)
+        return getattr(anchor, field_name, default)
+
+    sha256 = str(value("document_sha256", ""))
+    rects = value("rects", ())
+    try:
+        rect_count = len(rects)
+    except TypeError:
+        rect_count = 0
+    return {
+        "anchor_schema_version": value("anchor_schema_version"),
+        "version_id": value("version_id"),
+        "document_sha256": f"{sha256[:12]}…" if len(sha256) > 12 else sha256,
+        "pdf_page": value("pdf_page"),
+        "coordinate_space": value("coordinate_space"),
+        "capture_rotation": value("capture_rotation"),
+        "rect_count": rect_count,
+        "created_from": value("created_from"),
+    }
+
+
 def annotation_rows(
     items: tuple[Any, ...] | list[Any],
     *,
@@ -124,6 +166,7 @@ def annotation_rows(
         {
             "kind": enum_value(item.kind),
             "status": enum_value(item.status),
+            "visual": "Marca visual" if is_visual_annotation(item) else "",
             "page": _page_heading(item.page_number, page_labeler),
             "quote": preview(item.quote_text),
             "comment": preview(item.body),
@@ -168,8 +211,16 @@ def _render_annotation_card(
 ) -> None:
     """Render one annotation's details and controlled actions inside its page group."""
     status = enum_value(item.status)
-    title = f"{enum_value(item.kind)} · {status} · {item.annotation_id}"
+    visual = is_visual_annotation(item)
+    visual_prefix = "Marca visual · " if visual else ""
+    title = f"{visual_prefix}{enum_value(item.kind)} · {status} · {item.annotation_id}"
     with ui.expander(title, expanded=False):
+        if visual:
+            badge = getattr(ui, "badge", None)
+            if callable(badge):
+                badge("Marca visual", color="violet")
+            else:
+                ui.caption("🟣 Marca visual")
         ui.write(
             {
                 "quote_text": item.quote_text,
@@ -180,6 +231,9 @@ def _render_annotation_card(
                 "status": status,
             }
         )
+        if visual:
+            with ui.expander("Detalles técnicos de la marca visual", expanded=False):
+                ui.write(visual_annotation_details(item))
         render_open_document(
             ui,
             source_id=item.source_id,
@@ -208,13 +262,18 @@ def _render_annotation_card(
             success="Annotation archived.",
         ):
             ui.rerun()
-        if ui.button(
+        if visual:
+            ui.caption(
+                "Edita tipo, color, comentario y tags en Advanced Reader; "
+                "Streamlit no modifica la selección ni su geometría."
+            )
+        elif ui.button(
             "Edit annotation",
             key=state_key("edit_annotation", item.annotation_id),
             disabled=not actions_enabled or status == "archived",
         ):
             select_annotation(ui.session_state, item.annotation_id)
-        if ui.session_state.get(SELECTED_ANNOTATION_ID) == item.annotation_id:
+        if not visual and ui.session_state.get(SELECTED_ANNOTATION_ID) == item.annotation_id:
             draft = render_annotation_form(
                 ui,
                 document_id=document_id,
@@ -293,7 +352,8 @@ def _render_annotations(
         with ui.expander("Quick Annotation form", expanded=quick_expanded):
             ui.caption(
                 "Logical annotation only: enter quoted text and comments manually. "
-                "No PDF selection or visual overlay is created."
+                "Visual marks created in Advanced Reader appear in this list, while "
+                "the st.pdf fallback does not draw their geometry."
             )
             draft = render_annotation_form(
                 ui,
@@ -675,9 +735,11 @@ def render_notes_and_evidence_panel(
 __all__ = [
     "annotation_groups",
     "annotation_rows",
+    "is_visual_annotation",
     "render_evidence_tab",
     "render_notes_and_evidence_panel",
     "render_notes_evidence_maintenance",
     "render_notes_tab",
     "render_workspace_notes_panel",
+    "visual_annotation_details",
 ]

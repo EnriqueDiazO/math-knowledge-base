@@ -73,6 +73,7 @@ from editor.reading_space.state import PENDING_WORKSPACE_TAB
 from editor.reading_space.state import WORKSPACE_TAB
 from editor.reading_space.state import migrate_legacy_workspace_tab
 from editor.reading_space.state import state_key as reading_state_key
+from mathmongo.reading_annotations.models import ConceptEvidenceLink
 
 ROOT = Path(__file__).resolve().parents[1]
 CONCEPT_MODULES = tuple(sorted((ROOT / "editor" / "concept_linking").glob("*.py")))
@@ -110,7 +111,7 @@ def _matches_value(actual: Any, expected: Any) -> bool:
     if isinstance(expected, dict) and "$regex" in expected:
         flags = re.IGNORECASE if "i" in str(expected.get("$options", "")) else 0
         pattern = re.compile(str(expected["$regex"]), flags)
-        values = actual if isinstance(actual, (list, tuple, set)) else (actual,)
+        values = actual if isinstance(actual, list | tuple | set) else (actual,)
         return any(pattern.search(str(value or "")) is not None for value in values)
     return actual == expected
 
@@ -1020,6 +1021,7 @@ class PendingService:
         self.calls: list[tuple[str, dict[str, Any]]] = []
         self.annotations = (
             SimpleNamespace(
+                schema_version=2,
                 annotation_id="ann-unlinked",
                 kind="highlight",
                 quote_text="spherical metric",
@@ -1027,6 +1029,7 @@ class PendingService:
                 page_number=9,
                 tags=("geometry",),
                 status="active",
+                visual_anchor=SimpleNamespace(pdf_page=9),
             ),
             SimpleNamespace(
                 annotation_id="ann-linked",
@@ -1071,7 +1074,7 @@ class PendingService:
         return SimpleNamespace(completed=True, value=SimpleNamespace(items=(), total=0))
 
 
-def test_pending_items_are_bounded_active_unlinked_and_sorted_by_page() -> None:
+def test_pending_items_include_visual_annotations_and_are_sorted_by_page() -> None:
     service = PendingService()
     items = find_unlinked_items(
         service,
@@ -1086,6 +1089,7 @@ def test_pending_items_are_bounded_active_unlinked_and_sorted_by_page() -> None:
     ]
     assert items[0].location_label == "Book page B-5 · PDF page 5"
     assert items[1].excerpt == "spherical metric"
+    assert items[1].target_id == "ann-unlinked"
     assert all(item.status == "active" for item in items)
     assert {name for name, _kwargs in service.calls} == {"annotations", "notes"}
     for _name, kwargs in service.calls:
@@ -1329,21 +1333,36 @@ def test_s4_3_never_writes_directly_to_legacy_concepts() -> None:
     assert violations == []
 
 
-def test_s4_3_preserves_domain_models_and_portability_contracts() -> None:
+def test_s5b_preserves_unrelated_domain_models_and_concept_evidence_contract() -> None:
     expected = {
         "mathmongo/source_catalog/models.py": "89c96e73bf223ab0df24fb7063821b26c340a0af33579e5c4bfca9d3dfe84213",
         "mathmongo/document_page_maps/models.py": "ddfabe3efbd843bcb9accf93ae6f64cbf0844291aa852bfd947e2720455923af",
-        "mathmongo/reading_annotations/models.py": "1566c391b1900165b9c40e8dc05e0e289e537f6d73543742c89a7ec2ae9dc274",
         "mathmongo/source_documents/models.py": "84c88b00198e7c91b92bf3f994442b3897a792149467f715db058ea38609b54f",
         "mathmongo/reading_space/models.py": "32a0636f12085102dc5a0896a6f506416f9304031ed0c03d9f60ff3daab3ef2b",
-        "editor/utils/db_export.py": "c1280ea21324befeee51c9eff11d3caf45bc4d6a085523d7d53cf8ed3d052a98",
-        "editor/utils/db_import.py": "9fc958ef4b642f2e12993876dac4a570e77fea1d30b55c6659e83b692bb8c113",
     }
     observed = {
         relative: hashlib.sha256((ROOT / relative).read_bytes()).hexdigest()
         for relative in expected
     }
     assert observed == expected
+    assert tuple(ConceptEvidenceLink.model_fields) == (
+        "schema_version",
+        "evidence_link_id",
+        "concept_legacy_id",
+        "concept_legacy_source",
+        "source_id",
+        "reference_id",
+        "document_id",
+        "annotation_id",
+        "note_id",
+        "page_number",
+        "link_type",
+        "status",
+        "comment",
+        "created_at",
+        "updated_at",
+        "archived_at",
+    )
 
 
 def test_s4_3_preserves_every_existing_migration_module() -> None:

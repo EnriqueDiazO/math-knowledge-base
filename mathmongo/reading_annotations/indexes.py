@@ -63,7 +63,7 @@ class ReadingAnnotationIndexPlan:
         return not self.missing and not self.conflicts
 
 
-ANNOTATION_INDEXES = (
+LOGICAL_ANNOTATION_INDEXES = (
     ReadingAnnotationIndexSpec(
         DOCUMENT_ANNOTATIONS_COLLECTION,
         "document_annotations_id_unique",
@@ -96,6 +96,21 @@ ANNOTATION_INDEXES = (
         (("tags", 1),),
     ),
 )
+
+VISUAL_ANNOTATION_INDEXES = (
+    ReadingAnnotationIndexSpec(
+        DOCUMENT_ANNOTATIONS_COLLECTION,
+        "document_annotations_document_page_status",
+        (("document_id", 1), ("page_number", 1), ("status", 1), ("updated_at", -1)),
+    ),
+    ReadingAnnotationIndexSpec(
+        DOCUMENT_ANNOTATIONS_COLLECTION,
+        "document_annotations_visual_version_sha",
+        (("visual_anchor.version_id", 1), ("visual_anchor.document_sha256", 1)),
+    ),
+)
+
+ANNOTATION_INDEXES = (*LOGICAL_ANNOTATION_INDEXES, *VISUAL_ANNOTATION_INDEXES)
 
 READING_NOTE_INDEXES = (
     ReadingAnnotationIndexSpec(
@@ -183,6 +198,12 @@ CONCEPT_EVIDENCE_INDEXES = (
 
 READING_ANNOTATION_INDEXES = (
     *ANNOTATION_INDEXES,
+    *READING_NOTE_INDEXES,
+    *CONCEPT_EVIDENCE_INDEXES,
+)
+
+LEGACY_READING_ANNOTATION_INDEXES = (
+    *LOGICAL_ANNOTATION_INDEXES,
     *READING_NOTE_INDEXES,
     *CONCEPT_EVIDENCE_INDEXES,
 )
@@ -308,6 +329,8 @@ __all__ = [
     "CONCEPT_EVIDENCE_INDEXES",
     "CONCEPT_EVIDENCE_LINKS_COLLECTION",
     "DOCUMENT_ANNOTATIONS_COLLECTION",
+    "LEGACY_READING_ANNOTATION_INDEXES",
+    "LOGICAL_ANNOTATION_INDEXES",
     "READING_ANNOTATION_INDEXES",
     "READING_NOTES_COLLECTION",
     "READING_NOTE_INDEXES",
@@ -316,4 +339,5 @@ __all__ = [
     "ReadingAnnotationIndexSpec",
     "ReadingAnnotationIndexState",
     "ReadingAnnotationIndexStatus",
+    "VISUAL_ANNOTATION_INDEXES",
 ]

@@ -313,3 +313,15 @@ contratos propios; no forma parte de S4.3.
 S5A añade un lector PDF.js avanzado y aislado, sin reemplazar este flujo. S4.3
 continúa siendo la asociación estable de conceptos; integrar una selección
 visual del nuevo lector con conceptos queda expresamente para S5C.
+
+## Continuidad con S5B
+
+Una marca S5B es el mismo `DocumentAnnotation` que ya consume el wizard. Por
+ello aparece en **Pendientes de vincular**, conserva cita/página/comentario/tags
+y puede recibir un `ConceptEvidenceLink` dirigido a su `annotation_id`, sin
+adaptador ni duplicación de evidencia. Streamlit la distingue con **Marca
+visual** y sigue ofreciendo el flujo S4.3.
+
+S5B no añade búsqueda de conceptos ni creación de vínculos al Advanced Reader.
+El flujo integrado selección visual → marca → asociación guiada queda reservado
+para S5C.

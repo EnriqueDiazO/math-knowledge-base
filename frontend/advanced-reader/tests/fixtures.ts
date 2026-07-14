@@ -1,5 +1,9 @@
 import { vi } from "vitest";
 
+import type {
+  NormalizedVisualRect,
+  VisualAnnotationRenderItem,
+} from "../src/annotations/types";
 import type { AdvancedReaderApi } from "../src/api/client";
 import type {
   PdfControllerMountOptions,
@@ -46,6 +50,8 @@ export const metadata: DocumentMetadata = {
     temporary_selection_geometry: true,
     persistent_highlights: false,
     persistent_underlines: false,
+    visual_annotation_editing: false,
+    visual_annotation_archiving: false,
     concept_linking: false,
   },
 };
@@ -70,6 +76,14 @@ export function makeApi(overrides: Partial<AdvancedReaderApi> = {}): AdvancedRea
       total_pages: 12,
       last_opened_at: "2026-07-13T12:00:00Z",
     }),
+    listVisualAnnotations: vi.fn().mockResolvedValue({
+      items: [], page: 1, page_size: 50, total: 0, pages: 0,
+    }),
+    createVisualAnnotation: vi.fn(),
+    getVisualAnnotation: vi.fn(),
+    updateVisualAnnotation: vi.fn(),
+    archiveVisualAnnotation: vi.fn(),
+    reactivateVisualAnnotation: vi.fn(),
     pdfUrl: vi.fn(() => `/api/advanced-reader/documents/${DOCUMENT_ID}/pdf`),
     ...overrides,
   };
@@ -81,6 +95,7 @@ export class FakePdfController implements PdfReaderController {
   total = 12;
   scale = 1;
   rotation = 0;
+  visualAnnotations: readonly VisualAnnotationRenderItem[] = [];
 
   constructor(readonly autoPaint = true) {}
 
@@ -127,6 +142,16 @@ export class FakePdfController implements PdfReaderController {
   });
   readonly retryPage = vi.fn((page: number) => {
     this.options?.handlers.onPageRendered(page);
+  });
+  readonly setVisualAnnotations = vi.fn((annotations: readonly VisualAnnotationRenderItem[]) => {
+    this.visualAnnotations = [...annotations];
+  });
+  readonly canonicalizeSelection = vi.fn(
+    (_pdfPage: number, rects: readonly NormalizedVisualRect[]) => rects.map((rect) => ({ ...rect })),
+  );
+  readonly focusVisualAnnotation = vi.fn((annotationId: string) => {
+    const annotation = this.visualAnnotations.find((item) => item.annotation_id === annotationId);
+    if (annotation !== undefined) this.goToPage(annotation.pdf_page, "pdfjs");
   });
   readonly search = vi.fn(
     (query: string, _direction: SearchDirection, _options: SearchOptions, _again: boolean) => {

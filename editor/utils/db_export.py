@@ -315,6 +315,14 @@ def _validate_canonical_portable_documents(
     for raw_document, model in zip(raw_documents, models, strict=True):
         raw_payload = {key: value for key, value in raw_document.items() if key != "_id"}
         validated_payload = model.model_dump(mode="python")
+        if (
+            collection_name == "document_annotations"
+            and raw_payload.get("schema_version") in {1, 2}
+            and "visual_anchor" not in raw_payload
+        ):
+            # The additive optional field may canonically be absent. Preserve
+            # that shape instead of rewriting it to null during identity checks.
+            validated_payload.pop("visual_anchor", None)
         raw_identity = json.loads(
             bson_json_dumps(
                 raw_payload,
@@ -523,6 +531,21 @@ def _validate_reading_annotation_portability(
             annotation.source_id,
             annotation.reference_id,
         )
+        visual_anchor = annotation.visual_anchor
+        if visual_anchor is not None:
+            if document.kind != DocumentKind.PDF or document.pdf is None:
+                raise ValueError("Visual Annotation points to a non-PDF Source Document")
+            matching_versions = tuple(
+                version
+                for version in document.pdf.versions
+                if version.version_id == visual_anchor.version_id
+            )
+            if len(matching_versions) != 1:
+                raise ValueError(
+                    "Visual Annotation points to a PDF version absent from its Source Document"
+                )
+            if matching_versions[0].sha256 != visual_anchor.document_sha256:
+                raise ValueError("Visual Annotation SHA does not match its referenced PDF version")
 
     notes_by_id: dict[str, ReadingNote] = {}
     for note in notes:

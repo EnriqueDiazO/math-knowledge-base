@@ -25,6 +25,18 @@ from mathmongo.advanced_reader.security import SECURITY_HEADERS
 from mathmongo.advanced_reader.security import redacted_request_path
 
 LOGGER = logging.getLogger("mathmongo.advanced_reader")
+MAX_VISUAL_ANNOTATION_REQUEST_BYTES = 64 * 1024
+
+
+def _is_visual_annotation_write(request: Request) -> bool:
+    path = request.url.path
+    if request.method == "PATCH":
+        return path.startswith("/api/advanced-reader/visual-annotations/")
+    if request.method != "POST":
+        return False
+    return path.startswith("/api/advanced-reader/visual-annotations/") or path.endswith(
+        "/visual-annotations"
+    )
 
 
 def _request_id(request: Request) -> str:
@@ -120,10 +132,15 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, _error: RequestValidationError) -> JSONResponse:
+        visual_annotation_request = "/visual-annotations" in request.url.path
         return _error_response(
             request,
-            code="page_invalid",
-            message="PDF page must be an integer greater than or equal to 1.",
+            code="invalid_visual_annotation" if visual_annotation_request else "page_invalid",
+            message=(
+                "The visual annotation request is invalid."
+                if visual_annotation_request
+                else "PDF page must be an integer greater than or equal to 1."
+            ),
             status_code=422,
         )
 
@@ -167,8 +184,67 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
                             message="Cross-origin state changes are not permitted.",
                             status_code=403,
                         )
+                    elif _is_visual_annotation_write(request) and (
+                        (origin is None and fetch_site != "same-origin")
+                        or request.headers.get("content-type", "")
+                        .partition(";")[0]
+                        .strip()
+                        .casefold()
+                        != "application/json"
+                    ):
+                        message = (
+                            "Visual annotation writes require same-origin request metadata."
+                            if origin is None and fetch_site != "same-origin"
+                            else "Visual annotation writes require an application/json body."
+                        )
+                        response = _error_response(
+                            request,
+                            code=(
+                                "same_origin_required"
+                                if origin is None and fetch_site != "same-origin"
+                                else "json_required"
+                            ),
+                            message=message,
+                            status_code=403
+                            if origin is None and fetch_site != "same-origin"
+                            else 415,
+                        )
                     else:
-                        response = await call_next(request)
+                        if _is_visual_annotation_write(request):
+                            raw_length = request.headers.get("content-length")
+                            try:
+                                declared_length = (
+                                    int(raw_length) if raw_length is not None else None
+                                )
+                            except ValueError:
+                                declared_length = -1
+                            if declared_length is not None and (
+                                declared_length < 0
+                                or declared_length > MAX_VISUAL_ANNOTATION_REQUEST_BYTES
+                            ):
+                                response = _error_response(
+                                    request,
+                                    code="request_too_large",
+                                    message="The visual annotation request exceeds the permitted size.",
+                                    status_code=413,
+                                )
+                            else:
+                                body = await request.body()
+                                if (
+                                    declared_length is not None and declared_length != len(body)
+                                ) or len(body) > MAX_VISUAL_ANNOTATION_REQUEST_BYTES:
+                                    response = _error_response(
+                                        request,
+                                        code="request_too_large",
+                                        message=(
+                                            "The visual annotation request exceeds the permitted size."
+                                        ),
+                                        status_code=413,
+                                    )
+                                else:
+                                    response = await call_next(request)
+                        else:
+                            response = await call_next(request)
                 else:
                     response = await call_next(request)
         except Exception:
@@ -242,4 +318,4 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
     return app
 
 
-__all__ = ["create_app"]
+__all__ = ["MAX_VISUAL_ANNOTATION_REQUEST_BYTES", "create_app"]

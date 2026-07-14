@@ -6,9 +6,11 @@ from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.models import EvidenceLinkStatus
 from mathmongo.reading_annotations.models import EvidenceLinkType
+from mathmongo.reading_annotations.models import NormalizedVisualRect
 from mathmongo.reading_annotations.models import ReadingNote
 from mathmongo.reading_annotations.models import ReadingNoteStatus
 from mathmongo.reading_annotations.models import ReadingNoteType
+from mathmongo.reading_annotations.models import VisualAnnotationAnchor
 from mathmongo.reading_annotations.repository import AnnotationRepository
 from mathmongo.reading_annotations.repository import ConceptEvidenceRepository
 from mathmongo.reading_annotations.repository import ReadingNoteRepository
@@ -25,6 +27,7 @@ __all__ = [
     "DocumentAnnotation",
     "EvidenceLinkStatus",
     "EvidenceLinkType",
+    "NormalizedVisualRect",
     "ReadingNote",
     "ReadingNoteRepository",
     "ReadingNoteStatus",
@@ -32,4 +35,5 @@ __all__ = [
     "ReadingAnnotationOperationStatus",
     "ReadingAnnotationService",
     "ReadingAnnotationServiceResult",
+    "VisualAnnotationAnchor",
 ]

@@ -15,6 +15,19 @@ import {
 } from "pdfjs-dist/web/pdf_viewer.mjs";
 import workerUrl from "../../generated/pdf.worker.min.mjs?url";
 
+import {
+  VisualAnnotationLayerManager,
+  type VisualAnnotationPageContext,
+} from "../annotations/VisualAnnotationLayer";
+import {
+  createUnrotatedCropBoxViewport,
+  normalizedViewportRectsToCanonical,
+  type PdfJsViewport,
+} from "../annotations/geometry";
+import type {
+  NormalizedVisualRect,
+  VisualAnnotationRenderItem,
+} from "../annotations/types";
 import { captureTextSelection, clearBrowserSelection } from "../selection/captureSelection";
 import type { PageChangeOrigin, SelectionClearReason } from "../types/events";
 import { ThumbnailManager } from "./ThumbnailManager";
@@ -73,6 +86,7 @@ interface PageRenderEvent {
 
 interface RetryablePageView {
   div: HTMLDivElement;
+  viewport: PdfJsViewport;
   reset(): void;
 }
 
@@ -101,6 +115,9 @@ export class PdfJsController implements PdfReaderController {
   #matches: SearchUpdate = { status: "idle", current: 0, total: 0 };
   #nextPageOrigin: PageChangeOrigin = "pdfjs";
   #rotationDirection: "clockwise" | "counterclockwise" = "clockwise";
+  readonly #visualAnnotationLayers = new VisualAnnotationLayerManager();
+  #visualAnnotations: readonly VisualAnnotationRenderItem[] = [];
+  #pendingVisualFocus: string | null = null;
   readonly #failedPages = new Set<number>();
 
   async mount(options: PdfControllerMountOptions): Promise<void> {
@@ -180,6 +197,16 @@ export class PdfJsController implements PdfReaderController {
         this.#failedPages.delete(pageNumber);
         this.#clearPageError(pageNumber);
         pageView.div.dataset.renderStatus = "painted";
+        this.#mountVisualAnnotationPage(pageNumber, pageView);
+        if (this.#pendingVisualFocus !== null) {
+          const pendingPage = this.#visualAnnotationLayers.pageForAnnotation(
+            this.#pendingVisualFocus,
+          );
+          if (pendingPage === pageNumber) {
+            this.#visualAnnotationLayers.focusAnnotation(this.#pendingVisualFocus);
+            this.#pendingVisualFocus = null;
+          }
+        }
         this.#handlers?.onPageRendered(pageNumber);
       },
       { signal: abortController.signal },
@@ -205,6 +232,7 @@ export class PdfJsController implements PdfReaderController {
           viewer.currentScale = boundedScale;
           return;
         }
+        this.#refreshVisualAnnotationPages();
         this.#handlers?.onZoomChanged(boundedScale);
       },
       { signal: abortController.signal },
@@ -215,6 +243,7 @@ export class PdfJsController implements PdfReaderController {
         this.clearSelection("rotation_change");
         viewer.currentPageNumber = pageNumber;
         this.#thumbnailManager?.setRotation(pagesRotation);
+        this.#refreshVisualAnnotationPages();
         this.#handlers?.onRotationChanged(pagesRotation, this.#rotationDirection);
       },
       { signal: abortController.signal },
@@ -346,6 +375,9 @@ export class PdfJsController implements PdfReaderController {
     }
     this.#handlers = null;
     this.#matches = { status: "idle", current: 0, total: 0 };
+    this.#visualAnnotationLayers.destroy();
+    this.#visualAnnotations = [];
+    this.#pendingVisualFocus = null;
     this.#failedPages.clear();
   }
 
@@ -415,6 +447,42 @@ export class PdfJsController implements PdfReaderController {
     this.#viewer.forceRendering(undefined);
   }
 
+  setVisualAnnotations(annotations: readonly VisualAnnotationRenderItem[]): void {
+    this.#visualAnnotations = [...annotations];
+    this.#visualAnnotationLayers.setAnnotations(this.#visualAnnotations);
+  }
+
+  canonicalizeSelection(
+    pdfPage: number,
+    normalizedViewportRects: readonly NormalizedVisualRect[],
+  ): NormalizedVisualRect[] | null {
+    if (this.#viewer === null || this.#pdfDocument === null) return null;
+    const target = safePage(pdfPage, this.#pdfDocument.numPages);
+    if (target !== pdfPage) return null;
+    const pageView = this.#pageView(target);
+    if (pageView === null) return null;
+    try {
+      return normalizedViewportRectsToCanonical(
+        normalizedViewportRects,
+        pageView.viewport,
+        createUnrotatedCropBoxViewport(pageView.viewport),
+      );
+    } catch {
+      return null;
+    }
+  }
+
+  focusVisualAnnotation(annotationId: string): void {
+    const pdfPage = this.#visualAnnotationLayers.pageForAnnotation(annotationId);
+    if (pdfPage === null || this.#viewer === null || this.#pdfDocument === null) return;
+    this.#pendingVisualFocus = annotationId;
+    this.goToPage(pdfPage, "pdfjs");
+    if (this.#visualAnnotationLayers.hasPage(pdfPage)) {
+      this.#visualAnnotationLayers.focusAnnotation(annotationId);
+      this.#pendingVisualFocus = null;
+    }
+  }
+
   search(
     query: string,
     direction: SearchDirection,
@@ -450,6 +518,34 @@ export class PdfJsController implements PdfReaderController {
   #pageView(pageNumber: number): RetryablePageView | null {
     const view = this.#viewer?.getPageView(pageNumber - 1) as RetryablePageView | undefined;
     return view?.div instanceof HTMLDivElement ? view : null;
+  }
+
+  #visualAnnotationPageContext(
+    pageNumber: number,
+    pageView: RetryablePageView,
+  ): VisualAnnotationPageContext | null {
+    try {
+      return {
+        pageNumber,
+        pageDiv: pageView.div,
+        displayedViewport: pageView.viewport,
+        unrotatedCropBoxViewport: createUnrotatedCropBoxViewport(pageView.viewport),
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  #mountVisualAnnotationPage(pageNumber: number, pageView: RetryablePageView): void {
+    const context = this.#visualAnnotationPageContext(pageNumber, pageView);
+    if (context !== null) this.#visualAnnotationLayers.mountPage(context);
+  }
+
+  #refreshVisualAnnotationPages(): void {
+    for (const pageNumber of this.#visualAnnotationLayers.mountedPageNumbers()) {
+      const pageView = this.#pageView(pageNumber);
+      if (pageView !== null) this.#mountVisualAnnotationPage(pageNumber, pageView);
+    }
   }
 
   #clearPageError(pageNumber: number): void {

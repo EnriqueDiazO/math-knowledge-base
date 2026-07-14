@@ -1494,6 +1494,14 @@ def _prepare_catalog_import(
                         )
                     )
                     continue
+                if (
+                    collection_name == "document_annotations"
+                    and portable_payload.get("schema_version") in {1, 2}
+                    and "visual_anchor" not in portable_payload
+                ):
+                    # The optional additive field may be absent in v1 or in a
+                    # logical v2 record. Retain that shape without migrating it.
+                    validated_payload.pop("visual_anchor", None)
                 if encodings.get(
                     collection_name
                 ) == CATALOG_EXTENDED_JSON_ENCODING and not _catalog_documents_identical(
@@ -2023,6 +2031,40 @@ def _preflight_reading_annotation_relationships(
             annotation.source_id,
             annotation.reference_id,
         )
+        visual_anchor = annotation.visual_anchor
+        if visual_anchor is not None:
+            if source_document.get("kind") != DocumentKind.PDF.value:
+                add_conflict(
+                    "document_annotations",
+                    annotation.annotation_id,
+                    "Visual Annotation points to a non-PDF Source Document",
+                )
+                continue
+            pdf = source_document.get("pdf")
+            versions = pdf.get("versions") if isinstance(pdf, dict) else None
+            matching_versions = (
+                tuple(
+                    version
+                    for version in versions
+                    if isinstance(version, dict)
+                    and version.get("version_id") == visual_anchor.version_id
+                )
+                if isinstance(versions, list)
+                else ()
+            )
+            if len(matching_versions) != 1:
+                add_conflict(
+                    "document_annotations",
+                    annotation.annotation_id,
+                    "Visual Annotation points to a PDF version absent from its Source Document",
+                )
+                continue
+            if matching_versions[0].get("sha256") != visual_anchor.document_sha256:
+                add_conflict(
+                    "document_annotations",
+                    annotation.annotation_id,
+                    "Visual Annotation SHA does not match its referenced PDF version",
+                )
 
     for raw_note in raw_notes:
         payload = {key: value for key, value in raw_note.items() if key != "_id"}

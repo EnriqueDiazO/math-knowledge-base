@@ -1,14 +1,20 @@
 import type {
   ApiErrorBody,
+  CreateVisualAnnotation,
   DocumentMetadata,
   PageLabel,
   ReadingPageUpdate,
   ReadingStateResponse,
+  UpdateVisualAnnotation,
+  VisualAnnotation,
+  VisualAnnotationList,
 } from "../types/api";
 
 const API_ROOT = "/api/advanced-reader";
 const DOCUMENT_ID_PATTERN =
   /^doc_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const ANNOTATION_ID_PATTERN =
+  /^ann_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export class ReaderApiError extends Error {
   readonly code: string;
@@ -48,6 +54,13 @@ function documentPath(documentId: string, suffix = ""): string {
   return `${API_ROOT}/documents/${encodeURIComponent(documentId)}${suffix}`;
 }
 
+function annotationPath(annotationId: string, suffix = ""): string {
+  if (!ANNOTATION_ID_PATTERN.test(annotationId)) {
+    throw new ReaderApiError("invalid_annotation_id", "La anotación visual no es válida.");
+  }
+  return `${API_ROOT}/visual-annotations/${encodeURIComponent(annotationId)}${suffix}`;
+}
+
 export function sameOriginUrl(path: string): string {
   if (!path.startsWith(`${API_ROOT}/`) || path.startsWith("//")) {
     throw new ReaderApiError("invalid_api_path", "La ruta de API no está permitida.");
@@ -81,6 +94,7 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
       ...init,
       cache: "no-store",
       credentials: "same-origin",
+      redirect: "error",
       headers,
     });
   } catch {
@@ -103,8 +117,38 @@ export interface AdvancedReaderApi {
     pdfPage: number,
     signal?: AbortSignal,
   ): Promise<ReadingStateResponse>;
+  listVisualAnnotations(
+    documentId: string,
+    options?: {
+      pdfPage?: number;
+      status?: "active" | "archived" | "all";
+      page?: number;
+      limit?: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<VisualAnnotationList>;
+  createVisualAnnotation(
+    documentId: string,
+    payload: CreateVisualAnnotation,
+    signal?: AbortSignal,
+  ): Promise<VisualAnnotation>;
+  getVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
+  updateVisualAnnotation(
+    annotationId: string,
+    payload: UpdateVisualAnnotation,
+    signal?: AbortSignal,
+  ): Promise<VisualAnnotation>;
+  archiveVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
+  reactivateVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
   pdfUrl(documentId: string): string;
 }
+
+const jsonWrite = (body: object, signal?: AbortSignal): RequestInit => ({
+  method: "POST",
+  signal,
+  headers: { Accept: "application/json", "Content-Type": "application/json" },
+  body: JSON.stringify(body),
+});
 
 export const advancedReaderApi: AdvancedReaderApi = {
   getMetadata(documentId, signal) {
@@ -133,6 +177,55 @@ export const advancedReaderApi: AdvancedReaderApi = {
       headers: { Accept: "application/json", "Content-Type": "application/json" },
       body: JSON.stringify(payload),
     });
+  },
+
+  listVisualAnnotations(documentId, options = {}, signal) {
+    const query = new URLSearchParams();
+    if (options.pdfPage !== undefined) {
+      if (!Number.isInteger(options.pdfPage) || options.pdfPage < 1) {
+        throw new ReaderApiError("page_invalid", "La página PDF no es válida.");
+      }
+      query.set("pdf_page", String(options.pdfPage));
+    }
+    query.set("status", options.status ?? "active");
+    query.set("page", String(options.page ?? 1));
+    query.set("limit", String(options.limit ?? 50));
+    return requestJson<VisualAnnotationList>(
+      documentPath(documentId, `/visual-annotations?${query.toString()}`),
+      { signal },
+    );
+  },
+
+  createVisualAnnotation(documentId, payload, signal) {
+    return requestJson<VisualAnnotation>(
+      documentPath(documentId, "/visual-annotations"),
+      jsonWrite(payload, signal),
+    );
+  },
+
+  getVisualAnnotation(annotationId, signal) {
+    return requestJson<VisualAnnotation>(annotationPath(annotationId), { signal });
+  },
+
+  updateVisualAnnotation(annotationId, payload, signal) {
+    return requestJson<VisualAnnotation>(annotationPath(annotationId), {
+      ...jsonWrite(payload, signal),
+      method: "PATCH",
+    });
+  },
+
+  archiveVisualAnnotation(annotationId, signal) {
+    return requestJson<VisualAnnotation>(
+      annotationPath(annotationId, "/archive"),
+      jsonWrite({}, signal),
+    );
+  },
+
+  reactivateVisualAnnotation(annotationId, signal) {
+    return requestJson<VisualAnnotation>(
+      annotationPath(annotationId, "/reactivate"),
+      jsonWrite({}, signal),
+    );
   },
 
   pdfUrl(documentId) {

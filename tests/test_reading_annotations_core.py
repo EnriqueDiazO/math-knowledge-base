@@ -259,7 +259,7 @@ def test_repositories_and_index_manager_are_lazy_and_apply_explicitly() -> None:
     assert service.database is database
     assert database.events == before
     plan = manager.plan()
-    assert len(plan.missing) == len(READING_ANNOTATION_INDEXES) == 19
+    assert len(plan.missing) == len(READING_ANNOTATION_INDEXES) == 21
     assert not database.write_events
     applied = manager.apply()
     assert applied.initialized

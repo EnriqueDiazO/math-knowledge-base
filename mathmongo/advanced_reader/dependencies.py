@@ -11,6 +11,8 @@ from pathlib import Path
 from typing import Any
 
 from mathmongo.document_page_maps.service import DocumentPageMapService
+from mathmongo.reading_annotations.indexes import ReadingAnnotationIndexManager
+from mathmongo.reading_annotations.service import ReadingAnnotationService
 from mathmongo.reading_space.service import ReadingSpaceService
 from mathmongo.source_documents.service import SourceDocumentService
 
@@ -30,6 +32,8 @@ class AdvancedReaderDependencies:
     page_map_service: DocumentPageMapService
     frontend_root: Path
     health_check: Callable[[], bool]
+    annotation_service: ReadingAnnotationService | None = None
+    annotation_index_manager: ReadingAnnotationIndexManager | None = None
 
     @classmethod
     def from_database(
@@ -53,6 +57,7 @@ class AdvancedReaderDependencies:
             sources=document_service.sources,
             references=document_service.references,
         )
+        annotation_index_manager = ReadingAnnotationIndexManager(database)
         return cls(
             database_name=name,
             document_service=document_service,
@@ -64,7 +69,26 @@ class AdvancedReaderDependencies:
             ),
             frontend_root=Path(frontend_root or default_frontend_root()),
             health_check=health_check or (lambda: True),
+            annotation_service=ReadingAnnotationService(
+                database,
+                documents=document_service.documents,
+                sources=document_service.sources,
+                references=document_service.references,
+                index_manager=annotation_index_manager,
+                document_service=document_service,
+            ),
+            annotation_index_manager=annotation_index_manager,
         )
+
+    @property
+    def visual_annotation_writes_ready(self) -> bool:
+        """Inspect the explicit Notes & Evidence plan without applying indexes."""
+        if self.annotation_service is None or self.annotation_index_manager is None:
+            return False
+        try:
+            return self.annotation_index_manager.plan().initialized
+        except Exception:
+            return False
 
     @property
     def frontend_ready(self) -> bool:

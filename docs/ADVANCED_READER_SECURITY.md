@@ -1,11 +1,12 @@
-# Seguridad del Advanced Reader — S5A
+# Seguridad del Advanced Reader — S5A/S5B
 
 ## Principio de seguridad
 
 El lector avanzado es un servicio local de un solo usuario, no un servicio
 remoto. Escuchar en loopback reduce exposición, pero no sustituye autenticación
 ni elimina ataques desde un navegador, extensiones, procesos locales o DNS
-rebinding. S5A aplica defensa en profundidad y mantiene pequeño el límite HTTP.
+rebinding. S5A/S5B aplican defensa en profundidad y mantienen pequeño el límite
+HTTP.
 
 El frontend se trata como cliente no confiable. `document_id`, página, headers,
 query y payload JSON se validan en la API aunque hayan sido generados por la UI
@@ -18,11 +19,11 @@ oficial.
 - paths XDG y HOME;
 - blobs PDF content-addressed y sus bytes;
 - estado de lectura real;
-- texto consultado y seleccionado en el navegador;
+- texto consultado/seleccionado y anotaciones visuales confirmadas;
 - conceptos, anotaciones, notas y evidencia existentes;
 - integridad del paquete instalado y de los assets frontend.
 
-S5A no amplía el modelo de autorización: trabaja con el scope local existente.
+S5B no amplía el modelo de autorización: trabaja con el scope local existente.
 Por ello no se ofrece escucha remota, multiusuario, colaboración o exposición en
 LAN.
 
@@ -34,7 +35,7 @@ PDF no confiable
       ▼
 PDF.js endurecido en navegador
       │ selección/query efímeras
-      X  no cruzan el límite HTTP
+      │ sólo Guardar construye un payload S5B acotado
 
 Navegador no confiable
       │ document_id / pdf_page / Range
@@ -65,11 +66,13 @@ Además del bind:
 - no se aceptan credenciales cross-origin;
 - el PUT de página exige JSON y contexto same-origin; `Origin` o Fetch Metadata
   incompatibles se rechazan;
+- POST/PATCH/archive/reactivate de anotaciones visuales aplican las mismas
+  barreras same-origin y no aceptan cookies/credenciales cross-origin;
 - la configuración pública de Streamlit sólo acepta HTTP loopback sin query,
   fragmento ni credenciales.
 
-Estas reglas reducen CSRF contra localhost y DNS rebinding. No convierten S5A en
-un servicio seguro para exposición remota.
+Estas reglas reducen CSRF contra localhost y DNS rebinding. No convierten el
+Advanced Reader en un servicio seguro para exposición remota.
 
 En desarrollo, Vite usa un proxy explícito a una API loopback conocida. Esa
 apertura no se copia al build de producción y no se usa un proxy genérico
@@ -260,7 +263,8 @@ conexiones externas.
 ## Selección, búsqueda y privacidad
 
 La query de búsqueda y el texto seleccionado pueden revelar contenido del PDF.
-Ambos permanecen en memoria del navegador:
+La búsqueda permanece siempre en memoria. La selección también permanece en
+memoria hasta que el usuario pulsa **Guardar**:
 
 - la búsqueda usa el find controller local de PDF.js;
 - no se envía query o índice al backend;
@@ -270,17 +274,40 @@ Ambos permanecen en memoria del navegador:
 - selección multipágina no produce geometría reutilizable;
 - cambiar de página, rotación, versión o Document limpia la selección;
 - no se usa Clipboard API ni copia automática;
-- no se escribe en web storage, MongoDB, XDG, logs o URL.
+- no se escribe por seleccionar, navegar, cancelar o emitir un evento;
+- después de Guardar, sólo `quote_text` normalizado y el anchor canónico se
+  almacenan en `document_annotations`.
 
 Los detalles técnicos están cerrados por defecto y siguen siendo texto plano.
-S5A no expone botones de highlight, underline, Annotation o Concept Linking.
+No se persisten zoom, escala, viewport, scroll, DOM, analytics o telemetría. No
+hay Concept Linking dentro del Advanced Reader.
+
+## Escritura de anotaciones visuales
+
+El frontend no es autoridad para Document, Source, Reference, versión, SHA,
+página, geometría o readiness. La API vuelve a validar todo y delega en
+`ReadingAnnotationService`. La creación requiere Document PDF activo, versión y
+SHA actuales, integridad correcta e índices S5B listos. Un ID repetido sólo es
+idempotente cuando el contenido autorizado es idéntico.
+
+Los bodies de escritura son JSON y tienen un límite de 64 KiB. La cita tiene
+como máximo 4096 caracteres, hay como máximo 64 rectángulos finitos, los tags y
+el comentario usan límites del dominio y los schemas prohíben campos extra. La
+paleta es nominal y cerrada; no se acepta CSS arbitrario.
+
+PATCH sólo modifica kind highlight/underline, color, comentario y tags. Archive
+y reactivate no borran. No hay DELETE, update Mongo arbitrario, escritura en el
+PDF ni acceso a paths. Si faltan índices, las capabilities de persistencia son
+false y las escrituras devuelven un error tipado; abrir la app nunca intenta
+instalarlos.
 
 ## Escritura de Reading State
 
-El único endpoint mutador acepta exactamente `{"pdf_page": <int>}`. Valida
-Document PDF activo, página desde 1 y límite total cuando está disponible. La
-operación pasa por `ReadingSpaceService.update_current_page`; están prohibidos
-updates Mongo directos y Book page como current page.
+El endpoint mutador de ReadingState acepta exactamente
+`{"pdf_page": <int>}`. Valida Document PDF activo, página desde 1 y límite
+total cuando está disponible. La operación pasa por
+`ReadingSpaceService.update_current_page`; están prohibidos updates Mongo
+directos y Book page como current page.
 
 El frontend sólo llama al PUT tras **Guardar posición**. Scroll, thumbnail,
 búsqueda o `page_changed` no autoescriben. La idempotencia y conflictos siguen
@@ -303,9 +330,9 @@ El log puede contener:
 - código público de resultado.
 
 No registra query string completa, Range crudo fuera de diagnósticos acotados,
-Mongo URI, HOME, path del blob, SHA completo si no es necesario, texto PDF o
-payload de selección. `sanitize_mongo_error` se aplica antes de cualquier
-mensaje relacionado con conexión.
+Mongo URI, HOME, path del blob, SHA completo si no es necesario, `quote_text`,
+comentario, rectángulos ni payload de selección. `sanitize_mongo_error` se
+aplica antes de cualquier mensaje relacionado con conexión.
 
 ## Imports, XDG y efectos laterales
 
@@ -357,6 +384,8 @@ Las pruebas focales deben cubrir al menos:
 - streaming acotado sin lectura completa en memoria;
 - CSP y headers en frontend, API, PDF y assets;
 - PUT validado y ausencia de escrituras por selección/navegación;
+- escrituras visuales same-origin, JSON/bodies acotados, schemas cerrados,
+  idempotencia y logs sin texto, comentario ni rectángulos;
 - scan del source y bundle por patrones prohibidos;
 - navegador real sin requests remotos ni errores de consola.
 
@@ -365,10 +394,11 @@ Range o selección real hasta observar requests y comportamiento en Chrome.
 
 ## Riesgo residual y límites
 
-S5A no ofrece aislamiento contra un usuario local privilegiado, malware local,
+S5A/S5B no ofrecen aislamiento contra un usuario local privilegiado, malware local,
 extensiones del navegador o vulnerabilidades desconocidas de Chrome/PDF.js. No
 debe exponerse mediante reverse proxy, túnel, contenedor publicado, LAN o nube.
 
-No hay persistencia visual, autenticación multiusuario, OCR, scraping,
-telemetría ni ejecución de contenido activo. Cualquier acceso remoto o
-persistencia de geometría requiere una fase y threat model nuevos.
+S5B añade persistencia local confirmada de cita y geometría canónica. No añade
+autenticación multiusuario, OCR, scraping, telemetría, colaboración ni ejecución
+de contenido activo. El servicio continúa siendo sólo loopback y no debe
+exponerse mediante proxy, túnel, LAN o nube.

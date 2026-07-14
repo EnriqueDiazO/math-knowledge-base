@@ -161,10 +161,19 @@ export function captureTextSelection(
   }
 
   const pageRect = startPage.getBoundingClientRect();
-  const rects = Array.from(firstRange.getClientRects())
+  const clientRects = Array.from(firstRange.getClientRects());
+  if (clientRects.length > MAX_SELECTION_RECTS) {
+    return {
+      ...common,
+      pdf_page: null,
+      rects_normalized: [],
+      cross_page: false,
+      geometry_status: "unresolved",
+    };
+  }
+  const rects = clientRects
     .map((rect) => normalizeRect(rect, pageRect))
-    .filter((rect): rect is NormalizedRect => rect !== null)
-    .slice(0, MAX_SELECTION_RECTS);
+    .filter((rect): rect is NormalizedRect => rect !== null);
 
   if (rects.length === 0) {
     return {

@@ -1,11 +1,23 @@
 import { useState } from "react";
 
+import {
+  VISUAL_ANNOTATION_COLORS,
+  isPersistableSelection,
+} from "../annotations/ui";
 import type { TextSelectionEvent } from "../selection/types";
-import type { PageLabel } from "../types/api";
+import type {
+  PageLabel,
+  VisualAnnotationColor,
+  VisualAnnotationKind,
+} from "../types/api";
 
 interface SelectionInspectorProps {
   selection: TextSelectionEvent | null;
   pageLabel: PageLabel | null;
+  persistenceEnabled: boolean;
+  color: VisualAnnotationColor;
+  onColor(color: VisualAnnotationColor): void;
+  onChoose(kind: VisualAnnotationKind): void;
   onClear(): void;
 }
 
@@ -16,7 +28,15 @@ function selectionStatus(selection: TextSelectionEvent | null): string {
   return "Selección válida de una página";
 }
 
-export function SelectionInspector({ selection, pageLabel, onClear }: SelectionInspectorProps) {
+export function SelectionInspector({
+  selection,
+  pageLabel,
+  persistenceEnabled,
+  color,
+  onColor,
+  onChoose,
+  onClear,
+}: SelectionInspectorProps) {
   const [technicalOpen, setTechnicalOpen] = useState(false);
 
   return (
@@ -44,6 +64,21 @@ export function SelectionInspector({ selection, pageLabel, onClear }: SelectionI
             <div><dt>Rectángulos</dt><dd>{selection.rects_normalized.length}</dd></div>
           </dl>
           <div className="button-row">
+            {persistenceEnabled && isPersistableSelection(selection) && (
+              <>
+                <button type="button" onClick={() => onChoose("highlight")}>Highlight</button>
+                <button type="button" onClick={() => onChoose("underline")}>Underline</button>
+                <select
+                  aria-label="Color de la marca en inspector"
+                  value={color}
+                  onChange={(event) => onColor(event.target.value as VisualAnnotationColor)}
+                >
+                  {VISUAL_ANNOTATION_COLORS.map((value) => (
+                    <option key={value} value={value}>{value}</option>
+                  ))}
+                </select>
+              </>
+            )}
             <button type="button" onClick={onClear}>Limpiar selección</button>
             <button type="button" onClick={() => setTechnicalOpen((value) => !value)}>
               Mostrar detalles técnicos
@@ -58,7 +93,11 @@ export function SelectionInspector({ selection, pageLabel, onClear }: SelectionI
           )}
         </>
       )}
-      <p className="future-note">Visual annotation persistence will be added in a later phase.</p>
+      {!persistenceEnabled && (
+        <p className="future-note">
+          Inicializa Notes &amp; Evidence en Maintenance para guardar marcas visuales.
+        </p>
+      )}
     </section>
   );
 }

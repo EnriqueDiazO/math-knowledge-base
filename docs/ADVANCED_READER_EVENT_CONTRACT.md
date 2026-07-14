@@ -1,4 +1,4 @@
-# Contrato de eventos del Advanced Reader — S5A
+# Contrato de eventos del Advanced Reader — S5A/S5B
 
 ## Alcance
 
@@ -7,10 +7,11 @@ Los eventos coordinan componentes React, PDF.js, toolbar e inspector dentro de
 la misma aplicación. No son analytics, no constituyen una API pública remota y
 no se envían automáticamente al backend.
 
-En S5A sólo la acción que termina en `reading_position_saved` provoca una
-escritura: un `PUT` explícito que delega en `ReadingSpaceService`. Emitir un
-evento no persiste por sí mismo. Todos los demás eventos permanecen en memoria
-del navegador y se descartan al recargar, cerrar o cambiar de Document.
+El envelope de eventos continúa siendo efímero en S5B. Emitir un evento no
+persiste por sí mismo. `reading_position_saved` sólo confirma el PUT S3
+explícito. Una anotación visual se guarda mediante una acción **Guardar**
+posterior y un contrato HTTP/dominio S5B distinto; no se envía automáticamente
+el evento `text_selection` ni su envelope.
 
 ## Envelope y reglas comunes
 
@@ -50,7 +51,7 @@ globales con datos sensibles.
 | `rotation_changed` | no | ninguna | ninguna |
 | `search_started` | query local acotada | ninguna | ninguna |
 | `search_result` | no | ninguna | ninguna |
-| `text_selection` | sí, acotado | prohibido | ninguna |
+| `text_selection` | sí, acotado | ninguna automática | ninguna por el evento |
 | `selection_cleared` | no | ninguna | ninguna |
 | `reading_position_saved` | no | PUT S3 explícito | sólo `current_page` S3 |
 
@@ -302,9 +303,16 @@ conveniencia.
 ### Privacidad y lifecycle
 
 El payload sólo vive en estado React del Document y versión actuales. Se limpia
-al pulsar el botón, cambiar de página/rotación/Document, cargar otra versión,
-fallar el visor, desmontar el componente o recargar. Está prohibido enviarlo a
-la API, MongoDB, errores, logs, analytics, crash reports o clipboard.
+al cancelar, cambiar de página/rotación/Document, cargar otra versión, fallar el
+visor, desmontar el componente o recargar. Está prohibido enviar este envelope
+crudo a la API, MongoDB, errores, logs, analytics, crash reports o clipboard.
+
+S5B puede usar sus valores únicamente después de que el usuario elija
+Highlight/Underline, revise la confirmación y pulse **Guardar**. En ese momento
+se construye un payload diferente: cita normalizada, geometría convertida a
+`normalized_unrotated_crop_box`, identidad de versión, SHA y campos de
+presentación. El backend vuelve a validarlo y crea un `DocumentAnnotation` v2;
+la mera emisión de `text_selection` nunca ejecuta ese POST.
 
 ## `selection_cleared`
 
@@ -348,6 +356,14 @@ y los campos S3 que el servicio existente gestione como consecuencia válida.
 Se prohíbe escribir selección, geometría, zoom, rotación, búsqueda o UI state.
 Un PUT fallido muestra un error tipado y no emite este evento.
 
+## Persistencia visual S5B
+
+El contrato persistente se documenta en `VISUAL_ANNOTATIONS_S5B.md`. No forma
+parte de `AdvancedReaderEventV1` y no añade texto o rectángulos a eventos de
+navegación. Un guardado exitoso/idéntico actualiza el estado de anotaciones de
+la UI; cancelar o fallar conserva la selección sólo mientras siga siendo válida
+y no modifica MongoDB ni ReadingState.
+
 ## Compatibilidad y evolución
 
 S5A acepta únicamente `schema_version=1`. Un consumidor debe ignorar de forma
@@ -355,7 +371,7 @@ segura un `event_type` desconocido y rechazar un shape conocido inválido sin
 rellenar campos. Cambiar semántica, límites o coordenadas requiere una nueva
 versión de schema.
 
-S5B no puede convertir estos eventos en persistencia sin definir antes un
-contrato de dominio independiente. S5C será la primera fase que podrá diseñar
-una interacción explícita entre selección y conceptos; el evento S5A no crea ni
-anticipa un `ConceptEvidenceLink`.
+S5B mantiene los eventos v1 y añade el contrato de dominio independiente para
+persistencia explícita. S5C será la primera fase que podrá diseñar una
+interacción entre selección y conceptos; ni el evento S5A ni el POST S5B crean
+o anticipan un `ConceptEvidenceLink`.

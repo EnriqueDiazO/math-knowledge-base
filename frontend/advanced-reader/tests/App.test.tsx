@@ -257,7 +257,7 @@ describe("S5A frontend requirements 60-66", () => {
     const { controller } = await renderReady();
     act(() => controller.emitSelection(samePageSelection));
     expect(screen.queryByRole("button", { name: /highlight|subrayar/i })).not.toBeInTheDocument();
-    expect(screen.getByText(/Visual annotation persistence/)).toBeVisible();
+    expect(screen.getAllByText(/Inicializa Notes & Evidence/).length).toBeGreaterThan(0);
   });
 
   it("[64] exposes no concept-link write action", async () => {

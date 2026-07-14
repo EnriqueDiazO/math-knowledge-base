@@ -14,6 +14,8 @@ from typing import Any
 from editor.reading_annotations.annotation_panel import annotation_groups
 from editor.reading_annotations.annotation_panel import annotation_rows
 from editor.reading_annotations.annotation_panel import render_notes_and_evidence_panel
+from editor.reading_annotations.annotation_panel import render_notes_evidence_maintenance
+from editor.reading_annotations.annotation_panel import visual_annotation_details
 from editor.reading_annotations.concept_picker import find_legacy_concepts
 from editor.reading_annotations.evidence_panel import evidence_origin
 from editor.reading_annotations.evidence_panel import evidence_rows
@@ -92,6 +94,9 @@ class FakeUI:
 
     def error(self, value: object) -> None:
         self._message("error", value)
+
+    def badge(self, value: object, **_kwargs) -> None:
+        self._message("badge", value)
 
     def write(self, value: object) -> None:
         self._message("write", value)
@@ -211,6 +216,7 @@ class FakeResult:
 class FakeIndexManager:
     def __init__(self, initialized: bool = True) -> None:
         self.initialized = initialized
+        self.apply_calls = 0
 
     def status(self):
         return ()
@@ -219,7 +225,11 @@ class FakeIndexManager:
         return SimpleNamespace(initialized=self.initialized, conflicts=(), missing=())
 
     def apply(self):
-        raise AssertionError("initialized S4 indexes must not be applied")
+        self.apply_calls += 1
+        if self.initialized:
+            raise AssertionError("initialized Notes & Evidence indexes must not be applied")
+        self.initialized = True
+        return SimpleNamespace(initialized=True, conflicts=(), missing=())
 
 
 def _annotation(
@@ -227,8 +237,24 @@ def _annotation(
     status: str = "active",
     document_id: str = "doc-pdf",
     page_number: int | None = 7,
+    visual: bool = False,
 ) -> Any:
+    visual_anchor = (
+        SimpleNamespace(
+            anchor_schema_version=1,
+            version_id="dver_00000000-0000-4000-8000-000000000410",
+            document_sha256="a" * 64,
+            pdf_page=page_number,
+            coordinate_space="normalized_unrotated_crop_box",
+            capture_rotation=90,
+            rects=(SimpleNamespace(x=0.1, y=0.2, width=0.3, height=0.04),),
+            created_from="pdfjs_text_selection",
+        )
+        if visual
+        else None
+    )
     return SimpleNamespace(
+        schema_version=2 if visual else 1,
         annotation_id="ann-1",
         document_id=document_id,
         source_id="src-1",
@@ -242,6 +268,7 @@ def _annotation(
         body="plain annotation",
         color_label="yellow",
         tags=("topology",),
+        visual_anchor=visual_anchor,
         updated_at=None,
     )
 
@@ -683,6 +710,67 @@ def test_annotation_rows_include_bounded_quote_and_comment_previews() -> None:
     assert row["comment"] == "comment body"
 
 
+def test_visual_annotation_has_badge_bounded_details_and_no_streamlit_geometry_edit() -> None:
+    visual = _annotation(visual=True)
+    ui = FakeUI()
+
+    _render(ui, FakeService(annotations=(visual,)))
+
+    row = annotation_rows((visual,))[0]
+    details = visual_annotation_details(visual)
+    assert row["visual"] == "Marca visual"
+    assert ("badge", "Marca visual") in ui.messages
+    assert details["rect_count"] == 1
+    assert "rects" not in details
+    assert details["document_sha256"] == "aaaaaaaaaaaa…"
+    assert "Edit annotation" not in ui.labels
+    assert "Archive annotation" in ui.labels
+    assert "Link to Concept" in ui.labels
+
+
+def test_legacy_logical_annotation_remains_badge_free_and_editable() -> None:
+    logical = _annotation()
+    ui = FakeUI()
+
+    _render(ui, FakeService(annotations=(logical,)))
+
+    assert annotation_rows((logical,))[0]["visual"] == ""
+    assert not any(level == "badge" for level, _message in ui.messages)
+    assert "Edit annotation" in ui.labels
+
+
+def test_visual_annotation_keeps_streamlit_archive_and_reactivate_actions() -> None:
+    active_service = FakeService(annotations=(_annotation(visual=True),))
+    _render(FakeUI(clicked={"Archive annotation"}), active_service)
+    archived_service = FakeService(annotations=(_annotation(status="archived", visual=True),))
+    _render(FakeUI(clicked={"Reactivate annotation"}), archived_service)
+
+    assert ("archive_annotation", "ann-1") in active_service.calls
+    assert ("reactivate_annotation", "ann-1") in archived_service.calls
+
+
+def test_maintenance_requires_explicit_database_name_and_confirmation() -> None:
+    service = FakeService()
+    service.index_manager = FakeIndexManager(initialized=False)
+    submit_key = state_key("initialize_indexes_submit")
+
+    unconfirmed = FakeUI(submitted={submit_key})
+    render_notes_evidence_maintenance(_context(), ui=unconfirmed, service=service)
+    assert service.index_manager.apply_calls == 0
+    assert any("requires the exact database name" in message for _, message in unconfirmed.messages)
+
+    confirmed = FakeUI(
+        values={
+            state_key("initialize_indexes_database"): "isolated_s4_ui",
+            state_key("initialize_indexes_confirm"): True,
+        },
+        submitted={submit_key},
+    )
+    render_notes_evidence_maintenance(_context(), ui=confirmed, service=service)
+    assert service.index_manager.apply_calls == 1
+    assert any("indexes initialized" in message for _, message in confirmed.messages)
+
+
 def test_uninitialized_s4_indexes_disable_add_forms_independently() -> None:
     ui = FakeUI(submitted={"Add Annotation", "Add Reading Note"})
     service = FakeService()
@@ -751,6 +839,26 @@ def test_link_annotation_to_concept_uses_exclusive_target() -> None:
     assert call["page_number"] is None
     assert call["concept_legacy_id"] == "C-1"
     assert ui.session_state[SELECTED_CONCEPT_IDENTITY] == ("C-1", "Legacy Book")
+
+
+def test_link_visual_annotation_to_concept_reuses_the_same_annotation_id() -> None:
+    annotation = _annotation(visual=True)
+    identity = "C-1\x1fLegacy Book"
+    ui = FakeUI(
+        values={
+            state_key("show_annotation_evidence", annotation.annotation_id): True,
+            state_key("concept_choice", f"annotation_{annotation.annotation_id}"): identity,
+        },
+        submitted={"Link to Concept"},
+    )
+    service = FakeService(annotations=(annotation,))
+
+    _render(ui, service)
+
+    call = next(value for name, value in service.calls if name == "create_evidence")
+    assert call["annotation_id"] == annotation.annotation_id
+    assert call["document_id"] is None
+    assert call["note_id"] is None
 
 
 def test_link_note_to_concept_never_fills_document_target() -> None:

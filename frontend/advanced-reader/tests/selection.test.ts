@@ -71,7 +71,7 @@ describe("ephemeral selection geometry", () => {
     expect(result?.selected_text).not.toMatch(/\s{2,}/u);
   });
 
-  it("caps normalized geometry at the documented 64 rectangles", () => {
+  it("rejects geometry instead of truncating a selection beyond 64 rectangles", () => {
     const rects = Array.from(
       { length: MAX_SELECTION_RECTS + 12 },
       (_, index) => new DOMRect(110, 210 + index * 2, 20, 1),
@@ -79,7 +79,12 @@ describe("ephemeral selection geometry", () => {
     const { viewer, selection } = selectionFixture("rectángulos", rects);
     const result = captureTextSelection(selection, viewer, context);
 
-    expect(result?.rects_normalized).toHaveLength(MAX_SELECTION_RECTS);
+    expect(result).toMatchObject({
+      pdf_page: null,
+      rects_normalized: [],
+      cross_page: false,
+      geometry_status: "unresolved",
+    });
   });
 
   it("discards non-finite and rounded-to-zero rectangles", () => {

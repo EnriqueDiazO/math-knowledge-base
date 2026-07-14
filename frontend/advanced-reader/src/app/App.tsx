@@ -6,10 +6,25 @@ import {
   documentIdFromSearch,
 } from "../api/client";
 import type { AdvancedReaderApi } from "../api/client";
+import {
+  isPersistableSelection,
+  mergeVisualAnnotationSnapshots,
+  parseVisualAnnotationTags,
+} from "../annotations/ui";
 import { DocumentInspector } from "../components/DocumentInspector";
 import { ReaderStatus } from "../components/ReaderStatus";
+import { SelectionActionToolbar } from "../components/SelectionActionToolbar";
 import { SelectionInspector } from "../components/SelectionInspector";
 import { Toolbar } from "../components/Toolbar";
+import {
+  VisualAnnotationConfirmation,
+  type VisualAnnotationDraft,
+} from "../components/VisualAnnotationConfirmation";
+import {
+  VisualAnnotationsPanel,
+  type VisualAnnotationFilters,
+} from "../components/VisualAnnotationsPanel";
+import type { VisualAnnotationRenderItem } from "../annotations/types";
 import type {
   PdfReaderController,
   PdfReaderControllerFactory,
@@ -18,7 +33,15 @@ import type {
 } from "../pdf/types";
 import { limitSearchQuery, normalizeSearchQuery } from "../pdf/search";
 import type { TextSelectionEvent } from "../selection/types";
-import type { DocumentMetadata, PageLabel } from "../types/api";
+import type {
+  CreateVisualAnnotation,
+  DocumentMetadata,
+  PageLabel,
+  UpdateVisualAnnotation,
+  VisualAnnotation,
+  VisualAnnotationColor,
+  VisualAnnotationKind,
+} from "../types/api";
 import type {
   AdvancedReaderEventV1,
   PublicReaderErrorCode,
@@ -140,6 +163,32 @@ function fallbackPageLabel(page: number): PageLabel {
   return { pdf_page: page, book_page_label: null, display_label: `PDF page ${page}` };
 }
 
+function renderVisualAnnotation(annotation: VisualAnnotation): VisualAnnotationRenderItem {
+  return {
+    annotation_id: annotation.annotation_id,
+    kind: annotation.kind,
+    status: annotation.status,
+    pdf_page: annotation.pdf_page,
+    color_label: annotation.color_label ?? "yellow",
+    visual_status: annotation.visual_status,
+    visual_anchor: annotation.visual_anchor,
+  };
+}
+
+function newVisualAnnotationId(): string | null {
+  if (typeof window.crypto?.randomUUID !== "function") return null;
+  return `ann_${window.crypto.randomUUID()}`;
+}
+
+function visualWriteEnabled(metadata: DocumentMetadata | null): boolean {
+  return metadata !== null &&
+    metadata.status === "active" &&
+    metadata.capabilities.persistent_highlights &&
+    metadata.capabilities.persistent_underlines &&
+    metadata.capabilities.visual_annotation_editing &&
+    metadata.capabilities.visual_annotation_archiving;
+}
+
 function appError(error: unknown): AppError {
   const code = error instanceof ReaderApiError ? error.code : "internal_error";
   if (code === "invalid_document_id") {
@@ -217,16 +266,37 @@ export function AdvancedReaderApp({
   const [entireWord, setEntireWord] = useState(false);
   const [selection, setSelection] = useState<TextSelectionEvent | null>(null);
   const [selectionPageLabel, setSelectionPageLabel] = useState<PageLabel | null>(null);
+  const [visualColor, setVisualColor] = useState<VisualAnnotationColor>("yellow");
+  const [visualDraft, setVisualDraft] = useState<VisualAnnotationDraft | null>(null);
+  const [draftSelection, setDraftSelection] = useState<TextSelectionEvent | null>(null);
+  const [visualSaving, setVisualSaving] = useState(false);
+  const [visualSaveError, setVisualSaveError] = useState<string | null>(null);
+  const [visualAnnotations, setVisualAnnotations] = useState<Map<string, VisualAnnotation>>(
+    () => new Map(),
+  );
+  const [visualFilters, setVisualFilters] = useState<VisualAnnotationFilters>({
+    scope: "page",
+    status: "active",
+    kind: "all",
+  });
+  const [visualListIds, setVisualListIds] = useState<string[]>([]);
+  const [visualListPage, setVisualListPage] = useState(1);
+  const [visualListPages, setVisualListPages] = useState(0);
+  const [visualListLoading, setVisualListLoading] = useState(false);
+  const [visualReloadKey, setVisualReloadKey] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [pageRenderFailure, setPageRenderFailure] = useState<number | null>(null);
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLElement>(null);
   const viewerRef = useRef<HTMLDivElement>(null);
   const thumbnailsRef = useRef<HTMLDivElement>(null);
   const controllerRef = useRef<PdfReaderController | null>(null);
   const currentPageRef = useRef(1);
   const totalPagesRef = useRef(0);
   const selectionRef = useRef<TextSelectionEvent | null>(null);
+  const visualAnnotationsRef = useRef<Map<string, VisualAnnotation>>(new Map());
+  visualAnnotationsRef.current = visualAnnotations;
   const zoomModeRef = useRef<ZoomChangedEventV1["mode"]>("fit_width");
   const onEventRef = useRef(onEvent);
   onEventRef.current = onEvent;
@@ -234,6 +304,9 @@ export function AdvancedReaderApp({
     (event: AdvancedReaderEventV1) => emitLocalEvent(onEventRef.current, event),
     [],
   );
+  const mergeVisualAnnotations = useCallback((items: readonly VisualAnnotation[]) => {
+    setVisualAnnotations((current) => mergeVisualAnnotationSnapshots(current, items));
+  }, []);
 
   useEffect(() => {
     if (documentId === null) {
@@ -247,6 +320,15 @@ export function AdvancedReaderApp({
     setMetadata(null);
     setSelection(null);
     setSelectionPageLabel(null);
+    setVisualDraft(null);
+    setDraftSelection(null);
+    setVisualSaving(false);
+    setVisualSaveError(null);
+    setVisualAnnotations(new Map());
+    setVisualListIds([]);
+    setVisualListPage(1);
+    setVisualListPages(0);
+    setVisualReloadKey(0);
     setSearchQuery("");
     setSearchStatus("idle");
     setSearchCurrent(0);
@@ -325,6 +407,9 @@ export function AdvancedReaderApp({
       selectionRef.current = null;
       setSelection(null);
       setSelectionPageLabel(null);
+      setVisualDraft(null);
+      setDraftSelection(null);
+      setVisualSaveError(null);
       selectionLabelController?.abort();
       selectionLabelController = null;
       if (hadSelection || reason === "empty") {
@@ -490,6 +575,9 @@ export function AdvancedReaderApp({
         },
       },
     });
+    controller.setVisualAnnotations(
+      [...visualAnnotationsRef.current.values()].map(renderVisualAnnotation),
+    );
 
     return () => {
       pageLabelController?.abort();
@@ -509,6 +597,71 @@ export function AdvancedReaderApp({
       if (controllerRef.current === controller) controllerRef.current = null;
     };
   }, [api, controllerFactory, emitEvent, metadata]);
+
+  useEffect(() => {
+    controllerRef.current?.setVisualAnnotations(
+      [...visualAnnotations.values()].map(renderVisualAnnotation),
+    );
+  }, [visualAnnotations]);
+
+  useEffect(() => {
+    setVisualListPage(1);
+    setVisualListIds([]);
+  }, [currentPage, visualFilters.scope, visualFilters.status]);
+
+  useEffect(() => {
+    if (metadata === null) return;
+    const abortController = new AbortController();
+    setVisualListLoading(true);
+    void api.listVisualAnnotations(
+      metadata.document_id,
+      {
+        pdfPage: visualFilters.scope === "page" ? currentPage : undefined,
+        status: visualFilters.status,
+        page: visualListPage,
+        limit: visualFilters.scope === "page" ? 100 : 25,
+      },
+      abortController.signal,
+    ).then((result) => {
+      if (abortController.signal.aborted) return;
+      mergeVisualAnnotations(result.items);
+      const ids = result.items.map((item) => item.annotation_id);
+      setVisualListIds((current) => visualListPage === 1
+        ? ids
+        : [...new Set([...current, ...ids])]);
+      setVisualListPages(result.pages);
+    }).catch(() => undefined).finally(() => {
+      if (!abortController.signal.aborted) setVisualListLoading(false);
+    });
+    return () => abortController.abort();
+  }, [
+    api,
+    currentPage,
+    mergeVisualAnnotations,
+    metadata,
+    visualFilters.scope,
+    visualFilters.status,
+    visualListPage,
+    visualReloadKey,
+  ]);
+
+  useEffect(() => {
+    if (metadata === null) return;
+    const abortController = new AbortController();
+    const pages = [currentPage - 1, currentPage, currentPage + 1].filter(
+      (page) => page >= 1 && (totalPages <= 0 || page <= totalPages),
+    );
+    void Promise.all(pages.map((pdfPage) => api.listVisualAnnotations(
+      metadata.document_id,
+      { pdfPage, status: "active", page: 1, limit: 100 },
+      abortController.signal,
+    ))).then((results) => {
+      if (!abortController.signal.aborted) {
+        mergeVisualAnnotations(results.flatMap((result) => result.items));
+      }
+    }).catch(() => undefined);
+    return () => abortController.abort();
+  }, [api, currentPage, mergeVisualAnnotations, metadata, totalPages, visualReloadKey]);
 
   const ready = phase === "ready" || phase === "page_render_failed";
   const executeSearch = (direction: SearchDirection, again: boolean) => {
@@ -554,6 +707,113 @@ export function AdvancedReaderApp({
       setSaveStatus("error");
     }
   };
+
+  const beginVisualAnnotation = (kind: VisualAnnotationKind) => {
+    if (!visualWriteEnabled(metadata) || !isPersistableSelection(selection)) return;
+    const annotationId = newVisualAnnotationId();
+    if (annotationId === null) {
+      setVisualSaveError("Este navegador no ofrece un generador seguro de identidad.");
+      return;
+    }
+    setDraftSelection(selection);
+    setVisualDraft({
+      annotationId,
+      kind,
+      color: visualColor,
+      body: "",
+      tagsText: "",
+    });
+    setVisualSaveError(null);
+  };
+
+  const cancelVisualDraft = () => {
+    if (visualSaving) return;
+    setVisualDraft(null);
+    setDraftSelection(null);
+    setVisualSaveError(null);
+  };
+
+  const saveVisualAnnotation = async () => {
+    if (
+      metadata === null ||
+      visualDraft === null ||
+      !isPersistableSelection(draftSelection) ||
+      visualSaving
+    ) return;
+    const pdfPage = draftSelection.pdf_page;
+    const canonicalRects = controllerRef.current?.canonicalizeSelection(
+      pdfPage,
+      draftSelection.rects_normalized,
+    ) ?? null;
+    if (canonicalRects === null || canonicalRects.length === 0) {
+      setVisualSaveError("No se pudo convertir la selección a geometría canónica.");
+      return;
+    }
+    const payload: CreateVisualAnnotation = {
+      annotation_id: visualDraft.annotationId,
+      version_id: metadata.version.version_id,
+      document_sha256: metadata.version.sha256,
+      pdf_page: pdfPage,
+      kind: visualDraft.kind,
+      quote_text: draftSelection.selected_text,
+      rects: canonicalRects,
+      capture_rotation: draftSelection.rotation,
+      color_label: visualDraft.color,
+      body: visualDraft.body,
+      tags: parseVisualAnnotationTags(visualDraft.tagsText),
+    };
+    setVisualSaving(true);
+    setVisualSaveError(null);
+    try {
+      const annotation = await api.createVisualAnnotation(metadata.document_id, payload);
+      mergeVisualAnnotations([annotation]);
+      setVisualReloadKey((value) => value + 1);
+      setVisualDraft(null);
+      setDraftSelection(null);
+      controllerRef.current?.clearSelection("user");
+    } catch (reason) {
+      const message = reason instanceof ReaderApiError && reason.code === "visual_annotations_not_ready"
+        ? "Inicializa Notes & Evidence en Maintenance para guardar marcas visuales."
+        : "No se pudo guardar la marca visual. Puedes reintentar sin duplicarla.";
+      setVisualSaveError(message);
+    } finally {
+      setVisualSaving(false);
+    }
+  };
+
+  const updateVisualAnnotation = async (
+    annotationId: string,
+    patch: UpdateVisualAnnotation,
+  ) => {
+    const annotation = await api.updateVisualAnnotation(annotationId, patch);
+    mergeVisualAnnotations([annotation]);
+    setVisualReloadKey((value) => value + 1);
+  };
+
+  const archiveVisualAnnotation = async (annotationId: string) => {
+    const annotation = await api.archiveVisualAnnotation(annotationId);
+    mergeVisualAnnotations([annotation]);
+    setVisualReloadKey((value) => value + 1);
+  };
+
+  const reactivateVisualAnnotation = async (annotationId: string) => {
+    const annotation = await api.reactivateVisualAnnotation(annotationId);
+    mergeVisualAnnotations([annotation]);
+    setVisualReloadKey((value) => value + 1);
+  };
+
+  const navigateToVisualAnnotation = (annotation: VisualAnnotation) => {
+    if (annotation.visual_status === "exact" && annotation.status === "active") {
+      controllerRef.current?.focusVisualAnnotation(annotation.annotation_id);
+    } else {
+      controllerRef.current?.goToPage(annotation.pdf_page, "pdfjs");
+    }
+  };
+
+  const sidebarVisualAnnotations = visualListIds
+    .map((annotationId) => visualAnnotations.get(annotationId))
+    .filter((annotation): annotation is VisualAnnotation => annotation !== undefined);
+  const canPersistVisualAnnotations = visualWriteEnabled(metadata);
 
   if (phase === "error" || documentId === null) {
     const visibleError = error ?? appError(new ReaderApiError("invalid_document_id", "Invalid."));
@@ -643,7 +903,7 @@ export function AdvancedReaderApp({
           </div>
         </aside>
 
-        <main className="pdf-stage" aria-label="Documento PDF">
+        <main ref={stageRef} className="pdf-stage" aria-label="Documento PDF">
           {phase === "loading_pdf" && (
             <div className="pdf-loading" role="status">Renderizando PDF con PDF.js…</div>
           )}
@@ -666,6 +926,16 @@ export function AdvancedReaderApp({
               </button>
             </div>
           )}
+          <SelectionActionToolbar
+            selection={selection}
+            enabled={canPersistVisualAnnotations && visualDraft === null}
+            stageRef={stageRef}
+            viewerRef={viewerRef}
+            color={visualColor}
+            onColor={setVisualColor}
+            onChoose={beginVisualAnnotation}
+            onCancel={() => controllerRef.current?.clearSelection("user")}
+          />
           <div ref={containerRef} id="viewerContainer" tabIndex={0}>
             <div ref={viewerRef} id="viewer" className="pdfViewer" />
           </div>
@@ -676,7 +946,37 @@ export function AdvancedReaderApp({
           <SelectionInspector
             selection={selection}
             pageLabel={selectionPageLabel}
+            persistenceEnabled={canPersistVisualAnnotations && visualDraft === null}
+            color={visualColor}
+            onColor={setVisualColor}
+            onChoose={beginVisualAnnotation}
             onClear={() => controllerRef.current?.clearSelection("user")}
+          />
+          {visualDraft !== null && draftSelection !== null && (
+            <VisualAnnotationConfirmation
+              draft={visualDraft}
+              selection={draftSelection}
+              pageLabel={selectionPageLabel}
+              saving={visualSaving}
+              error={visualSaveError}
+              onChange={setVisualDraft}
+              onSave={() => void saveVisualAnnotation()}
+              onCancel={cancelVisualDraft}
+            />
+          )}
+          <VisualAnnotationsPanel
+            annotations={sidebarVisualAnnotations}
+            currentPage={currentPage}
+            filters={visualFilters}
+            loading={visualListLoading}
+            hasMore={visualListPage < visualListPages}
+            canMutate={canPersistVisualAnnotations}
+            onFilters={setVisualFilters}
+            onLoadMore={() => setVisualListPage((value) => value + 1)}
+            onNavigate={navigateToVisualAnnotation}
+            onUpdate={updateVisualAnnotation}
+            onArchive={archiveVisualAnnotation}
+            onReactivate={reactivateVisualAnnotation}
           />
           {saveStatus === "saved" && <p className="save-feedback success" role="status">Posición guardada.</p>}
           {saveStatus === "error" && <p className="save-feedback error" role="alert">No se pudo guardar la posición.</p>}

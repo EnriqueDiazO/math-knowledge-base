@@ -46,9 +46,10 @@ comentario, color nominal y tags. Los tipos soportados son `highlight`,
 vacío. El número de página, cuando existe, es un entero positivo. Archivar
 conserva la anotación y fija `archived_at`; reactivar la devuelve a `active`.
 
-Los highlights y underlines son lógicos: describen Document, página y texto
-citado, pero no almacenan coordenadas ni una selección binaria y no se dibujan
-sobre el visor.
+En el contrato S4/schema v1, los highlights y underlines son lógicos: describen
+Document, página y texto citado, pero no almacenan coordenadas ni se dibujan
+sobre el visor. S5B añade de forma retrocompatible schema v2 con un
+`visual_anchor` opcional; los registros v1 conservan esta semántica.
 
 ### `ReadingNote`
 
@@ -170,13 +171,21 @@ Las comprobaciones estáticas impiden introducir clientes de red, rutas locales,
 PDF.js, OCR, extracción de texto o embeddings en los módulos S4. Wheel y sdist se
 inspeccionan para excluir blobs, previews, PDFs, ZIPs, caches y datos del usuario.
 
+## Continuidad con S5B
+
+S5B conserva `document_annotations` y `annotation_id` y añade geometría sólo en
+el anchor opcional de una Annotation v2. Streamlit identifica esas entradas con
+**Marca visual**, pero `st.pdf` permanece como fallback y no dibuja overlays.
+Export/import valida y conserva v1/v2. La asociación conceptual existente sigue
+apuntando al mismo ID; véase `VISUAL_ANNOTATIONS_S5B.md`.
+
 ## Limitaciones y fases futuras
 
-S4 no implementa selección automática de texto, overlay visual sobre PDF,
-coordenadas precisas, PDF.js, OCR, extracción de texto, búsqueda dentro del PDF,
-embeddings ni scraping. Tampoco modifica `concepts`: `ConceptEvidenceLink` sólo
-referencia conceptos legacy existentes.
+El alcance original de S4 no implementa selección automática de texto, overlay
+visual sobre PDF, coordenadas precisas, PDF.js, OCR, extracción de texto,
+búsqueda dentro del PDF, embeddings ni scraping. Tampoco modifica `concepts`:
+`ConceptEvidenceLink` sólo referencia conceptos legacy existentes.
 
-Una fase futura podría añadir selección y geometría visual mediante un visor
-especializado, pero deberá preservar las identidades lógicas y las barreras de
-seguridad definidas aquí.
+S5B añade selección y geometría visual mediante el Advanced Reader preservando
+estas identidades. Continúan fuera de alcance OCR, extracción persistente,
+embeddings, scraping y modificación del PDF.

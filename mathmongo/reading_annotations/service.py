@@ -4,6 +4,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 from enum import Enum
 from typing import Any
@@ -15,35 +16,47 @@ from pydantic import ValidationError
 from mathmongo.reading_annotations.errors import ReadingAnnotationConflictError
 from mathmongo.reading_annotations.errors import ReadingAnnotationIndexConflictError
 from mathmongo.reading_annotations.errors import ReadingAnnotationRepositoryError
+from mathmongo.reading_annotations.indexes import LEGACY_READING_ANNOTATION_INDEXES
+from mathmongo.reading_annotations.indexes import READING_ANNOTATION_INDEXES
 from mathmongo.reading_annotations.indexes import ReadingAnnotationIndexManager
+from mathmongo.reading_annotations.models import VISUAL_ANNOTATION_COLORS
 from mathmongo.reading_annotations.models import AnnotationKind
 from mathmongo.reading_annotations.models import AnnotationStatus
 from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.models import EvidenceLinkType
+from mathmongo.reading_annotations.models import NormalizedVisualRect
 from mathmongo.reading_annotations.models import ReadingNote
 from mathmongo.reading_annotations.models import ReadingNoteStatus
 from mathmongo.reading_annotations.models import ReadingNoteType
+from mathmongo.reading_annotations.models import VisualAnnotationAnchor
+from mathmongo.reading_annotations.models import normalize_visual_quote_text
+from mathmongo.reading_annotations.models import validate_annotation_id
 from mathmongo.reading_annotations.models import validate_evidence_link_id
+from mathmongo.reading_annotations.models import visual_text_sha256
 from mathmongo.reading_annotations.repository import AnnotationPage
 from mathmongo.reading_annotations.repository import AnnotationRepository
 from mathmongo.reading_annotations.repository import ConceptEvidencePage
 from mathmongo.reading_annotations.repository import ConceptEvidenceRepository
 from mathmongo.reading_annotations.repository import ReadingNotePage
 from mathmongo.reading_annotations.repository import ReadingNoteRepository
+from mathmongo.reading_space.repository import ReadingStateRepository
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog.repository import ReferenceRepository
 from mathmongo.source_catalog.repository import SourceRepository
+from mathmongo.source_documents.models import DocumentKind
 from mathmongo.source_documents.models import DocumentStatus
 from mathmongo.source_documents.models import SourceDocument
 from mathmongo.source_documents.repository import SourceDocumentRepository
+from mathmongo.source_documents.service import SourceDocumentService
 
 T = TypeVar("T")
 
 
 class ReadingAnnotationOperationStatus(str, Enum):
     SUCCESS = "success"
+    IDENTICAL = "identical"
     NOT_FOUND = "not_found"
     ARCHIVED = "archived"
     INVALID_STATE = "invalid_state"
@@ -60,7 +73,10 @@ class ReadingAnnotationServiceResult(Generic[T]):
 
     @property
     def completed(self) -> bool:
-        return self.status == ReadingAnnotationOperationStatus.SUCCESS
+        return self.status in {
+            ReadingAnnotationOperationStatus.SUCCESS,
+            ReadingAnnotationOperationStatus.IDENTICAL,
+        }
 
 
 class ReadingAnnotationService:
@@ -77,6 +93,8 @@ class ReadingAnnotationService:
         sources: SourceRepository | None = None,
         references: ReferenceRepository | None = None,
         index_manager: ReadingAnnotationIndexManager | None = None,
+        document_service: SourceDocumentService | None = None,
+        reading_states: ReadingStateRepository | None = None,
     ) -> None:
         if database is None or not hasattr(database, "__getitem__"):
             raise ValueError("ReadingAnnotationService requires an explicit database")
@@ -88,6 +106,11 @@ class ReadingAnnotationService:
         self.sources = sources or SourceRepository(database)
         self.references = references or ReferenceRepository(database)
         self.index_manager = index_manager or ReadingAnnotationIndexManager(database)
+        self.reading_states = reading_states or ReadingStateRepository(database)
+        # Keep the S4 service constructor filesystem-lazy. Advanced Reader injects its
+        # existing S2 service; other callers only construct one when a visual write
+        # actually requires blob-integrity inspection.
+        self.document_service = document_service
 
     @staticmethod
     def _result(
@@ -97,7 +120,11 @@ class ReadingAnnotationService:
     ) -> ReadingAnnotationServiceResult[T]:
         return ReadingAnnotationServiceResult(status, value, message)
 
-    def _write_gate(self) -> ReadingAnnotationServiceResult[None] | None:
+    def _write_gate(
+        self,
+        *,
+        visual: bool = False,
+    ) -> ReadingAnnotationServiceResult[None] | None:
         try:
             plan = self.index_manager.plan()
         except ReadingAnnotationIndexConflictError as exc:
@@ -107,17 +134,34 @@ class ReadingAnnotationService:
                 ReadingAnnotationOperationStatus.ERROR,
                 message="Could not inspect Notes & Evidence indexes.",
             )
-        if plan.conflicts:
+        required = READING_ANNOTATION_INDEXES if visual else LEGACY_READING_ANNOTATION_INDEXES
+        required_identities = {(item.collection, item.name) for item in required}
+        conflicts = tuple(
+            item
+            for item in plan.conflicts
+            if (item.spec.collection, item.spec.name) in required_identities
+        )
+        missing = tuple(
+            item for item in plan.missing if (item.collection, item.name) in required_identities
+        )
+        if conflicts:
             return self._result(
                 ReadingAnnotationOperationStatus.CONFLICT,
                 message="Notes & Evidence index definitions conflict with the approved plan.",
             )
-        if plan.missing:
+        if missing:
             return self._result(
                 ReadingAnnotationOperationStatus.INVALID_STATE,
                 message="Initialize the approved Notes & Evidence indexes before writing.",
             )
         return None
+
+    def visual_indexes_ready(self) -> bool:
+        """Inspect the full S5B index plan without installing anything."""
+        try:
+            return self.index_manager.plan().initialized
+        except Exception:
+            return False
 
     def _source(self, source_id: str) -> ReadingAnnotationServiceResult[Source]:
         try:
@@ -482,6 +526,15 @@ class ReadingAnnotationService:
         current = self.get_annotation(annotation_id, user_scope=user_scope)
         if not current.completed or current.value is None:
             return current
+        if current.value.visual_anchor is not None:
+            visual_gate = self._write_gate(visual=True)
+            if visual_gate is not None:
+                return self._result(visual_gate.status, message=visual_gate.message)
+            return self._result(
+                ReadingAnnotationOperationStatus.INVALID_STATE,
+                current.value,
+                "Visual Annotations require the presentation-only update operation.",
+            )
         if current.value.status == AnnotationStatus.ARCHIVED:
             return self._result(
                 ReadingAnnotationOperationStatus.ARCHIVED,
@@ -534,6 +587,10 @@ class ReadingAnnotationService:
         current = self.get_annotation(annotation_id, user_scope=user_scope)
         if not current.completed or current.value is None:
             return current
+        if current.value.visual_anchor is not None:
+            visual_gate = self._write_gate(visual=True)
+            if visual_gate is not None:
+                return self._result(visual_gate.status, message=visual_gate.message)
         if reactivate:
             associations = self._annotation_associations(
                 current.value,
@@ -563,6 +620,415 @@ class ReadingAnnotationService:
         self, annotation_id: str, *, user_scope: str = "local"
     ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
         return self._annotation_lifecycle(annotation_id, reactivate=True, user_scope=user_scope)
+
+    def _validated_visual_document(
+        self,
+        document_id: str,
+        *,
+        version_id: str,
+        document_sha256: str,
+        pdf_page: int,
+        user_scope: str,
+    ) -> ReadingAnnotationServiceResult[SourceDocument]:
+        document_result = self._document(document_id, require_active=True)
+        if not document_result.completed or document_result.value is None:
+            return self._result(
+                document_result.status,
+                document_result.value,
+                document_result.message,
+            )
+        document = document_result.value
+        if document.kind != DocumentKind.PDF or document.pdf is None:
+            return self._result(
+                ReadingAnnotationOperationStatus.INVALID_STATE,
+                message="Visual annotations require a PDF Source Document.",
+            )
+        current_version = document.pdf.current_version
+        if current_version.version_id != version_id:
+            return self._result(
+                ReadingAnnotationOperationStatus.CONFLICT,
+                message="The visual annotation version is not the current PDF version.",
+            )
+        if current_version.sha256 != document_sha256:
+            return self._result(
+                ReadingAnnotationOperationStatus.CONFLICT,
+                message="The visual annotation SHA does not match the current PDF version.",
+            )
+        try:
+            reading_state = self.reading_states.get_by_document(
+                document_id,
+                user_scope=user_scope,
+            )
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not validate the persisted PDF page range.",
+            )
+        if (
+            reading_state is not None
+            and reading_state.total_pages is not None
+            and pdf_page > reading_state.total_pages
+        ):
+            return self._result(
+                ReadingAnnotationOperationStatus.INVALID_STATE,
+                message="pdf_page exceeds the persisted PDF total_pages.",
+            )
+        try:
+            document_service = self.document_service
+            if document_service is None:
+                document_service = SourceDocumentService(
+                    self.database,
+                    documents=self.documents,
+                    sources=self.sources,
+                    references=self.references,
+                )
+                self.document_service = document_service
+            inspection = document_service.inspect_document_integrity(document_id)
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not validate Source PDF integrity.",
+            )
+        if not inspection.ok:
+            return self._result(
+                ReadingAnnotationOperationStatus.BLOCKED,
+                message="Source PDF integrity validation failed.",
+            )
+        return self._result(ReadingAnnotationOperationStatus.SUCCESS, document)
+
+    @staticmethod
+    def _same_visual_create_request(
+        existing: DocumentAnnotation,
+        candidate: DocumentAnnotation,
+    ) -> bool:
+        fields = (
+            "schema_version",
+            "annotation_id",
+            "document_id",
+            "source_id",
+            "reference_id",
+            "user_scope",
+            "kind",
+            "page_number",
+            "quote_text",
+            "body",
+            "color_label",
+            "tags",
+            "visual_anchor",
+        )
+        return all(getattr(existing, field) == getattr(candidate, field) for field in fields)
+
+    def create_visual_annotation(
+        self,
+        *,
+        annotation_id: str,
+        document_id: str,
+        version_id: str,
+        document_sha256: str,
+        pdf_page: int,
+        kind: AnnotationKind | str,
+        quote_text: str,
+        rects: list[NormalizedVisualRect | Mapping[str, Any]]
+        | tuple[NormalizedVisualRect | Mapping[str, Any], ...],
+        capture_rotation: int,
+        color_label: str = "yellow",
+        body: str = "",
+        tags: tuple[str, ...] | list[str] = (),
+        user_scope: str = "local",
+    ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
+        scope = self._scope_is_local(user_scope)
+        if scope is not None:
+            return self._result(scope.status, message=scope.message)
+        gate = self._write_gate(visual=True)
+        if gate is not None:
+            return self._result(gate.status, message=gate.message)
+        try:
+            validate_annotation_id(annotation_id)
+            normalized_quote = normalize_visual_quote_text(quote_text)
+            anchor = VisualAnnotationAnchor(
+                version_id=version_id,
+                document_sha256=document_sha256,
+                pdf_page=pdf_page,
+                capture_rotation=capture_rotation,
+                rects=rects,
+                text_sha256=visual_text_sha256(normalized_quote),
+            )
+            if color_label not in VISUAL_ANNOTATION_COLORS:
+                raise ValueError("color_label is not in the approved visual annotation palette")
+        except (ValidationError, ValueError, TypeError) as exc:
+            return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
+
+        document_result = self._validated_visual_document(
+            document_id,
+            version_id=anchor.version_id,
+            document_sha256=anchor.document_sha256,
+            pdf_page=anchor.pdf_page,
+            user_scope=user_scope,
+        )
+        if not document_result.completed or document_result.value is None:
+            return self._result(document_result.status, message=document_result.message)
+        document = document_result.value
+        try:
+            candidate = DocumentAnnotation(
+                schema_version=2,
+                annotation_id=annotation_id,
+                document_id=document.document_id,
+                source_id=document.source_id,
+                reference_id=document.reference_id,
+                user_scope=user_scope,
+                kind=kind,
+                page_number=pdf_page,
+                quote_text=normalized_quote,
+                body=body,
+                color_label=color_label,
+                tags=list(tags),
+                visual_anchor=anchor,
+            )
+            existing = self.annotations.get_by_id(annotation_id)
+            if existing is not None:
+                if self._same_visual_create_request(existing, candidate):
+                    return self._result(
+                        ReadingAnnotationOperationStatus.IDENTICAL,
+                        existing,
+                        "An identical visual Annotation already exists.",
+                    )
+                return self._result(
+                    ReadingAnnotationOperationStatus.CONFLICT,
+                    existing,
+                    "The annotation_id already contains different content.",
+                )
+            stored = self.annotations.insert(candidate)
+            return self._result(
+                ReadingAnnotationOperationStatus.SUCCESS,
+                stored,
+                "Visual Annotation created.",
+            )
+        except ReadingAnnotationConflictError:
+            try:
+                concurrent = self.annotations.get_by_id(annotation_id)
+            except Exception:
+                concurrent = None
+            if concurrent is not None and self._same_visual_create_request(concurrent, candidate):
+                return self._result(
+                    ReadingAnnotationOperationStatus.IDENTICAL,
+                    concurrent,
+                    "A concurrent identical visual Annotation was retained.",
+                )
+            return self._result(
+                ReadingAnnotationOperationStatus.CONFLICT,
+                concurrent,
+                "The annotation_id conflicts with persisted content.",
+            )
+        except (ValidationError, ValueError, TypeError) as exc:
+            return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
+        except ReadingAnnotationRepositoryError:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not persist the visual Annotation.",
+            )
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Unexpected visual Annotation persistence error.",
+            )
+
+    def get_visual_annotation(
+        self,
+        annotation_id: str,
+        *,
+        user_scope: str = "local",
+    ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
+        scope = self._scope_is_local(user_scope)
+        if scope is not None:
+            return self._result(scope.status, message=scope.message)
+        try:
+            item = self.annotations.get_visual_by_annotation_id(annotation_id)
+        except (ValidationError, ValueError) as exc:
+            return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not load the visual Annotation.",
+            )
+        if item is None or item.user_scope != user_scope:
+            return self._result(
+                ReadingAnnotationOperationStatus.NOT_FOUND,
+                message="Visual Annotation not found.",
+            )
+        return self._result(ReadingAnnotationOperationStatus.SUCCESS, item)
+
+    def list_visual_annotations(
+        self,
+        document_id: str,
+        *,
+        pdf_page: int | None = None,
+        status: AnnotationStatus | str | None = AnnotationStatus.ACTIVE,
+        kind: AnnotationKind | str | None = None,
+        page: int = 1,
+        page_size: int = 50,
+        user_scope: str = "local",
+    ) -> ReadingAnnotationServiceResult[AnnotationPage]:
+        scope = self._scope_is_local(user_scope)
+        if scope is not None:
+            return self._result(scope.status, message=scope.message)
+        context = self._document(document_id, require_active=False)
+        if not context.completed:
+            return self._result(context.status, message=context.message)
+        try:
+            value = (
+                self.annotations.list_visual_by_page(
+                    document_id,
+                    pdf_page,
+                    user_scope=user_scope,
+                    status=status,
+                    kind=kind,
+                    page=page,
+                    page_size=page_size,
+                )
+                if pdf_page is not None
+                else self.annotations.list_visual_by_document(
+                    document_id,
+                    user_scope=user_scope,
+                    status=status,
+                    kind=kind,
+                    page=page,
+                    page_size=page_size,
+                )
+            )
+            return self._result(ReadingAnnotationOperationStatus.SUCCESS, value)
+        except (ValidationError, ValueError, TypeError) as exc:
+            return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not list visual Annotations.",
+            )
+
+    def update_visual_annotation_presentation(
+        self,
+        annotation_id: str,
+        *,
+        kind: AnnotationKind | str,
+        color_label: str,
+        body: str,
+        tags: tuple[str, ...] | list[str] = (),
+        user_scope: str = "local",
+    ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
+        scope = self._scope_is_local(user_scope)
+        if scope is not None:
+            return self._result(scope.status, message=scope.message)
+        gate = self._write_gate(visual=True)
+        if gate is not None:
+            return self._result(gate.status, message=gate.message)
+        current = self.get_visual_annotation(annotation_id, user_scope=user_scope)
+        if not current.completed or current.value is None:
+            return current
+        if current.value.status == AnnotationStatus.ARCHIVED:
+            return self._result(
+                ReadingAnnotationOperationStatus.ARCHIVED,
+                current.value,
+                "Archived visual Annotations cannot be edited.",
+            )
+        associations = self._annotation_associations(
+            current.value,
+            require_active_document=True,
+        )
+        if not associations.completed:
+            return self._result(associations.status, message=associations.message)
+        try:
+            if color_label not in VISUAL_ANNOTATION_COLORS:
+                raise ValueError("color_label is not in the approved visual annotation palette")
+            updated = self.annotations.update_visual_presentation(
+                annotation_id,
+                kind=kind,
+                color_label=color_label,
+                body=body,
+                tags=tags,
+            )
+        except (ValidationError, ValueError, TypeError) as exc:
+            return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
+        except ReadingAnnotationConflictError as exc:
+            return self._result(ReadingAnnotationOperationStatus.CONFLICT, message=str(exc))
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not update the visual Annotation.",
+            )
+        if updated is None:
+            return self._result(
+                ReadingAnnotationOperationStatus.NOT_FOUND,
+                message="Visual Annotation not found.",
+            )
+        return self._result(
+            ReadingAnnotationOperationStatus.SUCCESS,
+            updated,
+            "Visual Annotation updated.",
+        )
+
+    def _visual_annotation_lifecycle(
+        self,
+        annotation_id: str,
+        *,
+        reactivate: bool,
+        user_scope: str,
+    ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
+        scope = self._scope_is_local(user_scope)
+        if scope is not None:
+            return self._result(scope.status, message=scope.message)
+        gate = self._write_gate(visual=True)
+        if gate is not None:
+            return self._result(gate.status, message=gate.message)
+        current = self.get_visual_annotation(annotation_id, user_scope=user_scope)
+        if not current.completed or current.value is None:
+            return current
+        if reactivate:
+            associations = self._annotation_associations(
+                current.value,
+                require_active_document=True,
+            )
+            if not associations.completed:
+                return self._result(associations.status, message=associations.message)
+        try:
+            value = (
+                self.annotations.reactivate(annotation_id)
+                if reactivate
+                else self.annotations.archive(annotation_id)
+            )
+        except Exception:
+            return self._result(
+                ReadingAnnotationOperationStatus.ERROR,
+                message="Could not update visual Annotation status.",
+            )
+        if value is None:
+            return self._result(
+                ReadingAnnotationOperationStatus.NOT_FOUND,
+                message="Visual Annotation not found.",
+            )
+        return self._result(ReadingAnnotationOperationStatus.SUCCESS, value)
+
+    def archive_visual_annotation(
+        self,
+        annotation_id: str,
+        *,
+        user_scope: str = "local",
+    ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
+        return self._visual_annotation_lifecycle(
+            annotation_id,
+            reactivate=False,
+            user_scope=user_scope,
+        )
+
+    def reactivate_visual_annotation(
+        self,
+        annotation_id: str,
+        *,
+        user_scope: str = "local",
+    ) -> ReadingAnnotationServiceResult[DocumentAnnotation]:
+        return self._visual_annotation_lifecycle(
+            annotation_id,
+            reactivate=True,
+            user_scope=user_scope,
+        )
 
     def create_note(
         self,

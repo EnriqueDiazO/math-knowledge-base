@@ -89,6 +89,8 @@ button:disabled {
 
 button:focus-visible,
 input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
 summary:focus-visible,
 #viewerContainer:focus-visible {
   outline: 3px solid color-mix(in srgb, var(--accent) 58%, transparent);
@@ -512,6 +514,142 @@ summary {
   background: var(--surface-subtle);
   font-size: 0.82rem;
   white-space: pre-wrap;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.selection-action-toolbar {
+  position: absolute;
+  z-index: 12;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  align-items: center;
+  max-width: calc(100% - 1rem);
+  max-height: calc(100% - 1rem);
+  padding: 0.4rem;
+  overflow: auto;
+  border: 1px solid var(--line);
+  border-radius: 0.6rem;
+  background: var(--surface);
+  box-shadow: var(--shadow);
+}
+
+.selection-action-toolbar button,
+.selection-action-toolbar select {
+  min-height: 2rem;
+  padding: 0.32rem 0.48rem;
+  font-size: 0.75rem;
+}
+
+.visual-form-grid,
+.visual-filters,
+.visual-edit-form {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.visual-form-grid,
+.visual-filters {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.visual-form-grid label,
+.visual-filters label,
+.visual-edit-form label,
+.visual-field {
+  display: grid;
+  gap: 0.25rem;
+  color: var(--muted);
+  font-size: 0.74rem;
+}
+
+.visual-form-grid select,
+.visual-filters select,
+.visual-edit-form select,
+.visual-edit-form textarea,
+.visual-edit-form input,
+.visual-field textarea,
+.visual-field input {
+  width: 100%;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.visual-field {
+  margin-block: 0.65rem;
+}
+
+.visual-card-list {
+  display: grid;
+  gap: 0.7rem;
+  margin-top: 0.75rem;
+}
+
+.visual-card {
+  padding: 0.65rem;
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 0.55rem;
+  background: var(--surface-subtle);
+}
+
+.visual-card.color-yellow { border-left-color: #d49b00; }
+.visual-card.color-green { border-left-color: #2f8a52; }
+.visual-card.color-blue { border-left-color: #2779bd; }
+.visual-card.color-pink { border-left-color: #c04c88; }
+.visual-card.color-purple { border-left-color: #8256b8; }
+
+.visual-card header {
+  display: flex;
+  justify-content: space-between;
+  gap: 0.5rem;
+  font-size: 0.76rem;
+  text-transform: capitalize;
+}
+
+.visual-card blockquote {
+  max-height: 5.5rem;
+  margin: 0.45rem 0;
+  overflow: auto;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.visual-card p,
+.visual-page-label {
+  overflow-wrap: anywhere;
+  font-size: 0.75rem;
+}
+
+.visual-page-label {
+  color: var(--muted);
+}
+
+.tag-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin: 0.45rem 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tag-list li {
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  color: var(--accent-strong);
+  background: var(--accent-soft);
+  font-size: 0.68rem;
 }
 
 .warning-banner {

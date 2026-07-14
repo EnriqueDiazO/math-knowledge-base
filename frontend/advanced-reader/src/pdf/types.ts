@@ -1,3 +1,7 @@
+import type {
+  NormalizedVisualRect,
+  VisualAnnotationRenderItem,
+} from "../annotations/types";
 import type { TextSelectionEvent } from "../selection/types";
 import type {
   PageChangeOrigin,
@@ -57,6 +61,12 @@ export interface PdfReaderController {
   rotateClockwise(): void;
   rotateCounterclockwise(): void;
   retryPage(page: number): void;
+  setVisualAnnotations(annotations: readonly VisualAnnotationRenderItem[]): void;
+  canonicalizeSelection(
+    pdfPage: number,
+    normalizedViewportRects: readonly NormalizedVisualRect[],
+  ): NormalizedVisualRect[] | null;
+  focusVisualAnnotation(annotationId: string): void;
   search(query: string, direction: SearchDirection, options: SearchOptions, again: boolean): void;
   clearSelection(reason?: SelectionClearReason): void;
 }

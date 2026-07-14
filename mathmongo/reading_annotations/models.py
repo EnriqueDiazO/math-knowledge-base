@@ -4,6 +4,10 @@
 
 from __future__ import annotations
 
+import hashlib
+import math
+import re
+from collections.abc import Mapping
 from datetime import datetime
 from datetime import timezone
 from enum import Enum
@@ -22,8 +26,11 @@ from mathmongo.reading_space.models import LOCAL_USER_SCOPE
 from mathmongo.source_catalog.models import validate_reference_id
 from mathmongo.source_catalog.models import validate_source_id
 from mathmongo.source_documents.models import validate_document_id
+from mathmongo.source_documents.models import validate_version_id
 
 READING_ANNOTATION_SCHEMA_VERSION = 1
+VISUAL_ANNOTATION_SCHEMA_VERSION = 2
+VISUAL_ANCHOR_SCHEMA_VERSION = 1
 MAX_ANNOTATION_TAGS = 50
 MAX_ANNOTATION_TAG_CHARS = 100
 MAX_BODY_CHARS = 100_000
@@ -33,6 +40,15 @@ MAX_SHORT_TEXT_CHARS = 500
 MAX_CONCEPT_ID_CHARS = 500
 MAX_CONCEPT_SOURCE_CHARS = 1_000
 MAX_SEARCH_QUERY_CHARS = 200
+MAX_VISUAL_QUOTE_CHARS = 4_096
+MAX_VISUAL_RECTS = 64
+VISUAL_RECT_BOUNDARY_TOLERANCE = 1e-9
+VISUAL_ANNOTATION_COLORS = frozenset({"yellow", "green", "blue", "pink", "purple"})
+SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
+HTML_MARKUP_RE = re.compile(
+    r"<!--[\s\S]*?-->|<!DOCTYPE\s+[^>]*>|</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*)?/?>",
+    flags=re.IGNORECASE,
+)
 
 
 def utc_now() -> datetime:
@@ -143,7 +159,7 @@ def _tags(value: Any) -> list[str]:
 
 
 def _strict_page(value: Any) -> Any:
-    if value is not None and type(value) is not int:
+    if value is not None and (not isinstance(value, int) or isinstance(value, bool)):
         raise ValueError("page values must be strict integers")
     return value
 
@@ -197,8 +213,128 @@ class EvidenceLinkStatus(str, Enum):
     ARCHIVED = "archived"
 
 
+def normalize_visual_quote_text(value: Any) -> str:
+    """Normalize the one persisted visual quote before hashing it."""
+    if not isinstance(value, str):
+        raise ValueError("visual quote_text must be Unicode text")
+    try:
+        value.encode("utf-8")
+    except UnicodeEncodeError as exc:
+        raise ValueError("visual quote_text must contain valid Unicode") from exc
+    if "\x00" in value:
+        raise ValueError("visual quote_text cannot contain NUL characters")
+    if HTML_MARKUP_RE.search(value):
+        raise ValueError("visual quote_text must be plain text without HTML markup")
+    normalized = re.sub(r"\s+", " ", value, flags=re.UNICODE).strip()
+    if not normalized:
+        raise ValueError("visual quote_text cannot be empty")
+    if len(normalized) > MAX_VISUAL_QUOTE_CHARS:
+        raise ValueError(f"visual quote_text cannot exceed {MAX_VISUAL_QUOTE_CHARS} characters")
+    return normalized
+
+
+def visual_text_sha256(value: Any) -> str:
+    """Hash the canonical UTF-8 representation of one visual quote."""
+    normalized = normalize_visual_quote_text(value)
+    return hashlib.sha256(normalized.encode("utf-8")).hexdigest()
+
+
+class NormalizedVisualRect(ReadingAnnotationModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    x: float
+    y: float
+    width: float
+    height: float
+
+    @field_validator("x", "y", "width", "height", mode="before")
+    @classmethod
+    def coordinates_are_finite_numbers(cls, value: Any, info: Any) -> float:
+        if isinstance(value, bool) or not isinstance(value, int | float):
+            raise ValueError(f"{info.field_name} must be a finite number")
+        number = float(value)
+        if not math.isfinite(number):
+            raise ValueError(f"{info.field_name} must be finite")
+        return number
+
+    @model_validator(mode="after")
+    def rectangle_is_normalized(self) -> NormalizedVisualRect:
+        if not 0 <= self.x <= 1 or not 0 <= self.y <= 1:
+            raise ValueError("visual rectangle x and y must be between 0 and 1")
+        if not 0 < self.width <= 1 or not 0 < self.height <= 1:
+            raise ValueError(
+                "visual rectangle width and height must be greater than 0 and at most 1"
+            )
+        if self.x + self.width > 1 + VISUAL_RECT_BOUNDARY_TOLERANCE:
+            raise ValueError("visual rectangle exceeds the horizontal page boundary")
+        if self.y + self.height > 1 + VISUAL_RECT_BOUNDARY_TOLERANCE:
+            raise ValueError("visual rectangle exceeds the vertical page boundary")
+        return self
+
+
+class VisualAnnotationAnchor(ReadingAnnotationModel):
+    model_config = ConfigDict(extra="forbid", frozen=True)
+
+    anchor_schema_version: Literal[1] = VISUAL_ANCHOR_SCHEMA_VERSION
+    version_id: str
+    document_sha256: str
+    pdf_page: int = Field(ge=1)
+    coordinate_space: Literal["normalized_unrotated_crop_box"] = "normalized_unrotated_crop_box"
+    capture_rotation: Literal[0, 90, 180, 270]
+    rects: tuple[NormalizedVisualRect, ...]
+    text_sha256: str
+    created_from: Literal["pdfjs_text_selection"] = "pdfjs_text_selection"
+
+    @field_validator("anchor_schema_version", mode="before")
+    @classmethod
+    def anchor_version_is_exact(cls, value: Any) -> int:
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or value != VISUAL_ANCHOR_SCHEMA_VERSION
+        ):
+            raise ValueError("anchor_schema_version must be exactly 1")
+        return value
+
+    @field_validator("version_id")
+    @classmethod
+    def version_id_is_valid(cls, value: Any) -> str:
+        return validate_version_id(value)
+
+    @field_validator("document_sha256", "text_sha256")
+    @classmethod
+    def hashes_are_canonical(cls, value: Any, info: Any) -> str:
+        text = str(value or "")
+        if not SHA256_RE.fullmatch(text):
+            raise ValueError(f"{info.field_name} must be 64 lowercase hexadecimal characters")
+        return text
+
+    @field_validator("pdf_page", mode="before")
+    @classmethod
+    def pdf_page_is_strict(cls, value: Any) -> Any:
+        if not isinstance(value, int) or isinstance(value, bool):
+            raise ValueError("pdf_page must be a strict integer")
+        return value
+
+    @field_validator("capture_rotation", mode="before")
+    @classmethod
+    def rotation_is_strict(cls, value: Any) -> Any:
+        if not isinstance(value, int) or isinstance(value, bool) or value not in {0, 90, 180, 270}:
+            raise ValueError("capture_rotation must be 0, 90, 180, or 270")
+        return value
+
+    @field_validator("rects", mode="before")
+    @classmethod
+    def rectangles_are_bounded(cls, value: Any) -> Any:
+        if not isinstance(value, list | tuple):
+            raise ValueError("rects must be a list or tuple")
+        if not 1 <= len(value) <= MAX_VISUAL_RECTS:
+            raise ValueError(f"rects must contain between 1 and {MAX_VISUAL_RECTS} rectangles")
+        return value
+
+
 class DocumentAnnotation(ReadingAnnotationModel):
-    schema_version: Literal[READING_ANNOTATION_SCHEMA_VERSION] = READING_ANNOTATION_SCHEMA_VERSION
+    schema_version: Literal[1, 2] = READING_ANNOTATION_SCHEMA_VERSION
     annotation_id: str = Field(default_factory=new_annotation_id, frozen=True)
     document_id: str = Field(frozen=True)
     source_id: str = Field(frozen=True)
@@ -212,14 +348,43 @@ class DocumentAnnotation(ReadingAnnotationModel):
     body: str = ""
     color_label: str | None = None
     tags: list[str] = Field(default_factory=list)
+    visual_anchor: VisualAnnotationAnchor | None = Field(default=None, frozen=True)
     created_at: datetime = Field(default_factory=utc_now)
     updated_at: datetime = Field(default_factory=utc_now)
     archived_at: datetime | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def visual_quote_is_normalized_before_generic_bounds(cls, value: Any) -> Any:
+        if not isinstance(value, Mapping):
+            return value
+        if value.get("schema_version", READING_ANNOTATION_SCHEMA_VERSION) != 2:
+            return value
+        if value.get("visual_anchor") is None:
+            return value
+        normalized = dict(value)
+        normalized["quote_text"] = normalize_visual_quote_text(value.get("quote_text"))
+        return normalized
 
     @field_validator("annotation_id")
     @classmethod
     def annotation_id_is_valid(cls, value: Any) -> str:
         return validate_annotation_id(value)
+
+    @field_validator("schema_version", mode="before")
+    @classmethod
+    def schema_version_is_exact(cls, value: Any) -> int:
+        if (
+            not isinstance(value, int)
+            or isinstance(value, bool)
+            or value
+            not in {
+                READING_ANNOTATION_SCHEMA_VERSION,
+                VISUAL_ANNOTATION_SCHEMA_VERSION,
+            }
+        ):
+            raise ValueError("schema_version must be exactly 1 or 2")
+        return value
 
     @field_validator("document_id")
     @classmethod
@@ -268,6 +433,24 @@ class DocumentAnnotation(ReadingAnnotationModel):
 
     @model_validator(mode="after")
     def annotation_is_consistent(self) -> DocumentAnnotation:
+        if self.schema_version == READING_ANNOTATION_SCHEMA_VERSION:
+            if self.visual_anchor is not None:
+                raise ValueError("schema_version=1 annotations cannot contain visual_anchor")
+        elif self.visual_anchor is not None:
+            if self.kind not in {AnnotationKind.HIGHLIGHT, AnnotationKind.UNDERLINE}:
+                raise ValueError("visual annotations must be highlights or underlines")
+            if self.page_number is None or self.page_number != self.visual_anchor.pdf_page:
+                raise ValueError("visual annotation page_number must match visual_anchor.pdf_page")
+            if not isinstance(self.quote_text, str) or not self.quote_text.strip():
+                raise ValueError("visual quote_text cannot be empty")
+            normalized_quote = normalize_visual_quote_text(self.quote_text)
+            if visual_text_sha256(normalized_quote) != self.visual_anchor.text_sha256:
+                raise ValueError("visual annotation quote_text does not match text_sha256")
+            color_label = self.color_label or "yellow"
+            if color_label not in VISUAL_ANNOTATION_COLORS:
+                raise ValueError("visual annotation color_label is not in the approved palette")
+            object.__setattr__(self, "quote_text", normalized_quote)
+            object.__setattr__(self, "color_label", color_label)
         if self.kind in {AnnotationKind.COMMENT, AnnotationKind.QUESTION} and not self.body:
             raise ValueError("body is required for comment and question annotations")
         if self.updated_at < self.created_at:
@@ -484,15 +667,24 @@ __all__ = [
     "EvidenceLinkType",
     "LOCAL_USER_SCOPE",
     "MAX_SEARCH_QUERY_CHARS",
+    "MAX_VISUAL_QUOTE_CHARS",
+    "MAX_VISUAL_RECTS",
+    "NormalizedVisualRect",
     "READING_ANNOTATION_SCHEMA_VERSION",
     "ReadingNote",
     "ReadingNoteStatus",
     "ReadingNoteType",
+    "VISUAL_ANCHOR_SCHEMA_VERSION",
+    "VISUAL_ANNOTATION_COLORS",
+    "VISUAL_ANNOTATION_SCHEMA_VERSION",
+    "VisualAnnotationAnchor",
     "new_annotation_id",
     "new_evidence_link_id",
     "new_note_id",
+    "normalize_visual_quote_text",
     "utc_now",
     "validate_annotation_id",
     "validate_evidence_link_id",
     "validate_note_id",
+    "visual_text_sha256",
 ]

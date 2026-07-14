@@ -1,15 +1,74 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
-const pdfJsMocks = vi.hoisted(() => ({
-  eventBuses: [] as unknown[],
-  findControllers: [] as unknown[],
-  getDocument: vi.fn(),
-  globalWorkerOptions: { workerSrc: "" },
-  inspectCanvasPaint: vi.fn(),
-  linkServices: [] as unknown[],
-  thumbnailManagers: [] as unknown[],
-  viewers: [] as unknown[],
-}));
+const pdfJsMocks = vi.hoisted(() => {
+  interface MockViewport {
+    readonly width: number;
+    readonly height: number;
+    readonly rotation: number;
+    clone(parameters?: { rotation?: number; scale?: number }): MockViewport;
+    convertToPdfPoint(x: number, y: number): [number, number];
+    convertToViewportPoint(pdfX: number, pdfY: number): [number, number];
+  }
+
+  const createViewport = (scale = 1, rotation = 0): MockViewport => {
+    const normalizedRotation = ((rotation % 360) + 360) % 360;
+    const [xMin, yMin, xMax, yMax] = [10, 20, 610, 820] as const;
+    const pageWidth = xMax - xMin;
+    const pageHeight = yMax - yMin;
+    const quarterTurn = normalizedRotation === 90 || normalizedRotation === 270;
+    return {
+      width: (quarterTurn ? pageHeight : pageWidth) * scale,
+      height: (quarterTurn ? pageWidth : pageHeight) * scale,
+      rotation: normalizedRotation,
+      clone(parameters = {}) {
+        return createViewport(
+          parameters.scale ?? scale,
+          parameters.rotation ?? normalizedRotation,
+        );
+      },
+      convertToPdfPoint(x, y) {
+        switch (normalizedRotation) {
+          case 0:
+            return [xMin + x / scale, yMax - y / scale];
+          case 90:
+            return [xMin + y / scale, yMin + x / scale];
+          case 180:
+            return [xMax - x / scale, yMin + y / scale];
+          case 270:
+            return [xMax - y / scale, yMax - x / scale];
+          default:
+            throw new RangeError("PDF.js only accepts quarter-turn rotations.");
+        }
+      },
+      convertToViewportPoint(pdfX, pdfY) {
+        switch (normalizedRotation) {
+          case 0:
+            return [(pdfX - xMin) * scale, (yMax - pdfY) * scale];
+          case 90:
+            return [(pdfY - yMin) * scale, (pdfX - xMin) * scale];
+          case 180:
+            return [(xMax - pdfX) * scale, (pdfY - yMin) * scale];
+          case 270:
+            return [(yMax - pdfY) * scale, (xMax - pdfX) * scale];
+          default:
+            throw new RangeError("PDF.js only accepts quarter-turn rotations.");
+        }
+      },
+    };
+  };
+
+  return {
+    createViewport,
+    eventBuses: [] as unknown[],
+    findControllers: [] as unknown[],
+    getDocument: vi.fn(),
+    globalWorkerOptions: { workerSrc: "" },
+    inspectCanvasPaint: vi.fn(),
+    linkServices: [] as unknown[],
+    thumbnailManagers: [] as unknown[],
+    viewers: [] as unknown[],
+  };
+});
 
 vi.mock("pdfjs-dist", () => ({
   AnnotationEditorType: { NONE: 0 },
@@ -99,6 +158,7 @@ vi.mock("pdfjs-dist/web/pdf_viewer.mjs", () => {
     readonly pageView: {
       div: HTMLDivElement;
       reset: ReturnType<typeof vi.fn>;
+      viewport: ReturnType<typeof pdfJsMocks.createViewport>;
     };
 
     constructor(options: { viewer: HTMLDivElement }) {
@@ -112,7 +172,11 @@ vi.mock("pdfjs-dist/web/pdf_viewer.mjs", () => {
       canvasWrapper.append(canvas);
       page.append(canvasWrapper);
       options.viewer.append(page);
-      this.pageView = { div: page, reset: vi.fn() };
+      this.pageView = {
+        div: page,
+        reset: vi.fn(),
+        viewport: pdfJsMocks.createViewport(),
+      };
       pdfJsMocks.viewers.push(this);
     }
 
@@ -160,6 +224,7 @@ import {
   PDFJS_VERSION,
   PdfJsController,
 } from "../src/pdf/PdfJsController";
+import type { VisualAnnotationRenderItem } from "../src/annotations/types";
 import type {
   PdfControllerHandlers,
   PdfControllerMountOptions,
@@ -189,6 +254,7 @@ interface MockViewer {
   pageView: {
     div: HTMLDivElement;
     reset: ReturnType<typeof vi.fn>;
+    viewport: ReturnType<typeof pdfJsMocks.createViewport>;
   };
   setDocument: ReturnType<typeof vi.fn>;
   update: ReturnType<typeof vi.fn>;
@@ -302,6 +368,25 @@ function controller(): PdfJsController {
   const instance = new PdfJsController();
   controllers.push(instance);
   return instance;
+}
+
+function visualAnnotation(
+  overrides: Partial<VisualAnnotationRenderItem> = {},
+): VisualAnnotationRenderItem {
+  return {
+    annotation_id: "ann_123e4567-e89b-42d3-a456-426614174000",
+    kind: "highlight",
+    status: "active",
+    pdf_page: 1,
+    color_label: "yellow",
+    visual_status: "exact",
+    visual_anchor: {
+      coordinate_space: "normalized_unrotated_crop_box",
+      capture_rotation: 0,
+      rects: [{ x: 0.1, y: 0.2, width: 0.3, height: 0.1 }],
+    },
+    ...overrides,
+  };
 }
 
 describe("PdfJsController", () => {
@@ -519,5 +604,84 @@ describe("PdfJsController", () => {
     expect(options.handlers.onPageRendered).not.toHaveBeenCalled();
     expect(options.handlers.onPageRenderFailed).toHaveBeenCalledOnce();
     expect(options.handlers.onPageRenderFailed).toHaveBeenCalledWith(2);
+  });
+
+  it("canonicalizes normalized selection rectangles through the active PDF.js viewport", async () => {
+    const instance = controller();
+    const mounted = await mountReady(instance, mountOptions());
+    mounted.view.pageView.viewport = pdfJsMocks.createViewport(2.4, 90);
+
+    const canonical = instance.canonicalizeSelection(1, [
+      { x: 0.7, y: 0.1, width: 0.1, height: 0.3 },
+    ]);
+
+    expect(canonical).toHaveLength(1);
+    expect(canonical?.[0]?.x).toBeCloseTo(0.1, 10);
+    expect(canonical?.[0]?.y).toBeCloseTo(0.2, 10);
+    expect(canonical?.[0]?.width).toBeCloseTo(0.3, 10);
+    expect(canonical?.[0]?.height).toBeCloseTo(0.1, 10);
+    expect(instance.canonicalizeSelection(4, [
+      { x: 0.1, y: 0.1, width: 0.2, height: 0.1 },
+    ])).toBeNull();
+    expect(instance.canonicalizeSelection(1, [
+      { x: 0.9, y: 0.1, width: 0.2, height: 0.1 },
+    ])).toBeNull();
+  });
+
+  it("mounts, refreshes, and destroys visual annotation layers with PDF.js pages", async () => {
+    const instance = controller();
+    const mounted = await mountReady(instance, mountOptions());
+    instance.setVisualAnnotations([visualAnnotation()]);
+
+    mounted.bus.dispatch("pagerendered", { pageNumber: 1, source: mounted.view });
+
+    const firstLayer = mounted.view.pageView.div.querySelector<HTMLElement>(
+      ":scope > .visualAnnotationLayer",
+    );
+    expect(firstLayer).not.toBeNull();
+    expect(firstLayer?.querySelector(".visual-annotation-mark")).toHaveStyle({
+      left: "10%",
+      top: "20%",
+      width: "30%",
+      height: "10%",
+    });
+
+    mounted.view.pageView.viewport = pdfJsMocks.createViewport(2.75, 90);
+    mounted.bus.dispatch("scalechanging", { scale: 2.75, source: mounted.view });
+
+    const refreshedLayer = mounted.view.pageView.div.querySelector<HTMLElement>(
+      ":scope > .visualAnnotationLayer",
+    );
+    expect(refreshedLayer).toBe(firstLayer);
+    expect(mounted.view.pageView.div.querySelectorAll(":scope > .visualAnnotationLayer")).toHaveLength(1);
+    expect(refreshedLayer?.querySelector(".visual-annotation-mark")).toHaveStyle({
+      left: "70%",
+      top: "10%",
+      width: "10%",
+      height: "30%",
+    });
+
+    instance.destroy();
+    expect(mounted.view.pageView.div.querySelector(":scope > .visualAnnotationLayer")).toBeNull();
+  });
+
+  it("navigates first and focuses a visual annotation after its page renders", async () => {
+    const instance = controller();
+    const mounted = await mountReady(instance, mountOptions());
+    instance.setVisualAnnotations([visualAnnotation()]);
+    mounted.view.currentPageNumber = 2;
+
+    instance.focusVisualAnnotation("ann_123e4567-e89b-42d3-a456-426614174000");
+
+    expect(mounted.view.currentPageNumber).toBe(1);
+    expect(mounted.view.pageView.div.querySelector(".visualAnnotationLayer")).toBeNull();
+
+    mounted.bus.dispatch("pagerendered", { pageNumber: 1, source: mounted.view });
+
+    const mark = mounted.view.pageView.div.querySelector<HTMLElement>(
+      '.visual-annotation-mark[data-annotation-id="ann_123e4567-e89b-42d3-a456-426614174000"]',
+    );
+    expect(mark).toHaveClass("is-targeted");
+    expect(mark?.style.outline).not.toBe("");
   });
 });

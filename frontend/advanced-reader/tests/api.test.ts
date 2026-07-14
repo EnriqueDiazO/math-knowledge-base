@@ -25,7 +25,11 @@ describe("same-origin API boundary", () => {
     await advancedReaderApi.getMetadata(DOCUMENT_ID);
     expect(fetchMock).toHaveBeenCalledWith(
       `/api/advanced-reader/documents/${DOCUMENT_ID}`,
-      expect.objectContaining({ credentials: "same-origin", cache: "no-store" }),
+      expect.objectContaining({
+        credentials: "same-origin",
+        cache: "no-store",
+        redirect: "error",
+      }),
     );
     expect(() => sameOriginUrl("https://example.test/reader.pdf")).toThrow();
   });
