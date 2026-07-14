@@ -56,6 +56,10 @@ from editor.reading_space.state import sync_user_scope
 from editor.source_catalog.shared import CatalogUIContext
 from editor.source_catalog.shared import render_active_database
 from editor.source_catalog.shared import safe_error_message
+from mathmongo.advanced_reader.streamlit_link import AdvancedReaderHealthStatus
+from mathmongo.advanced_reader.streamlit_link import build_advanced_reader_url
+from mathmongo.advanced_reader.streamlit_link import probe_advanced_reader
+from mathmongo.config import resolve_config
 from mathmongo.document_page_maps.service import DocumentPageMapService
 from mathmongo.reading_annotations.service import ReadingAnnotationService
 from mathmongo.reading_space.service import ReaderContext
@@ -285,6 +289,57 @@ def _run_state_action(
     return _result_ok(result)
 
 
+def _render_advanced_reader_link(
+    ui: Any,
+    document_id: str,
+    *,
+    enabled: bool,
+    configured: bool = True,
+) -> None:
+    """Render the explicit, optional link without starting a process or opening a tab."""
+    if not configured:
+        ui.caption("Lector avanzado deshabilitado en la configuración.")
+        return
+    if not enabled:
+        ui.caption("Lector avanzado no disponible para este Document.")
+        return
+    health = probe_advanced_reader()
+    try:
+        reader_url = build_advanced_reader_url(
+            document_id,
+            base_url=health.base_url,
+        )
+    except (TypeError, ValueError):
+        reader_url = None
+        status = AdvancedReaderHealthStatus.INVALID
+    else:
+        status = health.status
+
+    if status == AdvancedReaderHealthStatus.AVAILABLE:
+        ui.caption("Lector avanzado disponible.")
+    elif status == AdvancedReaderHealthStatus.NOT_STARTED:
+        ui.caption("Lector avanzado no iniciado. Ejecuta `make advanced-reader`.")
+    elif status == AdvancedReaderHealthStatus.TIMEOUT:
+        ui.caption(
+            "El lector avanzado no respondió a tiempo. "
+            "Ejecuta `make advanced-reader` y vuelve a intentar."
+        )
+    else:
+        ui.caption(
+            "La configuración o respuesta del lector avanzado no es válida. "
+            "Revisa MATHMONGO_ADVANCED_READER_URL."
+        )
+
+    if reader_url is not None:
+        ui.link_button(
+            "Abrir lector avanzado",
+            reader_url,
+            key=state_key("advanced_reader_link", document_id),
+            disabled=not enabled or status != AdvancedReaderHealthStatus.AVAILABLE,
+            width="content",
+        )
+
+
 def _render_reading_state_actions(
     ui: Any,
     service: ReadingSpaceService,
@@ -502,6 +557,12 @@ def _render_pdf_reader(
         page_map_service=page_map_service,
         page_map_actions_enabled=page_map_actions_enabled,
     )
+    _render_advanced_reader_link(
+        ui,
+        document.document_id,
+        enabled=document.status != DocumentStatus.ARCHIVED,
+        configured=resolve_config().advanced_reader_enabled,
+    )
     if ui.button(
         "Open PDF",
         key=state_key("reader_open_pdf", document.document_id),
@@ -546,6 +607,7 @@ def _render_web_reader(
         ui.caption(f"Kind: Web · Status: {_status_value(reader.effective_status)}")
         if document.description:
             ui.write(document.description)
+    ui.caption("Lector avanzado no disponible: el Document no es PDF.")
     with ui.expander("Technical details", expanded=False):
         ui.write(
             {

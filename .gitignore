@@ -126,3 +126,19 @@ CornellFormats/**/*.synctex.gz
 CornellFormats/**/Izquierda.pdf
 CornellFormats/**/Derecha.pdf
 CornellFormats/**/Abajo.pdf
+
+# Advanced Reader frontend dependencies and generated development output
+node_modules/
+frontend/**/node_modules/
+frontend/**/.vite/
+frontend/**/coverage/
+frontend/advanced-reader/dist/
+frontend/advanced-reader/generated/
+frontend/**/*.tsbuildinfo
+mathmongo/advanced_reader/static/advanced_reader.publish-*/
+mathmongo/advanced_reader/static/advanced_reader.backup-*/
+
+# Reproducible project locks and the two reviewed application entrypoints
+!poetry.lock
+!frontend/advanced-reader/index.html
+!mathmongo/advanced_reader/static/advanced_reader/index.html

@@ -19,6 +19,7 @@ packages = [
 ]
 include = [
     { path = "assets/icons/**", format = ["sdist", "wheel"] },
+    { path = "mathmongo/advanced_reader/static/**", format = ["sdist", "wheel"] },
     { path = "mathkb_config.py", format = ["sdist", "wheel"] },
     { path = "quarto_book/**", format = ["sdist", "wheel"] },
     { path = "scripts/make_desktop_shortcut.sh", format = ["sdist"] },
@@ -30,7 +31,7 @@ mathmongo = "mathmongo.cli:main"
 mathmongo-desktop = "mathmongo.desktop:main"
 
 [tool.poetry.dependencies]
-python = "^3.10"
+python = ">=3.10,<3.14"
 pydantic = "^2.7"
 pymongo = "^4.6"
 streamlit = { version = "^1.35", extras = ["pdf"] }
@@ -51,6 +52,8 @@ plotly = ">=5.0"
 # Otros si los usas:
 # latex2mathml = "^3.74"
 # watchdog = "^4.0"
+fastapi = ">=0.115,<1.0"
+uvicorn = ">=0.34,<1.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^8.2"

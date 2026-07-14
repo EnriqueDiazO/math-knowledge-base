@@ -12,7 +12,7 @@ EXPORTED_NOTES_BUILD_DIR := $(EXPORTED_NOTES_DIR)/_build
 
 
 
-.PHONY: start mongo stop restart status run gui lint export grafo \
+.PHONY: start mongo stop restart status run advanced-reader gui lint export grafo \
         book-clean book-export book-preview book-render \
         clean clean-all book-clean-artifacts clean-book cuaderno-install cuaderno-status clean-notes
 
@@ -38,6 +38,9 @@ status:
 
 run:
 	. mathdbmongo/bin/activate && streamlit run editor/editor_streamlit.py
+
+advanced-reader:
+	mathdbmongo/bin/python -m mathmongo.advanced_reader
 
 gui:
 	. mathdbmongo/bin/activate && python run_gui.py

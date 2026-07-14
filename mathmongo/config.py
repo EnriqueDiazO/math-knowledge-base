@@ -23,6 +23,9 @@ DEFAULT_MONGO_URI = "mongodb://localhost:27017"
 DEFAULT_MONGO_DATABASE = "mathmongo"
 DEFAULT_STREAMLIT_ADDRESS = "localhost"
 DEFAULT_STREAMLIT_PORT = 8501
+DEFAULT_ADVANCED_READER_HOST = "127.0.0.1"
+DEFAULT_ADVANCED_READER_PORT = 8766
+DEFAULT_ADVANCED_READER_PUBLIC_URL = "http://127.0.0.1:8766"
 REDACTED_MONGO_URI = "<redacted MongoDB URI>"
 
 
@@ -49,6 +52,10 @@ class AppConfig:
     streamlit_address: str = DEFAULT_STREAMLIT_ADDRESS
     streamlit_port: int = DEFAULT_STREAMLIT_PORT
     browser_enabled: bool = True
+    advanced_reader_enabled: bool = True
+    advanced_reader_host: str = DEFAULT_ADVANCED_READER_HOST
+    advanced_reader_port: int = DEFAULT_ADVANCED_READER_PORT
+    advanced_reader_public_url: str = DEFAULT_ADVANCED_READER_PUBLIC_URL
 
 
 def get_config_file(environment: Mapping[str, str] | None = None) -> Path:
@@ -77,6 +84,9 @@ def load_config(environment: Mapping[str, str] | None = None) -> AppConfig:
         browser_enabled = _parse_boolean(candidate.browser_enabled)
         if browser_enabled is None:
             raise ValueError("invalid browser_enabled value")
+        advanced_reader_enabled = _parse_boolean(candidate.advanced_reader_enabled)
+        if advanced_reader_enabled is None:
+            raise ValueError("invalid advanced_reader_enabled value")
         return AppConfig(
             config_version=int(candidate.config_version),
             mongo_uri=str(candidate.mongo_uri),
@@ -85,6 +95,10 @@ def load_config(environment: Mapping[str, str] | None = None) -> AppConfig:
             streamlit_address=str(candidate.streamlit_address),
             streamlit_port=int(candidate.streamlit_port),
             browser_enabled=browser_enabled,
+            advanced_reader_enabled=advanced_reader_enabled,
+            advanced_reader_host=str(candidate.advanced_reader_host),
+            advanced_reader_port=int(candidate.advanced_reader_port),
+            advanced_reader_public_url=str(candidate.advanced_reader_public_url),
         )
     except (TypeError, ValueError):
         return defaults
@@ -129,6 +143,8 @@ def resolve_config(
     mappings = {
         "MATHMONGO_EXPORT_DIRECTORY": "export_directory",
         "MATHMONGO_STREAMLIT_ADDRESS": "streamlit_address",
+        "MATHMONGO_ADVANCED_READER_HOST": "advanced_reader_host",
+        "MATHMONGO_ADVANCED_READER_URL": "advanced_reader_public_url",
     }
     for env_name, field in mappings.items():
         if env.get(env_name) not in (None, ""):
@@ -144,17 +160,28 @@ def resolve_config(
         parsed_browser = _parse_boolean(raw_env_browser)
         if parsed_browser is not None:
             env_values["browser_enabled"] = parsed_browser
+    raw_reader_port = env.get("MATHMONGO_ADVANCED_READER_PORT")
+    if raw_reader_port not in (None, ""):
+        try:
+            env_values["advanced_reader_port"] = int(raw_reader_port)
+        except (TypeError, ValueError):
+            pass
+    raw_reader_enabled = env.get("MATHMONGO_ADVANCED_READER_ENABLED")
+    if raw_reader_enabled not in (None, ""):
+        parsed_reader_enabled = _parse_boolean(raw_reader_enabled)
+        if parsed_reader_enabled is not None:
+            env_values["advanced_reader_enabled"] = parsed_reader_enabled
 
     values = {**asdict(config), **env_values}
     for key, value in (explicit or {}).items():
         if value is None:
             continue
-        if key == "streamlit_port":
+        if key in {"streamlit_port", "advanced_reader_port"}:
             try:
                 values[key] = int(value)
             except (TypeError, ValueError):
                 continue
-        elif key == "browser_enabled":
+        elif key in {"browser_enabled", "advanced_reader_enabled"}:
             parsed_browser = _parse_boolean(value)
             if parsed_browser is not None:
                 values[key] = parsed_browser

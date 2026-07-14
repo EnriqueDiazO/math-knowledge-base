@@ -307,3 +307,9 @@ texto, coordenadas, highlights visuales, overlays, OCR ni extracción.
 Un visor PDF.js con text layer y geometría podría permitir selección visual en
 una fase futura. Requerirá un diseño de seguridad, empaquetado offline y
 contratos propios; no forma parte de S4.3.
+
+## Continuidad con S5A
+
+S5A añade un lector PDF.js avanzado y aislado, sin reemplazar este flujo. S4.3
+continúa siendo la asociación estable de conceptos; integrar una selección
+visual del nuevo lector con conceptos queda expresamente para S5C.

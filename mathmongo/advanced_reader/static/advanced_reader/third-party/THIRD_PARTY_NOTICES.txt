@@ -1,0 +1,7 @@
+MathMongo Advanced Reader runtime dependencies
+
+pdfjs-dist 6.1.200 — Apache-2.0 — https://github.com/mozilla/pdf.js
+React 19.2.7 — MIT — https://github.com/facebook/react
+React DOM 19.2.7 — MIT — https://github.com/facebook/react
+
+The corresponding license texts are distributed in this directory.
