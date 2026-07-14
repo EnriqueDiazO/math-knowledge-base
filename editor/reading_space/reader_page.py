@@ -56,9 +56,9 @@ from editor.reading_space.state import sync_user_scope
 from editor.source_catalog.shared import CatalogUIContext
 from editor.source_catalog.shared import render_active_database
 from editor.source_catalog.shared import safe_error_message
-from mathmongo.advanced_reader.streamlit_link import AdvancedReaderHealthStatus
+from mathmongo.advanced_reader.streamlit_link import AdvancedReaderDocumentStatus
 from mathmongo.advanced_reader.streamlit_link import build_advanced_reader_url
-from mathmongo.advanced_reader.streamlit_link import probe_advanced_reader
+from mathmongo.advanced_reader.streamlit_link import probe_advanced_reader_document
 from mathmongo.config import resolve_config
 from mathmongo.document_page_maps.service import DocumentPageMapService
 from mathmongo.reading_annotations.service import ReadingAnnotationService
@@ -293,6 +293,7 @@ def _render_advanced_reader_link(
     ui: Any,
     document_id: str,
     *,
+    database_name: str,
     enabled: bool,
     configured: bool = True,
 ) -> None:
@@ -303,39 +304,49 @@ def _render_advanced_reader_link(
     if not enabled:
         ui.caption("Lector avanzado no disponible para este Document.")
         return
-    health = probe_advanced_reader()
+    readiness = probe_advanced_reader_document(document_id, database_name)
     try:
         reader_url = build_advanced_reader_url(
             document_id,
-            base_url=health.base_url,
+            base_url=readiness.base_url,
         )
     except (TypeError, ValueError):
         reader_url = None
-        status = AdvancedReaderHealthStatus.INVALID
+        status = AdvancedReaderDocumentStatus.INVALID
     else:
-        status = health.status
+        status = readiness.status
 
-    if status == AdvancedReaderHealthStatus.AVAILABLE:
-        ui.caption("Lector avanzado disponible.")
-    elif status == AdvancedReaderHealthStatus.NOT_STARTED:
-        ui.caption("Lector avanzado no iniciado. Ejecuta `make advanced-reader`.")
-    elif status == AdvancedReaderHealthStatus.TIMEOUT:
-        ui.caption(
-            "El lector avanzado no respondió a tiempo. "
-            "Ejecuta `make advanced-reader` y vuelve a intentar."
-        )
-    else:
-        ui.caption(
-            "La configuración o respuesta del lector avanzado no es válida. "
-            "Revisa MATHMONGO_ADVANCED_READER_URL."
-        )
+    messages = {
+        AdvancedReaderDocumentStatus.READY: "Lector avanzado listo.",
+        AdvancedReaderDocumentStatus.NOT_STARTED: (
+            "Lector avanzado no iniciado. Ejecuta `make run` y vuelve a intentar."
+        ),
+        AdvancedReaderDocumentStatus.DATABASE_MISMATCH: (
+            "Lector avanzado conectado a otra base. "
+            "Reinicia los servicios con la misma base activa."
+        ),
+        AdvancedReaderDocumentStatus.DOCUMENT_NOT_FOUND: (
+            "El Document no existe en la base del lector."
+        ),
+        AdvancedReaderDocumentStatus.NOT_PDF: "El Document no es PDF.",
+        AdvancedReaderDocumentStatus.INTEGRITY_ERROR: (
+            "El PDF tiene un problema de integridad. Usa Open PDF para revisar el fallback local."
+        ),
+        AdvancedReaderDocumentStatus.TIMEOUT: (
+            "El lector no respondió a tiempo. Open PDF continúa disponible."
+        ),
+        AdvancedReaderDocumentStatus.INVALID: (
+            "La configuración o respuesta del lector avanzado no es válida."
+        ),
+    }
+    ui.caption(messages[status])
 
     if reader_url is not None:
         ui.link_button(
             "Abrir lector avanzado",
             reader_url,
             key=state_key("advanced_reader_link", document_id),
-            disabled=not enabled or status != AdvancedReaderHealthStatus.AVAILABLE,
+            disabled=not enabled or status != AdvancedReaderDocumentStatus.READY,
             width="content",
         )
 
@@ -560,6 +571,7 @@ def _render_pdf_reader(
     _render_advanced_reader_link(
         ui,
         document.document_id,
+        database_name=context.database_name,
         enabled=document.status != DocumentStatus.ARCHIVED,
         configured=resolve_config().advanced_reader_enabled,
     )

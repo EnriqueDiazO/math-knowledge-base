@@ -115,8 +115,12 @@ mathdbmongo/bin/python -m mathmongo.advanced_reader \
   --log-level info
 ```
 
-También puede usarse `make advanced-reader`. `make run` conserva su semántica y
-no se inicia ni se detiene ningún proceso desde Streamlit.
+También puede usarse `make advanced-reader DATABASE=MathV0`. Desde S5B.1,
+`make run` delega en el supervisor local y arranca Streamlit y Advanced Reader
+con la misma base inicial; `make run-streamlit` conserva el arranque aislado.
+Streamlit sigue sin iniciar ni detener procesos desde la UI. El contrato completo
+está en
+[`UNIFIED_LOCAL_RUNTIME_S5B_1.md`](UNIFIED_LOCAL_RUNTIME_S5B_1.md).
 
 Opciones mínimas:
 
@@ -472,11 +476,13 @@ Document PDF activo añade **Abrir lector avanzado**, que construye:
 ```
 
 No añade database, Source, Reference, Mongo URI ni path. El link no abre una
-pestaña sin acción del usuario y nunca inicia el servidor. Un health check corto
-muestra disponible, no iniciado o timeout; un Document web aparece como no
-compatible. Si el servicio no está activo se muestra:
-
-> Ejecuta `make advanced-reader` en otra terminal.
+pestaña sin acción del usuario y nunca inicia el servidor. Desde S5B.1, el check
+acotado verifica también que health reporte la base activa y que metadata
+confirme un Document PDF con integridad `ok`; distingue servicio no iniciado,
+timeout, base diferente, Document ausente, tipo incompatible e integridad
+inválida. El selector de Streamlit puede cambiar de base, pero el proceso del
+lector continúa ligado a su base de arranque y el link queda deshabilitado hasta
+volver a alinear ambos servicios.
 
 La indisponibilidad del prototipo no degrada el lector Streamlit.
 

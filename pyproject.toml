@@ -19,6 +19,7 @@ packages = [
 ]
 include = [
     { path = "assets/icons/**", format = ["sdist", "wheel"] },
+    { path = "docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md", format = ["sdist", "wheel"] },
     { path = "docs/VISUAL_ANNOTATIONS_S5B.md", format = ["sdist", "wheel"] },
     { path = "mathmongo/advanced_reader/static/**", format = ["sdist", "wheel"] },
     { path = "mathkb_config.py", format = ["sdist", "wheel"] },

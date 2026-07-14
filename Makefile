@@ -10,9 +10,17 @@ BOOK_BUILD := quarto_book_build
 EXPORTED_NOTES_DIR := exported_notes
 EXPORTED_NOTES_BUILD_DIR := $(EXPORTED_NOTES_DIR)/_build
 
+DATABASE ?= MathV0
+STREAMLIT_HOST ?= 127.0.0.1
+STREAMLIT_PORT ?= 8501
+ADVANCED_READER_HOST ?= 127.0.0.1
+ADVANCED_READER_PORT ?= 8766
+LOG_LEVEL ?= info
+ADVANCED_READER_URL_HOST := $(if $(filter ::1,$(ADVANCED_READER_HOST)),[$(ADVANCED_READER_HOST)],$(ADVANCED_READER_HOST))
 
 
-.PHONY: start mongo stop restart status run advanced-reader gui lint export grafo \
+
+.PHONY: start mongo stop restart status run run-streamlit advanced-reader gui lint export grafo \
         book-clean book-export book-preview book-render \
         clean clean-all book-clean-artifacts clean-book cuaderno-install cuaderno-status clean-notes
 
@@ -37,10 +45,27 @@ status:
 # -----------------------
 
 run:
-	. mathdbmongo/bin/activate && streamlit run editor/editor_streamlit.py
+	mathdbmongo/bin/python -m mathmongo.local_runtime \
+		--database "$(DATABASE)" \
+		--streamlit-host "$(STREAMLIT_HOST)" \
+		--streamlit-port "$(STREAMLIT_PORT)" \
+		--advanced-reader-host "$(ADVANCED_READER_HOST)" \
+		--advanced-reader-port "$(ADVANCED_READER_PORT)" \
+		--log-level "$(LOG_LEVEL)"
+
+run-streamlit:
+	MONGODB_DB="$(DATABASE)" \
+	MATHMONGO_ADVANCED_READER_URL="http://$(ADVANCED_READER_URL_HOST):$(ADVANCED_READER_PORT)" \
+	mathdbmongo/bin/python -m streamlit run editor/editor_streamlit.py \
+		--server.address "$(STREAMLIT_HOST)" \
+		--server.port "$(STREAMLIT_PORT)"
 
 advanced-reader:
-	mathdbmongo/bin/python -m mathmongo.advanced_reader
+	mathdbmongo/bin/python -m mathmongo.advanced_reader \
+		--host "$(ADVANCED_READER_HOST)" \
+		--port "$(ADVANCED_READER_PORT)" \
+		--database "$(DATABASE)" \
+		--log-level "$(LOG_LEVEL)"
 
 gui:
 	. mathdbmongo/bin/activate && python run_gui.py

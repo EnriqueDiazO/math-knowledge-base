@@ -270,20 +270,37 @@ pdflatex Notas.tex
 
 Generated Cornell exports live under `runtime/cornell_exports/`. Safe cleanup should preserve sources, `README.md`, `metadata.json`, required images such as `lineas.png`, and the final `Notas.pdf` when present; remove only LaTeX auxiliary files and explicitly selected intermediate regional PDFs.
 
-### 6. Run the Streamlit app
+### 6. Run MathMongo locally
 
 ```bash
 make run
 ```
 
-Or directly:
+This starts and supervises both Streamlit and the Advanced Reader in the
+foreground. Both default to `MathV0`; Streamlit listens on
+`http://127.0.0.1:8501` and the reader on `http://127.0.0.1:8766`. Press
+`Ctrl+C` to stop only the services created by this launcher.
+
+The services can still be run separately:
 
 ```bash
-source mathdbmongo/bin/activate
-streamlit run editor/editor_streamlit.py
+make run-streamlit
+make advanced-reader DATABASE=MathV0
 ```
 
-The app opens at `http://localhost:8501`.
+Use one-off Make overrides for another database or free ports, for example:
+
+```bash
+make run DATABASE=otra_base STREAMLIT_PORT=8502 ADVANCED_READER_PORT=8767
+```
+
+Both hosts remain loopback-only. An existing compatible Advanced Reader may be
+reused and will not be stopped; an unknown Streamlit listener or a reader bound
+to another database blocks startup without killing either process. If the
+database is changed later in the Streamlit sidebar, the reader remains bound to
+its startup database. See
+[`docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md`](docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md) for
+health checks, port handling and troubleshooting.
 
 ### 7. Optional desktop shortcut
 
