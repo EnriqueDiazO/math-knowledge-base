@@ -52,6 +52,10 @@ export const metadata: DocumentMetadata = {
     persistent_underlines: false,
     visual_annotation_editing: false,
     visual_annotation_archiving: false,
+    concept_search: false,
+    annotation_concept_links: false,
+    concept_link_archive: false,
+    concept_link_reactivate: false,
     concept_linking: false,
   },
 };
@@ -84,6 +88,19 @@ export function makeApi(overrides: Partial<AdvancedReaderApi> = {}): AdvancedRea
     updateVisualAnnotation: vi.fn(),
     archiveVisualAnnotation: vi.fn(),
     reactivateVisualAnnotation: vi.fn(),
+    searchConcepts: vi.fn().mockResolvedValue({ items: [], page: 1, page_size: 20, has_more: false }),
+    listAnnotationConceptEvidence: vi.fn().mockResolvedValue({
+      items: [], page: 1, page_size: 25, total: 0, pages: 0,
+    }),
+    createAnnotationConceptEvidence: vi.fn(),
+    archiveConceptEvidence: vi.fn(),
+    reactivateConceptEvidence: vi.fn(),
+    listDocumentConceptEvidence: vi.fn().mockResolvedValue({
+      items: [], page: 1, page_size: 25, total: 0, pages: 0,
+    }),
+    listUnlinkedVisualAnnotations: vi.fn().mockResolvedValue({
+      items: [], page: 1, page_size: 25, total: 0, pages: 0,
+    }),
     pdfUrl: vi.fn(() => `/api/advanced-reader/documents/${DOCUMENT_ID}/pdf`),
     ...overrides,
   };

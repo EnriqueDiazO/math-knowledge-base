@@ -228,3 +228,11 @@ overlays.
 S5C queda reservado al flujo explícito selección visual →
 `DocumentAnnotation` → Guided Concept Linking → `ConceptEvidenceLink`. S5B no
 asocia conceptos automáticamente.
+
+### Continuidad implementada en S5C
+
+S5C compone el flujo reservado sin cambiar este contrato: el Advanced Reader
+asocia conceptos sólo después de guardar una Annotation visual activa y exacta,
+y persiste `ConceptEvidenceLink` con el mismo `annotation_id`. Overlay,
+geometría, PDF y lifecycle de la Annotation permanecen independientes del
+lifecycle del vínculo.

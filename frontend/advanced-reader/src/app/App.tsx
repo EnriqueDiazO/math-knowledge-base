@@ -12,6 +12,8 @@ import {
   parseVisualAnnotationTags,
 } from "../annotations/ui";
 import { DocumentInspector } from "../components/DocumentInspector";
+import { ConceptLinkWizard } from "../concepts/ConceptLinkWizard";
+import { ConceptPanels } from "../concepts/ConceptPanels";
 import { ReaderStatus } from "../components/ReaderStatus";
 import { SelectionActionToolbar } from "../components/SelectionActionToolbar";
 import { SelectionInspector } from "../components/SelectionInspector";
@@ -35,9 +37,12 @@ import { limitSearchQuery, normalizeSearchQuery } from "../pdf/search";
 import type { TextSelectionEvent } from "../selection/types";
 import type {
   CreateVisualAnnotation,
+  ConceptEvidence,
   DocumentMetadata,
+  DocumentConceptGroup,
   PageLabel,
   UpdateVisualAnnotation,
+  UnlinkedVisualAnnotation,
   VisualAnnotation,
   VisualAnnotationColor,
   VisualAnnotationKind,
@@ -284,6 +289,14 @@ export function AdvancedReaderApp({
   const [visualListPages, setVisualListPages] = useState(0);
   const [visualListLoading, setVisualListLoading] = useState(false);
   const [visualReloadKey, setVisualReloadKey] = useState(0);
+  const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
+  const [recentVisualAnnotationId, setRecentVisualAnnotationId] = useState<string | null>(null);
+  const [conceptGroups, setConceptGroups] = useState<DocumentConceptGroup[]>([]);
+  const [unlinkedVisualAnnotations, setUnlinkedVisualAnnotations] = useState<UnlinkedVisualAnnotation[]>([]);
+  const [conceptLoading, setConceptLoading] = useState(false);
+  const [conceptListPage, setConceptListPage] = useState(1);
+  const [conceptListPages, setConceptListPages] = useState(0);
+  const [conceptReloadKey, setConceptReloadKey] = useState(0);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [pageRenderFailure, setPageRenderFailure] = useState<number | null>(null);
 
@@ -329,6 +342,13 @@ export function AdvancedReaderApp({
     setVisualListPage(1);
     setVisualListPages(0);
     setVisualReloadKey(0);
+    setSelectedAnnotationId(null);
+    setRecentVisualAnnotationId(null);
+    setConceptGroups([]);
+    setUnlinkedVisualAnnotations([]);
+    setConceptListPage(1);
+    setConceptListPages(0);
+    setConceptReloadKey(0);
     setSearchQuery("");
     setSearchStatus("idle");
     setSearchCurrent(0);
@@ -663,6 +683,34 @@ export function AdvancedReaderApp({
     return () => abortController.abort();
   }, [api, currentPage, mergeVisualAnnotations, metadata, totalPages, visualReloadKey]);
 
+  useEffect(() => {
+    if (metadata === null || !metadata.capabilities.concept_search) return;
+    const abortController = new AbortController();
+    setConceptLoading(true);
+    void Promise.all([
+      api.listDocumentConceptEvidence(
+        metadata.document_id,
+        { status: "all", page: conceptListPage, limit: 50 },
+        abortController.signal,
+      ),
+      api.listUnlinkedVisualAnnotations(
+        metadata.document_id,
+        { pdfPage: currentPage, page: 1, limit: 50 },
+        abortController.signal,
+      ),
+    ]).then(([concepts, unlinked]) => {
+      if (abortController.signal.aborted) return;
+      setConceptGroups((current) => conceptListPage === 1
+        ? concepts.items
+        : [...current, ...concepts.items]);
+      setConceptListPages(concepts.pages);
+      setUnlinkedVisualAnnotations(unlinked.items);
+    }).catch(() => undefined).finally(() => {
+      if (!abortController.signal.aborted) setConceptLoading(false);
+    });
+    return () => abortController.abort();
+  }, [api, conceptListPage, conceptReloadKey, currentPage, metadata]);
+
   const ready = phase === "ready" || phase === "page_render_failed";
   const executeSearch = (direction: SearchDirection, again: boolean) => {
     if (metadata === null) return;
@@ -768,6 +816,7 @@ export function AdvancedReaderApp({
       const annotation = await api.createVisualAnnotation(metadata.document_id, payload);
       mergeVisualAnnotations([annotation]);
       setVisualReloadKey((value) => value + 1);
+      setRecentVisualAnnotationId(annotation.annotation_id);
       setVisualDraft(null);
       setDraftSelection(null);
       controllerRef.current?.clearSelection("user");
@@ -810,10 +859,61 @@ export function AdvancedReaderApp({
     }
   };
 
+  const openConceptWizard = async (annotationId: string) => {
+    const known = visualAnnotationsRef.current.get(annotationId);
+    if (known !== undefined) {
+      setSelectedAnnotationId(annotationId);
+      return;
+    }
+    try {
+      const annotation = await api.getVisualAnnotation(annotationId);
+      mergeVisualAnnotations([annotation]);
+      setSelectedAnnotationId(annotation.annotation_id);
+    } catch {
+      // The bounded read panels will refresh; arbitrary server text is never exposed.
+    }
+  };
+
+  const refreshConceptEvidence = () => {
+    setConceptListPage(1);
+    setConceptReloadKey((value) => value + 1);
+  };
+
+  const archiveConceptEvidence = async (evidenceLinkId: string) => {
+    await api.archiveConceptEvidence(evidenceLinkId);
+    refreshConceptEvidence();
+  };
+
+  const reactivateConceptEvidence = async (evidenceLinkId: string) => {
+    await api.reactivateConceptEvidence(evidenceLinkId);
+    refreshConceptEvidence();
+  };
+
+  const navigateToConceptEvidence = (evidence: ConceptEvidence) => {
+    const context = evidence.annotation;
+    if (context === null) return;
+    controllerRef.current?.goToPage(context.pdf_page, "pdfjs");
+    window.setTimeout(() => {
+      controllerRef.current?.focusVisualAnnotation(context.annotation_id);
+    }, 0);
+  };
+
   const sidebarVisualAnnotations = visualListIds
     .map((annotationId) => visualAnnotations.get(annotationId))
     .filter((annotation): annotation is VisualAnnotation => annotation !== undefined);
   const canPersistVisualAnnotations = visualWriteEnabled(metadata);
+  const selectedConceptAnnotation = selectedAnnotationId === null
+    ? null
+    : visualAnnotations.get(selectedAnnotationId) ?? null;
+  const conceptEvidenceByAnnotation = conceptGroups
+    .flatMap((group) => group.evidence)
+    .reduce<Record<string, ConceptEvidence[]>>((result, evidence) => {
+      const annotationId = evidence.annotation?.annotation_id;
+      if (annotationId !== undefined) {
+        (result[annotationId] ??= []).push(evidence);
+      }
+      return result;
+    }, {});
 
   if (phase === "error" || documentId === null) {
     const visibleError = error ?? appError(new ReaderApiError("invalid_document_id", "Invalid."));
@@ -964,6 +1064,36 @@ export function AdvancedReaderApp({
               onCancel={cancelVisualDraft}
             />
           )}
+          {recentVisualAnnotationId !== null && selectedAnnotationId === null && (
+            <section className="inspector-card saved-visual-action" role="status">
+              <strong>Marca visual guardada.</strong>
+              <div className="button-row">
+                <button
+                  type="button"
+                  onClick={() => void openConceptWizard(recentVisualAnnotationId)}
+                >
+                  Asociar concepto
+                </button>
+                <button type="button" onClick={() => setRecentVisualAnnotationId(null)}>
+                  Seguir leyendo
+                </button>
+              </div>
+            </section>
+          )}
+          {selectedConceptAnnotation !== null && (
+            <ConceptLinkWizard
+              api={api}
+              metadata={metadata}
+              annotation={selectedConceptAnnotation}
+              canWrite={metadata.capabilities.concept_linking}
+              onSaved={() => {
+                setSelectedAnnotationId(null);
+                setRecentVisualAnnotationId(null);
+                refreshConceptEvidence();
+              }}
+              onCancel={() => setSelectedAnnotationId(null)}
+            />
+          )}
           <VisualAnnotationsPanel
             annotations={sidebarVisualAnnotations}
             currentPage={currentPage}
@@ -971,13 +1101,37 @@ export function AdvancedReaderApp({
             loading={visualListLoading}
             hasMore={visualListPage < visualListPages}
             canMutate={canPersistVisualAnnotations}
+            canLinkConcepts={metadata.capabilities.concept_linking}
+            canArchiveConceptLinks={metadata.capabilities.concept_link_archive}
+            canReactivateConceptLinks={metadata.capabilities.concept_link_reactivate}
+            conceptEvidenceByAnnotation={conceptEvidenceByAnnotation}
             onFilters={setVisualFilters}
             onLoadMore={() => setVisualListPage((value) => value + 1)}
             onNavigate={navigateToVisualAnnotation}
             onUpdate={updateVisualAnnotation}
             onArchive={archiveVisualAnnotation}
             onReactivate={reactivateVisualAnnotation}
+            onLinkConcept={(annotation) => setSelectedAnnotationId(annotation.annotation_id)}
+            onArchiveConceptLink={archiveConceptEvidence}
+            onReactivateConceptLink={reactivateConceptEvidence}
           />
+          {metadata.capabilities.concept_search && (
+            <ConceptPanels
+              groups={conceptGroups}
+              unlinked={unlinkedVisualAnnotations}
+              currentPage={currentPage}
+              loading={conceptLoading}
+              canLink={metadata.capabilities.concept_linking}
+              canArchive={metadata.capabilities.concept_link_archive}
+              canReactivate={metadata.capabilities.concept_link_reactivate}
+              hasMore={conceptListPage < conceptListPages}
+              onLoadMore={() => setConceptListPage((value) => value + 1)}
+              onLink={(annotationId) => void openConceptWizard(annotationId)}
+              onNavigate={navigateToConceptEvidence}
+              onArchive={archiveConceptEvidence}
+              onReactivate={reactivateConceptEvidence}
+            />
+          )}
           {saveStatus === "saved" && <p className="save-feedback success" role="status">Posición guardada.</p>}
           {saveStatus === "error" && <p className="save-feedback error" role="alert">No se pudo guardar la posición.</p>}
         </aside>

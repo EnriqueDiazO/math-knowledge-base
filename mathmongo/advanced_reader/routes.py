@@ -15,6 +15,7 @@ from fastapi import Request
 from fastapi.responses import Response
 from fastapi.responses import StreamingResponse
 
+from mathmongo.advanced_reader.concept_routes import build_concept_router
 from mathmongo.advanced_reader.dependencies import AdvancedReaderDependencies
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.advanced_reader.document_access import DocumentAccessService
@@ -208,6 +209,8 @@ def build_api_router() -> APIRouter:
         book_label, display_label = access.page_label(document_id, current_page)
         reference = context.reference
         visual_writes_ready = dependencies.visual_annotation_writes_ready
+        concept_search_ready = dependencies.concept_search_ready
+        concept_writes_ready = dependencies.concept_link_writes_ready
         return DocumentMetadataResponse(
             document_id=document_id,
             title=context.document.title,
@@ -246,6 +249,11 @@ def build_api_router() -> APIRouter:
                 persistent_underlines=visual_writes_ready,
                 visual_annotation_editing=visual_writes_ready,
                 visual_annotation_archiving=visual_writes_ready,
+                concept_search=concept_search_ready,
+                annotation_concept_links=concept_writes_ready,
+                concept_link_archive=concept_writes_ready,
+                concept_link_reactivate=concept_writes_ready,
+                concept_linking=concept_writes_ready,
             ),
         )
 
@@ -637,6 +645,7 @@ def build_api_router() -> APIRouter:
         del payload
         return visual_lifecycle_response(annotation_id, request, reactivate=True)
 
+    router.include_router(build_concept_router())
     return router
 
 

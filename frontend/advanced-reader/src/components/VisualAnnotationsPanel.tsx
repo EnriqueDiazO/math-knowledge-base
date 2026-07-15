@@ -7,6 +7,7 @@ import {
   visualQuotePreview,
 } from "../annotations/ui";
 import type {
+  ConceptEvidence,
   UpdateVisualAnnotation,
   VisualAnnotation,
   VisualAnnotationColor,
@@ -26,12 +27,19 @@ interface VisualAnnotationsPanelProps {
   loading: boolean;
   hasMore: boolean;
   canMutate: boolean;
+  canLinkConcepts: boolean;
+  canArchiveConceptLinks: boolean;
+  canReactivateConceptLinks: boolean;
+  conceptEvidenceByAnnotation: Record<string, ConceptEvidence[]>;
   onFilters(filters: VisualAnnotationFilters): void;
   onLoadMore(): void;
   onNavigate(annotation: VisualAnnotation): void;
   onUpdate(annotationId: string, patch: UpdateVisualAnnotation): Promise<void>;
   onArchive(annotationId: string): Promise<void>;
   onReactivate(annotationId: string): Promise<void>;
+  onLinkConcept(annotation: VisualAnnotation): void;
+  onArchiveConceptLink(evidenceLinkId: string): Promise<void>;
+  onReactivateConceptLink(evidenceLinkId: string): Promise<void>;
 }
 
 interface EditDraft {
@@ -57,12 +65,19 @@ export function VisualAnnotationsPanel({
   loading,
   hasMore,
   canMutate,
+  canLinkConcepts,
+  canArchiveConceptLinks,
+  canReactivateConceptLinks,
+  conceptEvidenceByAnnotation,
   onFilters,
   onLoadMore,
   onNavigate,
   onUpdate,
   onArchive,
   onReactivate,
+  onLinkConcept,
+  onArchiveConceptLink,
+  onReactivateConceptLink,
 }: VisualAnnotationsPanelProps) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState<EditDraft | null>(null);
@@ -154,6 +169,7 @@ export function VisualAnnotationsPanel({
         {visible.map((annotation) => {
           const isEditing = editing === annotation.annotation_id && draft !== null;
           const isBusy = busy === annotation.annotation_id;
+          const conceptEvidence = conceptEvidenceByAnnotation[annotation.annotation_id] ?? [];
           return (
             <article
               key={annotation.annotation_id}
@@ -300,7 +316,49 @@ export function VisualAnnotationsPanel({
                     Reactivar
                   </button>
                 )}
+                {canLinkConcepts && annotation.status === "active" &&
+                  annotation.visual_status === "exact" && !isEditing && (
+                  <button type="button" disabled={isBusy} onClick={() => onLinkConcept(annotation)}>
+                    Asociar concepto
+                  </button>
+                )}
               </div>
+              <section className="annotation-concepts" aria-label="Conceptos asociados">
+                <h3>Conceptos asociados</h3>
+                {conceptEvidence.map((evidence) => (
+                  <article key={evidence.evidence_link_id} className="annotation-concept-card">
+                    <strong>{evidence.concept.title}</strong>
+                    <p>{evidence.link_type_label} · {evidence.status}</p>
+                    {evidence.comment && <p>{evidence.comment}</p>}
+                    <p>Source legacy: {evidence.concept.concept_legacy_source}</p>
+                    <div className="button-row">
+                      <button type="button" onClick={() => onNavigate(annotation)}>Ir a la marca</button>
+                      {evidence.status === "active" && canArchiveConceptLinks && (
+                        <button
+                          type="button"
+                          onClick={() => void onArchiveConceptLink(evidence.evidence_link_id)}
+                        >
+                          Archivar vínculo
+                        </button>
+                      )}
+                      {evidence.status === "archived" && annotation.status === "active" &&
+                        canReactivateConceptLinks && (
+                        <button
+                          type="button"
+                          onClick={() => void onReactivateConceptLink(evidence.evidence_link_id)}
+                        >
+                          Reactivar vínculo
+                        </button>
+                      )}
+                    </div>
+                    {evidence.status === "archived" && annotation.status === "archived" && (
+                      <p className="muted">Reactiva primero la marca visual para reactivar el vínculo.</p>
+                    )}
+                    <details><summary>Ver detalles</summary><p>{evidence.evidence_link_id}</p></details>
+                  </article>
+                ))}
+                {conceptEvidence.length === 0 && <p className="muted">Sin conceptos asociados.</p>}
+              </section>
               <details>
                 <summary>Mostrar detalles técnicos</summary>
                 <dl className="technical-ids">
@@ -320,9 +378,6 @@ export function VisualAnnotationsPanel({
       {filters.scope === "document" && hasMore && (
         <button type="button" disabled={loading} onClick={onLoadMore}>Cargar más</button>
       )}
-      <p className="future-note">
-        Puedes vincular esta anotación a un concepto desde Reading Space.
-      </p>
     </section>
   );
 }

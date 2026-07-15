@@ -90,7 +90,11 @@ class ReaderCapabilities(TransportModel):
     persistent_underlines: bool = False
     visual_annotation_editing: bool = False
     visual_annotation_archiving: bool = False
-    concept_linking: Literal[False] = False
+    concept_search: bool = False
+    annotation_concept_links: bool = False
+    concept_link_archive: bool = False
+    concept_link_reactivate: bool = False
+    concept_linking: bool = False
 
 
 class DocumentMetadataResponse(TransportModel):

@@ -325,3 +325,11 @@ visual** y sigue ofreciendo el flujo S4.3.
 S5B no añade búsqueda de conceptos ni creación de vínculos al Advanced Reader.
 El flujo integrado selección visual → marca → asociación guiada queda reservado
 para S5C.
+
+## Continuidad implementada en S5C
+
+Advanced Reader reutiliza la búsqueda proyectada, las etiquetas de los ocho
+tipos y `ReadingAnnotationService`. Una marca visual se vincula mediante el
+mismo `ConceptEvidenceLink` y `annotation_id` que S4.3; no hay bridge ni
+colección paralela. Streamlit conserva la evidencia S4 completa, mientras el
+panel PDF.js limita sus resúmenes a evidencia visual.

@@ -685,6 +685,86 @@ summary {
   line-height: 1.45;
 }
 
+.wizard-steps {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0.35rem;
+  margin: 0 0 0.8rem;
+  padding: 0;
+  list-style: none;
+  font-size: 0.72rem;
+}
+
+.wizard-steps li {
+  padding: 0.45rem 0.3rem;
+  border: 1px solid var(--border, #d9d5cc);
+  border-radius: 0.4rem;
+  text-align: center;
+}
+
+.wizard-steps li[aria-current="step"] {
+  border-color: #5b5bd6;
+  background: color-mix(in srgb, #5b5bd6 10%, transparent);
+  font-weight: 700;
+}
+
+.concept-step,
+.concept-card-list,
+.annotation-concepts,
+.concept-panels,
+.concept-group-card details,
+.concept-group-card,
+.concept-evidence-card {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.concept-step form {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 0.45rem;
+  align-items: end;
+}
+
+.concept-card,
+.annotation-preview,
+.annotation-concept-card,
+.concept-group-card,
+.concept-evidence-card,
+.unlinked-visual-card {
+  padding: 0.65rem;
+  border: 1px solid var(--border, #d9d5cc);
+  border-radius: 0.55rem;
+  background: var(--panel, #fff);
+}
+
+.concept-card.selected {
+  border-color: #5b5bd6;
+  box-shadow: inset 0 0 0 1px #5b5bd6;
+}
+
+.concept-card h3,
+.concept-group-card h3,
+.annotation-concepts h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.concept-card p,
+.concept-group-card p,
+.concept-evidence-card p,
+.annotation-concept-card p,
+.unlinked-visual-card p {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.concept-panels > h2:not(:first-of-type) {
+  margin-top: 1rem;
+  padding-top: 0.8rem;
+  border-top: 1px solid var(--border, #d9d5cc);
+}
+
 .future-note {
   margin: 0.85rem 0 0;
   padding-top: 0.7rem;

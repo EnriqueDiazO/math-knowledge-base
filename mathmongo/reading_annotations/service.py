@@ -1455,6 +1455,37 @@ class ReadingAnnotationService:
             candidate = ConceptEvidenceLink.model_validate(values)
         except (ValidationError, ValueError) as exc:
             return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
+        try:
+            existing_id = self.evidence.get_by_id(candidate.evidence_link_id)
+        except Exception:
+            existing_id = None
+        if existing_id is not None:
+            comparable = (
+                "concept_legacy_id",
+                "concept_legacy_source",
+                "source_id",
+                "reference_id",
+                "document_id",
+                "annotation_id",
+                "note_id",
+                "page_number",
+                "link_type",
+                "comment",
+                "status",
+            )
+            if all(
+                getattr(existing_id, field) == getattr(candidate, field) for field in comparable
+            ):
+                return self._result(
+                    ReadingAnnotationOperationStatus.IDENTICAL,
+                    existing_id,
+                    "Concept evidence was already linked.",
+                )
+            return self._result(
+                ReadingAnnotationOperationStatus.CONFLICT,
+                existing_id,
+                "Concept evidence identity conflicts with persisted content.",
+            )
         source = self._source(candidate.source_id)
         if not source.completed:
             return self._result(source.status, message=source.message)
@@ -1493,6 +1524,27 @@ class ReadingAnnotationService:
                 ReadingAnnotationOperationStatus.SUCCESS, value, "Concept evidence linked."
             )
         except ReadingAnnotationConflictError as exc:
+            try:
+                concurrent = self.evidence.get_by_id(candidate.evidence_link_id)
+            except Exception:
+                concurrent = None
+            if concurrent is not None and all(
+                getattr(concurrent, field) == getattr(candidate, field)
+                for field in (
+                    "concept_legacy_id",
+                    "concept_legacy_source",
+                    "source_id",
+                    "reference_id",
+                    "document_id",
+                    "annotation_id",
+                    "note_id",
+                    "page_number",
+                    "link_type",
+                    "comment",
+                    "status",
+                )
+            ):
+                return self._result(ReadingAnnotationOperationStatus.IDENTICAL, concurrent)
             return self._result(ReadingAnnotationOperationStatus.CONFLICT, message=str(exc))
         except (ValidationError, ValueError) as exc:
             return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))

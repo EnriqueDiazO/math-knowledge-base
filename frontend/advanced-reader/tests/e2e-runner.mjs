@@ -26,6 +26,8 @@ const expectedUnderlinePage = Number(
 );
 const underlineSearchText =
   process.env.MATHMONGO_ADVANCED_READER_E2E_UNDERLINE_TEXT ?? "gamma";
+const conceptSearchText =
+  process.env.MATHMONGO_ADVANCED_READER_E2E_CONCEPT_TEXT ?? "Concepto visual E2E";
 const maxVisualNormalizedDelta = 0.005;
 const maxVisualPixelDelta = 3.25;
 const maxVisualCoverageRatioDelta = 0.06;
@@ -396,13 +398,14 @@ async function createVisualAnnotation(page, pageInput, options) {
 }
 
 async function waitForVisualMutation(page, annotationId, method, suffix, action) {
-  const responsePromise = page.waitForResponse((response) => {
-    const url = new URL(response.url());
-    return response.request().method() === method &&
-      url.pathname === `/api/advanced-reader/visual-annotations/${annotationId}${suffix}`;
-  });
-  await action();
-  const response = await responsePromise;
+  const [response] = await Promise.all([
+    page.waitForResponse((candidate) => {
+      const url = new URL(candidate.url());
+      return candidate.request().method() === method &&
+        url.pathname === `/api/advanced-reader/visual-annotations/${annotationId}${suffix}`;
+    }),
+    action(),
+  ]);
   if (!response.ok()) throw new Error(`visual_mutation_failed_${suffix || "edit"}`);
   return await response.json();
 }
@@ -427,6 +430,7 @@ const summary = {
   health: false,
   metadata: false,
   visualCapabilities: false,
+  conceptCapabilities: false,
   pdfRange: false,
   documentLoaded: false,
   pdfVisible: false,
@@ -451,6 +455,14 @@ const summary = {
   highlightCreated: false,
   highlightAnnotationId: null,
   highlightPage: null,
+  conceptLinked: false,
+  conceptEvidenceLinkId: null,
+  conceptRetryIdentical: false,
+  conceptPageSummary: false,
+  conceptDocumentSummary: false,
+  conceptUnlinkedCleared: false,
+  conceptArchivedOverlayKept: false,
+  conceptReactivated: false,
   underlineCreated: false,
   underlineAnnotationId: null,
   underlinePage: null,
@@ -576,6 +588,13 @@ try {
     metadataBody.capabilities?.visual_annotation_editing === true &&
     metadataBody.capabilities?.visual_annotation_archiving === true;
   if (!summary.visualCapabilities) throw new Error("visual_capabilities_not_initialized");
+  summary.conceptCapabilities =
+    metadataBody.capabilities?.concept_search === true &&
+    metadataBody.capabilities?.annotation_concept_links === true &&
+    metadataBody.capabilities?.concept_link_archive === true &&
+    metadataBody.capabilities?.concept_link_reactivate === true &&
+    metadataBody.capabilities?.concept_linking === true;
+  if (!summary.conceptCapabilities) throw new Error("concept_capabilities_not_initialized");
 
   const explicitRange = await context.request.get(new URL(pdfPath, baseUrl).toString(), {
     headers: { Range: "bytes=0-1023" },
@@ -823,6 +842,103 @@ try {
   summary.visualOverlay = true;
   summary.visualGeometry.created = highlightResult.geometry;
 
+  const savedAction = page.locator(".saved-visual-action");
+  await savedAction.getByRole("button", { name: "Asociar concepto" }).click();
+  await page.getByRole("heading", { name: "Asociar concepto" }).waitFor({ state: "visible" });
+  await page.getByLabel("Buscar concepto legacy").fill(conceptSearchText);
+  const searchResponsePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "GET" &&
+      url.pathname === "/api/advanced-reader/concepts/search" && response.ok();
+  });
+  await page.getByRole("button", { name: "Buscar" }).click();
+  await searchResponsePromise;
+  const conceptCard = page.locator(".concept-card").filter({ hasText: conceptSearchText }).first();
+  await conceptCard.waitFor({ state: "visible" });
+  await conceptCard.getByRole("button", { name: "Seleccionar" }).click();
+  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByLabel("Tipo de evidencia").selectOption("definition_source");
+  await page.getByLabel("Comentario del vínculo").fill("Definición visual confirmada E2E");
+  await page.getByRole("button", { name: "Revisar" }).click();
+  const conceptWritePromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "POST" &&
+      url.pathname === `/api/advanced-reader/visual-annotations/${highlightResult.annotation.annotation_id}/concept-evidence`;
+  });
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
+  const conceptWrite = await conceptWritePromise;
+  if (conceptWrite.status() !== 201) throw new Error("concept_link_save_failed");
+  const conceptWriteBody = await conceptWrite.json();
+  const conceptWritePayload = conceptWrite.request().postDataJSON();
+  summary.conceptEvidenceLinkId = conceptWriteBody.item?.evidence_link_id ?? null;
+  summary.conceptLinked =
+    conceptWriteBody.result === "success" &&
+    conceptWriteBody.item?.annotation?.annotation_id === highlightResult.annotation.annotation_id &&
+    conceptWriteBody.item?.link_type === "definition_source" &&
+    conceptWriteBody.item?.comment === "Definición visual confirmada E2E";
+  if (!summary.conceptLinked) throw new Error("concept_link_response_invalid");
+
+  const retry = await page.evaluate(async ({ path, payload }) => {
+    const response = await fetch(path, {
+      method: "POST",
+      credentials: "same-origin",
+      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+    return { status: response.status, body: await response.json() };
+  }, {
+    path: `/api/advanced-reader/visual-annotations/${highlightResult.annotation.annotation_id}/concept-evidence`,
+    payload: conceptWritePayload,
+  });
+  summary.conceptRetryIdentical = retry.status === 200 && retry.body?.result === "identical";
+  if (!summary.conceptRetryIdentical) throw new Error("concept_retry_not_identical");
+
+  await page.getByRole("heading", { name: "Conceptos en esta página" }).waitFor();
+  summary.conceptPageSummary = (await page.getByRole("heading", { name: "Conceptos en esta página" }).count()) === 1;
+  summary.conceptDocumentSummary = (await page.getByRole("heading", { name: "Conceptos del documento" }).count()) === 1;
+  const unlinkedHighlight = page.locator(".unlinked-visual-card").filter({
+    hasText: highlightResult.annotation.quote_text,
+  });
+  summary.conceptUnlinkedCleared = (await unlinkedHighlight.count()) === 0;
+
+  const linkedHighlightCard = annotationCard(page, highlightResult.annotation.annotation_id);
+  const summaryProbe = await page.evaluate(async (documentIdentity) => {
+    const response = await fetch(
+      `/api/advanced-reader/documents/${documentIdentity}/visual-concept-evidence?status=all&page=1&limit=50`,
+      { credentials: "same-origin", headers: { Accept: "application/json" } },
+    );
+    return { status: response.status, body: await response.json() };
+  }, documentId);
+  if (
+    summaryProbe.status !== 200 ||
+    !summaryProbe.body?.items?.some((group) =>
+      group.evidence?.some((item) => item.evidence_link_id === summary.conceptEvidenceLinkId))
+  ) {
+    throw new Error(`concept_summary_missing_${summaryProbe.status}`);
+  }
+  await linkedHighlightCard.getByRole("button", { name: "Archivar vínculo" }).waitFor();
+  const archiveConceptPromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "POST" &&
+      url.pathname === `/api/advanced-reader/concept-evidence/${summary.conceptEvidenceLinkId}/archive`;
+  });
+  await linkedHighlightCard.getByRole("button", { name: "Archivar vínculo" }).click();
+  const archivedConcept = await archiveConceptPromise;
+  if (!archivedConcept.ok()) throw new Error("concept_archive_failed");
+  summary.conceptArchivedOverlayKept =
+    (await page.locator(annotationMarkSelector(highlightResult.annotation.annotation_id)).count()) > 0;
+  if (!summary.conceptArchivedOverlayKept) throw new Error("concept_archive_removed_overlay");
+  await linkedHighlightCard.getByRole("button", { name: "Reactivar vínculo" }).waitFor();
+  const reactivateConceptPromise = page.waitForResponse((response) => {
+    const url = new URL(response.url());
+    return response.request().method() === "POST" &&
+      url.pathname === `/api/advanced-reader/concept-evidence/${summary.conceptEvidenceLinkId}/reactivate`;
+  });
+  await linkedHighlightCard.getByRole("button", { name: "Reactivar vínculo" }).click();
+  const reactivatedConcept = await reactivateConceptPromise;
+  summary.conceptReactivated = reactivatedConcept.ok();
+  if (!summary.conceptReactivated) throw new Error("concept_reactivate_failed");
+
   await page.getByRole("button", { name: "Tamaño real" }).click();
   await page.waitForFunction(
     () => document.querySelector('[aria-label="Zoom actual"]')?.textContent?.trim() === "100%",
@@ -976,7 +1092,7 @@ try {
     highlightResult.annotation.annotation_id,
     "POST",
     "/archive",
-    () => highlightCard.getByRole("button", { name: "Archivar" }).click(),
+    () => highlightCard.getByRole("button", { name: "Archivar", exact: true }).click(),
   );
   if (archived.status !== "archived") throw new Error("visual_archive_response_invalid");
   await highlightCard.waitFor({ state: "hidden" });
@@ -1006,7 +1122,7 @@ try {
     highlightResult.annotation.annotation_id,
     "POST",
     "/reactivate",
-    () => highlightCard.getByRole("button", { name: "Reactivar" }).click(),
+    () => highlightCard.getByRole("button", { name: "Reactivar", exact: true }).click(),
   );
   if (reactivated.status !== "active") throw new Error("visual_reactivate_response_invalid");
   await highlightCard.waitFor({ state: "hidden" });
@@ -1106,6 +1222,7 @@ try {
     "health",
     "metadata",
     "visualCapabilities",
+    "conceptCapabilities",
     "pdfRange",
     "documentLoaded",
     "pdfVisible",
@@ -1133,6 +1250,13 @@ try {
     "save",
     "reloadRestored",
     "highlightCreated",
+    "conceptLinked",
+    "conceptRetryIdentical",
+    "conceptPageSummary",
+    "conceptDocumentSummary",
+    "conceptUnlinkedCleared",
+    "conceptArchivedOverlayKept",
+    "conceptReactivated",
     "underlineCreated",
     "visualEdited",
     "visualArchivedFiltered",

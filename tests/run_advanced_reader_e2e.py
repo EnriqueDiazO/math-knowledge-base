@@ -26,6 +26,7 @@ from advanced_reader_test_support import synthetic_text_pdf  # noqa: E402
 from pymongo import MongoClient  # noqa: E402
 
 import mathmongo  # noqa: E402
+from editor.concept_linking.page_concepts import resolve_document_evidence  # noqa: E402
 from editor.utils import db_export  # noqa: E402
 from editor.utils import db_import  # noqa: E402
 from mathmongo.advanced_reader.streamlit_link import build_advanced_reader_url  # noqa: E402
@@ -143,7 +144,12 @@ def _run_browser(environment: dict[str, str]) -> tuple[subprocess.CompletedProce
         text=True,
         timeout=240,
     )
-    return browser, _browser_summary(browser.stdout)
+    try:
+        summary = _browser_summary(browser.stdout)
+    except (RuntimeError, json.JSONDecodeError) as exc:
+        diagnostic = " ".join((browser.stdout + "\n" + browser.stderr).split())[-2_000:]
+        raise RuntimeError(f"Real-browser runner emitted no summary: {diagnostic}") from exc
+    return browser, summary
 
 
 def main() -> int:
@@ -302,6 +308,7 @@ def main() -> int:
                     "MATHMONGO_ADVANCED_READER_E2E_BOOK_LABEL": "Book page 1",
                     "MATHMONGO_ADVANCED_READER_E2E_SEARCH_TEXT": "searchable theorem",
                     "MATHMONGO_ADVANCED_READER_E2E_UNDERLINE_TEXT": "gamma",
+                    "MATHMONGO_ADVANCED_READER_E2E_CONCEPT_TEXT": "Concepto visual E2E",
                     "MATHMONGO_ADVANCED_READER_E2E_MODE": "full",
                     "MATHMONGO_CHROME_PATH": CHROME_PATH,
                     "PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD": "1",
@@ -370,21 +377,40 @@ def main() -> int:
                     "Visual presentation edits did not survive the browser lifecycle"
                 )
 
-            evidence = annotation_service.create_concept_evidence_link(
-                concept_legacy_id=concept_id,
-                concept_legacy_source=concept_source,
-                source_id=highlight.source_id,
-                reference_id=highlight.reference_id,
-                annotation_id=highlight.annotation_id,
-                link_type="citation",
-                comment="S5B E2E uses the exact browser annotation_id",
+            browser_evidence_id = browser_result.get("conceptEvidenceLinkId")
+            evidence = (
+                annotation_service.evidence.get_by_id(browser_evidence_id)
+                if isinstance(browser_evidence_id, str)
+                else None
             )
             if (
-                evidence.status != ReadingAnnotationOperationStatus.SUCCESS
-                or evidence.value is None
-                or evidence.value.annotation_id != highlight_id
+                evidence is None
+                or evidence.annotation_id != highlight_id
+                or evidence.concept_legacy_id != concept_id
+                or evidence.concept_legacy_source != concept_source
+                or evidence.link_type.value != "definition_source"
+                or evidence.comment != "Definición visual confirmada E2E"
+                or evidence.status.value != "active"
             ):
-                raise RuntimeError("ConceptEvidenceLink did not retain the browser annotation_id")
+                raise RuntimeError("Chrome concept evidence did not retain the exact identities")
+            streamlit_views = resolve_document_evidence(
+                database,
+                annotation_service,
+                document_id=document.document_id,
+                status=None,
+                page=1,
+                page_size=100,
+            )
+            streamlit_same_link = any(
+                item.evidence_link_id == evidence.evidence_link_id
+                and item.annotation_id == highlight_id
+                and item.concept.identity == (concept_id, concept_source)
+                and item.link_type == "definition_source"
+                and item.comment == "Definición visual confirmada E2E"
+                for item in streamlit_views
+            )
+            if not streamlit_same_link:
+                raise RuntimeError("S4.3 did not resolve the Advanced Reader concept link")
 
             geometry_samples = browser_result.get("visualGeometry")
             if not isinstance(geometry_samples, dict) or not geometry_samples:
@@ -450,7 +476,7 @@ def main() -> int:
                 )
             }
             restored_evidence = imported_database["concept_evidence_links"].find_one(
-                {"evidence_link_id": evidence.value.evidence_link_id}
+                {"evidence_link_id": evidence.evidence_link_id}
             )
             if (
                 restored_annotations != {highlight_id, underline_id}
@@ -532,7 +558,7 @@ def main() -> int:
                 "imported_browser": imported_browser_result,
                 "reading_state_page": persisted.value.reading_state.current_page,
                 "visual_annotation_ids": [highlight_id, underline_id],
-                "concept_evidence_annotation_id": evidence.value.annotation_id,
+                "concept_evidence_annotation_id": evidence.annotation_id,
                 "origin_reading_annotation_indexes": len(annotation_index_plan.present),
                 "import_was_index_free": len(import_index_plan.missing),
                 "imported_reading_annotation_indexes": len(imported_index_plan.present),
@@ -544,6 +570,7 @@ def main() -> int:
                 "max_visual_pixel_delta": max_pixel_delta,
                 "streamlit_url": streamlit_url_ok,
                 "st_pdf_fallback": fallback_present,
+                "streamlit_s4_3_same_link": streamlit_same_link,
                 "package_origin": "installed_wheel" if PACKAGE_ROOT is not None else "checkout",
             }
             print(json.dumps(summary, sort_keys=True))

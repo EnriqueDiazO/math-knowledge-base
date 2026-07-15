@@ -121,6 +121,10 @@ def test_python_package_declares_bounded_runtime_dependencies_and_static_assets(
         "path": "mathmongo/advanced_reader/static/**",
         "format": ["sdist", "wheel"],
     } in include_entries
+    assert {
+        "path": "docs/ADVANCED_READER_CONCEPT_LINKING_S5C.md",
+        "format": ["sdist", "wheel"],
+    } in include_entries
 
 
 def test_python_package_contains_the_explicit_factory_and_module_launcher() -> None:
@@ -129,6 +133,10 @@ def test_python_package_contains_the_explicit_factory_and_module_launcher() -> N
         "__init__.py",
         "__main__.py",
         "app.py",
+        "concept_evidence.py",
+        "concept_routes.py",
+        "concept_schemas.py",
+        "concept_search.py",
         "dependencies.py",
         "document_access.py",
         "launcher.py",

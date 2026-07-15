@@ -10,6 +10,10 @@ export type ReaderCapability =
   | "persistent_underlines"
   | "visual_annotation_editing"
   | "visual_annotation_archiving"
+  | "concept_search"
+  | "annotation_concept_links"
+  | "concept_link_archive"
+  | "concept_link_reactivate"
   | "concept_linking";
 
 export type ReaderCapabilities = Record<ReaderCapability, boolean>;
@@ -143,4 +147,115 @@ export interface UpdateVisualAnnotation {
   color_label?: VisualAnnotationColor;
   body?: string;
   tags?: string[];
+}
+
+export type EvidenceLinkType =
+  | "definition_source"
+  | "theorem_source"
+  | "proof_source"
+  | "example_source"
+  | "motivation"
+  | "citation"
+  | "question"
+  | "related_context";
+
+export type EvidenceLinkStatus = "active" | "archived";
+
+export interface ConceptSummary {
+  concept_legacy_id: string;
+  concept_legacy_source: string;
+  title: string;
+  concept_type: string;
+  categories: string[];
+  tags: string[];
+  evidence_count: number | null;
+  evidence_in_document_count: number | null;
+  warning: "concept_not_found" | null;
+}
+
+export interface ConceptSearchResult {
+  items: ConceptSummary[];
+  page: number;
+  page_size: number;
+  has_more: boolean;
+}
+
+export interface AnnotationEvidenceContext {
+  annotation_id: string;
+  kind: VisualAnnotationKind;
+  status: VisualAnnotationStatus;
+  visual_status: "exact" | "version_mismatch";
+  pdf_page: number;
+  book_page_label: string | null;
+  quote_text: string;
+  color_label: string | null;
+  annotation_comment: string;
+}
+
+export interface ConceptEvidence {
+  evidence_link_id: string;
+  concept: ConceptSummary;
+  link_type: EvidenceLinkType;
+  link_type_label: string;
+  comment: string | null;
+  status: EvidenceLinkStatus;
+  created_at: string;
+  updated_at: string;
+  archived_at: string | null;
+  annotation: AnnotationEvidenceContext | null;
+}
+
+export interface ConceptEvidenceList {
+  items: ConceptEvidence[];
+  page: number;
+  page_size: number;
+  total: number;
+  pages: number;
+}
+
+export interface CreateConceptEvidence {
+  evidence_link_id: string;
+  concept_legacy_id: string;
+  concept_legacy_source: string;
+  link_type: EvidenceLinkType;
+  comment: string | null;
+}
+
+export interface ConceptEvidenceWriteResult {
+  result: "success" | "identical";
+  item: ConceptEvidence;
+}
+
+export interface DocumentConceptGroup {
+  concept: ConceptSummary;
+  highlight_count: number;
+  underline_count: number;
+  pages: number[];
+  link_types: EvidenceLinkType[];
+  evidence: ConceptEvidence[];
+}
+
+export interface DocumentConceptSummary {
+  items: DocumentConceptGroup[];
+  page: number;
+  page_size: number;
+  total: number;
+  pages: number;
+}
+
+export interface UnlinkedVisualAnnotation {
+  annotation_id: string;
+  kind: VisualAnnotationKind;
+  pdf_page: number;
+  book_page_label: string | null;
+  quote_text: string;
+  color_label: string | null;
+}
+
+export interface UnlinkedVisualAnnotationList {
+  items: UnlinkedVisualAnnotation[];
+  page: number;
+  page_size: number;
+  total: number;
+  pages: number;
 }

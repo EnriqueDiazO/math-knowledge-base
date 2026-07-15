@@ -1,4 +1,4 @@
-# Seguridad del Advanced Reader — S5A/S5B
+# Seguridad del Advanced Reader — S5A/S5B/S5C
 
 ## Principio de seguridad
 
@@ -312,6 +312,20 @@ directos y Book page como current page.
 El frontend sólo llama al PUT tras **Guardar posición**. Scroll, thumbnail,
 búsqueda o `page_changed` no autoescriben. La idempotencia y conflictos siguen
 los contratos S3.
+
+## Asociación de conceptos S5C
+
+La búsqueda legacy es read-only, usa regex escapada, proyección aprobada, orden
+estable y límites de 160 caracteres/50 resultados. No registra la query. Los
+POST de concept evidence comparten la política JSON, same-origin y 64 KiB de
+visual annotations y rechazan campos extra. Sólo aceptan identidad legacy,
+tipo, comentario e `evidence_link_id`; Source, Reference y target se derivan de
+la Annotation mediante `ReadingAnnotationService`.
+
+Las respuestas no contienen `_id`, geometría, paths, documentos Mongo, LaTeX o
+blobs. Un vínculo a un concepto ausente conserva su identidad con un warning
+seguro. Archive/reactivate no ofrecen DELETE ni modifican Annotation, concepto,
+PDF o ReadingState.
 
 ## Errores y logging
 

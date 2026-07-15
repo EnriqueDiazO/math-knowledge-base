@@ -1,4 +1,4 @@
-# Contrato de eventos del Advanced Reader — S5A/S5B
+# Contrato de eventos del Advanced Reader — S5A/S5B/S5C
 
 ## Alcance
 
@@ -372,6 +372,13 @@ rellenar campos. Cambiar semántica, límites o coordenadas requiere una nueva
 versión de schema.
 
 S5B mantiene los eventos v1 y añade el contrato de dominio independiente para
-persistencia explícita. S5C será la primera fase que podrá diseñar una
-interacción entre selección y conceptos; ni el evento S5A ni el POST S5B crean
-o anticipan un `ConceptEvidenceLink`.
+persistencia explícita. Ni los eventos S5A ni el POST S5B crean o anticipan un
+`ConceptEvidenceLink`.
+
+## Operaciones S5C y eventos
+
+S5C no amplía `AdvancedReaderEventV1`. Buscar conceptos, abrir/cancelar el
+wizard, crear/archive/reactivate un `ConceptEvidenceLink` y refrescar resúmenes
+son estado React o solicitudes explícitas same-origin, no analytics ni
+persistencia implícita. El vínculo sólo se escribe mediante el POST confirmado;
+“Ir a la marca” reutiliza el controlador y no emite `reading_position_saved`.

@@ -1,11 +1,17 @@
 import type {
   ApiErrorBody,
+  ConceptEvidenceList,
+  ConceptEvidenceWriteResult,
+  ConceptSearchResult,
+  CreateConceptEvidence,
   CreateVisualAnnotation,
+  DocumentConceptSummary,
   DocumentMetadata,
   PageLabel,
   ReadingPageUpdate,
   ReadingStateResponse,
   UpdateVisualAnnotation,
+  UnlinkedVisualAnnotationList,
   VisualAnnotation,
   VisualAnnotationList,
 } from "../types/api";
@@ -15,6 +21,8 @@ const DOCUMENT_ID_PATTERN =
   /^doc_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const ANNOTATION_ID_PATTERN =
   /^ann_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const EVIDENCE_ID_PATTERN =
+  /^ev_[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 export class ReaderApiError extends Error {
   readonly code: string;
@@ -59,6 +67,13 @@ function annotationPath(annotationId: string, suffix = ""): string {
     throw new ReaderApiError("invalid_annotation_id", "La anotación visual no es válida.");
   }
   return `${API_ROOT}/visual-annotations/${encodeURIComponent(annotationId)}${suffix}`;
+}
+
+function evidencePath(evidenceLinkId: string, suffix = ""): string {
+  if (!EVIDENCE_ID_PATTERN.test(evidenceLinkId)) {
+    throw new ReaderApiError("invalid_evidence_id", "El vínculo conceptual no es válido.");
+  }
+  return `${API_ROOT}/concept-evidence/${encodeURIComponent(evidenceLinkId)}${suffix}`;
 }
 
 export function sameOriginUrl(path: string): string {
@@ -140,6 +155,44 @@ export interface AdvancedReaderApi {
   ): Promise<VisualAnnotation>;
   archiveVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
   reactivateVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
+  searchConcepts(
+    query: string,
+    options?: { source?: string; conceptType?: string; category?: string; page?: number; limit?: number },
+    signal?: AbortSignal,
+  ): Promise<ConceptSearchResult>;
+  listAnnotationConceptEvidence(
+    annotationId: string,
+    options?: { status?: "active" | "archived" | "all"; page?: number; limit?: number },
+    signal?: AbortSignal,
+  ): Promise<ConceptEvidenceList>;
+  createAnnotationConceptEvidence(
+    annotationId: string,
+    payload: CreateConceptEvidence,
+    signal?: AbortSignal,
+  ): Promise<ConceptEvidenceWriteResult>;
+  archiveConceptEvidence(
+    evidenceLinkId: string,
+    signal?: AbortSignal,
+  ): Promise<ConceptEvidenceWriteResult>;
+  reactivateConceptEvidence(
+    evidenceLinkId: string,
+    signal?: AbortSignal,
+  ): Promise<ConceptEvidenceWriteResult>;
+  listDocumentConceptEvidence(
+    documentId: string,
+    options?: {
+      pdfPage?: number;
+      status?: "active" | "archived" | "all";
+      page?: number;
+      limit?: number;
+    },
+    signal?: AbortSignal,
+  ): Promise<DocumentConceptSummary>;
+  listUnlinkedVisualAnnotations(
+    documentId: string,
+    options?: { pdfPage?: number; page?: number; limit?: number },
+    signal?: AbortSignal,
+  ): Promise<UnlinkedVisualAnnotationList>;
   pdfUrl(documentId: string): string;
 }
 
@@ -225,6 +278,80 @@ export const advancedReaderApi: AdvancedReaderApi = {
     return requestJson<VisualAnnotation>(
       annotationPath(annotationId, "/reactivate"),
       jsonWrite({}, signal),
+    );
+  },
+
+  searchConcepts(query, options = {}, signal) {
+    const value = query.trim();
+    if (!value || Array.from(value).length > 160) {
+      throw new ReaderApiError("concept_query_invalid", "La búsqueda debe tener entre 1 y 160 caracteres.");
+    }
+    const parameters = new URLSearchParams({
+      q: value,
+      page: String(options.page ?? 1),
+      limit: String(options.limit ?? 20),
+    });
+    if (options.source) parameters.set("source", options.source);
+    if (options.conceptType) parameters.set("concept_type", options.conceptType);
+    if (options.category) parameters.set("category", options.category);
+    return requestJson<ConceptSearchResult>(`${API_ROOT}/concepts/search?${parameters}`, { signal });
+  },
+
+  listAnnotationConceptEvidence(annotationId, options = {}, signal) {
+    const parameters = new URLSearchParams({
+      status: options.status ?? "active",
+      page: String(options.page ?? 1),
+      limit: String(options.limit ?? 25),
+    });
+    return requestJson<ConceptEvidenceList>(
+      annotationPath(annotationId, `/concept-evidence?${parameters}`),
+      { signal },
+    );
+  },
+
+  createAnnotationConceptEvidence(annotationId, payload, signal) {
+    return requestJson<ConceptEvidenceWriteResult>(
+      annotationPath(annotationId, "/concept-evidence"),
+      jsonWrite(payload, signal),
+    );
+  },
+
+  archiveConceptEvidence(evidenceLinkId, signal) {
+    return requestJson<ConceptEvidenceWriteResult>(
+      evidencePath(evidenceLinkId, "/archive"),
+      jsonWrite({}, signal),
+    );
+  },
+
+  reactivateConceptEvidence(evidenceLinkId, signal) {
+    return requestJson<ConceptEvidenceWriteResult>(
+      evidencePath(evidenceLinkId, "/reactivate"),
+      jsonWrite({}, signal),
+    );
+  },
+
+  listDocumentConceptEvidence(documentId, options = {}, signal) {
+    const parameters = new URLSearchParams({
+      status: options.status ?? "active",
+      page: String(options.page ?? 1),
+      limit: String(options.limit ?? 25),
+    });
+    if (options.pdfPage !== undefined) parameters.set("pdf_page", String(options.pdfPage));
+    return requestJson<DocumentConceptSummary>(
+      documentPath(documentId, `/visual-concept-evidence?${parameters}`),
+      { signal },
+    );
+  },
+
+  listUnlinkedVisualAnnotations(documentId, options = {}, signal) {
+    const parameters = new URLSearchParams({
+      page: String(options.page ?? 1),
+      limit: String(options.limit ?? 25),
+    });
+    if (options.pdfPage !== undefined) parameters.set("pdf_page", String(options.pdfPage));
+    return requestJson<UnlinkedVisualAnnotationList>(
+      documentPath(documentId, `/unlinked-visual-annotations?${parameters}`),
+      { signal },
     );
   },
 

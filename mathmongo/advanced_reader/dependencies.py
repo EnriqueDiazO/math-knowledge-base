@@ -91,6 +91,17 @@ class AdvancedReaderDependencies:
             return False
 
     @property
+    def concept_search_ready(self) -> bool:
+        """Report whether projected legacy metadata can be queried read-only."""
+        database = getattr(self.annotation_service, "database", None)
+        return database is not None and hasattr(database, "__getitem__")
+
+    @property
+    def concept_link_writes_ready(self) -> bool:
+        """Compose existing S4/S5B readiness without applying indexes."""
+        return self.concept_search_ready and self.visual_annotation_writes_ready
+
+    @property
     def frontend_ready(self) -> bool:
         index = self.frontend_root / "index.html"
         assets = self.frontend_root / "assets"
