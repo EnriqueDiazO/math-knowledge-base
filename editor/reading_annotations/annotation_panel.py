@@ -344,6 +344,7 @@ def _render_annotations(
     show_list: bool = True,
     quick_expanded: bool = True,
     page_labeler: PageLabeler | None = None,
+    review_only: bool = False,
 ) -> None:
     document_id = document.document_id
     if show_quick:
@@ -385,16 +386,30 @@ def _render_annotations(
                     ui.rerun()
     if not show_list:
         return
-    ui.subheader("Document Annotations")
+    ui.subheader("Marcas" if review_only else "Document Annotations")
     query = ui.text_input(
-        "Filter annotations by text or tags",
+        "Buscar marcas" if review_only else "Filter annotations by text or tags",
         key=state_key("annotation_filter", document_id),
     )
-    kind_filter = ui.selectbox(
-        "Filter annotations by kind",
-        options=("all", *ANNOTATION_KINDS),
-        key=state_key("annotation_kind_filter", document_id),
-    )
+    if review_only:
+        with ui.expander("Más filtros", expanded=False):
+            kind_filter = ui.selectbox(
+                "Tipo de marca",
+                options=("all", *ANNOTATION_KINDS),
+                key=state_key("annotation_kind_filter", document_id),
+            )
+            status_filter = ui.selectbox(
+                "Estado",
+                options=("all", "active", "archived"),
+                key=state_key("annotation_status_filter", document_id),
+            )
+    else:
+        kind_filter = ui.selectbox(
+            "Filter annotations by kind",
+            options=("all", *ANNOTATION_KINDS),
+            key=state_key("annotation_kind_filter", document_id),
+        )
+        status_filter = "all"
     result = service.list_document_annotations(
         document_id,
         status=None,
@@ -414,6 +429,7 @@ def _render_annotations(
             record_type=enum_value(item.kind),
             required_type=str(kind_filter),
         )
+        and (status_filter == "all" or enum_value(item.status) == status_filter)
     )
     if not items:
         ui.caption("No annotations match this Document and filter.")
@@ -421,13 +437,31 @@ def _render_annotations(
     grouped = annotation_groups(items)
     for page_number, page_items in grouped:
         label = _page_heading(page_number, page_labeler)
-        ui.caption(f"{label} · {len(page_items)} annotation(s)")
-        ui.dataframe(
-            annotation_rows(page_items, page_labeler=page_labeler),
-            width="stretch",
-            hide_index=True,
+        ui.caption(
+            f"{label} · {len(page_items)} marca(s)"
+            if review_only
+            else f"{label} · {len(page_items)} annotation(s)"
         )
         for item in page_items:
+            if review_only:
+                kind = enum_value(item.kind).capitalize()
+                with ui.container(border=True):
+                    ui.write(f"{kind} · {label}")
+                    if item.quote_text:
+                        ui.write(item.quote_text)
+                    if item.body:
+                        ui.caption(item.body)
+                    if item.tags:
+                        ui.caption(" · ".join(item.tags))
+                    render_open_document(
+                        ui,
+                        source_id=item.source_id,
+                        document_id=item.document_id,
+                        page_number=item.page_number,
+                        subject_id=item.annotation_id,
+                        label="Ir a la marca",
+                    )
+                continue
             _render_annotation_card(
                 ui,
                 database,
@@ -552,6 +586,7 @@ def render_workspace_notes_panel(
         show_list=False,
         quick_expanded=focus == "note",
         page_labeler=page_labeler,
+        minimal_quick=True,
     )
     with ui.expander("Todas las anotaciones", expanded=False):
         _render_annotations(
@@ -612,6 +647,54 @@ def render_notes_tab(
         document_active=document_active,
         show_quick=False,
         page_labeler=page_labeler,
+    )
+
+
+def render_notebook_tab(
+    context: Any,
+    reader: Any,
+    *,
+    ui: Any,
+    service: Any | None = None,
+    page_labeler: PageLabeler | None = None,
+) -> None:
+    """Render marks and notes as a review surface without creation forms."""
+    if service is None:
+        from mathmongo.reading_annotations.service import ReadingAnnotationService
+
+        service = ReadingAnnotationService(context.database)
+    _sync_panel_context(context, reader, ui)
+    document = reader.document
+    initialized, document_active = _panel_permissions(service, document)
+    is_pdf, suggested_page = _suggested_page(ui, reader)
+    ui.header("Cuaderno")
+    ui.caption("Revisa tus marcas y notas; la captura permanece junto a la lectura.")
+    _render_annotations(
+        ui,
+        context.database,
+        service,
+        document=document,
+        suggested_page=suggested_page,
+        is_pdf=is_pdf,
+        actions_enabled=False,
+        archive_enabled=initialized,
+        show_quick=False,
+        page_labeler=page_labeler,
+        review_only=True,
+    )
+    render_note_panel(
+        ui,
+        context.database,
+        service,
+        document=document,
+        references=_references(context, document.source_id),
+        suggested_page=suggested_page,
+        is_pdf=is_pdf,
+        actions_enabled=initialized,
+        document_active=document_active,
+        show_quick=False,
+        page_labeler=page_labeler,
+        review_only=True,
     )
 
 

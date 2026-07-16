@@ -58,7 +58,7 @@ def _launch_button(ui: Any, context: Any, *, actions_enabled: bool, location: st
         ui.caption("Selecciona una página PDF válida para asociar un concepto.")
     if clicked:
         start_wizard(ui.session_state, context)
-        queue_workspace_tab(ui.session_state, "Concepts")
+        queue_workspace_tab(ui.session_state, "Conocimiento")
         ui.rerun()
     return bool(clicked)
 
@@ -129,7 +129,7 @@ def render_workspace_concept_panel(
             key=state_key("continue", context.document_id),
             width="content",
         ):
-            queue_workspace_tab(ui.session_state, "Concepts")
+            queue_workspace_tab(ui.session_state, "Conocimiento")
             ui.rerun()
     render_page_concepts(
         ui,
@@ -260,4 +260,55 @@ def render_concepts_tab(
     render_relationship_help(ui)
 
 
-__all__ = ["render_concepts_tab", "render_workspace_concept_panel"]
+def render_knowledge_tab(
+    catalog_context: Any,
+    reader: Any,
+    *,
+    ui: Any,
+    service: Any,
+    page_map_service: Any | None,
+    page_labeler: Any | None,
+) -> None:
+    """Render transversal concept review without a creation wizard or technical IDs."""
+    _sync(catalog_context, reader, ui)
+    ui.header("Conocimiento")
+    ui.caption("Conceptos y evidencia vinculados a tu lectura.")
+    context, evidence, pending = _resolved_state(
+        catalog_context,
+        reader,
+        ui,
+        service,
+        page_map_service=page_map_service,
+        page_labeler=page_labeler,
+    )
+    render_page_concepts(
+        ui,
+        service,
+        evidence,
+        pdf_page=context.pdf_page,
+        is_pdf=context.is_pdf,
+        actions_enabled=False,
+        review_only=True,
+    )
+    render_document_concepts(
+        ui,
+        service,
+        evidence,
+        context=context,
+        actions_enabled=False,
+        review_only=True,
+    )
+    render_unlinked_items(
+        ui,
+        pending,
+        context=context,
+        actions_enabled=False,
+        review_only=True,
+    )
+
+
+__all__ = [
+    "render_concepts_tab",
+    "render_knowledge_tab",
+    "render_workspace_concept_panel",
+]

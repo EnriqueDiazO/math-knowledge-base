@@ -183,6 +183,7 @@ def render_evidence_card(
     actions_enabled: bool,
     archive_enabled: bool | None = None,
     card_key: str,
+    review_only: bool = False,
 ) -> None:
     """Render one evidence relation without technical identities in the main card."""
     with ui.container(border=True):
@@ -196,11 +197,13 @@ def render_evidence_card(
             ui.caption(f"¿Por qué es relevante? {item.comment}")
         ui.caption(f"Estado: {item.status}")
         open_clicked = ui.button(
-            "Abrir evidencia",
+            "Ir a la marca",
             key=state_key("open_evidence", card_key),
             width="content",
         )
-        if item.status == "archived":
+        if review_only:
+            lifecycle_clicked = False
+        elif item.status == "archived":
             lifecycle_clicked = ui.button(
                 "Reactivar",
                 key=state_key("reactivate_evidence", card_key),
@@ -214,17 +217,18 @@ def render_evidence_card(
                 disabled=not (actions_enabled if archive_enabled is None else archive_enabled),
                 width="content",
             )
-        with ui.expander("Detalles técnicos", expanded=False):
-            ui.write(
-                {
-                    "evidence_link_id": item.evidence_link_id,
-                    "annotation_id": item.annotation_id,
-                    "note_id": item.note_id,
-                    "document_id": item.document_id,
-                    "concept_legacy_id": item.concept.concept_id,
-                    "concept_legacy_source": item.concept.concept_source,
-                }
-            )
+        if not review_only:
+            with ui.expander("Detalles técnicos", expanded=False):
+                ui.write(
+                    {
+                        "evidence_link_id": item.evidence_link_id,
+                        "annotation_id": item.annotation_id,
+                        "note_id": item.note_id,
+                        "document_id": item.document_id,
+                        "concept_legacy_id": item.concept.concept_id,
+                        "concept_legacy_source": item.concept.concept_source,
+                    }
+                )
     if open_clicked:
         open_evidence(ui, item)
     if not lifecycle_clicked:
@@ -254,6 +258,7 @@ def render_page_concepts(
     actions_enabled: bool,
     archive_enabled: bool | None = None,
     compact: bool = False,
+    review_only: bool = False,
 ) -> tuple[EvidenceView, ...]:
     """Render the visible current-page/resource concept group."""
     current = evidence_for_page(evidence, pdf_page) if is_pdf else evidence
@@ -270,6 +275,7 @@ def render_page_concepts(
             actions_enabled=actions_enabled,
             archive_enabled=archive_enabled,
             card_key=item.evidence_link_id,
+            review_only=review_only,
         )
     if compact and len(current) > limit:
         ui.caption(f"{len(current) - limit} asociaciones más en la pestaña Concepts.")

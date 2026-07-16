@@ -42,66 +42,55 @@ def render_filters(
     sources: Sequence[Choice],
     references: Sequence[Choice],
 ) -> ReadingDocumentFilters:
-    """Render every required filter and return the core typed contract."""
-    first_row = ui.columns(3)
-    with first_row[0]:
+    """Render a simple title search with the remaining filters collapsed."""
+    title_query = ui.text_input(
+        "Buscar documentos",
+        key=state_key("filter_title"),
+        placeholder="Título",
+        width="stretch",
+    )
+    with ui.expander("Más filtros", expanded=False):
         source_id = _select_optional(
             ui,
-            "Source",
+            "Fuente",
             sources,
             key=state_key("filter_source"),
         )
-    with first_row[1]:
         reference_id = _select_optional(
             ui,
-            "Reference",
+            "Referencia",
             references,
             key=state_key("filter_reference"),
         )
-    with first_row[2]:
         kind = ui.selectbox(
-            "Type",
+            "Formato",
             (None, "pdf", "web"),
-            format_func=lambda value: "All" if value is None else str(value).upper(),
+            format_func=lambda value: "Todos" if value is None else str(value).upper(),
             key=state_key("filter_kind"),
             width="stretch",
         )
-
-    second_row = ui.columns(3)
-    with second_row[0]:
         document_status = ui.selectbox(
-            "Document status",
+            "Estado del documento",
             (None, "active", "archived"),
-            format_func=lambda value: "All" if value is None else str(value),
+            format_func=lambda value: "Todos" if value is None else str(value),
             key=state_key("filter_document_status"),
             width="stretch",
         )
-    with second_row[1]:
         reading_status = ui.selectbox(
-            "Reading status",
+            "Estado de lectura",
             (None, "unread", "in_progress", "completed", "deferred"),
-            format_func=lambda value: "All" if value is None else str(value),
+            format_func=lambda value: "Todos" if value is None else str(value),
             key=state_key("filter_reading_status"),
             width="stretch",
         )
-    with second_row[2]:
         order = ui.selectbox(
-            "Order",
+            "Orden",
             tuple(item.value for item in ReadingSort),
             key=state_key("filter_order"),
             width="stretch",
         )
-
-    third_row = ui.columns(2)
-    with third_row[0]:
-        title_query = ui.text_input(
-            "Search title",
-            key=state_key("filter_title"),
-            width="stretch",
-        )
-    with third_row[1]:
         tag_text = ui.text_input(
-            "Tags (comma separated)",
+            "Etiquetas (separadas por comas)",
             key=state_key("filter_tags"),
             width="stretch",
         )

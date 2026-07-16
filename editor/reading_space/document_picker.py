@@ -35,6 +35,15 @@ def _reference_name(reference: Any | None, reference_id: str | None) -> str:
     )
 
 
+def _reading_label(value: str) -> str:
+    return {
+        "unread": "Sin comenzar",
+        "in_progress": "En curso",
+        "completed": "Completado",
+        "deferred": "Pospuesto",
+    }.get(value, value.replace("_", " ").capitalize())
+
+
 def document_rows(items: tuple[Any, ...] | list[Any]) -> list[dict[str, Any]]:
     """Build display rows without accessing PDF storage."""
     rows: list[dict[str, Any]] = []
@@ -77,56 +86,52 @@ def render_document_picker(
     page_number = int(getattr(page, "page", 1))
     pages = int(getattr(page, "pages", 0))
     total = int(getattr(page, "total", len(items)))
-    ui.caption(f"{total} Documents · página {page_number} de {max(pages, 1)}")
-    ui.dataframe(document_rows(items), width="stretch", hide_index=True)
+    ui.caption(f"{total} documentos · página {page_number} de {max(pages, 1)}")
     for item in items:
         document, reading, source, reference = _item_parts(item)
         document_status = _enum_value(document.status)
         reading_status = _enum_value(getattr(reading, "status", None), "unread")
-        with ui.expander(
-            f"{document.title} · {_enum_value(document.kind)} · {reading_status}",
-            expanded=False,
-        ):
-            ui.write(
-                {
-                    "document_id": document.document_id,
-                    "source": _source_name(source, document.source_id),
-                    "reference": _reference_name(reference, document.reference_id),
-                    "document_status": document_status,
-                    "reading_status": reading_status,
-                    "last_opened_at": getattr(reading, "last_opened_at", None),
-                    "current_page": getattr(reading, "current_page", None),
-                    "document_tags": document.tags,
-                    "reading_tags": tuple(getattr(reading, "tags", ()) or ()),
-                }
-            )
+        with ui.container(border=True, key=state_key("library_card", document.document_id)):
+            ui.subheader(document.title)
+            source_label = _source_name(source, document.source_id)
+            reference_label = _reference_name(reference, document.reference_id)
+            ui.caption(f"{source_label}" + (f" · {reference_label}" if reference_label else ""))
+            kind_label = "PDF" if _enum_value(document.kind) == "pdf" else "Web"
+            reading_label = _reading_label(reading_status)
+            page = getattr(reading, "current_page", None)
+            last_opened = getattr(reading, "last_opened_at", None)
+            progress = f" · página {page}" if isinstance(page, int) else ""
+            recent = f" · última lectura {last_opened}" if last_opened is not None else ""
+            ui.caption(f"{kind_label} · {reading_label}{progress}{recent}")
             archived = document_status == "archived"
             if archived:
-                ui.warning("Este Document está archivado; la apertura normal está bloqueada.")
+                ui.warning("Este documento está archivado; no se puede abrir.")
             if ui.button(
-                "Open",
+                "Continuar" if reading is not None else "Leer",
                 key=state_key("open", document.document_id),
                 disabled=archived or not actions_enabled,
+                type="primary",
             ):
                 on_open(item)
-            if ui.button(
-                "Mark completed",
-                key=state_key("complete", document.document_id),
-                disabled=not actions_enabled,
-            ):
-                on_completed(item)
-            if ui.button(
-                "Mark deferred",
-                key=state_key("defer", document.document_id),
-                disabled=not actions_enabled,
-            ):
-                on_deferred(item)
-            if ui.button(
-                "Reset reading state",
-                key=state_key("reset", document.document_id),
-                disabled=not actions_enabled or reading is None,
-            ):
-                on_reset(item)
+            with ui.expander("Más opciones", expanded=False):
+                if ui.button(
+                    "Marcar como completado",
+                    key=state_key("complete", document.document_id),
+                    disabled=not actions_enabled,
+                ):
+                    on_completed(item)
+                if ui.button(
+                    "Posponer",
+                    key=state_key("defer", document.document_id),
+                    disabled=not actions_enabled,
+                ):
+                    on_deferred(item)
+                if ui.button(
+                    "Reiniciar progreso",
+                    key=state_key("reset", document.document_id),
+                    disabled=not actions_enabled or reading is None,
+                ):
+                    on_reset(item)
 
 
 __all__ = ["document_rows", "render_document_picker"]

@@ -1,20 +1,15 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import type { RefObject } from "react";
 
-import {
-  VISUAL_ANNOTATION_COLORS,
-  isPersistableSelection,
-} from "../annotations/ui";
+import { isPersistableSelection } from "../annotations/ui";
 import type { TextSelectionEvent } from "../selection/types";
-import type { VisualAnnotationColor, VisualAnnotationKind } from "../types/api";
+import type { VisualAnnotationKind } from "../types/api";
 
 interface SelectionActionToolbarProps {
   selection: TextSelectionEvent | null;
   enabled: boolean;
   stageRef: RefObject<HTMLElement | null>;
   viewerRef: RefObject<HTMLElement | null>;
-  color: VisualAnnotationColor;
-  onColor(color: VisualAnnotationColor): void;
   onChoose(kind: VisualAnnotationKind): void;
   onCancel(): void;
 }
@@ -29,8 +24,6 @@ export function SelectionActionToolbar({
   enabled,
   stageRef,
   viewerRef,
-  color,
-  onColor,
   onChoose,
   onCancel,
 }: SelectionActionToolbarProps) {
@@ -104,18 +97,6 @@ export function SelectionActionToolbar({
     >
       <button type="button" onClick={() => onChoose("highlight")}>Highlight</button>
       <button type="button" onClick={() => onChoose("underline")}>Underline</button>
-      <label>
-        <span className="sr-only">Color de la marca</span>
-        <select
-          aria-label="Color de la marca"
-          value={color}
-          onChange={(event) => onColor(event.target.value as VisualAnnotationColor)}
-        >
-          {VISUAL_ANNOTATION_COLORS.map((value) => (
-            <option key={value} value={value}>{value}</option>
-          ))}
-        </select>
-      </label>
       <button type="button" onClick={onCancel}>Cancelar</button>
     </div>
   );

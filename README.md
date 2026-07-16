@@ -302,6 +302,12 @@ its startup database. See
 [`docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md`](docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md) for
 health checks, port handling and troubleshooting.
 
+Reading Space uses the fixed primary flow **Biblioteca → Leer → Cuaderno →
+Conocimiento**. Page Map, maintenance and diagnostics are available from the
+secondary **Configuración** menu. The Advanced Reader uses a single contextual
+inspector for selection, mark confirmation and concept association. See
+[`docs/SIMPLIFIED_READING_WORKFLOW.md`](docs/SIMPLIFIED_READING_WORKFLOW.md).
+
 ### 7. Optional desktop shortcut
 
 ```bash

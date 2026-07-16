@@ -193,7 +193,7 @@ describe("S5B visual annotation workflow", () => {
       name: "Guardar selección como marca visual",
     });
     await user.click(within(toolbar).getByRole("button", { name: "Highlight" }));
-    expect(screen.getByRole("heading", { name: "Guardar explícitamente" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Highlight" })).toBeVisible();
     expect(api.createVisualAnnotation).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(api.createVisualAnnotation).not.toHaveBeenCalled();
@@ -206,11 +206,12 @@ describe("S5B visual annotation workflow", () => {
     const toolbar = await screen.findByRole("toolbar", {
       name: "Guardar selección como marca visual",
     });
-    await user.selectOptions(within(toolbar).getByLabelText("Color de la marca"), "blue");
     await user.click(within(toolbar).getByRole("button", { name: "Highlight" }));
+    await user.click(screen.getByText("Más opciones"));
+    await user.selectOptions(screen.getByLabelText("Color de la marca a guardar"), "blue");
     await user.type(screen.getByLabelText("Comentario de la marca"), "Comentario local");
     await user.type(screen.getByLabelText("Tags de la marca"), "geometry, proof");
-    await user.click(screen.getByRole("button", { name: "Guardar marca" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
 
     await waitFor(() => expect(api.createVisualAnnotation).toHaveBeenCalledOnce());
     const [documentId, payload] = vi.mocked(api.createVisualAnnotation).mock.calls[0];
@@ -244,9 +245,9 @@ describe("S5B visual annotation workflow", () => {
       name: "Guardar selección como marca visual",
     });
     await user.click(within(toolbar).getByRole("button", { name: "Underline" }));
-    await user.click(screen.getByRole("button", { name: "Guardar marca" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("reintentar sin duplicarla");
-    await user.click(screen.getByRole("button", { name: "Guardar marca" }));
+    await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(api.createVisualAnnotation).toHaveBeenCalledTimes(2));
     const first = vi.mocked(api.createVisualAnnotation).mock.calls[0][1].annotation_id;
     const second = vi.mocked(api.createVisualAnnotation).mock.calls[1][1].annotation_id;
@@ -270,6 +271,7 @@ describe("S5B visual annotation workflow", () => {
     const seed = fromPayload(seedPayload);
     const api = visualApi([seed]);
     const { user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     expect(await screen.findByText("A compact theorem")).toBeVisible();
     await user.selectOptions(screen.getByLabelText("Tipo de anotaciones"), "highlight");
     await user.click(screen.getByRole("button", { name: "Editar" }));
@@ -318,6 +320,7 @@ describe("S5B visual annotation workflow", () => {
     const mismatch = fromPayload(payload, { visual_status: "version_mismatch" });
     const api = visualApi([mismatch]);
     const { controller, user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     await user.selectOptions(screen.getByLabelText("Alcance de anotaciones"), "document");
     expect(await screen.findByText("Anotación visual asociada a otra versión del PDF.")).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Ir a página" }));
@@ -346,6 +349,7 @@ describe("S5B visual annotation workflow", () => {
     const exact = fromPayload(payload);
     const api = visualApi([exact]);
     const { controller, user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     await user.selectOptions(screen.getByLabelText("Alcance de anotaciones"), "document");
     expect(await screen.findByText("Navigate to exact overlay")).toBeVisible();
     expect(screen.getByText("purple · active")).toBeVisible();
@@ -353,7 +357,12 @@ describe("S5B visual annotation workflow", () => {
     await user.click(screen.getByRole("button", { name: "Ir a página" }));
 
     expect(controller.focusVisualAnnotation).toHaveBeenCalledWith(exact.annotation_id);
-    expect(await screen.findByText("Book page 5 · PDF page 7")).toBeVisible();
+    expect(screen.getByLabelText("PDF page")).toHaveValue("7");
+    await waitFor(() => expect(api.getPageLabel).toHaveBeenCalledWith(
+      DOCUMENT_ID,
+      7,
+      expect.any(AbortSignal),
+    ));
     expect(api.savePage).not.toHaveBeenCalled();
   });
 
@@ -373,7 +382,8 @@ describe("S5B visual annotation workflow", () => {
       tags: [],
     };
     const api = visualApi([fromPayload(payload)]);
-    await renderReady(api);
+    const { user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     const preview = `${"😀".repeat(VISUAL_QUOTE_PREVIEW_CODE_POINTS - 1)}…`;
 
     expect(await screen.findByText(preview)).toBeVisible();

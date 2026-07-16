@@ -425,6 +425,98 @@ def render_note_form(
     )
 
 
+def render_quick_note_form(
+    ui: Any,
+    *,
+    document_id: str,
+    reference_id: str | None,
+    suggested_page: int | None,
+    form_key: str = "quick_note",
+    actions_enabled: bool = True,
+) -> ReadingNoteDraft | None:
+    """Render body-first note capture while deriving its existing domain fields."""
+    with ui.form(key=state_key(form_key, document_id)):
+        body = str(
+            ui.text_area(
+                "Nota rápida",
+                key=state_key(form_key, "body", document_id),
+                height=120,
+                placeholder="Escribe tu nota…",
+            )
+            or ""
+        ).strip()
+        with ui.expander("Más opciones", expanded=False):
+            custom_title = str(
+                ui.text_input(
+                    "Título personalizado",
+                    key=state_key(form_key, "title", document_id),
+                )
+                or ""
+            ).strip()
+            note_type = ui.selectbox(
+                "Tipo de nota",
+                options=NOTE_TYPES,
+                index=NOTE_TYPES.index("general"),
+                key=state_key(form_key, "type", document_id),
+            )
+            include_pages = ui.checkbox(
+                "Personalizar rango de páginas",
+                value=False,
+                key=state_key(form_key, "include_pages", document_id),
+            )
+            page_start = suggested_page
+            page_end = None
+            if include_pages:
+                page_start = int(
+                    ui.number_input(
+                        "Página inicial",
+                        min_value=1,
+                        value=int(suggested_page or 1),
+                        step=1,
+                        key=state_key(form_key, "page_start", document_id),
+                    )
+                )
+                page_end = int(
+                    ui.number_input(
+                        "Página final",
+                        min_value=page_start,
+                        value=page_start,
+                        step=1,
+                        key=state_key(form_key, "page_end", document_id),
+                    )
+                )
+            tags_text = ui.text_input(
+                "Etiquetas",
+                key=state_key(form_key, "tags", document_id),
+            )
+        submitted = ui.form_submit_button(
+            "Guardar",
+            key=state_key(form_key, "submit", document_id),
+            disabled=not actions_enabled,
+        )
+        cancelled = ui.form_submit_button(
+            "Cancelar",
+            key=state_key(form_key, "cancel", document_id),
+        )
+    if cancelled:
+        queue_draft_clear(ui.session_state, form_key=form_key, document_id=document_id)
+        ui.rerun()
+        return None
+    if not submitted:
+        return None
+    derived_title = next((line.strip() for line in body.splitlines() if line.strip()), "Nota")
+    return ReadingNoteDraft(
+        title=custom_title or derived_title[:200],
+        note_type=str(note_type),
+        body=body,
+        document_id=document_id,
+        reference_id=reference_id,
+        page_start=page_start,
+        page_end=page_end,
+        tags=tuple(split_values(str(tags_text or ""))),
+    )
+
+
 __all__ = [
     "ANNOTATION_KINDS",
     "NOTE_TYPES",
@@ -433,4 +525,5 @@ __all__ = [
     "reference_options",
     "render_annotation_form",
     "render_note_form",
+    "render_quick_note_form",
 ]

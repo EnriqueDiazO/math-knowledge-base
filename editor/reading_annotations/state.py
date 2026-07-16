@@ -252,7 +252,7 @@ def open_document_at_page(
     select_document(state, document_id)
     state[SELECTED_SOURCE_ID] = source_id
     state[SELECTED_DOCUMENT_ID] = document_id
-    queue_workspace_tab(state, "Workspace")
+    queue_workspace_tab(state, "Leer")
     if isinstance(page_number, int) and not isinstance(page_number, bool) and page_number >= 1:
         state[PENDING_PAGE_SUGGESTION] = {
             "document_id": document_id,

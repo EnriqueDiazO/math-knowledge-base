@@ -213,7 +213,7 @@ async function selectRealText(page, pageInput, pdfPage, textHint) {
     element.dispatchEvent(new PointerEvent("pointerup", { bubbles: true }));
     return selection?.toString().replace(/\s+/gu, " ").trim() ?? "";
   });
-  await page.getByRole("heading", { name: "Selección válida de una página" }).waitFor();
+  await page.getByRole("heading", { name: "Texto seleccionado · Sin guardar" }).waitFor();
   await page.getByRole("toolbar", { name: "Guardar selección como marca visual" }).waitFor();
   return { selectable, selectedText };
 }
@@ -359,11 +359,14 @@ async function createVisualAnnotation(page, pageInput, options) {
   const selectionToolbar = page.getByRole("toolbar", {
     name: "Guardar selección como marca visual",
   });
-  await selectionToolbar.getByLabel("Color de la marca", { exact: true }).selectOption(options.color);
   await selectionToolbar
     .getByRole("button", { name: options.kind === "highlight" ? "Highlight" : "Underline" })
     .click();
-  await page.getByRole("heading", { name: "Guardar explícitamente" }).waitFor();
+  await page.getByRole("heading", {
+    name: options.kind === "highlight" ? "Highlight" : "Underline",
+  }).waitFor();
+  await page.getByText("Más opciones", { exact: true }).click();
+  await page.getByLabel("Color de la marca a guardar").selectOption(options.color);
   await page.getByLabel("Comentario de la marca").fill(options.body);
   await page.getByLabel("Tags de la marca").fill(options.tags);
   const responsePromise = page.waitForResponse((response) => {
@@ -371,7 +374,7 @@ async function createVisualAnnotation(page, pageInput, options) {
     return response.request().method() === "POST" &&
       url.pathname === `/api/advanced-reader/documents/${documentId}/visual-annotations`;
   });
-  await page.getByRole("button", { name: "Guardar marca" }).click();
+  await page.getByRole("button", { name: "Guardar", exact: true }).click();
   const response = await responsePromise;
   if (!response.ok()) throw new Error(`visual_${options.kind}_save_failed`);
   const annotation = await response.json();
@@ -681,6 +684,7 @@ try {
         annotation.quote_text,
       );
     }
+    await page.getByRole("button", { name: "Revisar marcas" }).click();
     await page.getByLabel("Alcance de anotaciones").selectOption("document");
     await annotationCard(page, expectedHighlightId).waitFor({ state: "visible" });
     await annotationCard(page, expectedUnderlineId).waitFor({ state: "visible" });
@@ -745,7 +749,7 @@ try {
   );
   summary.pageInput = true;
   summary.interiorPagePainted = true;
-  const pageLabel = page.locator(".page-label");
+  const pageLabel = page.locator("#reading-context-heading");
   await pageLabel.filter({ hasText: `PDF page ${targetPage}` }).waitFor();
   const pageLabelText = await pageLabel.textContent();
   summary.bookLabel = expectedBookLabel
@@ -845,7 +849,7 @@ try {
   const savedAction = page.locator(".saved-visual-action");
   await savedAction.getByRole("button", { name: "Asociar concepto" }).click();
   await page.getByRole("heading", { name: "Asociar concepto" }).waitFor({ state: "visible" });
-  await page.getByLabel("Buscar concepto legacy").fill(conceptSearchText);
+  await page.getByLabel("Buscar concepto").fill(conceptSearchText);
   const searchResponsePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return response.request().method() === "GET" &&
@@ -856,10 +860,9 @@ try {
   const conceptCard = page.locator(".concept-card").filter({ hasText: conceptSearchText }).first();
   await conceptCard.waitFor({ state: "visible" });
   await conceptCard.getByRole("button", { name: "Seleccionar" }).click();
-  await page.getByRole("button", { name: "Continuar" }).click();
+  await page.getByRole("button", { name: "Cambiar" }).click();
   await page.getByLabel("Tipo de evidencia").selectOption("definition_source");
   await page.getByLabel("Comentario del vínculo").fill("Definición visual confirmada E2E");
-  await page.getByRole("button", { name: "Revisar" }).click();
   const conceptWritePromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
     return response.request().method() === "POST" &&
@@ -893,6 +896,9 @@ try {
   summary.conceptRetryIdentical = retry.status === 200 && retry.body?.result === "identical";
   if (!summary.conceptRetryIdentical) throw new Error("concept_retry_not_identical");
 
+  await page.getByRole("button", { name: "Volver a leer" }).click();
+  await page.getByRole("button", { name: "Revisar marcas" }).click();
+  await page.getByRole("button", { name: "Conocimiento" }).click();
   await page.getByRole("heading", { name: "Conceptos en esta página" }).waitFor();
   summary.conceptPageSummary = (await page.getByRole("heading", { name: "Conceptos en esta página" }).count()) === 1;
   summary.conceptDocumentSummary = (await page.getByRole("heading", { name: "Conceptos del documento" }).count()) === 1;
@@ -916,6 +922,7 @@ try {
   ) {
     throw new Error(`concept_summary_missing_${summaryProbe.status}`);
   }
+  await page.getByRole("button", { name: "Marcas" }).click();
   await linkedHighlightCard.getByRole("button", { name: "Archivar vínculo" }).waitFor();
   const archiveConceptPromise = page.waitForResponse((response) => {
     const url = new URL(response.url());
@@ -999,6 +1006,7 @@ try {
     highlightResult.annotation.quote_text,
   );
 
+  await page.getByRole("button", { name: "Volver a leer" }).click();
   await goToPdfPage(page, pageInput, targetPage);
   await page.getByRole("button", { name: "Guardar posición" }).click();
   await page.getByText("Posición guardada.").waitFor({ state: "visible" });
@@ -1039,6 +1047,8 @@ try {
   summary.underlineCreated = true;
   summary.visualGeometry.underline = underlineResult.geometry;
 
+  await page.getByRole("button", { name: "Seguir leyendo" }).click();
+  await page.getByRole("button", { name: "Revisar marcas" }).click();
   summary.lifecycleStage = "document_filter";
   await selectVisualFilter(page, "Alcance de anotaciones", "document", "active");
   const highlightCard = annotationCard(page, highlightResult.annotation.annotation_id);

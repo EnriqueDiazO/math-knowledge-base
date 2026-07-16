@@ -155,7 +155,7 @@ describe("AdvancedReaderEventV1 local event contract", () => {
       rotation: 90,
       direction: "clockwise",
     }));
-    expect(screen.getByRole("heading", { name: "Sin selección" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Book page 1 · PDF page 3" })).toBeVisible();
   });
 
   it("emits reading_position_saved only after the explicit successful PUT", async () => {

@@ -438,7 +438,7 @@ def test_read_only_search_can_launch_before_notes_evidence_is_initialized() -> N
     )
     assert ui.session_state[ACTIVE]
     assert ui.session_state[DOCUMENT_ID] == context.document_id
-    assert ui.session_state[PENDING_WORKSPACE_TAB] == "Concepts"
+    assert ui.session_state[PENDING_WORKSPACE_TAB] == "Conocimiento"
     assert "La búsqueda está disponible" in ui.main_text()
 
 
@@ -1157,7 +1157,7 @@ def test_pending_card_launches_preselected_wizard_without_touching_other_drafts(
     assert ui.session_state[TARGET_KIND] == "note"
     assert ui.session_state[TARGET_ID] == "note-unlinked"
     assert ui.session_state[PDF_PAGE] == 5
-    assert ui.session_state[PENDING_WORKSPACE_TAB] == "Concepts"
+    assert ui.session_state[PENDING_WORKSPACE_TAB] == "Conocimiento"
     assert ui.session_state["reading_annotations_quick_note_body_doc-current"] == "keep"
     assert ui.reruns == 1
 
@@ -1166,7 +1166,7 @@ def test_evidence_navigation_keeps_notes_tab_and_supports_source_only_notes() ->
     annotation = _evidence("ev-ann", _concept(), origin="annotation", page=9)
     annotation_ui = FakeUI()
     assert open_evidence(annotation_ui, annotation)
-    assert annotation_ui.session_state[PENDING_WORKSPACE_TAB] == "Notes"
+    assert annotation_ui.session_state[PENDING_WORKSPACE_TAB] == "Cuaderno"
     assert annotation_ui.session_state[SELECTED_ANNOTATION_ID] == annotation.annotation_id
 
     source_note = replace(
@@ -1175,20 +1175,20 @@ def test_evidence_navigation_keeps_notes_tab_and_supports_source_only_notes() ->
     )
     note_ui = FakeUI()
     assert open_evidence(note_ui, source_note)
-    assert note_ui.session_state[PENDING_WORKSPACE_TAB] == "Notes"
+    assert note_ui.session_state[PENDING_WORKSPACE_TAB] == "Cuaderno"
     assert note_ui.session_state[SELECTED_NOTE_ID] == source_note.note_id
 
     direct_ui = FakeUI()
     assert open_evidence(direct_ui, _evidence("ev-page", _concept(), origin="page", page=9))
-    assert direct_ui.session_state[PENDING_WORKSPACE_TAB] == "Workspace"
+    assert direct_ui.session_state[PENDING_WORKSPACE_TAB] == "Leer"
 
 
 def test_legacy_evidence_tab_state_migrates_before_tabs_are_created() -> None:
     state = {WORKSPACE_TAB: "Evidence", PENDING_WORKSPACE_TAB: "Evidence"}
 
     assert migrate_legacy_workspace_tab(state)
-    assert state[WORKSPACE_TAB] == "Concepts"
-    assert state[PENDING_WORKSPACE_TAB] == "Concepts"
+    assert state[WORKSPACE_TAB] == "Conocimiento"
+    assert state[PENDING_WORKSPACE_TAB] == "Conocimiento"
     assert not migrate_legacy_workspace_tab(state)
 
 

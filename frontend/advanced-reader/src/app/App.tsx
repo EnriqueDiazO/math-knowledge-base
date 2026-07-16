@@ -11,7 +11,6 @@ import {
   mergeVisualAnnotationSnapshots,
   parseVisualAnnotationTags,
 } from "../annotations/ui";
-import { DocumentInspector } from "../components/DocumentInspector";
 import { ConceptLinkWizard } from "../concepts/ConceptLinkWizard";
 import { ConceptPanels } from "../concepts/ConceptPanels";
 import { ReaderStatus } from "../components/ReaderStatus";
@@ -44,7 +43,6 @@ import type {
   UpdateVisualAnnotation,
   UnlinkedVisualAnnotation,
   VisualAnnotation,
-  VisualAnnotationColor,
   VisualAnnotationKind,
 } from "../types/api";
 import type {
@@ -271,7 +269,6 @@ export function AdvancedReaderApp({
   const [entireWord, setEntireWord] = useState(false);
   const [selection, setSelection] = useState<TextSelectionEvent | null>(null);
   const [selectionPageLabel, setSelectionPageLabel] = useState<PageLabel | null>(null);
-  const [visualColor, setVisualColor] = useState<VisualAnnotationColor>("yellow");
   const [visualDraft, setVisualDraft] = useState<VisualAnnotationDraft | null>(null);
   const [draftSelection, setDraftSelection] = useState<TextSelectionEvent | null>(null);
   const [visualSaving, setVisualSaving] = useState(false);
@@ -291,6 +288,11 @@ export function AdvancedReaderApp({
   const [visualReloadKey, setVisualReloadKey] = useState(0);
   const [selectedAnnotationId, setSelectedAnnotationId] = useState<string | null>(null);
   const [recentVisualAnnotationId, setRecentVisualAnnotationId] = useState<string | null>(null);
+  const [recentConceptEvidence, setRecentConceptEvidence] = useState<ConceptEvidence | null>(null);
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewMode, setReviewMode] = useState<"marks" | "knowledge">("marks");
+  const [quickNoteOpen, setQuickNoteOpen] = useState(false);
+  const [quickNoteBody, setQuickNoteBody] = useState("");
   const [conceptGroups, setConceptGroups] = useState<DocumentConceptGroup[]>([]);
   const [unlinkedVisualAnnotations, setUnlinkedVisualAnnotations] = useState<UnlinkedVisualAnnotation[]>([]);
   const [conceptLoading, setConceptLoading] = useState(false);
@@ -344,6 +346,11 @@ export function AdvancedReaderApp({
     setVisualReloadKey(0);
     setSelectedAnnotationId(null);
     setRecentVisualAnnotationId(null);
+    setRecentConceptEvidence(null);
+    setReviewOpen(false);
+    setReviewMode("marks");
+    setQuickNoteOpen(false);
+    setQuickNoteBody("");
     setConceptGroups([]);
     setUnlinkedVisualAnnotations([]);
     setConceptListPage(1);
@@ -476,6 +483,11 @@ export function AdvancedReaderApp({
       }
       selectionRef.current = value;
       setSelection(value);
+      setRecentVisualAnnotationId(null);
+      setRecentConceptEvidence(null);
+      setSelectedAnnotationId(null);
+      setReviewOpen(false);
+      setQuickNoteOpen(false);
       loadSelectionLabel(value);
       emitEvent(value);
     };
@@ -767,11 +779,14 @@ export function AdvancedReaderApp({
     setVisualDraft({
       annotationId,
       kind,
-      color: visualColor,
+      color: "yellow",
       body: "",
       tagsText: "",
     });
     setVisualSaveError(null);
+    setRecentConceptEvidence(null);
+    setReviewOpen(false);
+    setQuickNoteOpen(false);
   };
 
   const cancelVisualDraft = () => {
@@ -817,6 +832,7 @@ export function AdvancedReaderApp({
       mergeVisualAnnotations([annotation]);
       setVisualReloadKey((value) => value + 1);
       setRecentVisualAnnotationId(annotation.annotation_id);
+      setRecentConceptEvidence(null);
       setVisualDraft(null);
       setDraftSelection(null);
       controllerRef.current?.clearSelection("user");
@@ -914,6 +930,15 @@ export function AdvancedReaderApp({
       }
       return result;
     }, {});
+  const recentVisualAnnotation = recentVisualAnnotationId === null
+    ? null
+    : visualAnnotations.get(recentVisualAnnotationId) ?? null;
+  const activePageMarks = [...visualAnnotations.values()].filter(
+    (annotation) => annotation.status === "active" && annotation.pdf_page === currentPage,
+  );
+  const pageConceptCount = conceptGroups.reduce((count, group) => count + (
+    group.evidence.some((item) => item.annotation?.pdf_page === currentPage) ? 1 : 0
+  ), 0);
 
   if (phase === "error" || documentId === null) {
     const visibleError = error ?? appError(new ReaderApiError("invalid_document_id", "Invalid."));
@@ -1031,8 +1056,6 @@ export function AdvancedReaderApp({
             enabled={canPersistVisualAnnotations && visualDraft === null}
             stageRef={stageRef}
             viewerRef={viewerRef}
-            color={visualColor}
-            onColor={setVisualColor}
             onChoose={beginVisualAnnotation}
             onCancel={() => controllerRef.current?.clearSelection("user")}
           />
@@ -1042,17 +1065,56 @@ export function AdvancedReaderApp({
         </main>
 
         <aside className="reader-inspector" aria-label="Inspector" aria-hidden={!inspectorOpen}>
-          <DocumentInspector metadata={metadata} currentPage={currentPage} pageLabel={pageLabel} />
-          <SelectionInspector
-            selection={selection}
-            pageLabel={selectionPageLabel}
-            persistenceEnabled={canPersistVisualAnnotations && visualDraft === null}
-            color={visualColor}
-            onColor={setVisualColor}
-            onChoose={beginVisualAnnotation}
-            onClear={() => controllerRef.current?.clearSelection("user")}
-          />
-          {visualDraft !== null && draftSelection !== null && (
+          {selectedConceptAnnotation !== null ? (
+            <ConceptLinkWizard
+              api={api}
+              metadata={metadata}
+              annotation={selectedConceptAnnotation}
+              canWrite={metadata.capabilities.concept_linking}
+              onSaved={(evidence) => {
+                setRecentConceptEvidence(evidence);
+                setSelectedAnnotationId(null);
+                setRecentVisualAnnotationId(null);
+                refreshConceptEvidence();
+              }}
+              onCancel={() => setSelectedAnnotationId(null)}
+            />
+          ) : recentConceptEvidence !== null ? (
+            <section className="inspector-card success-card" role="status">
+              <div className="eyebrow">Concepto asociado ✓</div>
+              <h2>{recentConceptEvidence.concept.title}</h2>
+              <p>{recentConceptEvidence.link_type_label}</p>
+              {recentConceptEvidence.annotation !== null && (
+                <>
+                  <blockquote className="selection-text">
+                    {recentConceptEvidence.annotation.quote_text}
+                  </blockquote>
+                  <p className="visual-page-label">PDF page {recentConceptEvidence.annotation.pdf_page}</p>
+                </>
+              )}
+              <button type="button" className="primary-button" onClick={() => setRecentConceptEvidence(null)}>
+                Volver a leer
+              </button>
+            </section>
+          ) : recentVisualAnnotation !== null ? (
+            <section className="inspector-card saved-visual-action" role="status">
+              <div className="eyebrow">
+                {recentVisualAnnotation.kind === "highlight" ? "Highlight guardado ✓" : "Underline guardado ✓"}
+              </div>
+              <blockquote className="selection-text">{recentVisualAnnotation.quote_text}</blockquote>
+              <p className="visual-page-label">PDF page {recentVisualAnnotation.pdf_page}</p>
+              <div className="button-row">
+                <button type="button" onClick={() => void openConceptWizard(recentVisualAnnotation.annotation_id)}>
+                  Asociar concepto
+                </button>
+                <button type="button" onClick={() => {
+                  setRecentVisualAnnotationId(null);
+                  setQuickNoteOpen(true);
+                }}>Añadir nota</button>
+                <button type="button" onClick={() => setRecentVisualAnnotationId(null)}>Seguir leyendo</button>
+              </div>
+            </section>
+          ) : visualDraft !== null && draftSelection !== null ? (
             <VisualAnnotationConfirmation
               draft={visualDraft}
               selection={draftSelection}
@@ -1063,60 +1125,72 @@ export function AdvancedReaderApp({
               onSave={() => void saveVisualAnnotation()}
               onCancel={cancelVisualDraft}
             />
-          )}
-          {recentVisualAnnotationId !== null && selectedAnnotationId === null && (
-            <section className="inspector-card saved-visual-action" role="status">
-              <strong>Marca visual guardada.</strong>
+          ) : selection !== null ? (
+            <SelectionInspector
+              selection={selection}
+              pageLabel={selectionPageLabel}
+              persistenceEnabled={canPersistVisualAnnotations}
+              onChoose={beginVisualAnnotation}
+              onClear={() => controllerRef.current?.clearSelection("user")}
+            />
+          ) : quickNoteOpen ? (
+            <section className="inspector-card quick-note" aria-labelledby="quick-note-heading">
+              <div className="eyebrow">Nota rápida</div>
+              <h2 id="quick-note-heading">Añadir nota</h2>
+              <label>
+                Cuerpo de la nota
+                <textarea
+                  aria-label="Cuerpo de la nota"
+                  rows={6}
+                  value={quickNoteBody}
+                  onChange={(event) => setQuickNoteBody(event.target.value)}
+                />
+              </label>
+              <p className="warning-banner">Guarda notas desde Leer en Reading Space.</p>
               <div className="button-row">
-                <button
-                  type="button"
-                  onClick={() => void openConceptWizard(recentVisualAnnotationId)}
-                >
-                  Asociar concepto
-                </button>
-                <button type="button" onClick={() => setRecentVisualAnnotationId(null)}>
-                  Seguir leyendo
+                <button type="button" className="primary-button" disabled>Guardar</button>
+                <button type="button" onClick={() => { setQuickNoteOpen(false); setQuickNoteBody(""); }}>
+                  Cancelar
                 </button>
               </div>
             </section>
-          )}
-          {selectedConceptAnnotation !== null && (
-            <ConceptLinkWizard
-              api={api}
-              metadata={metadata}
-              annotation={selectedConceptAnnotation}
-              canWrite={metadata.capabilities.concept_linking}
-              onSaved={() => {
-                setSelectedAnnotationId(null);
-                setRecentVisualAnnotationId(null);
-                refreshConceptEvidence();
-              }}
-              onCancel={() => setSelectedAnnotationId(null)}
-            />
-          )}
-          <VisualAnnotationsPanel
-            annotations={sidebarVisualAnnotations}
-            currentPage={currentPage}
-            filters={visualFilters}
-            loading={visualListLoading}
-            hasMore={visualListPage < visualListPages}
-            canMutate={canPersistVisualAnnotations}
-            canLinkConcepts={metadata.capabilities.concept_linking}
-            canArchiveConceptLinks={metadata.capabilities.concept_link_archive}
-            canReactivateConceptLinks={metadata.capabilities.concept_link_reactivate}
-            conceptEvidenceByAnnotation={conceptEvidenceByAnnotation}
-            onFilters={setVisualFilters}
-            onLoadMore={() => setVisualListPage((value) => value + 1)}
-            onNavigate={navigateToVisualAnnotation}
-            onUpdate={updateVisualAnnotation}
-            onArchive={archiveVisualAnnotation}
-            onReactivate={reactivateVisualAnnotation}
-            onLinkConcept={(annotation) => setSelectedAnnotationId(annotation.annotation_id)}
-            onArchiveConceptLink={archiveConceptEvidence}
-            onReactivateConceptLink={reactivateConceptEvidence}
-          />
-          {metadata.capabilities.concept_search && (
-            <ConceptPanels
+          ) : reviewOpen && reviewMode === "marks" ? (
+            <div className="contextual-review">
+              <nav className="review-switcher" aria-label="Revisión del lector">
+                <button type="button" aria-current="page">Marcas</button>
+                <button type="button" onClick={() => setReviewMode("knowledge")}>Conocimiento</button>
+                <button type="button" onClick={() => setReviewOpen(false)}>Volver a leer</button>
+              </nav>
+              <VisualAnnotationsPanel
+                annotations={sidebarVisualAnnotations}
+                currentPage={currentPage}
+                filters={visualFilters}
+                loading={visualListLoading}
+                hasMore={visualListPage < visualListPages}
+                canMutate={canPersistVisualAnnotations}
+                canLinkConcepts={metadata.capabilities.concept_linking}
+                canArchiveConceptLinks={metadata.capabilities.concept_link_archive}
+                canReactivateConceptLinks={metadata.capabilities.concept_link_reactivate}
+                conceptEvidenceByAnnotation={conceptEvidenceByAnnotation}
+                onFilters={setVisualFilters}
+                onLoadMore={() => setVisualListPage((value) => value + 1)}
+                onNavigate={navigateToVisualAnnotation}
+                onUpdate={updateVisualAnnotation}
+                onArchive={archiveVisualAnnotation}
+                onReactivate={reactivateVisualAnnotation}
+                onLinkConcept={(annotation) => setSelectedAnnotationId(annotation.annotation_id)}
+                onArchiveConceptLink={archiveConceptEvidence}
+                onReactivateConceptLink={reactivateConceptEvidence}
+              />
+            </div>
+          ) : reviewOpen && metadata.capabilities.concept_search ? (
+            <div className="contextual-review">
+              <nav className="review-switcher" aria-label="Revisión del lector">
+                <button type="button" onClick={() => setReviewMode("marks")}>Marcas</button>
+                <button type="button" aria-current="page">Conocimiento</button>
+                <button type="button" onClick={() => setReviewOpen(false)}>Volver a leer</button>
+              </nav>
+              <ConceptPanels
               groups={conceptGroups}
               unlinked={unlinkedVisualAnnotations}
               currentPage={currentPage}
@@ -1130,10 +1204,25 @@ export function AdvancedReaderApp({
               onNavigate={navigateToConceptEvidence}
               onArchive={archiveConceptEvidence}
               onReactivate={reactivateConceptEvidence}
-            />
+              />
+            </div>
+          ) : (
+            <section className="inspector-card reading-context" aria-labelledby="reading-context-heading">
+              <div className="eyebrow">Lectura</div>
+              <h2 id="reading-context-heading">{pageLabel.display_label}</h2>
+              <p>{activePageMarks.length} marcas · {pageConceptCount} conceptos</p>
+              <div className="button-row">
+                <button type="button" className="primary-button" onClick={() => setQuickNoteOpen(true)}>
+                  Nota rápida
+                </button>
+                <button type="button" onClick={() => { setReviewMode("marks"); setReviewOpen(true); }}>
+                  Revisar marcas
+                </button>
+              </div>
+              {saveStatus === "saved" && <p className="save-feedback success" role="status">Posición guardada.</p>}
+              {saveStatus === "error" && <p className="save-feedback error" role="alert">No se pudo guardar la posición.</p>}
+            </section>
           )}
-          {saveStatus === "saved" && <p className="save-feedback success" role="status">Posición guardada.</p>}
-          {saveStatus === "error" && <p className="save-feedback error" role="alert">No se pudo guardar la posición.</p>}
         </aside>
       </div>
     </div>

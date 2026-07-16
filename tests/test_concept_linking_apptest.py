@@ -555,7 +555,7 @@ def test_duplicate_card_persists_and_its_navigation_runs_on_a_later_rerun(
     assert not app.exception
     assert app.metric[0].value == "0"
     assert any("ya está asociado" in item.value for item in app.warning)
-    assert any(button.label == "Abrir evidencia" for button in app.button)
+    assert any(button.label == "Ir a la marca" for button in app.button)
 
     app.run()
     next(button for button in app.button if button.label == "Guardar asociación").click()
@@ -563,10 +563,10 @@ def test_duplicate_card_persists_and_its_navigation_runs_on_a_later_rerun(
     assert not app.exception
     assert app.metric[0].value == "0"
 
-    next(button for button in app.button if button.label == "Abrir evidencia").click()
+    next(button for button in app.button if button.label == "Ir a la marca").click()
     app.run()
     assert not app.exception
-    assert app.session_state[PENDING_WORKSPACE_TAB] == "Workspace"
+    assert app.session_state[PENDING_WORKSPACE_TAB] == "Leer"
 
 
 __all__ = []

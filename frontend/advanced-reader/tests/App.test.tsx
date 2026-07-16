@@ -129,6 +129,23 @@ describe("S5A frontend requirements 35-57", () => {
     expect(inspector).toHaveAttribute("aria-hidden", "true");
   });
 
+  it("keeps the default inspector minimal and quick note body-first", async () => {
+    const { user } = await renderReady();
+    expect(screen.queryByLabelText("Filtros de anotaciones visuales")).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Anotaciones visuales" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Nota rápida" }));
+    expect(screen.getByRole("heading", { name: "Añadir nota" })).toBeVisible();
+    const quickNote = screen.getByRole("region", { name: "Añadir nota" });
+    expect(screen.getAllByRole("textbox")).toHaveLength(2);
+    expect(within(quickNote).getByLabelText("Cuerpo de la nota")).toBeVisible();
+    expect(within(quickNote).getByRole("button", { name: "Guardar" })).toBeDisabled();
+    expect(within(quickNote).queryByLabelText(/título|tags|página/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
+    expect(screen.getByRole("button", { name: "Revisar marcas" })).toBeVisible();
+  });
+
   it("[46] zooms in and out and reports the percentage", async () => {
     const { controller, user } = await renderReady();
     await user.click(screen.getByLabelText("Aumentar zoom"));
@@ -172,9 +189,9 @@ describe("S5A frontend requirements 35-57", () => {
 
   it("[52] renders a compact metadata card without paths", async () => {
     await renderReady();
-    expect(screen.getByRole("heading", { name: metadata.title })).toBeVisible();
-    expect(screen.getByText(metadata.source.name)).toBeVisible();
-    expect(screen.getByText(metadata.version.original_filename)).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Book page 1 · PDF page 3" })).toBeVisible();
+    expect(screen.getByText("0 marcas · 0 conceptos")).toBeVisible();
+    expect(screen.queryByText(metadata.version.original_filename)).not.toBeInTheDocument();
     expect(document.body).not.toHaveTextContent("/home/");
   });
 
@@ -222,9 +239,9 @@ describe("S5A frontend requirements 35-57", () => {
   it("[57] displays a valid same-page text selection", async () => {
     const { controller } = await renderReady();
     act(() => controller.emitSelection(samePageSelection));
-    expect(screen.getByRole("heading", { name: "Selección válida de una página" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Texto seleccionado · Sin guardar" })).toBeVisible();
     expect(screen.getByText(samePageSelection.selected_text)).toBeVisible();
-    expect(screen.getByText("Rectángulos").parentElement).toHaveTextContent("1");
+    expect(screen.queryByText("Rectángulos")).not.toBeInTheDocument();
   });
 });
 
@@ -234,15 +251,15 @@ describe("S5A frontend requirements 60-66", () => {
     act(() => controller.emitSelection(crossPageSelection));
     expect(screen.getByRole("heading", { name: "Selección multipágina" })).toBeVisible();
     expect(screen.getByText(/no se genera geometría utilizable/)).toBeVisible();
-    expect(screen.getByText("Rectángulos").parentElement).toHaveTextContent("0");
+    expect(screen.queryByText("Rectángulos")).not.toBeInTheDocument();
   });
 
   it("[61] clears the ephemeral selection", async () => {
     const { controller, user } = await renderReady();
     act(() => controller.emitSelection(samePageSelection));
-    await user.click(screen.getByRole("button", { name: "Limpiar selección" }));
+    await user.click(screen.getByRole("button", { name: "Cancelar" }));
     expect(controller.clearSelection).toHaveBeenCalledWith("user");
-    expect(screen.getByRole("heading", { name: "Sin selección" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Book page 1 · PDF page 3" })).toBeVisible();
   });
 
   it("[62] selection never calls the persistence API", async () => {
@@ -257,7 +274,7 @@ describe("S5A frontend requirements 60-66", () => {
     const { controller } = await renderReady();
     act(() => controller.emitSelection(samePageSelection));
     expect(screen.queryByRole("button", { name: /highlight|subrayar/i })).not.toBeInTheDocument();
-    expect(screen.getAllByText(/Inicializa Notes & Evidence/).length).toBeGreaterThan(0);
+    expect(screen.getAllByText(/Guardar no está disponible/).length).toBeGreaterThan(0);
   });
 
   it("[64] exposes no concept-link write action", async () => {

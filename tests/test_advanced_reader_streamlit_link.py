@@ -574,7 +574,7 @@ def test_editor_integration_is_pdf_only_retains_fallback_and_starts_no_processes
                     and node.func.attr == "button"
                     and node.args
                     and isinstance(node.args[0], ast.Constant)
-                    and node.args[0].value == "Open PDF"
+                    and node.args[0].value == "Abrir visor integrado"
                 ):
                     fallback_buttons += 1
 

@@ -96,3 +96,13 @@ nativas del visor de Streamlit.
 
 La experiencia guiada posterior para asociar conceptos con estas evidencias se
 documenta en [Asociación guiada de conceptos — S4.3](CONCEPT_LINKING_UX_S4_3.md).
+
+## Navegación simplificada posterior
+
+La organización de siete pestañas fue sustituida por **Biblioteca**, **Leer**,
+**Cuaderno** y **Conocimiento**. Documents y Recent se integran en Biblioteca;
+Workspace pasa a Leer; Notes y la revisión de anotaciones pasan a Cuaderno; la
+revisión conceptual pasa a Conocimiento. Page Map y Maintenance se conservan
+en **Configuración**, fuera de la navegación primaria. El contrato de página,
+`st.pdf`, Notes & Evidence y Page Map no cambia. Véase
+[Flujo simplificado de lectura](SIMPLIFIED_READING_WORKFLOW.md).

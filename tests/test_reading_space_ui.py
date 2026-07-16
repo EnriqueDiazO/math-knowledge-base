@@ -544,7 +544,7 @@ def test_current_page_and_reading_status_actions_call_typed_service() -> None:
     reader = _reader(document, source, opened=False)
     ui = FakeUI(
         values={state_key("current_page", document.document_id): 7},
-        clicked={"Save PDF page", "Completed", "Deferred", "Reset"},
+        clicked={"Guardar página", "Completado", "Posponer", "Reiniciar progreso"},
     )
 
     _render_reading_state_actions(ui, service, reader, actions_enabled=True)
@@ -586,7 +586,7 @@ def test_previous_and_next_change_manual_page_without_persisting_s3() -> None:
     reader = _reader(document, source, opened=False)
     ui = FakeUI(
         values={state_key("current_page", document.document_id): 7},
-        clicked={"Next"},
+        clicked={"Siguiente"},
     )
     ui.session_state[SELECTED_DOCUMENT_ID] = document.document_id
 
@@ -598,7 +598,7 @@ def test_previous_and_next_change_manual_page_without_persisting_s3() -> None:
 
     previous = FakeUI(
         values={state_key("current_page", document.document_id): 8},
-        clicked={"Previous"},
+        clicked={"Anterior"},
     )
     previous.session_state[SELECTED_DOCUMENT_ID] = document.document_id
     _render_reading_state_actions(previous, service, reader, actions_enabled=True)
@@ -617,7 +617,7 @@ def test_viewer_page_map_and_quick_capture_controls_are_separate() -> None:
     page_maps = FakePageMapService(label="1")
     ui = FakeUI(
         values={state_key("current_page", document.document_id): 9},
-        clicked={"Set as Book page 1", "Quick annotation"},
+        clicked={"Definir como página 1 del libro", "Marca rápida"},
     )
 
     _render_reading_state_actions(
@@ -632,8 +632,8 @@ def test_viewer_page_map_and_quick_capture_controls_are_separate() -> None:
     assert page_maps.quick_rules == [(document.document_id, 9, "local")]
     assert ui.session_state[WORKSPACE_FOCUS] == "annotation"
     rendered = " ".join(message for _level, message in ui.messages)
-    assert "Book page 1 · PDF page 9" in rendered
-    assert "viewer scroll is manual" in rendered
+    assert "Página del libro 1 · página PDF 9" in rendered
+    assert "visual_anchor" not in rendered
 
 
 def test_reader_metadata_is_compact_with_closed_technical_details() -> None:
@@ -650,10 +650,11 @@ def test_reader_metadata_is_compact_with_closed_technical_details() -> None:
         actions_enabled=True,
     )
 
-    assert ("Technical details", False) in ui.expanders
+    assert ("Technical details", False) not in ui.expanders
     rendered = " ".join(message for _level, message in ui.messages)
-    assert "Kind: PDF" in rendered
-    assert "Integrity: OK" in rendered
+    assert "PDF" in rendered
+    assert "Verificado" in rendered
+    assert "SHA" not in rendered
 
 
 def test_web_reader_requires_registration_before_external_link() -> None:
@@ -673,7 +674,7 @@ def test_web_reader_requires_registration_before_external_link() -> None:
     assert state_key("current_page", document.document_id) not in initial.session_state
     assert initial.links == []
 
-    confirmed = FakeUI(clicked={"Register opening"})
+    confirmed = FakeUI(clicked={"Registrar apertura"})
     _render_web_reader(confirmed, service, reader, actions_enabled=True)
 
     assert service.open_calls == [document.document_id]
@@ -697,10 +698,15 @@ def test_full_page_filters_and_lists_without_loading_pdf() -> None:
     assert service.context_calls == []
     assert ui.pdf_calls == []
     rendered = " ".join(message for _level, message in ui.messages)
-    assert "Reading Space" in rendered
-    assert "Recent Documents" in rendered
-    assert ui.tab_calls[0][1]["default"] == "Documents"
-    assert any(row["document_id"] == document.document_id for table in ui.rows for row in table)
+    assert "Lectura" in rendered
+    assert "Todos los documentos" in rendered
+    assert ui.tab_calls[0][1]["default"] == "Biblioteca"
+    assert ui.rows == []
+    assert ui.tab_calls[0][0] == ("Biblioteca", "Leer", "Cuaderno", "Conocimiento")
+    assert "Page Map" not in ui.tab_calls[0][0]
+    assert "Maintenance" not in ui.tab_calls[0][0]
+    assert ("popover", "⚙️ Configuración") in ui.layout_events
+    assert document.document_id not in rendered
     assert not any(label in {"Change Document", "Recent Documents"} for label, _ in ui.expanders)
     assert ("container", state_key("workspace")) not in ui.layout_events
 
@@ -726,7 +732,7 @@ def test_selected_document_uses_split_workspace_and_compact_top_bar(
         "render_workspace_notes_panel",
         lambda _context, reader, **_kwargs: s4_calls.append(reader.document.document_id),
     )
-    monkeypatch.setattr(reading_page_module, "render_notes_tab", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(reading_page_module, "render_notebook_tab", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(reading_page_module, "render_evidence_tab", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         reading_page_module,
@@ -741,15 +747,14 @@ def test_selected_document_uses_split_workspace_and_compact_top_bar(
     )
 
     assert service.context_calls == [document.document_id]
-    assert ui.session_state[state_key("workspace_layout")] == "Split workspace"
-    assert ([0.58, 0.42], {"gap": "large"}) in ui.column_calls
+    assert ([0.68, 0.32], {"gap": "large"}) in ui.column_calls
     assert not any(item[0] in {"Change Document", "Recent Documents"} for item in ui.expanders)
     assert ("tabs", tuple(reading_page_module.WORKSPACE_TABS)) in ui.layout_events
-    assert ui.tab_calls[0][1]["default"] == "Workspace"
+    assert ui.tab_calls[0][1]["default"] == "Leer"
     assert ui.tab_calls[0][1]["on_change"] == "rerun"
     assert s4_calls == [document.document_id]
     rendered = " ".join(message for _level, message in ui.messages)
-    assert "Reading Workspace" in rendered
+    assert "Capturar" in rendered
     assert "PDF reading" in rendered
     assert "Workspace Source" in rendered
     assert "PDF page" in rendered
@@ -777,7 +782,7 @@ def test_selected_document_can_use_stacked_layout_without_split_columns(
         "render_workspace_notes_panel",
         lambda _context, reader, **_kwargs: s4_calls.append(reader.document.document_id),
     )
-    monkeypatch.setattr(reading_page_module, "render_notes_tab", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(reading_page_module, "render_notebook_tab", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(reading_page_module, "render_evidence_tab", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(
         reading_page_module,
@@ -792,8 +797,8 @@ def test_selected_document_can_use_stacked_layout_without_split_columns(
     )
 
     assert service.context_calls == [document.document_id]
-    assert ([0.58, 0.42], {"gap": "large"}) not in ui.column_calls
-    assert ui.session_state[state_key("workspace_layout")] == "Stacked layout"
+    assert ([0.68, 0.32], {"gap": "large"}) in ui.column_calls
+    assert state_key("workspace_layout") not in ui.session_state
     assert s4_calls == [document.document_id]
 
 
@@ -860,7 +865,7 @@ def test_open_document_persists_when_all_source_filter_is_unchanged() -> None:
         service=service,  # type: ignore[arg-type]
     )
     assert ui.session_state[SELECTED_DOCUMENT_ID] == document.document_id
-    assert ui.pdf_calls == []
+    assert len(ui.pdf_calls) == 1
     assert ui.reruns == 1
 
     ui.clicked.clear()
@@ -872,14 +877,14 @@ def test_open_document_persists_when_all_source_filter_is_unchanged() -> None:
 
     assert ui.session_state[SELECTED_DOCUMENT_ID] == document.document_id
     assert service.open_calls == [document.document_id]
-    assert len(ui.pdf_calls) == 1
+    assert len(ui.pdf_calls) == 2
 
     render_reading_space_page(
         context,
         ui=ui,
         service=service,  # type: ignore[arg-type]
     )
-    assert len(ui.pdf_calls) == 2
+    assert len(ui.pdf_calls) == 3
 
 
 def test_pending_pdf_target_opens_once_but_pending_web_only_selects() -> None:
@@ -940,7 +945,7 @@ def test_recent_document_action_reopens_pdf() -> None:
 
     assert service.open_calls == [document.document_id]
     assert ui.session_state[SELECTED_DOCUMENT_ID] == document.document_id
-    assert ui.pdf_calls == []
+    assert len(ui.pdf_calls) == 1
     assert ui.reruns == 1
 
     ui.clicked.clear()

@@ -16,7 +16,7 @@ def open_evidence(ui: Any, evidence: EvidenceView) -> bool:
     if not evidence.document_id:
         if evidence.note_id:
             select_note(ui.session_state, evidence.note_id)
-            queue_workspace_tab(ui.session_state, "Notes")
+            queue_workspace_tab(ui.session_state, "Cuaderno")
             ui.rerun()
             return True
         ui.warning("Esta evidencia no está asociada con un Document.")
@@ -29,10 +29,10 @@ def open_evidence(ui: Any, evidence: EvidenceView) -> bool:
     )
     if evidence.annotation_id:
         select_annotation(ui.session_state, evidence.annotation_id)
-        queue_workspace_tab(ui.session_state, "Notes")
+        queue_workspace_tab(ui.session_state, "Cuaderno")
     elif evidence.note_id:
         select_note(ui.session_state, evidence.note_id)
-        queue_workspace_tab(ui.session_state, "Notes")
+        queue_workspace_tab(ui.session_state, "Cuaderno")
     ui.rerun()
     return True
 

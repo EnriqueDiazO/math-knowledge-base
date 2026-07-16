@@ -166,22 +166,21 @@ describe("S5C guided visual concept linking", () => {
   it("opens explicitly, searches cards, confirms context, and saves once", async () => {
     const api = conceptApi({ unlinked: true });
     const { user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     const visualCard = document.querySelector(`[data-annotation-id="${annotationId}"]`);
     expect(visualCard).not.toBeNull();
     await user.click(within(visualCard as HTMLElement).getByRole("button", { name: "Asociar concepto" }));
 
     expect(screen.getByRole("heading", { name: "Asociar concepto" })).toBeVisible();
-    await user.type(screen.getByLabelText("Buscar concepto legacy"), "Compacidad");
+    expect(screen.queryByLabelText("Pasos de asociación")).not.toBeInTheDocument();
+    await user.type(screen.getByLabelText("Buscar concepto"), "Compacidad");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
     expect(await screen.findByRole("heading", { name: "Compacidad" })).toBeVisible();
     await user.click(screen.getByRole("button", { name: "Seleccionar" }));
-    await user.click(screen.getByRole("button", { name: "Continuar" }));
+    await user.click(screen.getByRole("button", { name: "Cambiar" }));
     await user.selectOptions(screen.getByLabelText("Tipo de evidencia"), "definition_source");
     await user.type(screen.getByLabelText("Comentario del vínculo"), "Definición primaria");
-    await user.click(screen.getByRole("button", { name: "Revisar" }));
-
     expect(screen.getByText("Fuente de definición")).toBeVisible();
-    expect(screen.getAllByText(metadata.title).length).toBeGreaterThan(0);
     expect(screen.getAllByText(annotation.quote_text).length).toBeGreaterThan(0);
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     await waitFor(() => expect(api.createAnnotationConceptEvidence).toHaveBeenCalledOnce());
@@ -202,13 +201,12 @@ describe("S5C guided visual concept linking", () => {
       .mockRejectedValueOnce(new Error("connection lost after write"))
       .mockResolvedValueOnce({ result: "identical", item: evidence });
     const { user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     const visualCard = document.querySelector(`[data-annotation-id="${annotationId}"]`) as HTMLElement;
     await user.click(within(visualCard).getByRole("button", { name: "Asociar concepto" }));
-    await user.type(screen.getByLabelText("Buscar concepto legacy"), "Compacidad");
+    await user.type(screen.getByLabelText("Buscar concepto"), "Compacidad");
     await user.click(screen.getByRole("button", { name: "Buscar" }));
     await user.click(await screen.findByRole("button", { name: "Seleccionar" }));
-    await user.click(screen.getByRole("button", { name: "Continuar" }));
-    await user.click(screen.getByRole("button", { name: "Revisar" }));
     await user.click(screen.getByRole("button", { name: "Guardar" }));
     expect(await screen.findByRole("alert")).toHaveTextContent("reintentar sin duplicarlo");
     await user.click(screen.getByRole("button", { name: "Reintentar" }));
@@ -220,9 +218,7 @@ describe("S5C guided visual concept linking", () => {
   it("shows annotation, page, document, unlinked, and lifecycle cards", async () => {
     const api = conceptApi({ groups: [group()], unlinked: true });
     const { controller, user } = await renderReady(api);
-    expect(await screen.findByRole("heading", { name: "Conceptos en esta página" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Conceptos del documento" })).toBeVisible();
-    expect(screen.getByRole("heading", { name: "Marcas sin concepto" })).toBeVisible();
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     expect(screen.getByRole("heading", { name: "Conceptos asociados" })).toBeVisible();
     expect(screen.getAllByText("Compacidad").length).toBeGreaterThan(0);
 
@@ -231,11 +227,16 @@ describe("S5C guided visual concept linking", () => {
     await waitFor(() => expect(api.archiveConceptEvidence).toHaveBeenCalledWith(evidenceId));
     await user.click(within(associated).getByRole("button", { name: "Ir a la marca" }));
     expect(controller.focusVisualAnnotation).toHaveBeenCalledWith(annotationId);
+    await user.click(screen.getByRole("button", { name: "Conocimiento" }));
+    expect(await screen.findByRole("heading", { name: "Conceptos en esta página" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Conceptos del documento" })).toBeVisible();
+    expect(screen.getByRole("heading", { name: "Marcas sin concepto" })).toBeVisible();
   });
 
   it("does not offer new linking for archived or version-mismatched annotations", async () => {
     const mismatch = { ...annotation, visual_status: "version_mismatch" as const };
-    await renderReady(conceptApi({ visual: mismatch, groups: [group()] }));
+    const { user } = await renderReady(conceptApi({ visual: mismatch, groups: [group()] }));
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     const visualCard = document.querySelector(`[data-annotation-id="${annotationId}"]`) as HTMLElement;
     expect(within(visualCard).queryByRole("button", { name: "Asociar concepto" }))
       .not.toBeInTheDocument();
@@ -260,6 +261,7 @@ describe("S5C guided visual concept linking", () => {
     };
     const api = conceptApi({ visual: archivedAnnotation, groups: [group([archivedEvidence])] });
     const { user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     await user.selectOptions(screen.getByLabelText("Estado de anotaciones"), "archived");
     await waitFor(() => expect(document.querySelector(
       `[data-annotation-id="${annotationId}"]`,
@@ -276,6 +278,7 @@ describe("S5C guided visual concept linking", () => {
   it("does not write when the wizard is cancelled", async () => {
     const api = conceptApi();
     const { user } = await renderReady(api);
+    await user.click(screen.getByRole("button", { name: "Revisar marcas" }));
     const visualCard = document.querySelector(`[data-annotation-id="${annotationId}"]`) as HTMLElement;
     await user.click(within(visualCard).getByRole("button", { name: "Asociar concepto" }));
     await user.click(screen.getByRole("button", { name: "Cancelar" }));

@@ -15,12 +15,13 @@ def render_open_document(
     document_id: str | None,
     page_number: int | None,
     subject_id: str,
+    label: str = "Open in Reading Space",
 ) -> bool:
     """Render logical navigation without filesystem or browser URL handling."""
     if not document_id:
         return False
     clicked = ui.button(
-        "Open in Reading Space",
+        label,
         key=state_key("open_document", subject_id),
         width="content",
     )

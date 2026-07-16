@@ -10,6 +10,7 @@ from editor.concept_linking.state import start_wizard
 from editor.concept_linking.state import state_key
 from editor.concept_linking.view_models import ConceptLinkingContext
 from editor.concept_linking.view_models import UnlinkedItem
+from editor.reading_space.state import queue_current_page_value
 from editor.reading_space.state import queue_workspace_tab
 
 PageLabeler = Callable[[int], str | None]
@@ -145,6 +146,7 @@ def render_unlinked_items(
     context: ConceptLinkingContext,
     actions_enabled: bool,
     compact: bool = False,
+    review_only: bool = False,
 ) -> None:
     """Render grouped pending cards and launch a pre-targeted wizard."""
     ui.subheader("Pendientes de vincular")
@@ -164,21 +166,37 @@ def render_unlinked_items(
             if item.tags:
                 ui.caption(f"Tags: {', '.join(item.tags[:5])}")
             ui.caption("Sin concepto asociado")
-            clicked = ui.button(
-                "Asociar concepto",
-                key=state_key("link_pending", item.target_kind, item.target_id),
-                disabled=not actions_enabled,
-                width="content",
-            )
+            if review_only:
+                clicked = ui.button(
+                    "Ir a la marca",
+                    key=state_key("open_pending", item.target_kind, item.target_id),
+                    width="content",
+                )
+            else:
+                clicked = ui.button(
+                    "Asociar concepto",
+                    key=state_key("link_pending", item.target_kind, item.target_id),
+                    disabled=not actions_enabled,
+                    width="content",
+                )
         if clicked:
-            start_wizard(
-                ui.session_state,
-                context,
-                target_kind=item.target_kind,
-                target_id=item.target_id,
-                pdf_page=item.pdf_page,
-            )
-            queue_workspace_tab(ui.session_state, "Concepts")
+            if review_only:
+                if isinstance(item.pdf_page, int):
+                    queue_current_page_value(
+                        ui.session_state,
+                        document_id=context.document_id,
+                        page_number=item.pdf_page,
+                    )
+                queue_workspace_tab(ui.session_state, "Leer")
+            else:
+                start_wizard(
+                    ui.session_state,
+                    context,
+                    target_kind=item.target_kind,
+                    target_id=item.target_id,
+                    pdf_page=item.pdf_page,
+                )
+                queue_workspace_tab(ui.session_state, "Conocimiento")
             ui.rerun()
     if compact and len(items) > len(visible):
         ui.caption(f"{len(items) - len(visible)} pendientes más en la pestaña Concepts.")

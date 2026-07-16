@@ -162,3 +162,13 @@ S5C no crea/edita conceptos, no vincula selecciones efímeras, no crea
 ReadingNotes, no cubre Documents web e implementa cero OCR, extracción
 persistente, embeddings, scraping, colaboración, nube o IA. `st.pdf` permanece
 como fallback. Nuevos targets o automatización requieren otra fase y contrato.
+
+## Simplificación posterior del flujo
+
+El inspector actual presenta un solo estado contextual. La selección, la
+confirmación de marca, la marca guardada, la búsqueda y el éxito sustituyen el
+contenido anterior; el wizard de tres pasos dejó de ser visible. La relación
+`related_context` sigue siendo el default interno y color, comentario, tags o
+tipo alternativo permanecen en **Más opciones**. Los paneles documentales se
+abren explícitamente desde revisión y el PDF no se desmonta. Véase
+[Flujo simplificado de lectura](SIMPLIFIED_READING_WORKFLOW.md).

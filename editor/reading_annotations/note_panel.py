@@ -9,6 +9,7 @@ from editor.reading_annotations.evidence_panel import render_link_form
 from editor.reading_annotations.evidence_panel import render_subject_evidence
 from editor.reading_annotations.forms import NOTE_TYPES
 from editor.reading_annotations.forms import render_note_form
+from editor.reading_annotations.forms import render_quick_note_form
 from editor.reading_annotations.navigation import render_open_document
 from editor.reading_annotations.panel_utils import enum_value
 from editor.reading_annotations.panel_utils import local_match
@@ -81,6 +82,8 @@ def render_note_panel(
     show_list: bool = True,
     quick_expanded: bool = True,
     page_labeler: PageLabeler | None = None,
+    minimal_quick: bool = False,
+    review_only: bool = False,
 ) -> None:
     """Render creation, editing, archive/reactivation, and evidence for notes."""
     if not show_quick and not show_list:
@@ -90,16 +93,26 @@ def render_note_panel(
     if show_quick:
         with ui.expander("Quick Reading Note", expanded=quick_expanded):
             ui.caption("Capture a compact plain-text note for this Document or its Source.")
-            draft = render_note_form(
-                ui,
-                source_id=document.source_id,
-                document_id=document_id,
-                is_pdf=is_pdf,
-                suggested_page=suggested_page,
-                references=references,
-                form_key="quick_note",
-                actions_enabled=actions_enabled,
-                compact=True,
+            draft = (
+                render_quick_note_form(
+                    ui,
+                    document_id=document_id,
+                    reference_id=document.reference_id,
+                    suggested_page=suggested_page if is_pdf else None,
+                    actions_enabled=actions_enabled,
+                )
+                if minimal_quick
+                else render_note_form(
+                    ui,
+                    source_id=document.source_id,
+                    document_id=document_id,
+                    is_pdf=is_pdf,
+                    suggested_page=suggested_page,
+                    references=references,
+                    form_key="quick_note",
+                    actions_enabled=actions_enabled,
+                    compact=True,
+                )
             )
             if draft is not None:
                 result = service.create_note(
@@ -126,14 +139,28 @@ def render_note_panel(
         return
 
     query = ui.text_input(
-        "Filter notes by title, text, or tags",
+        "Buscar notas" if review_only else "Filter notes by title, text, or tags",
         key=state_key("note_filter", document_id),
     )
-    type_filter = ui.selectbox(
-        "Filter notes by type",
-        options=("all", *NOTE_TYPES),
-        key=state_key("note_type_filter", document_id),
-    )
+    if review_only:
+        with ui.expander("Más filtros de notas", expanded=False):
+            type_filter = ui.selectbox(
+                "Tipo de nota",
+                options=("all", *NOTE_TYPES),
+                key=state_key("note_type_filter", document_id),
+            )
+            status_filter = ui.selectbox(
+                "Estado de la nota",
+                options=("all", "active", "archived"),
+                key=state_key("note_status_filter", document_id),
+            )
+    else:
+        type_filter = ui.selectbox(
+            "Filter notes by type",
+            options=("all", *NOTE_TYPES),
+            key=state_key("note_type_filter", document_id),
+        )
+        status_filter = "all"
     result = service.list_document_notes(
         document_id,
         status=None,
@@ -167,6 +194,7 @@ def render_note_panel(
             record_type=enum_value(item.note_type),
             required_type=str(type_filter),
         )
+        and (status_filter == "all" or enum_value(item.status) == status_filter)
     )
     if not items:
         ui.caption("No Reading Notes match this Document and filter.")
@@ -178,12 +206,16 @@ def render_note_panel(
         ("Source-only Notes", source_notes),
     ):
         if values:
-            ui.caption(f"{label} · {len(values)}")
-            ui.dataframe(
-                note_rows(values, page_labeler=page_labeler),
-                width="stretch",
-                hide_index=True,
+            visible_label = (
+                "Notas del documento" if label == "Document Notes" else "Notas de la fuente"
             )
+            ui.caption(f"{visible_label if review_only else label} · {len(values)}")
+            if not review_only:
+                ui.dataframe(
+                    note_rows(values, page_labeler=page_labeler),
+                    width="stretch",
+                    hide_index=True,
+                )
     for item in (*document_notes, *source_notes):
         status = enum_value(item.status)
         note_write_enabled = actions_enabled and (item.document_id is None or document_active)
@@ -191,6 +223,23 @@ def render_note_panel(
         pages = _note_pages(item, page_labeler)
         if page_labeler is not None and pages:
             card_title = f"{card_title} · {pages}"
+        if review_only:
+            with ui.container(border=True):
+                ui.write(item.title)
+                if pages:
+                    ui.caption(pages)
+                ui.write(item.body)
+                if item.tags:
+                    ui.caption(" · ".join(item.tags))
+                render_open_document(
+                    ui,
+                    source_id=item.source_id,
+                    document_id=item.document_id,
+                    page_number=item.page_start,
+                    subject_id=item.note_id,
+                    label="Ir a la marca",
+                )
+            continue
         with ui.expander(card_title):
             ui.write(
                 {

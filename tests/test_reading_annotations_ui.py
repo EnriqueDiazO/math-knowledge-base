@@ -13,6 +13,7 @@ from typing import Any
 
 from editor.reading_annotations.annotation_panel import annotation_groups
 from editor.reading_annotations.annotation_panel import annotation_rows
+from editor.reading_annotations.annotation_panel import render_notebook_tab
 from editor.reading_annotations.annotation_panel import render_notes_and_evidence_panel
 from editor.reading_annotations.annotation_panel import render_notes_evidence_maintenance
 from editor.reading_annotations.annotation_panel import visual_annotation_details
@@ -108,6 +109,9 @@ class FakeUI:
         return nullcontext(self)
 
     def form(self, *_args, **_kwargs):
+        return nullcontext(self)
+
+    def container(self, *_args, **_kwargs):
         return nullcontext(self)
 
     def text_input(self, label, *, key, value="", **_kwargs):
@@ -238,6 +242,7 @@ def _annotation(
     document_id: str = "doc-pdf",
     page_number: int | None = 7,
     visual: bool = False,
+    annotation_id: str = "ann-1",
 ) -> Any:
     visual_anchor = (
         SimpleNamespace(
@@ -255,7 +260,7 @@ def _annotation(
     )
     return SimpleNamespace(
         schema_version=2 if visual else 1,
-        annotation_id="ann-1",
+        annotation_id=annotation_id,
         document_id=document_id,
         source_id="src-1",
         reference_id="ref-1",
@@ -674,6 +679,24 @@ def test_source_only_note_remains_visible_beside_current_document() -> None:
 
     assert any(row.get("note_id") == "note-source-only" for table in ui.rows for row in table)
     assert service.source_note_list_kwargs["source_only"] is True
+
+
+def test_notebook_uses_review_cards_without_tables_or_visible_ids() -> None:
+    ui = FakeUI()
+    service = FakeService(
+        annotations=(_annotation(annotation_id="hidden-annotation-id"),),
+        notes=(_note(note_id="hidden-note-id"),),
+    )
+
+    render_notebook_tab(_context(), _reader(), ui=ui, service=service)
+
+    rendered = "\n".join(value for _level, value in ui.messages)
+    assert ui.rows == []
+    assert "hidden-annotation-id" not in rendered
+    assert "hidden-note-id" not in rendered
+    assert "Buscar marcas" in ui.labels
+    assert "Buscar notas" in ui.labels
+    assert "Ir a la marca" in ui.labels
 
 
 def test_compact_note_rows_separate_document_and_source_scope() -> None:

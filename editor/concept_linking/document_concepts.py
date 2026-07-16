@@ -64,6 +64,7 @@ def render_document_concepts(
     context: ConceptLinkingContext,
     actions_enabled: bool,
     archive_enabled: bool | None = None,
+    review_only: bool = False,
 ) -> tuple[DocumentConceptGroup, ...]:
     """Render document concepts as grouped cards rather than a technical table."""
     ui.subheader("Conceptos del documento")
@@ -79,16 +80,18 @@ def render_document_concepts(
             if group.pages:
                 ui.caption(f"Páginas: {'; '.join(group.pages[:6])}")
             ui.caption(f"Tipos: {', '.join(group.link_types)}")
-            additional = ui.button(
-                "Crear evidencia adicional",
-                key=state_key(
-                    "additional_evidence",
-                    group.concept.concept_source,
-                    group.concept.concept_id,
-                ),
-                disabled=not actions_enabled,
-                width="content",
-            )
+            additional = False
+            if not review_only:
+                additional = ui.button(
+                    "Crear evidencia adicional",
+                    key=state_key(
+                        "additional_evidence",
+                        group.concept.concept_source,
+                        group.concept.concept_id,
+                    ),
+                    disabled=not actions_enabled,
+                    width="content",
+                )
             with ui.expander("Expandir evidencias", expanded=False):
                 for item in group.evidence:
                     render_evidence_card(
@@ -98,6 +101,7 @@ def render_document_concepts(
                         actions_enabled=actions_enabled,
                         archive_enabled=archive_enabled,
                         card_key=f"document_{item.evidence_link_id}",
+                        review_only=review_only,
                     )
         if additional:
             start_wizard(ui.session_state, context)
@@ -106,7 +110,7 @@ def render_document_concepts(
                 group.concept.concept_id,
                 group.concept.concept_source,
             )
-            queue_workspace_tab(ui.session_state, "Concepts")
+            queue_workspace_tab(ui.session_state, "Conocimiento")
             ui.rerun()
     return groups
 

@@ -27,14 +27,22 @@ PENDING_WORKSPACE_TAB = f"{SESSION_PREFIX}pending_workspace_tab"
 WORKSPACE_TAB = f"{SESSION_PREFIX}workspace_tabs"
 WORKSPACE_FOCUS = f"{SESSION_PREFIX}workspace_focus"
 WORKSPACE_TABS = (
-    "Workspace",
-    "Documents",
-    "Recent",
-    "Notes",
-    "Concepts",
-    "Page Map",
-    "Maintenance",
+    "Biblioteca",
+    "Leer",
+    "Cuaderno",
+    "Conocimiento",
 )
+
+LEGACY_WORKSPACE_TABS = {
+    "Workspace": "Leer",
+    "Documents": "Biblioteca",
+    "Recent": "Biblioteca",
+    "Notes": "Cuaderno",
+    "Concepts": "Conocimiento",
+    "Evidence": "Conocimiento",
+    "Page Map": "Biblioteca",
+    "Maintenance": "Biblioteca",
+}
 
 DOCUMENT_WIDGET_NAMES = frozenset(
     {
@@ -181,14 +189,14 @@ def apply_pending_workspace_tab(state: MutableMapping[str, Any]) -> str | None:
 
 
 def migrate_legacy_workspace_tab(state: MutableMapping[str, Any]) -> bool:
-    """Map the former Evidence label before Streamlit instantiates the tabs widget."""
+    """Map every former destination before Streamlit instantiates its widget."""
     changed = False
-    if state.get(WORKSPACE_TAB) == "Evidence":
-        state[WORKSPACE_TAB] = "Concepts"
-        changed = True
-    if state.get(PENDING_WORKSPACE_TAB) == "Evidence":
-        state[PENDING_WORKSPACE_TAB] = "Concepts"
-        changed = True
+    for key in (WORKSPACE_TAB, PENDING_WORKSPACE_TAB):
+        legacy = state.get(key)
+        replacement = LEGACY_WORKSPACE_TABS.get(str(legacy))
+        if replacement is not None:
+            state[key] = replacement
+            changed = True
     return changed
 
 
@@ -255,7 +263,7 @@ def sync_user_scope(state: MutableMapping[str, Any], user_scope: str) -> bool:
     for key in (SELECTED_SOURCE_ID, SELECTED_DOCUMENT_ID, CONFIRMED_WEB_DOCUMENT_ID):
         state.pop(key, None)
     state[ACTIVE_USER_SCOPE] = user_scope
-    queue_workspace_tab(state, "Documents")
+    queue_workspace_tab(state, "Biblioteca")
     return previous is not None
 
 
@@ -268,7 +276,7 @@ def select_source(state: MutableMapping[str, Any], source_id: str | None) -> boo
     clear_reader_preview(state)
     state.pop(SELECTED_DOCUMENT_ID, None)
     state.pop(CONFIRMED_WEB_DOCUMENT_ID, None)
-    queue_workspace_tab(state, "Documents")
+    queue_workspace_tab(state, "Biblioteca")
     if source_id is None:
         state.pop(SELECTED_SOURCE_ID, None)
     else:
@@ -287,10 +295,10 @@ def select_document(state: MutableMapping[str, Any], document_id: str | None) ->
     state.pop(CONFIRMED_WEB_DOCUMENT_ID, None)
     if document_id is None:
         state.pop(SELECTED_DOCUMENT_ID, None)
-        queue_workspace_tab(state, "Documents")
+        queue_workspace_tab(state, "Biblioteca")
     else:
         state[SELECTED_DOCUMENT_ID] = document_id
-        queue_workspace_tab(state, "Workspace")
+        queue_workspace_tab(state, "Leer")
     return True
 
 
