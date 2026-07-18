@@ -180,6 +180,26 @@ class FakeUI:
         self.reruns += 1
 
 
+class LegacyTabsUI(FakeUI):
+    def tabs(self, labels, *, width="stretch", default=None):
+        self.layout_events.append(("tabs", tuple(labels)))
+        self.tab_calls.append((tuple(labels), {"width": width, "default": default}))
+        return [nullcontext(self) for _label in labels]
+
+
+class WrappedLegacyTabsUI(FakeUI):
+    def tabs(self, labels, **kwargs):
+        if kwargs:
+            first_key = next(iter(kwargs))
+            raise TypeError(
+                "LayoutsMixin.tabs() got an unexpected keyword argument "
+                f"'{first_key}'"
+            )
+        self.layout_events.append(("tabs", tuple(labels)))
+        self.tab_calls.append((tuple(labels), {}))
+        return [nullcontext(self) for _label in labels]
+
+
 class FakeResult:
     def __init__(self, value: Any = None, *, status: str = "success", message: str = "") -> None:
         self.value = value
@@ -709,6 +729,36 @@ def test_full_page_filters_and_lists_without_loading_pdf() -> None:
     assert document.document_id not in rendered
     assert not any(label in {"Change Document", "Recent Documents"} for label, _ in ui.expanders)
     assert ("container", state_key("workspace")) not in ui.layout_events
+
+
+def test_full_page_tabs_support_legacy_streamlit_signature() -> None:
+    source = Source(name="List only")
+    document = _pdf_document(source)
+    service = FakeService(source, (document,))
+    ui = LegacyTabsUI()
+
+    render_reading_space_page(
+        _context(source),
+        ui=ui,
+        service=service,  # type: ignore[arg-type]
+    )
+
+    assert ui.tab_calls[0][1] == {"width": "stretch", "default": "Biblioteca"}
+
+
+def test_full_page_tabs_retry_when_streamlit_wrapper_rejects_kwargs() -> None:
+    source = Source(name="List only")
+    document = _pdf_document(source)
+    service = FakeService(source, (document,))
+    ui = WrappedLegacyTabsUI()
+
+    render_reading_space_page(
+        _context(source),
+        ui=ui,
+        service=service,  # type: ignore[arg-type]
+    )
+
+    assert ui.tab_calls[0][1] == {}
 
 
 def test_selected_document_uses_split_workspace_and_compact_top_bar(

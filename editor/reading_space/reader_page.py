@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import inspect
 from types import SimpleNamespace
 from typing import Any
 
@@ -72,6 +73,48 @@ from mathmongo.source_documents.models import DocumentStatus
 USER_SCOPE = "local"
 DOCUMENT_PAGE_SIZE = 20
 RECENT_PAGE_SIZE = 10
+
+
+def _streamlit_tabs(ui: Any, labels: list[str], **kwargs: Any) -> list[Any]:
+    """Call ``st.tabs`` while tolerating Streamlit's evolving keyword support."""
+    tab_fn = ui.tabs
+    supported_kwargs = _supported_tabs_kwargs(tab_fn, kwargs)
+    fallback_kwargs = (
+        supported_kwargs,
+        {
+            name: value
+            for name, value in supported_kwargs.items()
+            if name not in {"key", "on_change", "args", "kwargs"}
+        },
+        {name: value for name, value in supported_kwargs.items() if name == "width"},
+        {},
+    )
+    seen: set[tuple[str, ...]] = set()
+    last_error: TypeError | None = None
+    for candidate_kwargs in fallback_kwargs:
+        key = tuple(sorted(candidate_kwargs))
+        if key in seen:
+            continue
+        seen.add(key)
+        try:
+            return tab_fn(labels, **candidate_kwargs)
+        except TypeError as exc:
+            if "unexpected keyword argument" not in str(exc):
+                raise
+            last_error = exc
+    if last_error is not None:
+        raise last_error
+    return tab_fn(labels)
+
+
+def _supported_tabs_kwargs(tab_fn: Any, kwargs: dict[str, Any]) -> dict[str, Any]:
+    try:
+        parameters = inspect.signature(tab_fn).parameters
+    except (TypeError, ValueError):
+        return dict(kwargs)
+    if any(parameter.kind == inspect.Parameter.VAR_KEYWORD for parameter in parameters.values()):
+        return dict(kwargs)
+    return {name: value for name, value in kwargs.items() if name in parameters}
 
 
 def _status_value(value: Any) -> str:
@@ -1111,7 +1154,8 @@ def render_reading_space_page(
     )
 
     default_tab = "Leer" if reader is not None else "Biblioteca"
-    tabs = ui.tabs(
+    tabs = _streamlit_tabs(
+        ui,
         list(WORKSPACE_TABS),
         default=default_tab,
         key=WORKSPACE_TAB,
