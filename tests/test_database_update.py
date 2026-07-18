@@ -368,6 +368,60 @@ def test_dry_run_classifies_merge_without_writes(
     assert all(collection.insert_calls == 0 for collection in database._collections.values())
 
 
+def test_dry_run_accepts_historical_persisted_concepts_and_their_relations(
+    tmp_path: Path,
+    configured_paths: Path,
+) -> None:
+    concept = {
+        "_id": "legacy-concept-storage",
+        "id": "legacy_001",
+        "source": "LegacySource",
+        "tipo": "definicion",
+        "categorias": ["legacy"],
+        "referencia": {
+            "tipo_referencia": "libro",
+            "fuente": "Historical source",
+        },
+    }
+    relation = {
+        "_id": "legacy-relation-storage",
+        "desde": "legacy_001@LegacySource",
+        "hasta": "legacy_001@LegacySource",
+        "tipo": "equivalente",
+    }
+    archive = tmp_path / "historical-concepts.zip"
+    _write_archive(archive, {"concepts": [concept], "relations": [relation]})
+
+    plan = db_update.analyze_database_update(
+        archive,
+        _Mongo(_Database("MathV0", {})),
+        source_document_blob_store=SourceDocumentBlobStore(configured_paths),
+        data_root=configured_paths,
+    )
+
+    concepts = next(item for item in plan.collection_plans if item.name == "concepts")
+    relations = next(item for item in plan.collection_plans if item.name == "relations")
+    assert (concepts.new, concepts.invalid) == (1, 0)
+    assert (relations.new, relations.invalid) == (1, 0)
+    assert plan.blocking_issues == ()
+    incoming = next(action.incoming for action in plan.actions if action.collection == "concepts")
+    assert "contenido_latex" not in incoming
+    assert "autor" not in incoming["referencia"]
+
+
+def test_update_ui_groups_repeated_blocking_issues() -> None:
+    issues = (
+        db_update.UpdateIssue("concepts", "first", "Invalid historical concept"),
+        db_update.UpdateIssue("concepts", "second", "Invalid historical concept"),
+        db_update.UpdateIssue("relations", "third", "Invalid endpoint"),
+    )
+
+    assert database_import_page._summarize_blocking_issues(issues) == (
+        "concepts: Invalid historical concept (2 casos)",
+        "relations: Invalid endpoint",
+    )
+
+
 def test_dry_run_blocks_conflicting_managed_index(
     tmp_path: Path,
     configured_paths: Path,

@@ -106,6 +106,12 @@ def test_update_ui_requires_analysis_and_exact_confirmation() -> None:
     assert app.selectbox[0].label == "Base de destino"
     assert app.selectbox[0].value == "MathV0"
     assert "Fusión segura" in app.selectbox[1].options
+    captions = [item.value for item in app.caption]
+    assert any("Fusión segura" in value and "recomendada" in value for value in captions)
+    assert any("El respaldo prevalece" in value and "reemplazar" in value for value in captions)
+    assert any(
+        "Conservar versión actual" in value and "conserva siempre" in value for value in captions
+    )
     _with_label(app.button, "Analizar actualización").click().run()
 
     assert not app.exception

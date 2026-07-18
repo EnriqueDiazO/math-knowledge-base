@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import os
+from collections import Counter
+from collections.abc import Iterable
 from collections.abc import Iterator
 from contextlib import contextmanager
 from pathlib import Path
@@ -35,6 +37,23 @@ STRATEGY_LABELS = {
     "El respaldo prevalece": UpdateStrategy.BACKUP_WINS,
     "Conservar versión actual": UpdateStrategy.KEEP_CURRENT,
 }
+
+STRATEGY_DESCRIPTIONS = (
+    (
+        "Fusión segura",
+        "agrega ausentes, omite idénticos y deja los conflictos sin cambios para revisión "
+        "(recomendada).",
+    ),
+    (
+        "El respaldo prevalece",
+        "agrega ausentes y permite reemplazar cada conflicto con el respaldo sólo tras "
+        "confirmarlo.",
+    ),
+    (
+        "Conservar versión actual",
+        "agrega únicamente ausentes y conserva siempre la versión actual cuando hay conflicto.",
+    ),
+)
 
 _PLAN_KEY = "database_update_plan"
 _FAILURE_KEY = "database_update_failure"
@@ -174,6 +193,14 @@ def _plan_matches_upload(
     )
 
 
+def _summarize_blocking_issues(issues: Iterable[Any]) -> tuple[str, ...]:
+    counts = Counter((issue.collection, issue.reason) for issue in issues)
+    return tuple(
+        f"{collection}: {reason}" + (f" ({count} casos)" if count > 1 else "")
+        for (collection, reason), count in counts.items()
+    )
+
+
 def _render_plan(ui: Any, plan: DatabaseUpdatePlan) -> dict[str, ConflictPolicy | str]:
     ui.subheader("Plan de actualización")
     totals = plan.totals
@@ -205,8 +232,8 @@ def _render_plan(ui: Any, plan: DatabaseUpdatePlan) -> dict[str, ConflictPolicy 
     )
     for warning in plan.warnings:
         ui.warning(warning)
-    for issue in plan.blocking_issues:
-        ui.error(f"{issue.collection}: {issue.reason}")
+    for message in _summarize_blocking_issues(plan.blocking_issues):
+        ui.error(message)
 
     policies: dict[str, ConflictPolicy | str] = {}
     if plan.conflicts:
@@ -278,6 +305,8 @@ def _render_update_selection(
         return None
     target_name = ui.selectbox("Base de destino", databases)
     strategy_label = ui.selectbox("Estrategia", list(STRATEGY_LABELS))
+    for label, description in STRATEGY_DESCRIPTIONS:
+        ui.caption(f"**{label}:** {description}")
     return target_name, STRATEGY_LABELS[strategy_label]
 
 

@@ -60,6 +60,7 @@ from mathmongo.source_documents.storage import PreparedPdf
 from mathmongo.source_documents.storage import SourceDocumentBlobStore
 from schemas.schemas import ConceptoBase
 from schemas.schemas import DocumentoLatex
+from schemas.schemas import Referencia as LegacyConceptReference
 
 PROTECTED_UPDATE_DATABASES = frozenset({"admin", "config", "local"})
 GENERIC_COLLECTION_LABEL = "colección no administrada"
@@ -836,6 +837,25 @@ def _identity_queries(collection: str, document: Mapping[str, Any]) -> list[dict
     return queries
 
 
+def _validate_stored_concept(payload: Mapping[str, Any]) -> None:
+    """Validate the persisted concept projection without changing the imported document."""
+    probe = dict(payload)
+
+    # Concept ingestion stores LaTeX separately in ``latex_documents``.
+    probe.setdefault("contenido_latex", "")
+
+    # Historical Pydantic versions treated Optional fields without defaults as
+    # omittable. Preserve that on read while still validating every supplied value.
+    reference = probe.get("referencia")
+    if isinstance(reference, Mapping):
+        reference_probe = dict(reference)
+        for field_name in LegacyConceptReference.model_fields:
+            reference_probe.setdefault(field_name, None)
+        probe["referencia"] = reference_probe
+
+    ConceptoBase.model_validate(probe)
+
+
 def _validate_document(
     collection: str,
     raw_document: Any,
@@ -871,7 +891,7 @@ def _validate_document(
             ):
                 return document, "Portable document is not canonical"
         elif collection == "concepts":
-            ConceptoBase.model_validate(payload)
+            _validate_stored_concept(payload)
         elif collection == "latex_documents":
             DocumentoLatex.model_validate(payload)
         elif collection == "relations":
