@@ -2421,12 +2421,12 @@ def import_zip_into_database(
     mongo: MathMongo,
     *,
     source_document_blob_store: SourceDocumentBlobStore | None = None,
+    new_database: bool = False,
 ) -> DatabaseImportReport:
     """Import a validated export ZIP into an existing MongoDB database.
 
-    Assumes:
-    - zip_path has been validated with inspect_export_zip
-    - mongo points to a NEW database
+    Assumes ``zip_path`` has been validated with :func:`inspect_export_zip`.
+    When ``new_database`` is true, the target must still be physically absent.
     """
     started_at = time.monotonic()
     db = mongo.db
@@ -2436,6 +2436,12 @@ def import_zip_into_database(
     folded_name = database_name.casefold()
     if folded_name in {"admin", "config", "local", "mathmongo"}:
         raise ValueError("Database import refuses protected MongoDB targets")
+    if new_database:
+        client = getattr(mongo, "client", None)
+        if client is None or not hasattr(client, "list_database_names"):
+            raise ValueError("New database import requires an enumerable MongoDB client")
+        if database_name in client.list_database_names():
+            raise ValueError("New database import refuses an existing MongoDB target")
     initial_collections = tuple(db.list_collection_names())
     if folded_name == "mathv0" and database_name != "MathV0":
         raise ValueError("Database import can restore only the exact case-sensitive MathV0 name")
@@ -2473,14 +2479,20 @@ def import_zip_into_database(
             )
             versioned_export = "format" in metadata or "format_version" in metadata
             if (
-                database_name == "MathV0"
+                not new_database
+                and database_name == "MathV0"
                 and versioned_export
                 and metadata.get("database_name") != "MathV0"
             ):
                 raise ValueError(
                     "A versioned same-name MathV0 restore requires MathV0 archive metadata"
                 )
-            if database_name == "MathV0" and not versioned_export and initial_collections:
+            if (
+                not new_database
+                and database_name == "MathV0"
+                and not versioned_export
+                and initial_collections
+            ):
                 raise ValueError(
                     "An unversioned same-name MathV0 restore requires a physically empty target"
                 )
@@ -2527,7 +2539,7 @@ def import_zip_into_database(
             )
             if report.catalog_conflicts:
                 raise CatalogImportConflictError(report)
-            if database_name == "MathV0" and versioned_export:
+            if not new_database and database_name == "MathV0" and versioned_export:
                 _require_existing_documents_are_archive_subset(
                     db,
                     {**legacy_pending, **catalog_pending},

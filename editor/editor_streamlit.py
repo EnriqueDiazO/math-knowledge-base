@@ -14,6 +14,7 @@ from bson import ObjectId
 from streamlit_ace import st_ace
 
 from editor.db.concept_repository import concept_exists
+from editor.database_import_page import render_database_import_page
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
 from editor.pdf_preview import generate_pdf_preview
@@ -63,8 +64,6 @@ from editor.utils.cleanup_exports import list_deletable_files
 from editor.utils.cleanup_exports import move_legacy_root_graph_files_to_runtime
 from editor.utils.cleanup_exports import scan_cleanup_dirs
 from editor.utils.db_export import export_database_to_zip
-from editor.utils.db_import import import_zip_into_database
-from editor.utils.db_import import inspect_export_zip
 from editor.utils.knowledge_graph_sync import add_concepts_to_graph_state
 from editor.utils.knowledge_graph_sync import concept_graph_node_errors
 from editor.utils.knowledge_graph_sync import concept_graph_node_warnings
@@ -115,7 +114,6 @@ from mathkb_config import EXPORT_COLLECTIONS
 from mathkb_config import EXPORT_TIMEOUT_SECONDS
 from mathkb_config import GRAPH_CLEANUP_DIRS
 from mathkb_config import GRAPH_RUNTIME_DIR
-from mathkb_config import IMPORT_TIMEOUT_SECONDS
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 from mathkb_config import PROJECT_ROOT
@@ -124,7 +122,6 @@ from mathmongo.config import sanitize_mongo_error
 from mathmongo.paths import get_backups_dir
 from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_latex_runtime_dir
-from mathmongo.paths import get_runtime_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
 from schemas.schemas import ConceptoBase
@@ -5877,95 +5874,7 @@ elif page == "📦 Database Export":
 
 
 elif page == "📥 Database Import":
-    st.header("📥 Database Import")
-    st.caption(f"Timeout: {IMPORT_TIMEOUT_SECONDS}s")
-
-    uploaded_file = st.file_uploader(
-        "Upload database export (.zip)",
-        type=["zip"]
-    )
-
-    if uploaded_file:
-        runtime_root = validate_mutable_path(get_runtime_dir())
-        import_runtime = validate_mutable_path(
-            runtime_root / "imports",
-            allowed_root=runtime_root,
-        )
-        import_runtime.mkdir(parents=True, exist_ok=True, mode=0o700)
-        tmp_path = validate_mutable_path(
-            import_runtime / f"database-import-{uuid4().hex}.zip",
-            allowed_root=import_runtime,
-        )
-        upload_descriptor = os.open(
-            tmp_path,
-            os.O_WRONLY | os.O_CREAT | os.O_EXCL | os.O_CLOEXEC | os.O_NOFOLLOW,
-            0o600,
-        )
-        try:
-            upload_bytes = uploaded_file.getbuffer()
-            written = 0
-            while written < len(upload_bytes):
-                count = os.write(upload_descriptor, upload_bytes[written:])
-                if count <= 0:
-                    raise OSError("Unable to persist the uploaded database archive")
-                written += count
-            os.fchmod(upload_descriptor, 0o600)
-        finally:
-            os.close(upload_descriptor)
-
-        try:
-            info = inspect_export_zip(tmp_path)
-
-            st.subheader("Preview")
-            st.write(f"Exported at: {info['metadata'].get('exported_at')}")
-            st.write("Collections:")
-
-            for coll, count in info["collections"].items():
-                st.write(f"- {coll}: {count}")
-
-            if "knowledge_graph_maps" in info["collections"]:
-                st.info(
-                    "Saved graph maps are present in this export through "
-                    "`knowledge_graph_maps`."
-                )
-
-            st.success("Export looks valid.")
-
-            st.divider()
-
-            st.subheader("Import")
-
-            new_db_name = st.text_input(
-                "New database name",
-                placeholder="e.g. MathV1"
-            )
-
-            if new_db_name:
-                if st.button("🚀 Import into new database"):
-                    try:
-                        if new_db_name.casefold() in {
-                            "admin",
-                            "config",
-                            "local",
-                            "mathmongo",
-                            "mathv0",
-                        }:
-                            raise ValueError("Choose a non-protected database name")
-                        new_mongo = MathMongo(db_name=new_db_name)
-                        import_zip_into_database(tmp_path, new_mongo)
-                        st.success(
-                            f"Database '{new_db_name}' created successfully."
-                        )
-                    except Exception as e:
-                        st.error(f"Import failed: {e}")
-
-
-
-
-        except Exception as e:
-            st.error(f"Invalid export: {e}")
-        finally:
-            tmp_path.unlink(missing_ok=True)
+    render_database_import_page(st, db)
 
 
 # Footer

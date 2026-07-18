@@ -629,12 +629,14 @@ def export_database_to_zip(
     out_dir: Path,
     *,
     source_document_blob_store: SourceDocumentBlobStore | None = None,
+    include_all_collections: bool = False,
 ) -> Path:
     """Export the entire MongoDB database to a ZIP archive of JSON files.
 
     - Read-only
     - No schema assumptions
     - JSON-safe normalization (ObjectId, datetime, nested structures)
+    - ``include_all_collections`` uses canonical Extended JSON for an exact backup
 
     Returns the path to the generated ZIP file.
     """
@@ -642,9 +644,9 @@ def export_database_to_zip(
     output_directory_descriptor = _open_private_output_directory(out_dir)
     started_at = time.monotonic()
     db = mongo.db
-    exported_at = datetime.utcnow().replace(tzinfo=timezone.utc)
+    exported_at = datetime.now(timezone.utc)
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    timestamp = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     base_name = f"mathkb_export_{timestamp}"
     zip_name = f"{base_name}.zip"
     zip_path = validate_mutable_path(out_dir / zip_name, allowed_root=out_dir)
@@ -680,7 +682,9 @@ def export_database_to_zip(
         optional_page_maps = existing_collection_names & set(DOCUMENT_PAGE_MAP_COLLECTIONS)
         optional_annotations = existing_collection_names & set(READING_ANNOTATION_COLLECTIONS)
         collection_names = sorted(
-            always_exported
+            existing_collection_names | always_exported
+            if include_all_collections
+            else always_exported
             | optional_catalog
             | optional_documents
             | optional_reading
@@ -712,7 +716,10 @@ def export_database_to_zip(
             elif collection_name == "concepts":
                 raw_concepts = raw_docs
 
-            if collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS:
+            use_extended_json = (
+                include_all_collections or collection_name in PORTABLE_EXTENDED_JSON_COLLECTIONS
+            )
+            if use_extended_json:
                 if collection_name in SOURCE_DOCUMENT_COLLECTIONS:
                     source_documents = [_source_document_model(document) for document in raw_docs]
                 elif collection_name in READING_SPACE_COLLECTIONS:
@@ -800,7 +807,7 @@ def export_database_to_zip(
 
         _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, "writing metadata")
         metadata["snapshot_completed_at"] = (
-            datetime.utcnow().replace(tzinfo=timezone.utc).isoformat().replace("+00:00", "Z")
+            datetime.now(timezone.utc).isoformat().replace("+00:00", "Z")
         )
         metadata["duration_seconds"] = round(time.monotonic() - started_at, 3)
         _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, "creating ZIP archive")

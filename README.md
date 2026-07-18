@@ -405,27 +405,34 @@ Typical use cases include:
 
 ---
 
-### 📥 Database Import (Create-New-Database Only)
+### 📥 Database Import
 
-The import mechanism is intentionally conservative.
+Database Import has two explicit modes:
 
-**Important design rule:**
-> Imports always create or populate a **new MongoDB database**.  
-> Existing databases are never overwritten automatically.
+- **Create a new database** requires a name that does not exist and never writes over an
+  existing database. The exact name `MathV0` is allowed only when it is absent.
+- **Update an existing database** selects an existing target, including `MathV0`, and performs
+  a dry-run before enabling any write. `admin`, `config`, and `local` are never eligible.
 
-**Import workflow:**
+The default **Safe merge** strategy inserts missing documents, skips byte-equivalent canonical
+documents, preserves local-only data, and reports identity conflicts without overwriting them.
+The advanced **Backup wins** strategy can replace an individual conflict only after an explicit
+decision. **Keep current** inserts new documents while retaining every current conflict.
 
-1. Upload a previously exported ZIP archive.
-2. The system **inspects the archive** before importing:
-   - Validates format
-   - Displays collection names and document counts
-3. The user explicitly specifies a **new database name**.
-4. Only after confirmation, the data is imported into that new database.
+Collections are discovered from both `metadata.json` and the JSON members under `collections/`.
+New collections are imported, collections found only in the destination are preserved, and an
+empty backup collection never empties its destination. Future collections can be merged as
+validated Extended JSON when each document has a safe `_id`; they remain unmanaged and receive
+no invented models or indexes.
 
-This design:
-- Prevents accidental data loss,
-- Enables side-by-side comparison of database versions,
-- Supports safe experimentation and rollback.
+Before an existing database is changed, MathMongo creates and validates a complete timestamped
+backup. PDF blobs and media are verified, copied only when missing, and published atomically.
+The update stops on validation, reference, index, or file conflicts and offers explicit recovery
+when a failure occurs after writes begin. This workflow never mirrors the archive and never
+deletes documents or collections missing from it.
+
+See [Database Import user guide](docs/user-guide/DATABASE_IMPORT.md) for the complete workflow,
+conflict policies, backup behavior, and limitations.
 
 ---
 

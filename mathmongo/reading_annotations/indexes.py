@@ -243,17 +243,22 @@ class ReadingAnnotationIndexManager:
             return ()
         return tuple(dict(item) for item in self.database[collection_name].list_indexes())
 
-    def status(self) -> tuple[ReadingAnnotationIndexStatus, ...]:
+    def status(
+        self,
+        collection_names: set[str] | None = None,
+    ) -> tuple[ReadingAnnotationIndexStatus, ...]:
+        """Inspect approved indexes, optionally for explicit collections only."""
+        specs = tuple(
+            spec
+            for spec in READING_ANNOTATION_INDEXES
+            if collection_names is None or spec.collection in collection_names
+        )
         existing_by_collection = {
             collection: self._existing(collection)
-            for collection in (
-                DOCUMENT_ANNOTATIONS_COLLECTION,
-                READING_NOTES_COLLECTION,
-                CONCEPT_EVIDENCE_LINKS_COLLECTION,
-            )
+            for collection in {spec.collection for spec in specs}
         }
         statuses: list[ReadingAnnotationIndexStatus] = []
-        for spec in READING_ANNOTATION_INDEXES:
+        for spec in specs:
             existing = existing_by_collection[spec.collection]
             by_name = next((item for item in existing if item.get("name") == spec.name), None)
             if by_name is not None:
@@ -300,11 +305,19 @@ class ReadingAnnotationIndexManager:
                 )
         return tuple(statuses)
 
-    def plan(self) -> ReadingAnnotationIndexPlan:
-        return ReadingAnnotationIndexPlan(self.status())
+    def plan(
+        self,
+        collection_names: set[str] | None = None,
+    ) -> ReadingAnnotationIndexPlan:
+        """Return a read-only index plan for an optional collection subset."""
+        return ReadingAnnotationIndexPlan(self.status(collection_names))
 
-    def apply(self) -> ReadingAnnotationIndexPlan:
-        plan = self.plan()
+    def apply(
+        self,
+        collection_names: set[str] | None = None,
+    ) -> ReadingAnnotationIndexPlan:
+        """Apply approved indexes for an optional collection subset."""
+        plan = self.plan(collection_names)
         if plan.conflicts:
             raise ReadingAnnotationIndexConflictError(
                 "Reading annotation index conflicts require review: "
@@ -316,7 +329,7 @@ class ReadingAnnotationIndexManager:
                 name=spec.name,
                 unique=spec.unique,
             )
-        applied = self.plan()
+        applied = self.plan(collection_names)
         if not applied.initialized:
             raise ReadingAnnotationIndexConflictError(
                 "Reading annotation indexes could not be initialized exactly"

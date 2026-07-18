@@ -143,14 +143,19 @@ class SourceCatalogIndexManager:
             return ()
         return tuple(dict(item) for item in self.database[collection_name].list_indexes())
 
-    def status(self) -> tuple[IndexStatus, ...]:
-        """Inspect current index metadata without creating anything."""
+    def status(self, collection_names: set[str] | None = None) -> tuple[IndexStatus, ...]:
+        """Inspect index metadata, optionally limited to explicit collections."""
+        specs = tuple(
+            spec
+            for spec in SOURCE_CATALOG_INDEXES
+            if collection_names is None or spec.collection in collection_names
+        )
         existing_by_collection = {
             collection: self._existing(collection)
-            for collection in {spec.collection for spec in SOURCE_CATALOG_INDEXES}
+            for collection in {spec.collection for spec in specs}
         }
         statuses: list[IndexStatus] = []
-        for spec in SOURCE_CATALOG_INDEXES:
+        for spec in specs:
             existing = existing_by_collection[spec.collection]
             by_name = next((item for item in existing if item.get("name") == spec.name), None)
             if by_name is not None:
@@ -193,13 +198,13 @@ class SourceCatalogIndexManager:
                 statuses.append(IndexStatus(spec, IndexState.MISSING))
         return tuple(statuses)
 
-    def plan(self) -> IndexPlan:
-        """Return the explicit present/missing/conflict plan."""
-        return IndexPlan(self.status())
+    def plan(self, collection_names: set[str] | None = None) -> IndexPlan:
+        """Return the explicit present/missing/conflict plan for a subset."""
+        return IndexPlan(self.status(collection_names))
 
-    def apply(self) -> IndexPlan:
-        """Create missing indexes only; this method must be called explicitly."""
-        plan = self.plan()
+    def apply(self, collection_names: set[str] | None = None) -> IndexPlan:
+        """Create missing indexes only for the requested collection subset."""
+        plan = self.plan(collection_names)
         if plan.conflicts:
             raise IndexPlanConflictError(plan.conflicts)
         for spec in plan.missing:
@@ -208,7 +213,7 @@ class SourceCatalogIndexManager:
                 name=spec.name,
                 unique=spec.unique,
             )
-        applied = self.plan()
+        applied = self.plan(collection_names)
         if applied.conflicts or applied.missing:
             if applied.conflicts:
                 raise IndexPlanConflictError(applied.conflicts)
