@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="900" viewBox="0 0 1600 900">
+  <rect width="1600" height="900" fill="#ffffff"/>
+  <style>
+    .title { font: 700 46px 'DejaVu Sans', sans-serif; fill: #172033; }
+    .head { font: 700 32px 'DejaVu Sans', sans-serif; fill: #172033; }
+    .body { font: 24px 'DejaVu Sans', sans-serif; fill: #334155; }
+    .small { font: 21px 'DejaVu Sans', sans-serif; fill: #475569; }
+    .arrow { stroke: #64748b; stroke-width: 7; fill: none; marker-end: url(#arrow); }
+  </style>
+  <defs><marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto"><path d="M0,0 L12,6 L0,12 z" fill="#64748b"/></marker></defs>
+  <text x="800" y="72" text-anchor="middle" class="title">Source, PDF y Concepto cumplen funciones distintas</text>
+  <rect x="90" y="150" width="410" height="245" rx="28" fill="#e8f1ff" stroke="#4f7ecb" stroke-width="4"/>
+  <text x="295" y="215" text-anchor="middle" class="head">SOURCE</text>
+  <text x="125" y="270" class="body">La obra o fuente general:</text>
+  <text x="125" y="310" class="body">libro, artículo, curso</text>
+  <text x="125" y="350" class="body">o proyecto.</text>
+  <rect x="1090" y="150" width="410" height="245" rx="28" fill="#fff2dc" stroke="#d58b27" stroke-width="4"/>
+  <text x="1295" y="215" text-anchor="middle" class="head">CONCEPTO</text>
+  <text x="1125" y="270" class="body">Conocimiento matemático</text>
+  <text x="1125" y="310" class="body">registrado; puede existir</text>
+  <text x="1125" y="350" class="body">antes de tener un PDF.</text>
+  <rect x="595" y="520" width="410" height="245" rx="28" fill="#e9f8ef" stroke="#3b9b65" stroke-width="4"/>
+  <text x="800" y="585" text-anchor="middle" class="head">PDF</text>
+  <text x="630" y="640" class="body">Es un Document asociado</text>
+  <text x="630" y="680" class="body">a una Source. Puede haber</text>
+  <text x="630" y="720" class="body">cero, uno o varios.</text>
+  <path d="M470 370 C560 455 640 485 715 520" class="arrow"/>
+  <path d="M1130 370 C1040 455 960 485 885 520" class="arrow"/>
+  <rect x="355" y="795" width="890" height="70" rx="18" fill="#f8fafc" stroke="#cbd5e1" stroke-width="3"/>
+  <text x="800" y="838" text-anchor="middle" class="small">El vínculo preciso se registra con una página, marca, anotación o nota de lectura.</text>
+</svg>
