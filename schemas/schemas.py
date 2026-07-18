@@ -153,6 +153,7 @@ class ConceptoBase(BaseModel):
     ultima_actualizacion: Optional[datetime] = Field(default_factory=datetime.now)
 
     source: str = Field(..., description="Nombre de la carpeta contenedora de los conceptos")
+    source_id: str | None = None
     alias_previos_pendientes: Optional[List[str]] = None
     image_ids: Optional[List[str]] = None
 

@@ -59,17 +59,20 @@ def insert_concept_with_latex_atomic(
     doc["id"] = concept_id
     doc["source"] = source
 
+    latex_doc = {
+        "id": concept_id,
+        "source": source,
+        "contenido_latex": contenido_latex,
+        "fecha_creacion": now,
+        "ultima_actualizacion": now,
+    }
+    source_id = doc.get("source_id")
+    if source_id is not None:
+        latex_doc["source_id"] = source_id
+
     try:
         db.concepts.insert_one(doc)
-        db.latex_documents.insert_one(
-            {
-                "id": concept_id,
-                "source": source,
-                "contenido_latex": contenido_latex,
-                "fecha_creacion": now,
-                "ultima_actualizacion": now,
-            }
-        )
+        db.latex_documents.insert_one(latex_doc)
     except Exception:
         db.concepts.delete_one({"id": concept_id, "source": source})
         raise
