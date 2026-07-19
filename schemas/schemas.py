@@ -91,6 +91,7 @@ class Referencia(BaseModel):
     doi: Optional[str]
     url: Optional[str]
     issbn: Optional[str]
+    citekey: str | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
