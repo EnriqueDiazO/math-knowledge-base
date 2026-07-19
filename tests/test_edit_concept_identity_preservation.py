@@ -8,6 +8,7 @@ from copy import deepcopy
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -150,6 +151,29 @@ class _TransactionClient:
         session = _TransactionSession(self.database)
         self.sessions.append(session)
         return session
+
+
+class _DynamicAttributeClient:
+    """Match PyMongo's unknown-attribute behavior without opening a connection."""
+
+    topology_description = SimpleNamespace(topology_type_name="Single")
+
+    def __init__(self) -> None:
+        self.start_session_calls = 0
+
+    def start_session(self):
+        self.start_session_calls += 1
+        raise AssertionError("A single-server topology must use the fallback")
+
+    def __getattr__(self, name: str):
+        if name == "supports_transactions":
+            return _DatabaseTruthValueTrap()
+        raise AttributeError(name)
+
+
+class _DatabaseTruthValueTrap:
+    def __bool__(self):
+        raise NotImplementedError("database truth-value testing is undefined")
 
 
 class _Database:
@@ -438,6 +462,21 @@ def test_transaction_backend_commits_both_identity_preserving_updates() -> None:
     assert database.latex_documents.documents[0]["source_id"] == SOURCE_ID
     assert database.client is not None
     assert database.client.start_session_calls == 1
+
+
+def test_pymongo_dynamic_attribute_does_not_impersonate_transaction_marker() -> None:
+    concept, latex = _documents(source_id=SOURCE_ID)
+    database = _Database(concept, latex)
+    client = _DynamicAttributeClient()
+    database.client = client
+
+    result = _update(database, expected_source_id=SOURCE_ID)
+
+    assert result.status is ConceptEditStatus.SUCCESS
+    assert result.transaction_used is False
+    assert client.start_session_calls == 0
+    assert database.concepts.documents[0]["source_id"] == SOURCE_ID
+    assert database.latex_documents.documents[0]["source_id"] == SOURCE_ID
 
 
 def test_no_sources_or_dependent_collections_are_written() -> None:

@@ -181,9 +181,18 @@ def _restore_update(
 def _supports_transactions(client: Any) -> bool:
     if client is None or not callable(getattr(client, "start_session", None)):
         return False
-    explicit = getattr(client, "supports_transactions", None)
-    if explicit is not None:
-        return bool(explicit)
+    # MongoClient resolves unknown attributes as database names, so inspect only
+    # attributes actually declared by a test adapter or its type.
+    instance_values = getattr(client, "__dict__", {})
+    explicit = (
+        instance_values.get("supports_transactions")
+        if isinstance(instance_values, dict)
+        else None
+    )
+    if explicit is None:
+        explicit = getattr(type(client), "supports_transactions", None)
+    if isinstance(explicit, bool):
+        return explicit
     topology = getattr(client, "topology_description", None)
     topology_name = getattr(topology, "topology_type_name", "")
     return topology_name in {

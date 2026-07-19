@@ -10,7 +10,6 @@ from pymongo.errors import OperationFailure
 
 from mathkb_config import MEDIA_ASSETS_COLLECTION
 from mathmongo.config import resolve_config
-from parsers.yaml_latex_parser import YamlLatexParser
 from schemas.schemas import ConceptoBase
 from schemas.schemas import LineageResult
 from schemas.schemas import Referencia
@@ -177,6 +176,8 @@ class MathMongo:
 
 
     def ingest_folder(self, folder: str, source: str) -> list[ConceptoBase]:
+        from parsers.yaml_latex_parser import YamlLatexParser
+
         resultados = []
         path = Path(folder)
         for file_path in path.glob("*.md"):
