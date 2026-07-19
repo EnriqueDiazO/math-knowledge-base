@@ -42,6 +42,10 @@ from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
 from editor.db.concept_repository import insert_concept_with_latex_atomic
 from editor.helpers.concept_builders import build_concept_metadata
+from editor.helpers.managed_source_selection import can_save_with_managed_source
+from editor.helpers.managed_source_selection import load_active_sources
+from editor.helpers.managed_source_selection import resolve_active_source
+from editor.helpers.managed_source_selection import source_labels
 from editor.note_export import NoteExportError
 from editor.note_export import export_note_pdf
 from editor.note_export import export_note_tex
@@ -61,6 +65,7 @@ from editor.validators.concept_validator import validate_new_concept_identity
 from editor.validators.concept_validator import validate_semantic_duplicate
 from mathmongo.paths import get_pdf_preview_dir
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_catalog.repository import SourceRepository
 from schemas.schemas import ConceptoBase
 from schemas.schemas import GradoFormalidad
 from schemas.schemas import NivelContexto
@@ -1449,6 +1454,17 @@ def _render_diary_promote_note(notes_col) -> None:
     )
     st.info("Las relaciones sugeridas desde esta nota se implementarán en una etapa posterior.")
 
+    mongo_db = notes_col.database
+    managed_source_repository = SourceRepository(mongo_db)
+    managed_sources = ()
+    managed_source_labels = {}
+    managed_source_catalog_error = None
+    try:
+        managed_sources = load_active_sources(managed_source_repository)
+        managed_source_labels = source_labels(managed_sources)
+    except Exception as exc:
+        managed_source_catalog_error = str(exc)
+
     notes = list(notes_col.find({}).sort([("date", -1), ("updated_at", -1)]).limit(500))
     if not notes:
         st.info("Primero crea una nota en el Diario LaTeX.")
@@ -1481,7 +1497,6 @@ def _render_diary_promote_note(notes_col) -> None:
 
     safe_note_key = re.sub(r"[^A-Za-z0-9_]+", "_", _note_id(note) or "note")
     default_title = note.get("title") or ""
-    default_source = _normalize_project_name(note.get("project") or "") or "Diario LaTeX"
     default_categories = ", ".join(note.get("tags") or []) or "diario"
     default_comment = f"Promovido desde nota: {default_title or _note_id(note)}"
 
@@ -1512,6 +1527,11 @@ def _render_diary_promote_note(notes_col) -> None:
         )
 
     st.markdown("#### Datos básicos del concepto")
+    selected_source_id = None
+    selected_source_preview = None
+    source = None
+    source_id = None
+    source_selection_valid = False
     c1, c2 = st.columns([1, 1])
     with c1:
         concept_id = st.text_input(
@@ -1538,11 +1558,44 @@ def _render_diary_promote_note(notes_col) -> None:
             key=f"diary_promote_title_type_{safe_note_key}",
         )
     with c2:
-        source = st.text_input(
-            "Source",
-            value=default_source,
-            key=f"diary_promote_source_{safe_note_key}",
-        )
+        if managed_source_catalog_error is not None:
+            st.error(
+                "No se pudieron cargar las Sources administradas: "
+                f"{managed_source_catalog_error}"
+            )
+        elif not managed_sources:
+            st.warning(
+                "No hay Sources activas disponibles. Crea primero una Source desde Add Source."
+            )
+        else:
+            managed_source_ids = [item.source_id for item in managed_sources]
+            database_scope = re.sub(
+                r"[^A-Za-z0-9_]+",
+                "_",
+                str(getattr(mongo_db, "name", "database")),
+            )
+            selected_source_id = st.selectbox(
+                "Source",
+                options=managed_source_ids,
+                index=None,
+                placeholder="Selecciona una Source administrada activa",
+                format_func=lambda value: managed_source_labels[value],
+                key=f"diary_promote_source_id_{database_scope}_{safe_note_key}",
+            )
+            selected_source_preview = next(
+                (
+                    item
+                    for item in managed_sources
+                    if item.source_id == selected_source_id
+                ),
+                None,
+            )
+            source_selection_valid = can_save_with_managed_source(
+                selected_source_preview
+            )
+            if source_selection_valid:
+                source = selected_source_preview.name
+                source_id = selected_source_preview.source_id
         categorias_raw = st.text_input(
             "Categorías (comma-separated)",
             value=default_categories,
@@ -1736,7 +1789,7 @@ def _render_diary_promote_note(notes_col) -> None:
     pdf_sections = _promote_note_pdf_sections(
         note,
         concept_id=concept_id,
-        source=source,
+        source=source or "",
         concept_type=concept_type,
         tipo_titulo=tipo_titulo,
         categorias=categorias,
@@ -1772,6 +1825,7 @@ def _render_diary_promote_note(notes_col) -> None:
             "Crear concepto desde nota",
             type="primary",
             key=f"diary_promote_create_{safe_note_key}",
+            disabled=not source_selection_valid,
         )
 
     if pdf_clicked:
@@ -1780,8 +1834,27 @@ def _render_diary_promote_note(notes_col) -> None:
     if not submitted:
         return
 
+    if not selected_source_id:
+        st.error("Selecciona una Source administrada activa antes de crear el concepto.")
+        return
+    try:
+        selected_source = resolve_active_source(
+            managed_source_repository,
+            selected_source_id,
+        )
+    except Exception as exc:
+        st.error(f"No se pudieron cargar las Sources administradas: {exc}")
+        return
+    if not can_save_with_managed_source(selected_source):
+        st.error(
+            "La Source seleccionada ya no existe o dejó de estar activa. "
+            "Selecciona otra Source administrada."
+        )
+        return
+    source = selected_source.name
+    source_id = selected_source.source_id
+
     concept_id = (concept_id or "").strip()
-    source = (source or "").strip()
     titulo = (titulo or "").strip()
     contenido_latex = (contenido_latex or "").strip()
     comentario = (comentario or "").strip()
@@ -1790,7 +1863,6 @@ def _render_diary_promote_note(notes_col) -> None:
         st.error("Completa los campos requeridos: ID, Source y Fragmento LaTeX.")
         return
 
-    mongo_db = notes_col.database
     validation_errors = []
     validation_errors.extend(validate_new_concept_identity(mongo_db, concept_id, source))
     validation_errors.extend(validate_semantic_duplicate(mongo_db, titulo, concept_type, source))
@@ -1812,6 +1884,7 @@ def _render_diary_promote_note(notes_col) -> None:
         "pasos_algoritmo": pasos_algoritmo.split("\n") if es_algoritmo and pasos_algoritmo else None,
         "comentario": comentario or None,
         "source": source,
+        "source_id": source_id,
         "image_ids": [],
         "fecha_creacion": now,
         "ultima_actualizacion": now,
