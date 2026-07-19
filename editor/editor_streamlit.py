@@ -20,7 +20,6 @@ from editor.concept_reference_form import concept_reference_has_content
 from editor.concept_reference_form import render_concept_reference_form
 from editor.concept_reference_form import state_key as concept_reference_state_key
 from editor.concept_reference_form import sync_reference_scope as sync_concept_reference_scope
-from editor.db.concept_edit_service import ConceptEditStatus
 from editor.db.concept_edit_service import update_concept_fields_preserving_identity
 from editor.db.concept_repository import concept_exists
 from editor.db.concept_source_link_service import ConceptSourceLinkStatus
@@ -34,6 +33,11 @@ from editor.database_scope import knowledge_map_session_identity
 from editor.database_scope import mark_knowledge_map_loaded
 from editor.database_scope import sync_knowledge_graph_scope
 from editor.database_import_page import render_database_import_page
+from editor.edit_concept_feedback import feedback_for_update_result
+from editor.edit_concept_feedback import render_update_flash
+from editor.edit_concept_feedback import safe_update_exception_message
+from editor.edit_concept_feedback import store_update_success_flash
+from editor.edit_concept_feedback import sync_update_feedback_scope
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
 from editor.pdf_preview import generate_pdf_preview
@@ -2490,6 +2494,14 @@ elif page == "✏️ Edit Concept":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
+    edit_feedback_database_scope = active_database_scope or database_scope_token(
+        current_db or "<unlabeled connection>",
+        current_database_label or "<unknown database>",
+    )
+    sync_update_feedback_scope(
+        st.session_state,
+        edit_feedback_database_scope,
+    )
     st.info(f"📊 Editing concepts in: **{current_database_label}**")
 
     # Concept selection
@@ -2693,6 +2705,14 @@ elif page == "✏️ Edit Concept":
 
             # Force rerun to update all widgets
             st.rerun()
+
+        render_update_flash(
+            st,
+            st.session_state,
+            database_scope=edit_feedback_database_scope,
+            concept_id=original_concept_id,
+            source=original_source,
+        )
 
         # Display header
         st.markdown("---")
@@ -3292,39 +3312,28 @@ elif page == "✏️ Edit Concept":
                         now=datetime.now(),
                     )
 
-                    if update_result.status is ConceptEditStatus.SUCCESS:
-                        st.success(
-                            f"✅ Concept '{original_concept_id}' updated successfully "
-                            f"in {current_database_label} without changing identity!"
+                    update_feedback = feedback_for_update_result(
+                        update_result,
+                        concept_id=original_concept_id,
+                        source=original_source,
+                    )
+                    if update_feedback.level == "success":
+                        store_update_success_flash(
+                            st.session_state,
+                            update_result,
+                            database_scope=edit_feedback_database_scope,
+                            concept_id=original_concept_id,
+                            source=original_source,
                         )
-                        st.balloons()
                         st.session_state.pop(legacy_last_selected_key, None)
                         st.rerun()
-                    elif update_result.status is ConceptEditStatus.CONCEPT_NOT_FOUND:
-                        st.error("❌ The original concept no longer exists. Nothing was saved.")
-                    elif update_result.status is ConceptEditStatus.LATEX_NOT_FOUND:
-                        st.error(
-                            "❌ The matching LaTeX document is missing. "
-                            "The concept was not updated."
-                        )
-                    elif update_result.status is ConceptEditStatus.STALE_IDENTITY:
-                        st.error(
-                            "❌ The stored concept identity changed after this form was loaded. "
-                            "Reload before retrying."
-                        )
-                    elif update_result.status is ConceptEditStatus.FAILED_COMPENSATED:
-                        st.error(
-                            "❌ The coordinated update failed. The original concept data "
-                            "was restored; no complete update was reported."
-                        )
+                    elif update_feedback.level == "warning":
+                        st.warning(update_feedback.message)
                     else:
-                        st.error(
-                            "❌ The update may be partial and requires recovery before retrying. "
-                            f"Details: {update_result.message}"
-                        )
+                        st.error(update_feedback.message)
 
                 except Exception as e:
-                    st.error(f"❌ Error updating concept: {e}")
+                    st.error(safe_update_exception_message(e))
 
         # PDF Generation Button for Edit Concept
         st.markdown("---")
