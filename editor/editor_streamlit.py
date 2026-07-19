@@ -35,6 +35,10 @@ from pdf_export import generar_pdf_desde_formulario
 
 from db.concept_repository import insert_concept_with_latex_atomic
 from editor.document_builder import render_document_builder_page
+from editor.helpers.managed_source_selection import can_save_with_managed_source
+from editor.helpers.managed_source_selection import load_active_sources
+from editor.helpers.managed_source_selection import resolve_active_source
+from editor.helpers.managed_source_selection import source_labels
 from editor.helpers.tipo_aplicacion import TipoAplicacion
 from editor.helpers.tipo_contexto import NivelContexto
 from editor.helpers.tipo_formalidad import GradoFormalidad
@@ -1848,6 +1852,20 @@ elif page == "➕ Add Concept":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
+    managed_source_repository = None
+    managed_sources = ()
+    managed_source_labels = {}
+    managed_source_catalog_error = None
+    if catalog_context is None:
+        managed_source_catalog_error = catalog_context_error or "no active Source Catalog"
+    else:
+        managed_source_repository = catalog_context.source_repository
+        try:
+            managed_sources = load_active_sources(managed_source_repository)
+            managed_source_labels = source_labels(managed_sources)
+        except Exception as exc:
+            managed_source_catalog_error = safe_catalog_error(exc)
+
     st.info(f"📊 Adding concept to: **{current_db}**")
     st.markdown("### 📘 Concept Type")
     # Concept type selection
@@ -1860,24 +1878,49 @@ elif page == "➕ Add Concept":
     # Basic information
     st.subheader("📋 Basic Information")
 
+    selected_source_id = None
+    selected_source_preview = None
+    source = None
+    source_id = None
+    source_selection_valid = False
     col1, col2 = st.columns(2)
     with col1:
         concept_id = st.text_input("ID", placeholder="e.g., def:grupo_001", help="Unique identifier for the concept")
 
-        try:
-            existing_sources = db.concepts.distinct("source")
-            existing_sources = sorted([s for s in existing_sources if isinstance(s, str) and s.strip()], key=lambda x: x.lower())
-        except Exception:
-            existing_sources = []
-
-        source_choice = st.selectbox(
-            "Source",
-            ["(Custom...)"] + existing_sources,
-            help="Pick an existing source to avoid duplicates like 'Python' vs 'python'. Choose (Custom...) to type a new one.")
-        if source_choice == "(Custom...)":
-            source = st.text_input("New source name", placeholder="e.g., ProGit2024")
+        if managed_source_catalog_error is not None:
+            st.error(
+                "No se pudieron cargar las Sources administradas: "
+                f"{managed_source_catalog_error}"
+            )
+        elif not managed_sources:
+            st.warning(
+                "No hay Sources disponibles. Crea primero una Source desde Add Source."
+            )
         else:
-            source = source_choice
+            managed_source_ids = [source.source_id for source in managed_sources]
+            selected_source_id = st.selectbox(
+                "Source",
+                options=managed_source_ids,
+                index=None,
+                placeholder="Select a managed Source",
+                format_func=lambda value: managed_source_labels[value],
+                help="Select an active Source managed from Add Source.",
+                key=source_catalog_state_key("add_concept_source_id"),
+            )
+            selected_source_preview = next(
+                (
+                    candidate
+                    for candidate in managed_sources
+                    if candidate.source_id == selected_source_id
+                ),
+                None,
+            )
+            source_selection_valid = can_save_with_managed_source(
+                selected_source_preview
+            )
+            if source_selection_valid:
+                source = selected_source_preview.name
+                source_id = selected_source_preview.source_id
         
         if source:
             try:
@@ -2369,7 +2412,34 @@ elif page == "➕ Add Concept":
     comentario = st.text_area("Comment (Optional)", placeholder="Additional comments or notes...")
 
     # Submit button
-    if st.button("💾 Save Concept", type="primary"):
+    if st.button(
+        "💾 Save Concept",
+        type="primary",
+        disabled=not source_selection_valid,
+    ):
+        if managed_source_repository is None or not selected_source_id:
+            st.error("❌ Select an active managed Source before saving.")
+            st.stop()
+        try:
+            selected_source = resolve_active_source(
+                managed_source_repository,
+                selected_source_id,
+            )
+        except Exception as exc:
+            st.error(
+                "No se pudieron cargar las Sources administradas: "
+                f"{safe_catalog_error(exc)}"
+            )
+            st.stop()
+        if not can_save_with_managed_source(selected_source):
+            st.error(
+                "❌ The selected Source is no longer active or available. "
+                "Choose another managed Source."
+            )
+            st.stop()
+        source = selected_source.name
+        source_id = selected_source.source_id
+
         # 1. Campos requeridos (primero)
         if not concept_id or not source or not contenido_latex:
             st.error("❌ Please fill in all required fields: ID, Source, and LaTeX Content")
@@ -2407,6 +2477,7 @@ elif page == "➕ Add Concept":
                 "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
                 "comentario": comentario if comentario else None,
                 "source": source,
+                "source_id": source_id,
                 "image_ids": [asset["asset_id"] for asset in concept_media_assets],
                 "fecha_creacion": datetime.now(),
                 "ultima_actualizacion": datetime.now(),
