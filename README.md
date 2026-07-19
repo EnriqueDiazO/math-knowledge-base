@@ -1,6 +1,6 @@
 # 📚 Math Knowledge Base
 
-> **Status:** Beta Version (0.1.0b1)  
+> **Status:** Stable Version (0.13.0)
 > A platform designed to register, visualize, and export mathematical definitions, theorems, examples, and concepts in LaTeX.
 
 ---
@@ -12,6 +12,11 @@ To build a **customizable mathematical knowledge database** that supports:
 - Structured storage in MongoDB.
 - Automatic LaTeX export and PDF generation.
 - Visualization of relationships between concepts using graphs.
+
+The managed Source workflow is documented in the
+[user guide](docs/MANAGED_SOURCE_WORKFLOW.md). See the
+[v0.13.0 release notes](docs/RELEASE_NOTES_v0.13.0_MANAGED_SOURCE_WORKFLOW.md)
+for compatibility, upgrade guidance, and known limitations.
 
 ---
 

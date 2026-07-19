@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "mathmongo"
-version = "0.1.0"
+version = "0.13.0"
 description = "Base de conocimiento matemática con modelos Pydantic y exportación a LaTeX"
 authors = ["Enrique Díaz Ocampo <doeo113900@gmail.com>"]
 license = "MIT"

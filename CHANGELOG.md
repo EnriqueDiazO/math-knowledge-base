@@ -6,6 +6,26 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.0.0/)
 and this project adheres to Semantic Versioning.
 
 ---
+## [0.13.0] — 2026-07-18
+
+### Added
+
+* Closed the managed Source workflow for Add Source, Add Concept, Cuaderno
+  Promote, identity-preserving Edit Concept, and explicit legacy linking.
+* Added fresh-database lifecycle coverage and connection/database isolation for
+  Document Builder and Knowledge Graph/Maps.
+
+### Fixed
+
+* Blocked physical Source deletion when modern concept or LaTeX links remain.
+* Removed implicit `MathV0` initialization during startup.
+
+### Documentation
+
+* Added the [Managed Source Workflow guide](docs/MANAGED_SOURCE_WORKFLOW.md) and
+  [v0.13.0 release notes](docs/RELEASE_NOTES_v0.13.0_MANAGED_SOURCE_WORKFLOW.md),
+  including accepted limitations and upgrade notes.
+
 ## [Unreleased] — 2026-01-21
 
 ### Added
