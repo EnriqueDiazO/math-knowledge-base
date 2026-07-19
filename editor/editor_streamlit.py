@@ -18,6 +18,7 @@ from editor.db.concept_edit_service import update_concept_fields_preserving_iden
 from editor.db.concept_repository import concept_exists
 from editor.db.concept_source_link_service import ConceptSourceLinkStatus
 from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
+from editor.database_connections import initialize_configured_connection
 from editor.database_import_page import render_database_import_page
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
@@ -1139,23 +1140,7 @@ class DatabaseManager:
 if 'db_manager' not in st.session_state:
     st.session_state.db_manager = DatabaseManager()
     app_settings = resolve_config()
-
-    # Add default connections
-    st.session_state.db_manager.add_connection(
-        "MathMongo (Current)",
-        app_settings.mongo_uri,
-        app_settings.mongo_database,
-    )
-
-    # Add MathV0 connection
-    st.session_state.db_manager.add_connection(
-        "MathV0",
-        app_settings.mongo_uri,
-        "MathV0",
-    )
-
-    # Set current connection
-    st.session_state.db_manager.set_current_connection("MathMongo (Current)")
+    initialize_configured_connection(st.session_state.db_manager, app_settings)
 
 # Database connection sidebar
 st.sidebar.title("🧮 Math Knowledge Base")
