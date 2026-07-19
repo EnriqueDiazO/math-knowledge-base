@@ -1,3 +1,4 @@
+import html
 import json
 import os
 import re
@@ -18,6 +19,7 @@ from editor.db.concept_edit_service import update_concept_fields_preserving_iden
 from editor.db.concept_repository import concept_exists
 from editor.db.concept_source_link_service import ConceptSourceLinkStatus
 from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
+from editor.database_connections import active_database_display_label
 from editor.database_connections import initialize_configured_connection
 from editor.database_scope import KNOWLEDGE_GRAPH_LOADED_MAP_KEY
 from editor.database_scope import database_scope_token
@@ -1162,11 +1164,17 @@ for name, conn_info in st.session_state.db_manager.connections.items():
         current_db = name
         break
 
+current_database_label = None
 if current_db:
+    current_database_label = active_database_display_label(
+        current_db,
+        st.session_state.db_manager.get_current_connection(),
+    )
+    current_database_card_label = html.escape(current_database_label)
     st.sidebar.markdown(f"""
     <div class="db-connection-card">
         <strong>Current Database:</strong><br>
-        {current_db}<br>
+        {current_database_card_label}<br>
         <span class="db-status-connected">✅ Connected</span>
     </div>
     """, unsafe_allow_html=True)
@@ -1184,12 +1192,20 @@ if available_dbs:
     selected_db = st.sidebar.selectbox(
         "Switch Database",
         available_dbs,
-        index=available_dbs.index(current_db) if current_db in available_dbs else 0
+        index=available_dbs.index(current_db) if current_db in available_dbs else 0,
+        format_func=lambda connection_label: active_database_display_label(
+            connection_label,
+            st.session_state.db_manager.get_connection(connection_label),
+        ),
     )
 
     if selected_db != current_db:
         if st.session_state.db_manager.set_current_connection(selected_db):
-            st.sidebar.success(f"✅ Switched to {selected_db}")
+            selected_database_label = active_database_display_label(
+                selected_db,
+                st.session_state.db_manager.get_current_connection(),
+            )
+            st.sidebar.success(f"✅ Switched to {selected_database_label}")
             st.rerun()
 
 # Add new database connection
@@ -1357,7 +1373,7 @@ elif page == "🏠 Dashboard":
         st.stop()
 
     # Show current database info
-    st.info(f"📊 Currently connected to: **{current_db}**")
+    st.info(f"📊 Currently connected to: **{current_database_label}**")
 
     # Statistics
     col1, col2, col3, col4 = st.columns(4)
@@ -1868,7 +1884,7 @@ elif page == "➕ Add Concept":
         except Exception as exc:
             managed_source_catalog_error = safe_catalog_error(exc)
 
-    st.info(f"📊 Adding concept to: **{current_db}**")
+    st.info(f"📊 Adding concept to: **{current_database_label}**")
     st.markdown("### 📘 Concept Type")
     # Concept type selection
     concept_type = st.selectbox(
@@ -2554,7 +2570,10 @@ elif page == "➕ Add Concept":
                     now,
                 )
 
-            st.success(f"✅ Concept '{concept_id}' saved successfully to {current_db}!")
+            st.success(
+                f"✅ Concept '{concept_id}' saved successfully to "
+                f"{current_database_label}!"
+            )
             st.balloons()
 
         except Exception as e:
@@ -2630,7 +2649,7 @@ elif page == "✏️ Edit Concept":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
-    st.info(f"📊 Editing concepts in: **{current_db}**")
+    st.info(f"📊 Editing concepts in: **{current_database_label}**")
 
     # Concept selection
     st.subheader("🔍 Select Concept to Edit")
@@ -3435,7 +3454,7 @@ elif page == "✏️ Edit Concept":
                     if update_result.status is ConceptEditStatus.SUCCESS:
                         st.success(
                             f"✅ Concept '{original_concept_id}' updated successfully "
-                            f"in {current_db} without changing identity!"
+                            f"in {current_database_label} without changing identity!"
                         )
                         st.balloons()
                         st.session_state.pop(legacy_last_selected_key, None)
@@ -3584,7 +3603,7 @@ elif page == "📚 Browse Concepts":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
-    st.info(f"📊 Browsing concepts in: **{current_db}**")
+    st.info(f"📊 Browsing concepts in: **{current_database_label}**")
 
     # Filters
     st.subheader("🔍 Filters")
@@ -3860,7 +3879,7 @@ elif page == "🔗 Manage Relations":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
-    st.info(f"📊 Managing relations in: **{current_db}**")
+    st.info(f"📊 Managing relations in: **{current_database_label}**")
 
     # Import interactive graph manager
     from editor.interactive_graph import InteractiveGraphManager
@@ -5937,7 +5956,7 @@ elif page == "📤 Export":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
-    st.info(f"📊 Exporting from: **{current_db}**")
+    st.info(f"📊 Exporting from: **{current_database_label}**")
 
     st.subheader("📄 LaTeX/PDF Export")
     st.info("Para construir un unico PDF modular con varios conceptos, usa la pagina 📄 Document Builder.")
@@ -6101,7 +6120,7 @@ elif page == "⚙️ Settings":
         st.error("❌ No database connection.")
         st.stop()
     else:
-        st.success(f"✅ Connected to: **{current_db}**")
+        st.success(f"✅ Connected to: **{current_database_label}**")
 
     # Database statistics
     st.subheader("📊 Database Statistics")
