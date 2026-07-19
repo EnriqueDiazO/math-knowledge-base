@@ -16,6 +16,8 @@ from streamlit_ace import st_ace
 from editor.db.concept_edit_service import ConceptEditStatus
 from editor.db.concept_edit_service import update_concept_fields_preserving_identity
 from editor.db.concept_repository import concept_exists
+from editor.db.concept_source_link_service import ConceptSourceLinkStatus
+from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
 from editor.database_import_page import render_database_import_page
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
@@ -2742,6 +2744,7 @@ elif page == "✏️ Edit Concept":
         selected_concept = concept_map[selected_concept_display]
         original_concept_id = str(selected_concept["id"])
         original_source = str(selected_concept["source"])
+        original_source_id_present = "source_id" in selected_concept
         original_source_id = selected_concept.get("source_id")
 
         # Check if concept has changed and update session state
@@ -2846,9 +2849,17 @@ elif page == "✏️ Edit Concept":
             st.code(original_concept_id, language=None)
             st.caption("Source snapshot (immutable)")
             st.code(original_source, language=None)
-            if original_source_id is not None:
+            if original_source_id_present:
                 st.caption("Managed Source ID (immutable)")
-                st.code(str(original_source_id), language=None)
+                st.code(
+                    str(original_source_id) if original_source_id is not None else "null",
+                    language=None,
+                )
+                if original_source_id is None:
+                    st.warning(
+                        "The Managed Source link field is present but invalid. "
+                        "Repair link is outside this phase."
+                    )
             else:
                 st.info("Legacy concept — not linked to a managed Source.")
 
@@ -2859,6 +2870,179 @@ elif page == "✏️ Edit Concept":
                 [t.value for t in TipoTitulo],
                 key="edit_tipo_titulo",
             )
+
+        if not original_source_id_present:
+            st.markdown("---")
+            st.subheader("🔗 Link to an existing managed Source")
+            st.caption(
+                "This is a separate, explicit action. It only adds a Managed Source ID; "
+                "the ordinary Update Concept action remains unchanged."
+            )
+
+            link_source_selector_key = source_catalog_state_key(
+                "legacy_link_target_source_id",
+                original_concept_id,
+                original_source,
+            )
+            link_confirmation_key = source_catalog_state_key(
+                "legacy_link_confirmation",
+                original_concept_id,
+                original_source,
+            )
+            link_button_key = source_catalog_state_key(
+                "legacy_link_submit",
+                original_concept_id,
+                original_source,
+            )
+            link_source_repository = None
+            managed_sources = ()
+            managed_source_labels = {}
+            selected_source_id = None
+            selected_source_preview = None
+            link_action_available = False
+            link_catalog_error = None
+
+            if catalog_context is None:
+                link_catalog_error = catalog_context_error or "no active Source Catalog"
+            else:
+                link_source_repository = catalog_context.source_repository
+                try:
+                    managed_sources = load_active_sources(link_source_repository)
+                    managed_source_labels = source_labels(managed_sources)
+                except Exception as exc:
+                    link_catalog_error = safe_catalog_error(exc)
+
+            if link_catalog_error is not None:
+                st.error(
+                    "No se pudieron cargar las Sources administradas: "
+                    f"{link_catalog_error}"
+                )
+            elif not managed_sources:
+                st.warning(
+                    "No hay Sources activas disponibles. "
+                    "Crea primero una Source desde Add Source."
+                )
+            else:
+                managed_source_ids = [source.source_id for source in managed_sources]
+                selected_source_id = st.selectbox(
+                    "Managed Source",
+                    options=managed_source_ids,
+                    index=None,
+                    placeholder="Select an active managed Source",
+                    format_func=lambda value: managed_source_labels[value],
+                    help="Only active Sources from the current database are listed.",
+                    key=link_source_selector_key,
+                )
+                selected_source_preview = next(
+                    (
+                        candidate
+                        for candidate in managed_sources
+                        if candidate.source_id == selected_source_id
+                    ),
+                    None,
+                )
+
+                if selected_source_preview is not None:
+                    st.markdown(f"**Historical Source snapshot:** `{original_source}`")
+                    st.markdown(
+                        "**Managed Source selected:** "
+                        f"`{selected_source_preview.name}`"
+                    )
+                    st.markdown(f"**Target Managed Source ID:** `{selected_source_id}`")
+                    if original_source != selected_source_preview.name:
+                        st.warning(
+                            "La vinculación añadirá el Managed Source ID, pero no cambiará "
+                            "el snapshot histórico ni la clave id@source."
+                        )
+
+                    link_confirmed = st.checkbox(
+                        f"I confirm historical snapshot `{original_source}`, managed Source "
+                        f"`{selected_source_preview.name}`, and target Source ID "
+                        f"`{selected_source_id}`; this action will not move the concept or "
+                        "change its id@source key.",
+                        key=link_confirmation_key,
+                    )
+                    link_action_available = bool(link_confirmed)
+
+            if st.button(
+                "🔗 Link managed Source",
+                key=link_button_key,
+                disabled=not link_action_available,
+            ):
+                rehydrated_source = None
+                try:
+                    rehydrated_source = resolve_active_source(
+                        link_source_repository,
+                        selected_source_id,
+                    )
+                except Exception as exc:
+                    st.error(
+                        "No se pudo revalidar la Source administrada: "
+                        f"{safe_catalog_error(exc)}"
+                    )
+
+                if not can_save_with_managed_source(rehydrated_source):
+                    st.error(
+                        "The selected managed Source is no longer active or available. "
+                        "Nothing was linked."
+                    )
+                else:
+                    link_result = link_concept_to_existing_managed_source(
+                        db,
+                        concept_id=original_concept_id,
+                        source=original_source,
+                        expected_source_id=original_source_id,
+                        target_source_id=rehydrated_source.source_id,
+                    )
+                    if link_result.status in {
+                        ConceptSourceLinkStatus.SUCCESS,
+                        ConceptSourceLinkStatus.ALREADY_LINKED,
+                    }:
+                        st.success(
+                            "The concept is linked to the selected managed Source. "
+                            "Its ID, historical Source snapshot, and id@source key are unchanged."
+                        )
+                        st.session_state.pop(link_source_selector_key, None)
+                        st.session_state.pop(link_confirmation_key, None)
+                        st.rerun()
+                    elif link_result.status is ConceptSourceLinkStatus.TARGET_NOT_FOUND:
+                        st.error("The selected managed Source no longer exists. Nothing was linked.")
+                    elif link_result.status is ConceptSourceLinkStatus.TARGET_INACTIVE:
+                        st.error("The selected managed Source is archived. Nothing was linked.")
+                    elif link_result.status is ConceptSourceLinkStatus.CONCEPT_NOT_FOUND:
+                        st.error("The original legacy concept no longer exists. Nothing was linked.")
+                    elif link_result.status is ConceptSourceLinkStatus.LATEX_NOT_FOUND:
+                        st.error("The matching LaTeX document is missing. Nothing was linked.")
+                    elif link_result.status is ConceptSourceLinkStatus.STALE_IDENTITY:
+                        st.error("The concept changed after it was loaded. Reload before retrying.")
+                    elif link_result.status is ConceptSourceLinkStatus.LINK_MISMATCH:
+                        st.error(
+                            "Concept and LaTeX Source links do not match. "
+                            "Repair link is outside this phase."
+                        )
+                    elif (
+                        link_result.status
+                        is ConceptSourceLinkStatus.ALREADY_LINKED_TO_DIFFERENT_SOURCE
+                    ):
+                        st.error(
+                            "The concept is already linked to a different managed Source. "
+                            "Change Source is outside this phase."
+                        )
+                    elif link_result.status is ConceptSourceLinkStatus.FAILED_COMPENSATED:
+                        st.error(
+                            "The link failed, but the added concept link was safely removed. "
+                            "No complete link was reported."
+                        )
+                    elif (
+                        link_result.status
+                        is ConceptSourceLinkStatus.PARTIAL_RECOVERY_REQUIRED
+                    ):
+                        st.error(
+                            "The link may be partial and requires recovery before retrying. "
+                            f"Details: {link_result.message}"
+                        )
+                    else:
+                        st.error(f"The Source link failed: {link_result.message}")
 
         # Concept type (read-only for now to avoid complications)
         st.info(f"**Concept Type:** {selected_concept['tipo']} (cannot be changed)")
