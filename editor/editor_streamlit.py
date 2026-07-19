@@ -8,12 +8,18 @@ from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
-import bibtexparser
 import pandas as pd
 import streamlit as st
 from bson import ObjectId
 from streamlit_ace import st_ace
 
+from editor.concept_reference_form import (
+    apply_reference_to_state as apply_concept_reference_to_state,
+)
+from editor.concept_reference_form import concept_reference_has_content
+from editor.concept_reference_form import render_concept_reference_form
+from editor.concept_reference_form import state_key as concept_reference_state_key
+from editor.concept_reference_form import sync_reference_scope as sync_concept_reference_scope
 from editor.db.concept_edit_service import ConceptEditStatus
 from editor.db.concept_edit_service import update_concept_fields_preserving_identity
 from editor.db.concept_repository import concept_exists
@@ -887,58 +893,6 @@ def _knowledge_graph_node_id_selector(rows: list[dict], key: str) -> list[str]:
         if isinstance(row, dict) and row.get("Quitar") and row.get("ID interno")
     ]
 
-
-def _bib_to_referencia(entry: dict) -> dict:
-    get = entry.get
-
-    # Autor/es
-    autores = []
-    if get("author"):
-        for a in get("author").split(" and "):
-            autores.append(a.strip())
-    autores_str = "; ".join(autores) if autores else None
-
-    # Fuente (journal/booktitle/publisher/title como fallback)
-    fuente = get("journal") or get("booktitle") or get("publisher") or get("title")
-
-    # Año
-    try:
-        anio = int(get("year")) if get("year") and get("year").isdigit() else None
-    except Exception:
-        anio = None
-
-    # Varios campos
-    paginas = get("pages").replace("--", "-").strip() if get("pages") else None
-    edicion = get("edition")
-    tomo = get("volume")
-    capitulo = get("chapter")
-    seccion = get("number") or get("issue")
-    editorial = get("publisher")
-    doi = get("doi")
-    url = get("url")
-    issbn = get("isbn") or get("issn")  # OJO: en tu modelo el campo se llama "issbn"
-
-    return {
-        "autor": autores_str,
-        "fuente": fuente,
-        "anio": anio,
-        "tomo": tomo,
-        "edicion": edicion,
-        "paginas": paginas,
-        "capitulo": capitulo,
-        "seccion": seccion,
-        "editorial": editorial,
-        "doi": doi,
-        "url": url,
-        "issbn": issbn,
-    }
-
-def _parse_bibtex(file_bytes: bytes) -> list[dict]:
-    if not bibtexparser:
-        raise RuntimeError("Falta bibtexparser. Instala con: pip install bibtexparser==1.4.0")
-    db = bibtexparser.loads(file_bytes.decode("utf-8", errors="ignore"))
-    return db.entries or []
-# ---------------------------------------------------------
 
 def _normalize_ref_dict(ref: dict) -> dict:
     """Normaliza la referencia para soportar:
@@ -2283,120 +2237,37 @@ elif page == "➕ Add Concept":
             pasos_algoritmo = st.text_area("Algorithm Steps", placeholder="Enter algorithm steps...")
 
     st.subheader("📚 Reference Information")
-    if st.button("📋 Cargar referencia del concepto anterior", key="load_prev_ref"):
+    sync_concept_reference_scope(
+        st.session_state,
+        database_scope=active_database_scope,
+        source_id=selected_source_id,
+        concept_id=concept_id,
+    )
+    if st.button(
+        "📋 Cargar referencia del concepto anterior",
+        key=concept_reference_state_key("load_previous"),
+    ):
         try:
             ref = load_last_reference_by_source(db, source)
             if not ref:
                 st.warning(f"⚠️ No se encontró ninguna referencia previa para el source: {source!r}")
             else:
-                # Poblar session_state (Add Concept usa claves edit_ref_*)
-                st.session_state["edit_ref_tipo"] = ref.get("tipo_referencia", st.session_state.get("edit_ref_tipo", "libro"))
-                st.session_state["edit_ref_autor"] = ref.get("autor", "") or ""
-                st.session_state["edit_ref_fuente"] = ref.get("fuente", "") or ""
-                st.session_state["edit_ref_anio"] = ref.get("anio", 2024) or 2024
-                st.session_state["edit_ref_tomo"] = ref.get("tomo", "") or ""
-                st.session_state["edit_ref_edicion"] = ref.get("edicion", "") or ""
-                st.session_state["edit_ref_paginas"] = ref.get("paginas", "") or ""
-                st.session_state["edit_ref_capitulo"] = ref.get("capitulo", "") or ""
-                st.session_state["edit_ref_seccion"] = ref.get("seccion", "") or ""
-                st.session_state["edit_ref_editorial"] = ref.get("editorial", "") or ""
-                st.session_state["edit_ref_doi"] = ref.get("doi", "") or ""
-                st.session_state["edit_ref_url"] = ref.get("url", "") or ""
-                st.session_state["edit_ref_issbn"] = ref.get("issbn", "") or ""
-                st.session_state["edit_ref_citekey"] = ref.get("citekey", "") or ""
-
-                # Debug opcional (puedes quitarlo)
-                with st.expander("Debug (loaded from last concept)", expanded=False):
-                    st.write({
-                    "from_id": ref.get("__from_concept_id"),
-                    "from_title": ref.get("__from_concept_title"),
-                    "from_date": ref.get("__from_concept_date"),
-                })
-
-                st.success("✅ Referencia cargada desde el último concepto de este source. Puedes editar los campos.")
+                apply_concept_reference_to_state(st.session_state, ref)
+                st.session_state[concept_reference_state_key("notice")] = (
+                    "Referencia cargada desde el último concepto de esta Source. "
+                    "Revisa los campos antes de guardar."
+                )
                 st.rerun()
         except Exception as e:
             st.error(f"❌ Error cargando referencia previa: {e}")
 
-
-    
-
-    with st.expander("Add / Edit Reference", expanded=False):
-        # --- Carga opcional de BibTeX ---
-        st.write("Opcional: cargar desde un archivo BibTeX")
-        bib_file_add = st.file_uploader("Cargar .bib", type=["bib"], key="bib_add")
-
-        if bib_file_add is not None:
-            try:
-                bib_entries = _parse_bibtex(bib_file_add.getvalue())
-                if bib_entries:
-                    keys = [
-                            (e.get("ID", "(sin key)"), f'{e.get("title","(sin título)")[:60]}')
-                            for e in bib_entries
-                        ]
-                    idx = st.selectbox(
-                            "Selecciona entrada",
-                            list(range(len(keys))),
-                            format_func=lambda i: f"{keys[i][0]} — {keys[i][1]}",
-                            key="bib_choice_edit",
-                    )
-
-                    selected_bib_entry_edit = bib_entries[idx]
-
-                    if st.button("Usar esta entrada", key="use_bib_edit"):
-                        ref_dict = _bib_to_referencia(selected_bib_entry_edit)
-                        st.session_state["edit_ref_tipo"] = ref_dict["tipo_referencia"]
-                        st.session_state["edit_ref_autor"] = ref_dict["autor"] or ""
-                        st.session_state["edit_ref_fuente"] = ref_dict["fuente"] or ""
-                        st.session_state["edit_ref_anio"] = ref_dict["anio"] or 2024
-                        st.session_state["edit_ref_tomo"] = ref_dict["tomo"] or ""
-                        st.session_state["edit_ref_edicion"] = ref_dict["edicion"] or ""
-                        st.session_state["edit_ref_paginas"] = ref_dict["paginas"] or ""
-                        st.session_state["edit_ref_capitulo"] = ref_dict["capitulo"] or ""
-                        st.session_state["edit_ref_seccion"] = ref_dict["seccion"] or ""
-                        st.session_state["edit_ref_editorial"] = ref_dict["editorial"] or ""
-                        st.session_state["edit_ref_doi"] = ref_dict["doi"] or ""
-                        st.session_state["edit_ref_url"] = ref_dict["url"] or ""
-                        st.session_state["edit_ref_issbn"] = ref_dict["issbn"] or ""
-                        st.session_state["edit_ref_citekey"] = selected_bib_entry_edit.get("ID")
-                        st.success("Campos de referencia actualizados desde BibTeX.")
-                        st.rerun()  # <-- fuerza refresco de widgets
-                else:
-                    st.info("El archivo .bib no contiene entradas.")
-            except Exception as e:
-                st.error(f"No se pudo leer el .bib: {e}")
-
-            # --- Campos editables enlazados a session_state (claves edit_ref_*) ---
-        col1, col2 = st.columns(2)
-        with col1:
-            ref_tipo = st.selectbox(
-                    "Reference Type",
-                    [t.value for t in TipoReferencia],
-                    key="edit_ref_tipo",
-            )
-            ref_autor = st.text_input("Author", key="edit_ref_autor")
-            ref_fuente = st.text_input("Source/Title", key="edit_ref_fuente")
-            ref_anio = st.number_input(
-                    "Year",
-                    min_value=1800, max_value=3000,
-                    value=st.session_state.get("edit_ref_anio"),
-                    key="edit_ref_anio",
-            )
-
-        with col2:
-            ref_tomo = st.text_input("Volume", key="edit_ref_tomo")
-            ref_edicion = st.text_input("Edition", key="edit_ref_edicion")
-            ref_paginas = st.text_input("Pages", key="edit_ref_paginas")
-            ref_capitulo = st.text_input("Chapter", key="edit_ref_capitulo")
-
-        ref_seccion = st.text_input("Section", key="edit_ref_seccion")
-        ref_editorial = st.text_input("Publisher", key="edit_ref_editorial")
-        ref_doi = st.text_input("DOI", key="edit_ref_doi")
-        ref_url = st.text_input("URL", key="edit_ref_url")
-        ref_issbn = st.text_input("ISBN", key="edit_ref_issbn")
-
-        # Citekey opcional (si lo guardas en tu modelo)
-        st.text_input("Citekey (opcional)", key="edit_ref_citekey")
+    reference_data = render_concept_reference_form(
+        st,
+        database_scope=active_database_scope,
+        source_id=selected_source_id,
+        concept_id=concept_id,
+    )
+    ref_citekey = reference_data["citekey"]
 
     # Teaching context
     st.subheader("🎓 Teaching Context")
@@ -2499,30 +2370,14 @@ elif page == "➕ Add Concept":
                 "image_ids": [asset["asset_id"] for asset in concept_media_assets],
                 "fecha_creacion": datetime.now(),
                 "ultima_actualizacion": datetime.now(),
-                # NOTE: We keep concept.citekey for backward compatibility with existing exporters.
-                # The authoritative citekey should live inside concept.referencia.citekey.
-                "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
+                # Keep the legacy top-level construction input for exporter compatibility.
+                # The validated authoritative value is concept.referencia.citekey.
+                "citekey": ref_citekey if ref_citekey else None,
                 }
 
             # Add reference if provided
-            if ref_autor or ref_fuente:
-                concept_data["referencia"] = {
-                    "tipo_referencia": ref_tipo,
-                    "autor": ref_autor if ref_autor else None,
-                    "fuente": ref_fuente if ref_fuente else None,
-                    "anio": ref_anio if ref_anio else None,
-                    "tomo": ref_tomo if ref_tomo else None,
-                    "edicion": ref_edicion if ref_edicion else None,
-                    "paginas": ref_paginas if ref_paginas else None,
-                    "capitulo": ref_capitulo if ref_capitulo else None,
-                    "seccion": ref_seccion if ref_seccion else None,
-                    "editorial": ref_editorial if ref_editorial else None,
-                    "doi": ref_doi if ref_doi else None,
-                    "url": ref_url if ref_url else None,
-                    "issbn": ref_issbn if ref_issbn else None,
-                    # NEW: Persist citekey at reference-level (needed for stable Quarto/BibTeX export).
-                    "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
-                    }
+            if concept_reference_has_content(reference_data):
+                concept_data["referencia"] = reference_data
 
             # Add teaching context if provided
             if nivel_contexto or grado_formalidad:
@@ -2607,22 +2462,8 @@ elif page == "➕ Add Concept":
             }
 
             # Add reference if provided
-            if ref_autor or ref_fuente:
-                pdf_concept_data["referencia"] = {
-                    "tipo_referencia": ref_tipo,
-                    "autor": ref_autor if ref_autor else None,
-                    "fuente": ref_fuente if ref_fuente else None,
-                    "anio": ref_anio if ref_anio else None,
-                    "tomo": ref_tomo if ref_tomo else None,
-                    "edicion": ref_edicion if ref_edicion else None,
-                    "paginas": ref_paginas if ref_paginas else None,
-                    "capitulo": ref_capitulo if ref_capitulo else None,
-                    "seccion": ref_seccion if ref_seccion else None,
-                    "editorial": ref_editorial if ref_editorial else None,
-                    "doi": ref_doi if ref_doi else None,
-                    "url": ref_url if ref_url else None,
-                    "issbn": ref_issbn if ref_issbn else None
-                }
+            if concept_reference_has_content(reference_data):
+                pdf_concept_data["referencia"] = reference_data
 
             _generate_concept_pdf_preview(
                 "add_concept",
