@@ -383,6 +383,95 @@ def test_source_physical_delete_blocks_exact_current_name_match() -> None:
     assert caught.value.blockers == ("legacy_concepts:1",)
 
 
+def test_source_physical_delete_blocks_managed_concept_with_historical_snapshot() -> None:
+    database = _Database()
+    sources = SourceRepository(database)
+    source = sources.insert(Source(name="Current managed name"))
+    concept = {
+        "id": "managed-concept",
+        "source": "Historical snapshot",
+        "source_id": source.source_id,
+    }
+    database["concepts"].documents.append(concept)
+
+    with pytest.raises(PhysicalDeletionBlockedError) as caught:
+        sources.physical_delete_if_unused(source.source_id)
+
+    assert caught.value.blockers == ("linked_concepts_by_source_id:1",)
+    assert database["concepts"].documents == [concept]
+    assert sources.get_by_id(source.source_id) is not None
+
+
+def test_source_physical_delete_blocks_managed_latex_without_concept() -> None:
+    database = _Database()
+    sources = SourceRepository(database)
+    source = sources.insert(Source(name="Managed"))
+    latex = {
+        "id": "orphan-latex",
+        "source": "Old snapshot",
+        "source_id": source.source_id,
+    }
+    database["latex_documents"].documents.append(latex)
+
+    with pytest.raises(PhysicalDeletionBlockedError) as caught:
+        sources.physical_delete_if_unused(source.source_id)
+
+    assert caught.value.blockers == ("linked_latex_documents_by_source_id:1",)
+    assert database["latex_documents"].documents == [latex]
+
+
+def test_source_physical_delete_reports_concept_and_latex_links_separately() -> None:
+    database = _Database()
+    sources = SourceRepository(database)
+    source = sources.insert(Source(name="Managed"))
+    database["concepts"].documents.append(
+        {"id": "paired", "source": "Snapshot", "source_id": source.source_id}
+    )
+    database["latex_documents"].documents.append(
+        {"id": "paired", "source": "Snapshot", "source_id": source.source_id}
+    )
+
+    with pytest.raises(PhysicalDeletionBlockedError) as caught:
+        sources.physical_delete_if_unused(source.source_id)
+
+    assert caught.value.blockers == (
+        "linked_concepts_by_source_id:1",
+        "linked_latex_documents_by_source_id:1",
+    )
+
+
+def test_managed_link_still_blocks_after_source_rename_or_archive() -> None:
+    database = _Database()
+    sources = SourceRepository(database)
+    source = sources.insert(Source(name="Before"))
+    database["concepts"].documents.append(
+        {"id": "linked", "source": "Before", "source_id": source.source_id}
+    )
+    renamed = sources.update(source.source_id, {"name": "After"})
+    assert renamed is not None
+    archived = sources.archive(source.source_id)
+    assert archived is not None and archived.status.value == "archived"
+
+    with pytest.raises(PhysicalDeletionBlockedError) as caught:
+        sources.physical_delete_if_unused(source.source_id)
+
+    assert "linked_concepts_by_source_id:1" in caught.value.blockers
+
+
+def test_legacy_blocker_uses_exact_names_without_similarity_fallback() -> None:
+    database = _Database()
+    sources = SourceRepository(database)
+    source = sources.insert(Source(name="Exact managed name"))
+    database["concepts"].documents.append(
+        {"id": "similar-only", "source": "Exact managed name extended"}
+    )
+
+    assert sources.physical_delete_if_unused(source.source_id) is True
+    assert database["concepts"].documents == [
+        {"id": "similar-only", "source": "Exact managed name extended"}
+    ]
+
+
 def test_reference_association_states_and_safe_physical_delete() -> None:
     database = _Database()
     source = SourceRepository(database).insert(Source(name="Book"))

@@ -399,11 +399,26 @@ class SourceRepository:
         return results
 
     def deletion_blockers(self, source_id: str) -> tuple[str, ...]:
-        """Inspect Reference and exact legacy concept links read-only."""
+        """Inspect managed, Reference, and exact legacy links read-only."""
         source = self.get_by_id(source_id)
         if source is None:
             return ()
         blockers: list[str] = []
+        linked_concepts = int(
+            self.database["concepts"].count_documents({"source_id": source_id})
+        )
+        if linked_concepts:
+            blockers.append(f"linked_concepts_by_source_id:{linked_concepts}")
+        linked_latex_documents = int(
+            self.database["latex_documents"].count_documents(
+                {"source_id": source_id}
+            )
+        )
+        if linked_latex_documents:
+            blockers.append(
+                "linked_latex_documents_by_source_id:"
+                f"{linked_latex_documents}"
+            )
         reference_count = int(
             self.database[ReferenceRepository.COLLECTION].count_documents(
                 {"source_ids": source_id}

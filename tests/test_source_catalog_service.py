@@ -10,6 +10,7 @@ import pytest
 
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
+from mathmongo.source_catalog.repository import PhysicalDeletionBlockedError
 from mathmongo.source_catalog.service import CatalogResultStatus
 from mathmongo.source_catalog.service import SourceCatalogService
 
@@ -19,6 +20,8 @@ class _SourceRepository:
         self.database = database
         self.records: dict[str, Source] = {}
         self.blockers: dict[str, list[str]] = {}
+        self.blockers_on_second_inspection: list[str] = []
+        self.deletion_inspections = 0
         self.update_calls = 0
 
     def insert(self, source: Source) -> Source:
@@ -57,11 +60,15 @@ class _SourceRepository:
         return self.records[source_id]
 
     def deletion_blockers(self, source_id: str) -> list[str]:
+        self.deletion_inspections += 1
+        if self.deletion_inspections >= 2 and self.blockers_on_second_inspection:
+            return self.blockers_on_second_inspection
         return self.blockers.get(source_id, [])
 
     def physical_delete_if_unused(self, source_id: str) -> bool:
-        if self.deletion_blockers(source_id):
-            raise AssertionError("service must inspect blockers first")
+        blockers = self.deletion_blockers(source_id)
+        if blockers:
+            raise PhysicalDeletionBlockedError(source_id, blockers)
         return self.records.pop(source_id, None) is not None
 
 
@@ -311,6 +318,19 @@ def test_future_detector_fails_closed_before_source_delete() -> None:
 
     assert result.status == CatalogResultStatus.BLOCKED
     assert result.blockers == ("future_link",)
+    assert source.source_id in sources.records
+
+
+def test_source_delete_revalidates_after_preview_before_physical_delete() -> None:
+    service, sources, _ = _service()
+    source = service.create_source({"name": "Race-safe"}).value
+    sources.blockers_on_second_inspection = ["linked_concepts_by_source_id:1"]
+
+    result = service.delete_source_if_unused(source.source_id)
+
+    assert result.status == CatalogResultStatus.BLOCKED
+    assert result.blockers == ("linked_concepts_by_source_id:1",)
+    assert sources.deletion_inspections == 2
     assert source.source_id in sources.records
 
 
