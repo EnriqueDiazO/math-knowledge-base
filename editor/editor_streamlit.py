@@ -19,6 +19,7 @@ from editor.db.concept_repository import concept_exists
 from editor.db.concept_source_link_service import ConceptSourceLinkStatus
 from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
 from editor.database_connections import initialize_configured_connection
+from editor.database_scope import database_scope_token
 from editor.database_import_page import render_database_import_page
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
@@ -1223,9 +1224,16 @@ st.sidebar.markdown("---")
 db = st.session_state.db_manager.get_current_connection()
 catalog_context = None
 catalog_context_error = None
+active_database_scope = None
+active_database_name = None
 if db is not None:
     try:
         catalog_context = build_catalog_context(current_db or "<unlabeled connection>", db)
+        active_database_name = catalog_context.database_name
+        active_database_scope = database_scope_token(
+            catalog_context.connection_label,
+            catalog_context.database_name,
+        )
         sync_database_state(
             st.session_state,
             connection_label=catalog_context.connection_label,
@@ -5865,7 +5873,12 @@ elif page == "📊 Knowledge Graph":
 
 # Document Builder page
 elif page == "📄 Document Builder":
-    render_document_builder_page(db, current_db)
+    render_document_builder_page(
+        db,
+        current_db,
+        database_scope=active_database_scope,
+        database_name=active_database_name,
+    )
 
 # Export page
 elif page == "📤 Export":

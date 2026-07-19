@@ -5,6 +5,7 @@ from typing import Any
 
 import streamlit as st
 
+from editor.database_scope import sync_document_builder_scope
 from exporters_latex.concept_ordering import concept_key
 from exporters_latex.concept_ordering import order_by_date
 from exporters_latex.concept_ordering import order_by_graph
@@ -157,15 +158,27 @@ def _validation_rows(results: list[dict[str, Any]]) -> list[dict[str, Any]]:
     return rows
 
 
-def render_document_builder_page(db, current_db: str | None = None) -> None:
+def render_document_builder_page(
+    db,
+    current_db: str | None = None,
+    *,
+    database_scope: str | None = None,
+    database_name: str | None = None,
+) -> None:
     st.title("📄 Document Builder")
 
     if db is None:
         st.error("No database connection. Please select a database in the sidebar.")
         st.stop()
 
-    if current_db:
-        st.info(f"Building document from: **{current_db}**")
+    if not database_scope or not database_name:
+        st.error("The active database scope could not be resolved safely.")
+        return
+
+    sync_document_builder_scope(st.session_state, database_scope)
+
+    connection_label = current_db or "<unlabeled connection>"
+    st.info(f"Connection: **{connection_label}** · Database: **{database_name}**")
 
     items_key = _builder_state_key("items")
     if items_key not in st.session_state:
@@ -217,7 +230,7 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
 
         add_col1, add_col2 = st.columns(2)
         with add_col1:
-            if st.button("Agregar seleccionados"):
+            if st.button("Agregar seleccionados", key=_builder_state_key("add_selected")):
                 current = list(st.session_state[items_key])
                 for key in selected_to_add:
                     if key not in current:
@@ -225,7 +238,7 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
                 st.session_state[items_key] = current
                 st.rerun()
         with add_col2:
-            if st.button("Agregar filtrados"):
+            if st.button("Agregar filtrados", key=_builder_state_key("add_filtered")):
                 current = list(st.session_state[items_key])
                 for key in options:
                     if key not in current:
@@ -269,11 +282,11 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
 
         clear_col, refresh_col = st.columns(2)
         with clear_col:
-            if st.button("Limpiar documento"):
+            if st.button("Limpiar documento", key=_builder_state_key("clear_document")):
                 st.session_state[items_key] = []
                 st.rerun()
         with refresh_col:
-            if st.button("Refrescar LaTeX"):
+            if st.button("Refrescar LaTeX", key=_builder_state_key("refresh_latex")):
                 st.rerun()
 
     st.markdown("---")
@@ -306,7 +319,10 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
 
     action_col1, action_col2, action_col3 = st.columns(3)
     selected_keys_for_validation = list(st.session_state[items_key])
-    if action_col1.button("Validar seleccionados"):
+    if action_col1.button(
+        "Validar seleccionados",
+        key=_builder_state_key("validate_selected"),
+    ):
         if not selected_keys_for_validation:
             st.error("No hay conceptos seleccionados para validar.")
         else:
@@ -318,14 +334,20 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
             st.session_state[_builder_state_key("validation_results")] = [
                 result.__dict__ for result in results
             ]
-    if action_col2.button("Validar fuente completa"):
+    if action_col2.button(
+        "Validar fuente completa",
+        key=_builder_state_key("validate_source"),
+    ):
         report = validate_source_from_mongo(
             source,
             db,
             apply_fixes=apply_safe_fixes_for_export,
         )
         st.session_state[_builder_state_key("validation_results")] = report["results"]
-    if action_col3.button("Limpiar reporte"):
+    if action_col3.button(
+        "Limpiar reporte",
+        key=_builder_state_key("clear_validation"),
+    ):
         st.session_state[_builder_state_key("validation_results")] = []
 
     validation_results = st.session_state.get(_builder_state_key("validation_results"), [])
@@ -362,16 +384,16 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
     order_cols = st.columns(4)
     selected_concepts = _concepts_for_keys(db, list(st.session_state[items_key]))
 
-    if order_cols[0].button("Ordenar por tipo"):
+    if order_cols[0].button("Ordenar por tipo", key=_builder_state_key("order_type")):
         _set_order_from_concepts(order_by_type(selected_concepts))
         st.rerun()
-    if order_cols[1].button("Ordenar por titulo"):
+    if order_cols[1].button("Ordenar por titulo", key=_builder_state_key("order_title")):
         _set_order_from_concepts(order_by_title(selected_concepts))
         st.rerun()
-    if order_cols[2].button("Ordenar por fecha"):
+    if order_cols[2].button("Ordenar por fecha", key=_builder_state_key("order_date")):
         _set_order_from_concepts(order_by_date(selected_concepts))
         st.rerun()
-    if order_cols[3].button("Ordenar por grafo"):
+    if order_cols[3].button("Ordenar por grafo", key=_builder_state_key("order_graph")):
         ordered, warnings, _info = order_by_graph(
             selected_concepts,
             _relations_for_source(db, source),
@@ -426,7 +448,11 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
                 f"{concept.get('titulo') or concept.get('id')}{missing}"
             )
 
-    if st.button("Generar documento modular", type="primary"):
+    if st.button(
+        "Generar documento modular",
+        type="primary",
+        key=_builder_state_key("generate_document"),
+    ):
         if not selected_concepts:
             st.error("No hay conceptos seleccionados.")
             return
@@ -517,6 +543,7 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
                 data=result.master_tex_path.read_text(encoding="utf-8"),
                 file_name=result.master_tex_path.name,
                 mime="text/plain",
+                key=_builder_state_key("download_master"),
             )
         if result.pdf_path and Path(result.pdf_path).exists():
             st.download_button(
@@ -524,4 +551,5 @@ def render_document_builder_page(db, current_db: str | None = None) -> None:
                 data=Path(result.pdf_path).read_bytes(),
                 file_name=Path(result.pdf_path).name,
                 mime="application/pdf",
+                key=_builder_state_key("download_pdf"),
             )
