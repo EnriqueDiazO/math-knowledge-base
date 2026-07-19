@@ -19,7 +19,12 @@ from editor.db.concept_repository import concept_exists
 from editor.db.concept_source_link_service import ConceptSourceLinkStatus
 from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
 from editor.database_connections import initialize_configured_connection
+from editor.database_scope import KNOWLEDGE_GRAPH_LOADED_MAP_KEY
 from editor.database_scope import database_scope_token
+from editor.database_scope import knowledge_map_is_loaded
+from editor.database_scope import knowledge_map_session_identity
+from editor.database_scope import mark_knowledge_map_loaded
+from editor.database_scope import sync_knowledge_graph_scope
 from editor.database_import_page import render_database_import_page
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
@@ -4610,7 +4615,15 @@ elif page == "📊 Knowledge Graph":
         st.error("❌ No database connection. Please select a database in the sidebar.")
         st.stop()
 
-    st.info(f"📊 Generating graph from: **{current_db}**")
+    if not active_database_scope or not active_database_name:
+        st.error("The active database scope could not be resolved safely.")
+        st.stop()
+
+    sync_knowledge_graph_scope(st.session_state, active_database_scope)
+    connection_label = current_db or "<unlabeled connection>"
+    st.info(
+        f"Connection: **{connection_label}** · Database: **{active_database_name}**"
+    )
     graph_message = st.session_state.pop("knowledge_graph_message", None)
     if graph_message:
         message_type, message_text = graph_message
@@ -4974,7 +4987,15 @@ elif page == "📊 Knowledge Graph":
                 widget_keys = _kg_edit_widget_keys(edit_map_id_text)
                 source_widget_key = widget_keys["sources"]
                 concept_type_widget_key = widget_keys["concept_types"]
-                if st.session_state.get("knowledge_graph_editing_map_id") != edit_map_id_text:
+                edit_map_identity = knowledge_map_session_identity(
+                    active_database_scope,
+                    edit_map_id_text,
+                    edit_doc.get("map_uid"),
+                )
+                if (
+                    st.session_state.get(KNOWLEDGE_GRAPH_LOADED_MAP_KEY)
+                    != edit_map_identity
+                ):
                     initial_graph_state = deepcopy(edit_doc.get("graph_state", {}))
                     st.session_state["knowledge_graph_editing_map_id"] = edit_map_id_text
                     st.session_state["knowledge_graph_edit_graph_state"] = initial_graph_state
@@ -4987,6 +5008,12 @@ elif page == "📊 Knowledge Graph":
                     st.session_state["knowledge_graph_edit_dirty"] = False
                     st.session_state["knowledge_graph_render_version"] = 0
                     st.session_state.pop("knowledge_graph_remove_pending", None)
+                    mark_knowledge_map_loaded(
+                        st.session_state,
+                        active_database_scope,
+                        edit_map_id_text,
+                        edit_doc.get("map_uid"),
+                    )
                 else:
                     form_state = st.session_state.get(form_state_key, {})
                     if not isinstance(form_state, dict):
@@ -4994,6 +5021,12 @@ elif page == "📊 Knowledge Graph":
                         st.session_state[form_state_key] = form_state
                 st.session_state["knowledge_graph_active_map_id"] = edit_map_id_text
                 st.session_state["knowledge_graph_active_mode"] = "edit"
+                map_state_ready = knowledge_map_is_loaded(
+                    st.session_state,
+                    active_database_scope,
+                    edit_map_id_text,
+                    edit_doc.get("map_uid"),
+                )
 
                 graph_state = st.session_state.get("knowledge_graph_edit_graph_state") or edit_doc.get("graph_state", {})
                 current_node_count, current_edge_count = _knowledge_graph_state_counts(graph_state)
@@ -5009,6 +5042,9 @@ elif page == "📊 Knowledge Graph":
                     graph_state,
                 )
                 if repaired_nodes:
+                    if not map_state_ready:
+                        st.error("Recarga el mapa desde la base activa antes de repararlo.")
+                        st.stop()
                     repair_result = maps_col.update_one(
                         _knowledge_graph_map_id_query(edit_map_id),
                         {
@@ -5075,6 +5111,9 @@ elif page == "📊 Knowledge Graph":
                     include_relations: bool,
                     sync_origin: str,
                 ) -> None:
+                    if not map_state_ready:
+                        st.error("Recarga el mapa desde la base activa antes de modificarlo.")
+                        return
                     if not selected_concepts:
                         if sync_origin == "external_source":
                             st.session_state[f"kg_import_nodes_expander_open_{edit_map_id}"] = True
@@ -5189,6 +5228,9 @@ elif page == "📊 Knowledge Graph":
                         st.rerun()
                 with sync_col2:
                     if st.button("🧩 Reparar nodos incompletos", key=f"kg_repair_nodes_button_{edit_map_id}"):
+                        if not map_state_ready:
+                            st.error("Recarga el mapa desde la base activa antes de repararlo.")
+                            st.stop()
                         repaired_graph_state, repaired_nodes, unresolved_nodes = repair_incomplete_graph_nodes(
                             db,
                             graph_state,
@@ -5293,6 +5335,9 @@ elif page == "📊 Knowledge Graph":
                             st.rerun()
                     with action_col3:
                         if st.button("No volver a mostrar para este mapa", key=f"kg_sync_suppress_{edit_map_id}"):
+                            if not map_state_ready:
+                                st.error("Recarga el mapa desde la base activa antes de guardarlo.")
+                                st.stop()
                             updated_sync_settings = default_sync_settings(edit_doc.get("sync_settings"))
                             updated_sync_settings["suppress_new_nodes_prompt"] = True
                             updated_sync_settings["last_sync_check_at"] = utc_timestamp()
@@ -5640,7 +5685,9 @@ elif page == "📊 Knowledge Graph":
                     update_map = st.form_submit_button("💾 Guardar mapa")
 
                 if update_map:
-                    if not updated_name.strip():
+                    if not map_state_ready:
+                        st.error("Recarga el mapa desde la base activa antes de guardarlo.")
+                    elif not updated_name.strip():
                         st.error("El nombre del mapa es obligatorio.")
                     else:
                         try:
@@ -5807,6 +5854,7 @@ elif page == "📊 Knowledge Graph":
                     data=json.dumps(export_state, ensure_ascii=False, indent=2, default=str),
                     file_name=f"{export_doc.get('name', 'knowledge_graph_map')}.json",
                     mime="application/json",
+                    key=f"kg_export_json_{export_doc['_id']}",
                 )
                 html_content = _render_knowledge_graph_map_html(export_state, f"export_{export_doc['_id']}")
                 st.download_button(
@@ -5814,6 +5862,7 @@ elif page == "📊 Knowledge Graph":
                     data=html_content,
                     file_name=f"{export_doc.get('name', 'knowledge_graph_map')}.html",
                     mime="text/html",
+                    key=f"kg_export_html_{export_doc['_id']}",
                 )
         else:
             st.info("No hay mapas guardados para exportar.")
