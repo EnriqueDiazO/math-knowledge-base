@@ -13,6 +13,8 @@ import streamlit as st
 from bson import ObjectId
 from streamlit_ace import st_ace
 
+from editor.db.concept_edit_service import ConceptEditStatus
+from editor.db.concept_edit_service import update_concept_fields_preserving_identity
 from editor.db.concept_repository import concept_exists
 from editor.database_import_page import render_database_import_page
 from editor.pdf_preview import PdfPreviewError
@@ -2738,11 +2740,14 @@ elif page == "✏️ Edit Concept":
     # Handle concept selection and data loading
     if selected_concept_display:
         selected_concept = concept_map[selected_concept_display]
+        original_concept_id = str(selected_concept["id"])
+        original_source = str(selected_concept["source"])
+        original_source_id = selected_concept.get("source_id")
 
         # Check if concept has changed and update session state
         selected_concept_key = (
-            str(selected_concept["id"]),
-            str(selected_concept["source"]),
+            original_concept_id,
+            original_source,
         )
         if (
             st.session_state.get(legacy_last_selected_key) != selected_concept_key
@@ -2753,14 +2758,14 @@ elif page == "✏️ Edit Concept":
 
             # Get LaTeX content from database
             latex_doc = db.latex_documents.find_one({
-                "id": selected_concept['id'], 
-                "source": selected_concept['source']
+                "id": original_concept_id,
+                "source": original_source,
             })
             current_latex = latex_doc['contenido_latex'] if latex_doc else ""
 
             # Update all form fields in session state
-            st.session_state.edit_id = selected_concept.get("id", "")
-            st.session_state.edit_source = selected_concept.get("source", "")
+            st.session_state.pop("edit_id", None)
+            st.session_state.pop("edit_source", None)
             st.session_state.edit_titulo = selected_concept.get("titulo", "")
             st.session_state.edit_tipo_titulo = selected_concept.get("tipo_titulo", "ninguno")
             st.session_state["edit_latex_text"] = current_latex
@@ -2837,8 +2842,15 @@ elif page == "✏️ Edit Concept":
 
         col1, col2 = st.columns(2)
         with col1:
-            concept_id = st.text_input("ID", key="edit_id")
-            source = st.text_input("Source", key="edit_source")
+            st.caption("ID (immutable)")
+            st.code(original_concept_id, language=None)
+            st.caption("Source snapshot (immutable)")
+            st.code(original_source, language=None)
+            if original_source_id is not None:
+                st.caption("Managed Source ID (immutable)")
+                st.code(str(original_source_id), language=None)
+            else:
+                st.info("Legacy concept — not linked to a managed Source.")
 
         with col2:
             titulo = st.text_input("Title", key="edit_titulo")
@@ -3040,7 +3052,7 @@ elif page == "✏️ Edit Concept":
             st.session_state["edit_latex_editor_rev"] += 1
             st.rerun()
 
-        editor_seed = f"{st.session_state.get('edit_id','')}@{st.session_state.get('edit_source','')}"
+        editor_seed = f"{original_concept_id}@{original_source}"
         contenido_latex = st_ace(
             value=st.session_state["edit_latex_text"],
             language="latex",
@@ -3060,8 +3072,8 @@ elif page == "✏️ Edit Concept":
         _render_tikz_weight_warnings(contenido_latex)
         concept_media_assets = _render_concept_media_manager(
             db,
-            concept_id,
-            source,
+            original_concept_id,
+            original_source,
             prefix="edit_concept",
             latex_insert_key="edit_latex_insert",
             insert_flag_key="edit_insert_latex",
@@ -3173,27 +3185,22 @@ elif page == "✏️ Edit Concept":
         with col1:
             if st.button("💾 Update Concept", type="primary"):
                 try:
-                    # Build updated concept data
-                    concept_data = {
-                        "id": concept_id,
-                        "tipo": selected_concept['tipo'],  # Keep original type
+                    # Identity fields are deliberately absent from ordinary edits.
+                    concept_changes = {
                         "titulo": titulo if titulo else None,
                         "tipo_titulo": tipo_titulo,
                         "categorias": categorias,
-                        "contenido_latex": contenido_latex,
                         "es_algoritmo": es_algoritmo,
                         "pasos_algoritmo": pasos_algoritmo.split('\n') if es_algoritmo and pasos_algoritmo else None,
                         "comentario": comentario if comentario else None,
-                        "source": source,
                         "image_ids": [asset["asset_id"] for asset in concept_media_assets],
-                        "ultima_actualizacion": datetime.now(),
                         # Keep concept-level citekey for backward compatibility.
                         "citekey": (st.session_state.get("edit_ref_citekey") or "").strip() or None,
                     }
 
                     # Add reference if provided
                     if ref_autor or ref_fuente:
-                        concept_data["referencia"] = {
+                        concept_changes["referencia"] = {
                             "tipo_referencia": ref_tipo,
                             "autor": ref_autor if ref_autor else None,
                             "fuente": ref_fuente if ref_fuente else None,
@@ -3213,14 +3220,14 @@ elif page == "✏️ Edit Concept":
 
                     # Add teaching context if provided
                     if nivel_contexto or grado_formalidad:
-                        concept_data["contexto_docente"] = {
+                        concept_changes["contexto_docente"] = {
                             "nivel_contexto": nivel_contexto,
                             "grado_formalidad": grado_formalidad
                         }
 
                     # Add technical metadata if provided
                     if usa_notacion_formal is not None or incluye_demostracion is not None:
-                        concept_data["metadatos_tecnicos"] = {
+                        concept_changes["metadatos_tecnicos"] = {
                             "usa_notacion_formal": usa_notacion_formal,
                             "incluye_demostracion": incluye_demostracion,
                             "es_definicion_operativa": es_definicion_operativa,
@@ -3233,25 +3240,46 @@ elif page == "✏️ Edit Concept":
                             "tipo_aplicacion": tipo_aplicacion if tipo_aplicacion else None
                         }
 
-                    # Update in database
-                    db.concepts.update_one(
-                        {"id": selected_concept['id'], "source": selected_concept['source']},
-                        {"$set": concept_data}
-                    )
-                    # Update LaTeX content
-                    now = datetime.now()
-                    db.latex_documents.update_one(
-                        {"id": selected_concept['id'], "source": selected_concept['source']},
-                        {
-                            "$set": {
-                                "contenido_latex": contenido_latex,
-                                "ultima_actualizacion": now
-                            }
-                        }
+                    update_result = update_concept_fields_preserving_identity(
+                        db,
+                        concept_id=original_concept_id,
+                        source=original_source,
+                        expected_source_id=original_source_id,
+                        changes=concept_changes,
+                        contenido_latex=contenido_latex,
+                        now=datetime.now(),
                     )
 
-                    st.success(f"✅ Concept '{concept_id}' updated successfully in {current_db}!")
-                    st.balloons()
+                    if update_result.status is ConceptEditStatus.SUCCESS:
+                        st.success(
+                            f"✅ Concept '{original_concept_id}' updated successfully "
+                            f"in {current_db} without changing identity!"
+                        )
+                        st.balloons()
+                        st.session_state.pop(legacy_last_selected_key, None)
+                        st.rerun()
+                    elif update_result.status is ConceptEditStatus.CONCEPT_NOT_FOUND:
+                        st.error("❌ The original concept no longer exists. Nothing was saved.")
+                    elif update_result.status is ConceptEditStatus.LATEX_NOT_FOUND:
+                        st.error(
+                            "❌ The matching LaTeX document is missing. "
+                            "The concept was not updated."
+                        )
+                    elif update_result.status is ConceptEditStatus.STALE_IDENTITY:
+                        st.error(
+                            "❌ The stored concept identity changed after this form was loaded. "
+                            "Reload before retrying."
+                        )
+                    elif update_result.status is ConceptEditStatus.FAILED_COMPENSATED:
+                        st.error(
+                            "❌ The coordinated update failed. The original concept data "
+                            "was restored; no complete update was reported."
+                        )
+                    else:
+                        st.error(
+                            "❌ The update may be partial and requires recovery before retrying. "
+                            f"Details: {update_result.message}"
+                        )
 
                 except Exception as e:
                     st.error(f"❌ Error updating concept: {e}")
@@ -3262,15 +3290,15 @@ elif page == "✏️ Edit Concept":
         edit_pdf_context = pdf_preview_context(
             "edit_concept",
             current_db,
-            source,
-            concept_id,
+            original_source,
+            original_concept_id,
         )
         concept_pdf_root = get_exports_dir(
             configured=resolve_config().export_directory
         ) / "concepts"
 
         # Check if we have the minimum required data for PDF generation
-        if concept_id and source and contenido_latex:
+        if original_concept_id and original_source and contenido_latex:
             if st.button(
                 "📄 Generar vista previa PDF",
                 key="edit_pdf_btn",
@@ -3278,12 +3306,12 @@ elif page == "✏️ Edit Concept":
             ):
                 # Build concept data for PDF generation
                 pdf_concept_data = {
-                    "id": concept_id,
+                    "id": original_concept_id,
                     "tipo": selected_concept['tipo'],
-                    "titulo": titulo if titulo else concept_id,
+                    "titulo": titulo if titulo else original_concept_id,
                     "categorias": categorias,
                     "contenido_latex": contenido_latex,
-                    "source": source,
+                    "source": original_source,
                     "comentario": comentario if comentario else None
                 }
 
