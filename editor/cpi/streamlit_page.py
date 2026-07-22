@@ -879,10 +879,9 @@ def _render_metadata_editor(db: Any) -> None:
     import streamlit as st
 
     metadata = st.session_state[SESSION_METADATA]
-    st.text_input("Título", value=metadata["title"], key="cpi_title", on_change=_mark_dirty)
+    st.text_input("Título", key="cpi_title", on_change=_mark_dirty)
     st.date_input(
         "Fecha",
-        value=_safe_date(metadata["date"]),
         key="cpi_date",
         on_change=_mark_dirty,
     )
@@ -905,16 +904,16 @@ def _render_metadata_editor(db: Any) -> None:
 
     contexts = get_existing_note_contexts(db)
     context_index = contexts.index(metadata["context"]) if metadata["context"] in contexts else 0
+    context_kwargs = {} if "cpi_context" in st.session_state else {"index": context_index}
     st.selectbox(
         "Contexto",
         options=contexts,
-        index=context_index,
         key="cpi_context",
         on_change=_mark_dirty,
+        **context_kwargs,
     )
     st.text_input(
         "Tags",
-        value=", ".join(metadata["tags"]),
         key="cpi_tags",
         on_change=_mark_dirty,
     )
@@ -1024,7 +1023,6 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
         st.caption("Valor epistémico")
         st.text_area(
             "LaTeX Comprensión",
-            value=page.comprehension.latex,
             height=280,
             key="cpi_comprehension_latex",
             on_change=_mark_dirty,
@@ -1143,7 +1141,6 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
         st.caption("Valor pragmático")
         st.text_area(
             "LaTeX Producción",
-            value=page.production.latex,
             height=280,
             key="cpi_production_latex",
             on_change=_mark_dirty,
@@ -1260,7 +1257,6 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
     st.subheader("Integración")
     st.text_area(
         "LaTeX Integración",
-        value=page.integration.latex,
         height=180,
         key="cpi_integration_latex",
         on_change=_mark_dirty,
@@ -1434,12 +1430,6 @@ def _save_current_note(db: Any) -> None:
     st.session_state[SESSION_METADATA]["image_ids"] = list(cpi_document_image_ids(document))
     st.session_state[SESSION_DOCUMENT] = document
     st.session_state[SESSION_DIRTY] = False
-    sync_branding_state(
-        st.session_state,
-        note_type="cpi",
-        note_id=note_id,
-        watermark=document.watermark,
-    )
 
 
 def _render_fit_report(diagnostics: dict[str, Any]) -> None:

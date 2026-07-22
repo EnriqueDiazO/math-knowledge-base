@@ -60,6 +60,7 @@ class NoteProjectExport:
     file_name: str
     note_format: str
     export_result: CornellProjectExportResult | CpiProjectExportResult
+    warnings: tuple[str, ...] = ()
 
 
 class NoteExportError(RuntimeError):
@@ -265,4 +266,5 @@ def export_note_project(
         file_name=result.zip_path.name,
         note_format=note_format,
         export_result=result,
+        warnings=tuple(getattr(result, "warnings", ())),
     )

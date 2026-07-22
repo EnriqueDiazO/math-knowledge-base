@@ -878,10 +878,9 @@ def _render_metadata_editor(db: Any) -> None:
     import streamlit as st
 
     metadata = st.session_state[SESSION_METADATA]
-    st.text_input("Título", value=metadata["title"], key="cornell_title", on_change=_mark_dirty)
+    st.text_input("Título", key="cornell_title", on_change=_mark_dirty)
     st.date_input(
         "Fecha",
-        value=_safe_date(metadata["date"]),
         key="cornell_date",
         on_change=_mark_dirty,
     )
@@ -904,16 +903,16 @@ def _render_metadata_editor(db: Any) -> None:
 
     contexts = get_existing_note_contexts(db)
     context_index = contexts.index(metadata["context"]) if metadata["context"] in contexts else 0
+    context_kwargs = {} if "cornell_context" in st.session_state else {"index": context_index}
     st.selectbox(
         "Contexto",
         options=contexts,
-        index=context_index,
         key="cornell_context",
         on_change=_mark_dirty,
+        **context_kwargs,
     )
     st.text_input(
         "Tags",
-        value=", ".join(metadata["tags"]),
         key="cornell_tags",
         on_change=_mark_dirty,
     )
@@ -1100,13 +1099,11 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
     with left:
         st.text_input(
             "Cue heading",
-            value=page.cue.heading,
             key="cornell_cue_heading",
             on_change=_mark_dirty,
         )
         st.text_area(
             "Cue LaTeX",
-            value=page.cue.latex,
             height=220,
             key="cornell_cue_latex",
             on_change=_mark_dirty,
@@ -1122,13 +1119,11 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
     with main:
         st.text_input(
             "Main heading",
-            value=page.main.heading,
             key="cornell_main_heading",
             on_change=_mark_dirty,
         )
         st.text_area(
             "Main LaTeX",
-            value=page.main.latex,
             height=320,
             key="cornell_main_latex",
             on_change=_mark_dirty,
@@ -1143,13 +1138,11 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
         )
     st.text_input(
         "Summary heading",
-        value=page.summary.heading,
         key="cornell_summary_heading",
         on_change=_mark_dirty,
     )
     st.text_area(
         "Summary LaTeX",
-        value=page.summary.latex,
         height=140,
         key="cornell_summary_latex",
         on_change=_mark_dirty,
@@ -1222,12 +1215,6 @@ def _save_current_note(db: Any) -> None:
     st.session_state[SESSION_METADATA]["image_ids"] = list(cornell_document_image_ids(document))
     st.session_state[SESSION_DOCUMENT] = document
     st.session_state[SESSION_DIRTY] = False
-    sync_branding_state(
-        st.session_state,
-        note_type="cornell",
-        note_id=note_id,
-        watermark=document.watermark,
-    )
 
 
 def _render_fit_report(diagnostics: dict[str, Any]) -> None:

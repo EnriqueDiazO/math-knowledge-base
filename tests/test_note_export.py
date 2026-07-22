@@ -266,7 +266,11 @@ def test_export_note_project_dispatches_cornell_by_note_format(monkeypatch, tmp_
 
     def fake_export(document: CornellDocument, metadata: dict[str, Any], output_root: Path, **kwargs: Any):
         calls.append((document, metadata, output_root, kwargs))
-        return SimpleNamespace(project_dir=tmp_path / "cornell_project", zip_path=zip_path)
+        return SimpleNamespace(
+            project_dir=tmp_path / "cornell_project",
+            zip_path=zip_path,
+            warnings=("Cornell warning",),
+        )
 
     monkeypatch.setattr(note_export, "export_cornell_project", fake_export)
 
@@ -278,6 +282,7 @@ def test_export_note_project_dispatches_cornell_by_note_format(monkeypatch, tmp_
 
     assert result.note_format == CORNELL_NOTE_FORMAT
     assert result.file_name == "cornell_project.zip"
+    assert result.warnings == ("Cornell warning",)
     assert calls[0][0].ordered_pages()[0].page_id == "p001"
     assert calls[0][3]["allowed_root"] == tmp_path
 
@@ -289,7 +294,11 @@ def test_export_note_project_dispatches_cpi_by_note_format(monkeypatch, tmp_path
 
     def fake_export(document: CpiDocument, metadata: dict[str, Any], output_root: Path, **kwargs: Any):
         calls.append((document, metadata, output_root, kwargs))
-        return SimpleNamespace(project_dir=tmp_path / "cpi_project", zip_path=zip_path)
+        return SimpleNamespace(
+            project_dir=tmp_path / "cpi_project",
+            zip_path=zip_path,
+            warnings=("CPI warning",),
+        )
 
     monkeypatch.setattr(note_export, "export_cpi_project", fake_export)
 
@@ -301,6 +310,7 @@ def test_export_note_project_dispatches_cpi_by_note_format(monkeypatch, tmp_path
 
     assert result.note_format == CPI_NOTE_FORMAT
     assert result.file_name == "cpi_project.zip"
+    assert result.warnings == ("CPI warning",)
     assert calls[0][0].ordered_pages()[0].page_number == 1
     assert calls[0][3]["allowed_root"] == tmp_path
 
