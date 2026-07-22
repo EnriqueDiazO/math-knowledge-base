@@ -42,6 +42,7 @@ from editor.pdf_preview import generate_pdf_preview
 from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import prepare_stable_preview
 from editor.pdf_preview import render_pdf_preview
+from editor.streamlit_compat import stretch_button
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import media_path_exists
@@ -616,7 +617,7 @@ def _render_navigation() -> str:
         on_change=_sync_view_from_selector,
     )
     st.session_state[SESSION_VIEW] = normalize_cpi_view(view)
-    if st.button("Nueva nota CPI", width="stretch"):
+    if stretch_button(st, "Nueva nota CPI"):
         _set_current_note(None, None, make_blank_document())
         _request_navigation(VIEW_NEW_NOTE)
         st.rerun()
@@ -834,17 +835,17 @@ def _render_page_controls() -> None:
 
     col_prev, col_count, col_next, col_add, col_dup, col_del = st.columns([1, 1.4, 1, 1, 1, 1])
     with col_prev:
-        if st.button("Anterior", disabled=page_index <= 0, width="stretch"):
+        if stretch_button(st, "Anterior", disabled=page_index <= 0):
             st.session_state[SESSION_PAGE_INDEX] = page_index - 1
             st.rerun()
     with col_count:
         st.markdown(f"**Página {page_index + 1} / {len(pages)}**")
     with col_next:
-        if st.button("Siguiente", disabled=page_index >= len(pages) - 1, width="stretch"):
+        if stretch_button(st, "Siguiente", disabled=page_index >= len(pages) - 1):
             st.session_state[SESSION_PAGE_INDEX] = page_index + 1
             st.rerun()
     with col_add:
-        if st.button("Añadir", width="stretch"):
+        if stretch_button(st, "Añadir"):
             st.session_state[SESSION_DOCUMENT], st.session_state[SESSION_PAGE_INDEX] = add_page(
                 document,
                 page_index,
@@ -853,7 +854,7 @@ def _render_page_controls() -> None:
             _mark_dirty()
             st.rerun()
     with col_dup:
-        if st.button("Duplicar", width="stretch"):
+        if stretch_button(st, "Duplicar"):
             st.session_state[SESSION_DOCUMENT], st.session_state[SESSION_PAGE_INDEX] = duplicate_page(
                 document,
                 page_index,
@@ -862,7 +863,7 @@ def _render_page_controls() -> None:
             _mark_dirty()
             st.rerun()
     with col_del:
-        if st.button("Eliminar", disabled=len(pages) <= 1, width="stretch"):
+        if stretch_button(st, "Eliminar", disabled=len(pages) <= 1):
             st.session_state[SESSION_DOCUMENT], st.session_state[SESSION_PAGE_INDEX] = delete_page(
                 document,
                 page_index,
@@ -1647,18 +1648,18 @@ def _render_current_note_editor(db: Any) -> None:
 
     col_save, col_preview, col_export = st.columns(3)
     with col_save:
-        if st.button("Guardar", type="primary", width="stretch"):
+        if stretch_button(st, "Guardar", type="primary"):
             try:
                 _save_current_note(db)
             except Exception as exc:
                 st.error(f"No se pudo guardar: {exc}")
     with col_preview:
-        if st.button("Vista previa PDF", width="stretch"):
+        if stretch_button(st, "Vista previa PDF"):
             _preview_pdf(db)
     with col_export:
-        if st.button(
+        if stretch_button(
+            st,
             "Exportar proyecto LaTeX editable",
-            width="stretch",
             key="cpi_export_editable_project",
         ):
             _export_editable_project(db)
@@ -1683,7 +1684,7 @@ def _render_edit_notes(db: Any) -> None:
     with left:
         st.subheader("Editar nota CPI")
     with right:
-        if st.button("Volver al listado", width="stretch"):
+        if stretch_button(st, "Volver al listado"):
             _set_current_note(None, None, make_blank_document())
             _request_navigation(VIEW_EDIT_NOTES)
             st.rerun()
