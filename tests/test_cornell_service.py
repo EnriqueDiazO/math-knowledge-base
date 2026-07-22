@@ -16,10 +16,12 @@ from editor.cornell.models import DEFAULT_TEMPLATE_ID
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
 from editor.cornell.models import CornellRegion
+from editor.cornell.models import CornellWatermark
 from editor.cornell.models import generate_latex_body
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.service import create_cornell_note
 from editor.cornell.service import delete_cornell_note
+from editor.cornell.service import duplicate_cornell_note
 from editor.cornell.service import get_cornell_note
 from editor.cornell.service import list_cornell_notes
 from editor.cornell.service import update_cornell_note
@@ -194,6 +196,29 @@ def test_delete_cornell_note_deletes_only_valid_cornell_note() -> None:
 
     assert result.deleted_count == 1
     assert note_id not in db.notes
+
+
+def test_duplicate_cornell_note_preserves_branding_and_shares_asset(monkeypatch) -> None:
+    db = FakeMathMongo()
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=sample_document().pages,
+        watermark=CornellWatermark(enabled=True, type="image", image_id="shared-logo"),
+    )
+    original_id = create_cornell_note(db, sample_metadata(), document).inserted_id
+    attached: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        "editor.cornell.service.attach_media_assets_to_note",
+        lambda _db, *, note_id, asset_ids: attached.append((note_id, tuple(asset_ids))),
+    )
+
+    result = duplicate_cornell_note(db, original_id)
+
+    duplicate = db.notes[result.inserted_id]
+    assert duplicate["cornell"]["watermark"] == document.watermark.to_dict()
+    assert duplicate["image_ids"] == ["shared-logo"]
+    assert attached == [(result.inserted_id, ("shared-logo",))]
 
 
 def test_list_cornell_notes_returns_only_cornell_notes() -> None:

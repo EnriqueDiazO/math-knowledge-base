@@ -15,9 +15,13 @@ from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import resolve_media_asset_path
 from editor.utils.media_assets import safe_media_filename
 from mathkb_config import PROJECT_ROOT
+from mathmongo.paths import find_symlink_component
 
 CORNELL_IMAGE_COMMAND = "cornellimage"
-CORNELL_IMAGE_REF_PATTERN = re.compile(r"\\cornellimage\{(?P<asset_id>[^{}]+)\}")
+CORNELL_IMAGE_REF_PATTERN = re.compile(
+    r"\\cornellimage(?:\[(?P<width_ratio>(?:0(?:\.\d+)?|1(?:\.0+)?))\])?"
+    r"\{(?P<asset_id>[^{}]+)\}"
+)
 REGION_IMAGE_WIDTHS = {
     "cue": "1.9in",
     "main": "5.35in",
@@ -78,6 +82,17 @@ def cornell_document_image_ids(document: CornellDocument) -> tuple[str, ...]:
     return tuple(image_ids)
 
 
+def cornell_content_image_ids(document: CornellDocument) -> tuple[str, ...]:
+    """Return required region and inline image IDs, excluding optional branding."""
+    image_ids: list[str] = []
+    seen: set[str] = set()
+    for asset_id in (*cornell_region_image_ids(document), *cornell_latex_image_refs(document)):
+        if asset_id not in seen:
+            image_ids.append(asset_id)
+            seen.add(asset_id)
+    return tuple(image_ids)
+
+
 def _assets_by_id_from_db(db: Any, image_ids: tuple[str, ...]) -> dict[str, dict[str, Any]]:
     if not image_ids:
         return {}
@@ -117,6 +132,8 @@ def _safe_asset_source_path(
             absolute_path = fallback
     if not absolute_path.is_file():
         raise FileNotFoundError(f"Cornell image asset file does not exist: {raw_path}")
+    if find_symlink_component(absolute_path) is not None:
+        raise ValueError(f"Cornell image asset cannot use a symbolic link: {raw_path!r}")
     return absolute_path
 
 
@@ -135,18 +152,32 @@ def prepare_cornell_image_assets(
     *,
     db: Any | None = None,
     assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+    warnings: list[str] | None = None,
 ) -> dict[str, str]:
     """Resolve and copy all Cornell images, returning asset_id -> LaTeX path."""
-    image_ids = cornell_document_image_ids(document)
+    content_ids = cornell_content_image_ids(document)
+    watermark = document.watermark
+    watermark_id = (
+        watermark.image_id
+        if watermark.enabled and watermark.type == "image" and watermark.image_id
+        else ""
+    )
+    image_ids = tuple(dict.fromkeys((*content_ids, watermark_id))) if watermark_id else content_ids
     if not image_ids:
+        if watermark.enabled and watermark.type == "image" and warnings is not None:
+            warnings.append("La marca de agua está activa, pero no tiene un asset_id.")
         return {}
 
     resolved_assets = _normalize_assets_by_id(assets_by_id)
     if db is not None:
         resolved_assets.update(_assets_by_id_from_db(db, image_ids))
-    missing = [asset_id for asset_id in image_ids if asset_id not in resolved_assets]
-    if missing:
-        raise ValueError(f"Cornell image asset not found: {', '.join(missing)}")
+    missing_content = [asset_id for asset_id in content_ids if asset_id not in resolved_assets]
+    if missing_content:
+        raise ValueError(f"Cornell image asset not found: {', '.join(missing_content)}")
+    if watermark_id and watermark_id not in resolved_assets:
+        if warnings is not None:
+            warnings.append(f"Asset de marca de agua no encontrado: {watermark_id}")
+        image_ids = tuple(asset_id for asset_id in image_ids if asset_id != watermark_id)
 
     output_path = Path(output_dir)
     media_dir = output_path / "cornell_assets" / "media"
@@ -155,7 +186,14 @@ def prepare_cornell_image_assets(
     used_names: set[str] = set()
     for asset_id in image_ids:
         asset = resolved_assets[asset_id]
-        source_path = _safe_asset_source_path(asset)
+        try:
+            source_path = _safe_asset_source_path(asset)
+        except FileNotFoundError as exc:
+            if asset_id != watermark_id:
+                raise
+            if warnings is not None:
+                warnings.append(f"Marca de agua omitida: {exc}")
+            continue
         safe_name = safe_cornell_asset_filename(asset)
         if safe_name in used_names:
             stem = Path(safe_name).stem
@@ -168,13 +206,25 @@ def prepare_cornell_image_assets(
     return latex_paths
 
 
-def cornell_image_box_latex(asset_path: str, *, region_name: str) -> str:
+def cornell_image_box_latex(
+    asset_path: str,
+    *,
+    region_name: str,
+    width_ratio: float | None = None,
+) -> str:
     """Return a bounded LaTeX image block for one region."""
-    max_width = REGION_IMAGE_WIDTHS.get(region_name, r"\linewidth")
+    if width_ratio is None:
+        max_width = REGION_IMAGE_WIDTHS.get(region_name, r"\linewidth")
+    else:
+        if width_ratio <= 0.0 or width_ratio > 1.0:
+            raise ValueError("Cornell image width ratio must be greater than 0 and at most 1")
+        max_width = f"{width_ratio:g}\\linewidth"
     if str(asset_path).lower().endswith(".svg"):
         image = latex_image_include(asset_path, options=f"width={max_width}")
     else:
         image = rf"\resizebox{{{max_width}}}{{!}}{{\includegraphics{{{asset_path}}}}}"
+    if width_ratio is not None:
+        return image
     return "\n" + r"\begin{center}" "\n" + image + "\n" + r"\end{center}" "\n"
 
 
@@ -207,8 +257,13 @@ def render_cornell_region_latex(
         asset_id = match.group("asset_id").strip()
         referenced_ids.add(asset_id)
         if asset_id not in asset_paths:
-            return cornell_image_reference(asset_id)
-        return cornell_image_box_latex(asset_paths[asset_id], region_name=region_name)
+            return match.group(0)
+        raw_width = match.group("width_ratio")
+        return cornell_image_box_latex(
+            asset_paths[asset_id],
+            region_name=region_name,
+            width_ratio=float(raw_width) if raw_width is not None else None,
+        )
 
     rendered = CORNELL_IMAGE_REF_PATTERN.sub(replace_reference, region.latex or "")
     for asset_id in region.image_ids:

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import date
 from html import escape
 from pathlib import Path
@@ -21,6 +22,7 @@ from editor.cornell.ui_helpers import normalize_project_name
 from editor.cornell.ui_helpers import normalize_tags
 from editor.cornell.ui_helpers import project_selector_choices
 from editor.cornell.ui_helpers import resolve_project_choice
+from editor.cpi.media import cpi_document_image_ids
 from editor.cpi.media import cpi_image_reference
 from editor.cpi.models import CPI_NOTE_FORMAT
 from editor.cpi.models import DEFAULT_TEMPLATE_ID
@@ -35,6 +37,12 @@ from editor.cpi.service import delete_cpi_note
 from editor.cpi.service import get_cpi_note
 from editor.cpi.service import list_cpi_notes
 from editor.cpi.service import update_cpi_note
+from editor.note_branding import finish_pending_watermark
+from editor.note_branding import materialize_pending_watermark
+from editor.note_branding import render_watermark_editor
+from editor.note_branding import rollback_materialized_watermark
+from editor.note_branding import sync_branding_state
+from editor.note_branding import watermark_from_state
 from editor.note_export import export_note_project
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
@@ -48,6 +56,7 @@ from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import media_path_exists
 from editor.utils.media_assets import resolve_media_asset_path
 from editor.utils.media_assets import save_media_asset
+from editor.utils.media_assets import synchronize_note_media_references
 from mathkb_config import RUNTIME_DIR
 
 SESSION_NOTE_ID = "cpi_note_id"
@@ -249,6 +258,7 @@ def _metadata_from_note(note: dict[str, Any] | None = None) -> dict[str, Any]:
         "project": source.get("project") or "",
         "context": source.get("context") or "estudio",
         "tags": list(source.get("tags") or []),
+        "image_ids": list(source.get("image_ids") or []),
     }
 
 
@@ -341,6 +351,12 @@ def apply_loaded_note_state(
     state["cpi_production_latex"] = first_page.production.latex
     state["cpi_integration_latex"] = first_page.integration.latex
     _sync_identity_state_values(state, normalized_document)
+    sync_branding_state(
+        state,
+        note_type="cpi",
+        note_id=note_id,
+        watermark=normalized_document.watermark,
+    )
 
 
 def clear_deleted_note_state(state: dict[str, Any], note_id: Any) -> None:
@@ -457,7 +473,6 @@ def _footer_mode_value(label: Any) -> str:
 
 def _sync_identity_state_values(state: dict[str, Any], document: CpiDocument) -> None:
     attribution = document.attribution
-    watermark = document.watermark
     state["cpi_attribution_enabled"] = attribution.enabled
     state["cpi_attribution_mode"] = _footer_mode_label(attribution.mode)
     state["cpi_attribution_text"] = attribution.text
@@ -465,13 +480,6 @@ def _sync_identity_state_values(state: dict[str, Any], document: CpiDocument) ->
     state["cpi_attribution_course"] = attribution.course
     state["cpi_attribution_year"] = attribution.year
     state["cpi_attribution_position"] = _position_label(attribution.position)
-    state["cpi_watermark_enabled"] = watermark.enabled
-    state["cpi_watermark_type"] = _watermark_type_label(watermark.type)
-    state["cpi_watermark_text"] = watermark.text
-    state["cpi_watermark_image_id"] = watermark.image_id
-    state["cpi_watermark_opacity"] = watermark.opacity
-    state["cpi_watermark_scale"] = watermark.scale
-    state["cpi_watermark_position"] = _position_label(watermark.position)
 
 
 def _ensure_identity_widget_state(document: CpiDocument) -> None:
@@ -498,17 +506,11 @@ def _document_with_identity_from_inputs(document: CpiDocument) -> CpiDocument:
             default=document.attribution.position,
         ),
     )
-    watermark = CornellWatermark(
-        enabled=bool(st.session_state.get("cpi_watermark_enabled", document.watermark.enabled)),
-        type=_watermark_type_value(st.session_state.get("cpi_watermark_type")),
-        text=str(st.session_state.get("cpi_watermark_text", document.watermark.text) or ""),
-        image_id=str(st.session_state.get("cpi_watermark_image_id", document.watermark.image_id) or ""),
-        opacity=float(st.session_state.get("cpi_watermark_opacity", document.watermark.opacity)),
-        scale=float(st.session_state.get("cpi_watermark_scale", document.watermark.scale)),
-        position=_position_value(
-            st.session_state.get("cpi_watermark_position"),
-            default=document.watermark.position,
-        ),
+    watermark = watermark_from_state(
+        st.session_state,
+        note_type="cpi",
+        note_id=st.session_state.get(SESSION_NOTE_ID),
+        fallback=document.watermark,
     )
     return CpiDocument(
         schema_version=document.schema_version,
@@ -923,7 +925,7 @@ def _render_identity_editor(db: Any) -> None:
 
     document = _document_from_inputs()
     _ensure_identity_widget_state(document)
-    with st.expander("Identidad del material", expanded=False):
+    with st.expander("Pie de página", expanded=False):
         st.checkbox(
             "Mostrar pie de página",
             key="cpi_attribution_enabled",
@@ -964,92 +966,13 @@ def _render_identity_editor(db: Any) -> None:
         )
         st.markdown("**Vista previa del pie:**")
         st.caption(footer_preview or "Sin pie de página")
-
-        st.markdown("---")
-        st.checkbox(
-            "Mostrar marca de agua",
-            key="cpi_watermark_enabled",
-            on_change=_mark_dirty,
-        )
-        st.radio(
-            "Tipo",
-            options=tuple(WATERMARK_TYPE_LABELS.values()),
-            horizontal=True,
-            key="cpi_watermark_type",
-            on_change=_mark_dirty,
-        )
-        watermark_type = _watermark_type_value(st.session_state.get("cpi_watermark_type"))
-        if watermark_type == "text":
-            st.text_input(
-                "Texto de marca de agua",
-                key="cpi_watermark_text",
-                on_change=_mark_dirty,
-            )
-        else:
-            uploaded = st.file_uploader(
-                "Subir imagen",
-                type=("png", "svg"),
-                key="cpi_watermark_upload",
-            )
-            if st.button("Guardar imagen de marca", disabled=uploaded is None, key="cpi_watermark_save"):
-                try:
-                    asset = save_media_asset(
-                        db,
-                        note_id=str(st.session_state.get(SESSION_NOTE_ID) or "") or None,
-                        filename=uploaded.name,
-                        data=uploaded.getvalue(),
-                        mime_type=getattr(uploaded, "type", None),
-                        tags=["cpi", "watermark"],
-                        description="CPI watermark",
-                    )
-                    st.session_state["cpi_watermark_image_id"] = asset["asset_id"]
-                    _mark_dirty()
-                    st.success("Imagen de marca asociada.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"No se pudo guardar la imagen de marca: {exc}")
-            image_id = str(st.session_state.get("cpi_watermark_image_id") or "")
-            if image_id:
-                try:
-                    assets = list(media_collection(db).find({"asset_id": {"$in": [image_id]}}))
-                except Exception as exc:
-                    st.warning(f"No se pudo cargar la imagen de marca: {exc}")
-                    assets = []
-                if assets:
-                    asset = assets[0]
-                    st.caption(asset.get("original_filename") or asset.get("filename") or image_id)
-                    if media_path_exists(asset):
-                        st.image(str(resolve_media_asset_path(asset)), width=140)
-                    if st.button("Quitar imagen de marca", key="cpi_watermark_remove"):
-                        st.session_state["cpi_watermark_image_id"] = ""
-                        _mark_dirty()
-                        st.rerun()
-                else:
-                    st.warning(f"Asset de marca no encontrado: {image_id}")
-
-        opacity_col, scale_col, position_col = st.columns(3)
-        opacity_col.slider(
-            "Opacidad",
-            min_value=0.0,
-            max_value=1.0,
-            step=0.01,
-            key="cpi_watermark_opacity",
-            on_change=_mark_dirty,
-        )
-        scale_col.slider(
-            "Tamaño",
-            min_value=0.05,
-            max_value=1.0,
-            step=0.01,
-            key="cpi_watermark_scale",
-            on_change=_mark_dirty,
-        )
-        position_col.selectbox(
-            "Posición",
-            options=tuple(IDENTITY_POSITION_LABELS.values()),
-            key="cpi_watermark_position",
-            on_change=_mark_dirty,
-        )
+    render_watermark_editor(
+        db,
+        note_type="cpi",
+        note_id=st.session_state.get(SESSION_NOTE_ID),
+        watermark=document.watermark,
+        on_change=_mark_dirty,
+    )
 
 
 def _render_latex_tools() -> None:
@@ -1459,22 +1382,73 @@ def _save_current_note(db: Any) -> None:
     metadata = _metadata_from_inputs()
     document = _document_from_inputs()
     note_id = st.session_state[SESSION_NOTE_ID]
-    if note_id:
-        update_cpi_note(db, note_id, metadata, document)
-        st.success("Nota CPI guardada.")
-    else:
-        result = create_cpi_note(db, metadata, document)
-        inserted_id = getattr(result, "inserted_id", None)
-        st.session_state[SESSION_NOTE_ID] = str(inserted_id) if inserted_id is not None else None
-        st.success("Nota CPI creada.")
+    draft_note_id = note_id
+    previous_asset_ids = tuple(st.session_state.get(SESSION_METADATA, {}).get("image_ids") or ())
+    asset = None
+    created_asset = False
+    try:
+        asset, created_asset = materialize_pending_watermark(
+            db,
+            st.session_state,
+            note_type="cpi",
+            note_id=draft_note_id,
+        )
+        if asset is not None:
+            document = replace(
+                document,
+                watermark=replace(
+                    document.watermark,
+                    enabled=True,
+                    type="image",
+                    image_id=str(asset["asset_id"]),
+                ),
+            )
+        if note_id:
+            result = update_cpi_note(db, note_id, metadata, document)
+            if result is None:
+                raise ValueError("La nota CPI ya no existe.")
+            st.success("Nota CPI guardada.")
+        else:
+            result = create_cpi_note(db, metadata, document)
+            inserted_id = getattr(result, "inserted_id", None)
+            if inserted_id is None:
+                raise RuntimeError("MongoDB no devolvió el identificador de la nota CPI.")
+            note_id = str(inserted_id)
+            st.session_state[SESSION_NOTE_ID] = note_id
+            st.success("Nota CPI creada.")
+    except Exception:
+        rollback_materialized_watermark(db, asset, created=created_asset)
+        raise
+    synchronize_note_media_references(
+        db,
+        note_id=str(note_id),
+        previous_asset_ids=previous_asset_ids,
+        current_asset_ids=tuple(cpi_document_image_ids(document)),
+    )
+    finish_pending_watermark(
+        st.session_state,
+        note_type="cpi",
+        note_id=draft_note_id,
+    )
     st.session_state[SESSION_METADATA] = metadata
+    st.session_state[SESSION_METADATA]["image_ids"] = list(cpi_document_image_ids(document))
     st.session_state[SESSION_DOCUMENT] = document
     st.session_state[SESSION_DIRTY] = False
+    sync_branding_state(
+        st.session_state,
+        note_type="cpi",
+        note_id=note_id,
+        watermark=document.watermark,
+    )
 
 
 def _render_fit_report(diagnostics: dict[str, Any]) -> None:
     import streamlit as st
 
+    warnings = diagnostics.get("warnings") if isinstance(diagnostics, dict) else None
+    if isinstance(warnings, list):
+        for warning in warnings:
+            st.warning(str(warning))
     report = diagnostics.get("fit_report") if isinstance(diagnostics, dict) else None
     if not isinstance(report, dict):
         return
@@ -1609,6 +1583,8 @@ def _export_editable_project(db: Any) -> None:
         return
 
     st.success(f"Proyecto exportado: {result.project_dir}")
+    for warning in result.warnings:
+        st.warning(warning)
     try:
         st.download_button(
             "Descargar ZIP",

@@ -202,6 +202,7 @@ class CornellWatermark:
     opacity: float = 0.05
     scale: float = 0.4
     position: str = "center"
+    all_pages: bool = True
 
     def __post_init__(self) -> None:
         """Validate watermark settings."""
@@ -228,6 +229,7 @@ class CornellWatermark:
             "position",
             _position(self.position, "watermark.position", default="center"),
         )
+        _require_bool(self.all_pages, "watermark.all_pages")
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize watermark settings."""
@@ -239,6 +241,7 @@ class CornellWatermark:
             "opacity": self.opacity,
             "scale": self.scale,
             "position": self.position,
+            "all_pages": self.all_pages,
         }
 
     @classmethod
@@ -253,6 +256,7 @@ class CornellWatermark:
             opacity=_require_float(source.get("opacity", 0.05), "watermark.opacity", minimum=0.0, maximum=1.0),
             scale=_require_float(source.get("scale", 0.4), "watermark.scale", minimum=0.05, maximum=2.0),
             position=_position(source.get("position"), "watermark.position", default="center"),
+            all_pages=_require_bool(source.get("all_pages", True), "watermark.all_pages"),
         )
 
 

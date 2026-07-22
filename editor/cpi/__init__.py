@@ -7,6 +7,7 @@ from editor.cpi.models import CpiPage
 from editor.cpi.models import CpiRegion
 from editor.cpi.project_export import CpiProjectExportResult
 from editor.cpi.project_export import export_cpi_project
+from editor.cpi.service import duplicate_cpi_note
 
 __all__ = [
     "CPI_NOTE_FORMAT",
@@ -15,5 +16,6 @@ __all__ = [
     "CpiPage",
     "CpiProjectExportResult",
     "CpiRegion",
+    "duplicate_cpi_note",
     "export_cpi_project",
 ]

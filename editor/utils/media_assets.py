@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+# ruff: noqa: D100,D103
 import hashlib
 import mimetypes
 import re
@@ -177,6 +178,98 @@ def save_media_asset(
             destination.unlink()
         raise
     return doc
+
+
+def attach_media_assets_to_note(db, *, note_id: str, asset_ids: list[str] | tuple[str, ...]) -> None:
+    """Attach existing logical assets to one saved note without copying bytes."""
+    note_key = note_media_key(note_id)
+    if not note_key:
+        raise ValueError("note_id cannot be empty")
+    now = datetime.utcnow()
+    for asset_id in dict.fromkeys(str(value).strip() for value in asset_ids):
+        if not asset_id:
+            continue
+        media_collection(db).update_one(
+            {"asset_id": asset_id},
+            {"$addToSet": {"note_ids": note_key}, "$set": {"updated_at": now}},
+        )
+
+
+def detach_media_assets_from_note_record(
+    db,
+    *,
+    note_id: str,
+    asset_ids: list[str] | tuple[str, ...] | None = None,
+) -> None:
+    """Remove one note reference from assets while retaining all asset bytes."""
+    note_key = note_media_key(note_id)
+    if not note_key:
+        return
+    if asset_ids is None:
+        assets = media_collection(db).find({"note_ids": note_key})
+        clean_ids = [str(asset.get("asset_id") or "") for asset in assets]
+    else:
+        clean_ids = [str(asset_id or "") for asset_id in asset_ids]
+    now = datetime.utcnow()
+    for asset_id in dict.fromkeys(clean_ids):
+        if not asset_id:
+            continue
+        media_collection(db).update_one(
+            {"asset_id": asset_id},
+            {"$pull": {"note_ids": note_key}, "$set": {"updated_at": now}},
+        )
+
+
+def synchronize_note_media_references(
+    db,
+    *,
+    note_id: str,
+    previous_asset_ids: list[str] | tuple[str, ...],
+    current_asset_ids: list[str] | tuple[str, ...],
+) -> None:
+    """Synchronize asset-side note references after one successful note save."""
+    previous = {str(asset_id) for asset_id in previous_asset_ids if str(asset_id or "").strip()}
+    current = {str(asset_id) for asset_id in current_asset_ids if str(asset_id or "").strip()}
+    detach_media_assets_from_note_record(
+        db,
+        note_id=note_id,
+        asset_ids=tuple(sorted(previous - current)),
+    )
+    attach_media_assets_to_note(
+        db,
+        note_id=note_id,
+        asset_ids=tuple(sorted(current)),
+    )
+
+
+def delete_media_asset_if_unreferenced(db, asset_id: str) -> bool:
+    """Delete one asset only when no stored document still references it."""
+    clean_id = str(asset_id or "").strip()
+    if not clean_id:
+        return False
+    mongo_db = mongo_database(db)
+    asset = media_collection(db).find_one({"asset_id": clean_id})
+    if not asset:
+        return False
+    if asset.get("concept_ids") or asset.get("note_ids"):
+        return False
+    if mongo_db["concepts"].find_one({"image_ids": clean_id}, {"_id": 1}) is not None:
+        return False
+    if mongo_db["latex_notes"].find_one({"image_ids": clean_id}, {"_id": 1}) is not None:
+        return False
+    _delete_local_asset_file(asset)
+    result = media_collection(db).delete_one({"asset_id": clean_id})
+    return int(getattr(result, "deleted_count", 0) or 0) == 1
+
+
+def reusable_media_asset(db, *, sha256: str, size_bytes: int) -> dict | None:
+    """Return an existing readable asset with identical stable byte identity."""
+    candidate = media_collection(db).find_one(
+        {"sha256": str(sha256), "size_bytes": int(size_bytes)},
+    )
+    if not isinstance(candidate, dict) or not media_path_exists(candidate):
+        return None
+    return candidate
 
 
 def get_concept_media_assets(db, concept_id: str, source: str) -> list[dict]:

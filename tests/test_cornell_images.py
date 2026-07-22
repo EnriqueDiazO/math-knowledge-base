@@ -158,6 +158,21 @@ def test_inserted_stable_reference_replaces_without_duplicate_append() -> None:
     assert tex.count(r"\resizebox{5.35in}") == 1
 
 
+def test_compact_reference_uses_relative_width_without_changing_legacy_default() -> None:
+    document = _document_with_images(
+        main_ids=("asset-1",),
+        main_latex=r"\cornellimage[0.31]{asset-1}",
+    )
+
+    tex = renderer.generate_cornell_document_tex(
+        document,
+        asset_paths_by_id={"asset-1": "cornell_assets/media/asset.png"},
+    )
+
+    assert r"\resizebox{0.31\linewidth}{!}{\includegraphics{cornell_assets/media/asset.png}}" in tex
+    assert r"\resizebox{5.35in}" not in tex
+
+
 def test_remove_region_image_does_not_delete_asset() -> None:
     document = _document_with_images(main_ids=("asset-1", "asset-2"))
 

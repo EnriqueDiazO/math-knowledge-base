@@ -329,6 +329,10 @@ def test_export_project_preserves_identity_and_copies_watermark_image(
     assert f"images/{copied[0]}" in notas
     assert payload["attribution"] == attribution.to_dict()
     assert payload["watermark"] == watermark.to_dict()
+    assert len(payload["assets"]) == 1
+    assert payload["assets"][0]["roles"] == ["watermark"]
+    assert len(payload["assets"][0]["sha256"]) == 64
+    assert not Path(payload["assets"][0]["path"]).is_absolute()
     assert_no_absolute_paths(result.project_dir, str(tmp_path))
     with zipfile.ZipFile(result.zip_path) as archive:
         names = set(archive.namelist())

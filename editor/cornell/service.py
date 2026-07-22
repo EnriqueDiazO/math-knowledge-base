@@ -6,6 +6,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
+from editor.cornell.media import cornell_document_image_ids
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
@@ -13,6 +14,8 @@ from editor.cornell.models import CornellRegion
 from editor.cornell.models import build_cornell_math_v1_payload
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.persistence import extract_cornell_document
+from editor.utils.media_assets import attach_media_assets_to_note
+from editor.utils.media_assets import detach_media_assets_from_note_record
 from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import save_media_asset
 
@@ -64,8 +67,43 @@ def delete_cornell_note(db: Any, note_id: Any) -> Any:
     existing = db.get_notebook_note_by_id(note_id)
     if existing is None:
         return None
-    extract_cornell_document(existing)
-    return db.delete_notebook_note(note_id)
+    document = extract_cornell_document(existing)
+    result = db.delete_notebook_note(note_id)
+    if int(getattr(result, "deleted_count", 0) or 0) == 1:
+        detach_media_assets_from_note_record(
+            db,
+            note_id=str(note_id),
+            asset_ids=cornell_document_image_ids(document),
+        )
+    return result
+
+
+def duplicate_cornell_note(
+    db: Any,
+    note_id: Any,
+    metadata_overrides: Mapping[str, Any] | None = None,
+) -> Any:
+    """Duplicate a Cornell note while sharing portable media references safely."""
+    existing = get_cornell_note(db, note_id)
+    if existing is None:
+        return None
+    document = extract_cornell_document(existing)
+    metadata = {
+        field: deepcopy(existing[field])
+        for field in ("title", "date", "project", "context", "tags")
+        if field in existing
+    }
+    metadata["title"] = f"Copia de {metadata.get('title') or 'Nota Cornell'}"
+    metadata.update(deepcopy(dict(metadata_overrides or {})))
+    result = create_cornell_note(db, metadata, document)
+    inserted_id = getattr(result, "inserted_id", None)
+    if inserted_id is not None:
+        attach_media_assets_to_note(
+            db,
+            note_id=str(inserted_id),
+            asset_ids=cornell_document_image_ids(document),
+        )
+    return result
 
 
 def list_cornell_notes(

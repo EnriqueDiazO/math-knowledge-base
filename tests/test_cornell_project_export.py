@@ -452,12 +452,32 @@ def test_export_project_includes_identity_watermark_image_in_notas_and_zip(
     assert "© 2026 Enrique Díaz Ocampo" in notas
     assert str(tmp_path) not in notas
     assert (result.project_dir / "images" / "logo_cocid_wm-logo.png").exists()
+    payload = json.loads(result.metadata_path.read_text(encoding="utf-8"))
+    assert len(payload["assets"]) == 1
+    assert payload["assets"][0]["asset_id"] == "wm-logo"
+    assert payload["assets"][0]["roles"] == ["watermark"]
+    assert len(payload["assets"][0]["sha256"]) == 64
+    assert not Path(payload["assets"][0]["path"]).is_absolute()
 
     with zipfile.ZipFile(result.zip_path) as archive:
         names = set(archive.namelist())
 
     root = result.project_dir.name
     assert f"{root}/images/logo_cocid_wm-logo.png" in names
+
+
+def test_export_project_missing_watermark_is_controlled(tmp_path: Path) -> None:
+    document = CornellDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=one_page_document().pages,
+        watermark=CornellWatermark(enabled=True, type="image", image_id="missing-logo"),
+    )
+
+    result = export_cornell_project(document, metadata("Marca faltante"), tmp_path)
+
+    assert result.warnings == ("Asset de marca de agua no encontrado: missing-logo",)
+    assert "missing-logo" not in (result.project_dir / "Notas.tex").read_text(encoding="utf-8")
 
 
 def test_footer_text_matches_preview_tex_and_project_export(tmp_path: Path) -> None:

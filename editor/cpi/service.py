@@ -6,11 +6,14 @@ from collections.abc import Mapping
 from copy import deepcopy
 from typing import Any
 
+from editor.cpi.media import cpi_document_image_ids
 from editor.cpi.models import CPI_NOTE_FORMAT
 from editor.cpi.models import CpiDocument
 from editor.cpi.models import build_cpi_v1_payload
 from editor.cpi.persistence import build_cpi_note_document
 from editor.cpi.persistence import extract_cpi_document
+from editor.utils.media_assets import attach_media_assets_to_note
+from editor.utils.media_assets import detach_media_assets_from_note_record
 
 
 def _canonical_note(note: Mapping[str, Any], document: CpiDocument) -> dict[str, Any]:
@@ -60,8 +63,43 @@ def delete_cpi_note(db: Any, note_id: Any) -> Any:
     existing = db.get_notebook_note_by_id(note_id)
     if existing is None:
         return None
-    extract_cpi_document(existing)
-    return db.delete_notebook_note(note_id)
+    document = extract_cpi_document(existing)
+    result = db.delete_notebook_note(note_id)
+    if int(getattr(result, "deleted_count", 0) or 0) == 1:
+        detach_media_assets_from_note_record(
+            db,
+            note_id=str(note_id),
+            asset_ids=cpi_document_image_ids(document),
+        )
+    return result
+
+
+def duplicate_cpi_note(
+    db: Any,
+    note_id: Any,
+    metadata_overrides: Mapping[str, Any] | None = None,
+) -> Any:
+    """Duplicate a CPI note while sharing portable media references safely."""
+    existing = get_cpi_note(db, note_id)
+    if existing is None:
+        return None
+    document = extract_cpi_document(existing)
+    metadata = {
+        field: deepcopy(existing[field])
+        for field in ("title", "date", "project", "context", "tags")
+        if field in existing
+    }
+    metadata["title"] = f"Copia de {metadata.get('title') or 'Nota CPI'}"
+    metadata.update(deepcopy(dict(metadata_overrides or {})))
+    result = create_cpi_note(db, metadata, document)
+    inserted_id = getattr(result, "inserted_id", None)
+    if inserted_id is not None:
+        attach_media_assets_to_note(
+            db,
+            note_id=str(inserted_id),
+            asset_ids=cpi_document_image_ids(document),
+        )
+    return result
 
 
 def list_cpi_notes(

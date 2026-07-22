@@ -12,15 +12,12 @@ from typing import Any
 
 from editor.cornell.project_export import _prepare_owned_project_directory
 from editor.cornell.project_export import _zip_project
+from editor.cornell.project_export import portable_asset_manifest
 from editor.cpi.layout import CpiFitReport
 from editor.cpi.layout import measure_cpi_document_fit
-from editor.cpi.media import _assets_by_id_from_db
-from editor.cpi.media import _normalize_assets_by_id
-from editor.cpi.media import _safe_asset_source_path
-from editor.cpi.media import cpi_document_image_ids
+from editor.cpi.media import cpi_content_image_ids
 from editor.cpi.media import latex_uses_svg_paths
 from editor.cpi.media import render_cpi_region_latex
-from editor.cpi.media import safe_cornell_asset_filename
 from editor.cpi.models import CPI_NOTE_FORMAT
 from editor.cpi.models import CpiDocument
 from editor.cpi.models import CpiPage
@@ -43,6 +40,7 @@ class CpiProjectExportResult:
     project_dir: Path
     zip_path: Path
     metadata_path: Path
+    warnings: tuple[str, ...] = ()
 
 
 def _resolve_project_images(
@@ -51,35 +49,29 @@ def _resolve_project_images(
     *,
     db: Any | None = None,
     assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+    warnings: list[str] | None = None,
 ) -> dict[str, str]:
     images_dir = project_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
-    image_ids = cpi_document_image_ids(document)
-    if not image_ids:
-        return {}
+    from editor.cpi.media import prepare_cpi_image_assets
 
-    resolved_assets = _normalize_assets_by_id(assets_by_id)
-    if db is not None:
-        resolved_assets.update(_assets_by_id_from_db(db, image_ids))
-    missing = [asset_id for asset_id in image_ids if asset_id not in resolved_assets]
-    if missing:
-        raise ValueError(f"CPI image asset not found: {', '.join(missing)}")
-
-    latex_paths: dict[str, str] = {}
-    used_names: set[str] = set()
-    for asset_id in image_ids:
-        asset = resolved_assets[asset_id]
-        source = _safe_asset_source_path(asset)
-        safe_name = safe_cornell_asset_filename(asset)
-        if safe_name in used_names:
-            stem = Path(safe_name).stem
-            suffix = Path(safe_name).suffix
-            safe_name = f"{stem}_{asset_id[:8]}{suffix}"
-        used_names.add(safe_name)
-        destination = images_dir / safe_name
-        shutil.copyfile(source, destination)
-        latex_paths[asset_id] = destination.relative_to(project_dir).as_posix()
-    return latex_paths
+    prepared = prepare_cpi_image_assets(
+        document,
+        project_dir,
+        assets_dirname="cpi_assets",
+        db=db,
+        assets_by_id=assets_by_id,
+        warnings=warnings,
+    )
+    source_dir = project_dir / "cpi_assets" / "media"
+    for asset_id, prepared_path in prepared.items():
+        source = project_dir / prepared_path
+        destination = images_dir / source.name
+        shutil.move(source, destination)
+        prepared[asset_id] = destination.relative_to(project_dir).as_posix()
+    if source_dir.parent.exists():
+        shutil.rmtree(source_dir.parent)
+    return prepared
 
 
 def _write_template_reference(project_dir: Path) -> None:
@@ -185,7 +177,12 @@ def _measure_project_fit(
         _cleanup_fit_artifacts(project_dir, output_name)
 
 
-def _metadata_payload(metadata: Mapping[str, Any], document: CpiDocument) -> dict[str, Any]:
+def _metadata_payload(
+    metadata: Mapping[str, Any],
+    document: CpiDocument,
+    *,
+    asset_manifest: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     pages = document.ordered_pages()
     return {
         "title": str(metadata.get("title") or "Nueva nota CPI"),
@@ -200,13 +197,25 @@ def _metadata_payload(metadata: Mapping[str, Any], document: CpiDocument) -> dic
         "regions": list(CONTENT_FILENAMES),
         "attribution": document.attribution.to_dict(),
         "watermark": document.watermark.to_dict(),
+        "assets": list(asset_manifest or []),
     }
 
 
-def _write_metadata(project_dir: Path, metadata: Mapping[str, Any], document: CpiDocument) -> Path:
+def _write_metadata(
+    project_dir: Path,
+    metadata: Mapping[str, Any],
+    document: CpiDocument,
+    *,
+    asset_manifest: list[dict[str, Any]] | None = None,
+) -> Path:
     metadata_path = project_dir / "metadata.json"
     metadata_path.write_text(
-        json.dumps(_metadata_payload(metadata, document), ensure_ascii=False, indent=2) + "\n",
+        json.dumps(
+            _metadata_payload(metadata, document, asset_manifest=asset_manifest),
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
         encoding="utf-8",
     )
     return metadata_path
@@ -253,13 +262,27 @@ def export_cpi_project(
         allowed_root=output_root if allowed_root is None else allowed_root,
         expected_note_format=CPI_NOTE_FORMAT,
     )
-    metadata_path = _write_metadata(project_dir, metadata, document)
-
+    warnings: list[str] = []
     asset_paths = _resolve_project_images(
         document,
         project_dir,
         db=db,
         assets_by_id=assets_by_id,
+        warnings=warnings,
+    )
+    asset_manifest = portable_asset_manifest(
+        document,
+        project_dir,
+        asset_paths,
+        content_image_ids=cpi_content_image_ids(document),
+        db=db,
+        assets_by_id=assets_by_id,
+    )
+    metadata_path = _write_metadata(
+        project_dir,
+        metadata,
+        document,
+        asset_manifest=asset_manifest,
     )
     _write_template_reference(project_dir)
     _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
@@ -280,6 +303,7 @@ def export_cpi_project(
         project_dir=project_dir,
         zip_path=zip_path,
         metadata_path=metadata_path,
+        warnings=tuple(warnings),
     )
 
 

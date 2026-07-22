@@ -10,6 +10,7 @@ from typing import Any
 
 import pytest
 
+from editor.cornell.models import CornellWatermark
 from editor.cpi.models import CPI_NOTE_FORMAT
 from editor.cpi.models import DEFAULT_TEMPLATE_ID
 from editor.cpi.models import CpiDocument
@@ -19,6 +20,7 @@ from editor.cpi.models import generate_latex_body
 from editor.cpi.persistence import build_cpi_note_document
 from editor.cpi.service import create_cpi_note
 from editor.cpi.service import delete_cpi_note
+from editor.cpi.service import duplicate_cpi_note
 from editor.cpi.service import get_cpi_note
 from editor.cpi.service import list_cpi_notes
 from editor.cpi.service import update_cpi_note
@@ -206,3 +208,26 @@ def test_delete_cpi_note_deletes_only_valid_cpi_note() -> None:
 
     assert result.deleted_count == 1
     assert note_id not in db.notes
+
+
+def test_duplicate_cpi_note_preserves_branding_and_shares_asset(monkeypatch) -> None:
+    db = FakeMathMongo()
+    document = CpiDocument(
+        schema_version=1,
+        template_id=DEFAULT_TEMPLATE_ID,
+        pages=sample_document().pages,
+        watermark=CornellWatermark(enabled=True, type="image", image_id="shared-logo"),
+    )
+    original_id = create_cpi_note(db, sample_metadata(), document).inserted_id
+    attached: list[tuple[str, tuple[str, ...]]] = []
+    monkeypatch.setattr(
+        "editor.cpi.service.attach_media_assets_to_note",
+        lambda _db, *, note_id, asset_ids: attached.append((note_id, tuple(asset_ids))),
+    )
+
+    result = duplicate_cpi_note(db, original_id)
+
+    duplicate = db.notes[result.inserted_id]
+    assert duplicate["cpi"]["watermark"] == document.watermark.to_dict()
+    assert duplicate["image_ids"] == ["shared-logo"]
+    assert attached == [(result.inserted_id, ("shared-logo",))]

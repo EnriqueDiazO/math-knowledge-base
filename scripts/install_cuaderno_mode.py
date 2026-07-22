@@ -267,9 +267,18 @@ def _cornell_watermark_validator() -> dict[str, Any]:
             "type": {"enum": ["text", "image"]},
             "text": {"bsonType": "string"},
             "image_id": {"bsonType": "string"},
-            "opacity": {"bsonType": ["double", "int", "long", "decimal"]},
-            "scale": {"bsonType": ["double", "int", "long", "decimal"]},
+            "opacity": {
+                "bsonType": ["double", "int", "long", "decimal"],
+                "minimum": 0,
+                "maximum": 1,
+            },
+            "scale": {
+                "bsonType": ["double", "int", "long", "decimal"],
+                "minimum": 0.05,
+                "maximum": 2,
+            },
             "position": {"enum": ["center", "bottom_right", "top_right"]},
+            "all_pages": {"bsonType": "bool"},
         },
     }
 

@@ -23,6 +23,8 @@ from editor.cpi.streamlit_page import _sync_identity_state_values
 from editor.cpi.streamlit_page import add_page
 from editor.cpi.streamlit_page import delete_page
 from editor.cpi.streamlit_page import duplicate_page
+from editor.note_branding import branding_key
+from editor.note_branding import sync_branding_state
 
 
 class FakeColumn:
@@ -206,6 +208,12 @@ def test_cpi_identity_state_and_inputs_use_cpi_keys(monkeypatch) -> None:
     document = identity_document()
     state = {}
     _sync_identity_state_values(state, document)
+    sync_branding_state(
+        state,
+        note_type="cpi",
+        note_id=None,
+        watermark=document.watermark,
+    )
     state.update(
         {
             "cpi_attribution_mode": "Automático",
@@ -214,12 +222,12 @@ def test_cpi_identity_state_and_inputs_use_cpi_keys(monkeypatch) -> None:
             "cpi_attribution_course": "Python",
             "cpi_attribution_year": "2026",
             "cpi_attribution_position": "Inferior derecha",
-            "cpi_watermark_type": "Texto",
-            "cpi_watermark_text": "COCID",
-            "cpi_watermark_image_id": "",
-            "cpi_watermark_opacity": 0.08,
-            "cpi_watermark_scale": 0.5,
-            "cpi_watermark_position": "Centro",
+            branding_key("cpi", None, "type"): "Texto",
+            branding_key("cpi", None, "text"): "COCID",
+            branding_key("cpi", None, "image_id"): "",
+            branding_key("cpi", None, "opacity"): 0.08,
+            branding_key("cpi", None, "scale"): 0.5,
+            branding_key("cpi", None, "position"): "Centro",
         }
     )
     monkeypatch.setitem(

@@ -155,7 +155,11 @@ def _cornell_page_body(
           \coordinate (NW) at (current page.north west);
           \coordinate (NE) at (current page.north east);
 
-          {cornell_watermark_latex(document, asset_paths_by_id=asset_paths_by_id)}
+          {cornell_watermark_latex(
+              document,
+              asset_paths_by_id=asset_paths_by_id,
+              page_number=page_number,
+          )}
 
         {dedent(background_block).strip()}
 
@@ -244,6 +248,7 @@ def _prepare_output_dir(
     *,
     db: Any | None = None,
     assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+    warnings: list[str] | None = None,
 ) -> tuple[Path, dict[str, str]]:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -257,6 +262,7 @@ def _prepare_output_dir(
             output_path,
             db=db,
             assets_by_id=assets_by_id,
+            warnings=warnings,
         )
     return output_path, image_paths
 
@@ -596,6 +602,7 @@ def render_cornell_document(
     tex_path = output_path / f"{_slugify_output_name(output_name)}.tex"
     pdf_path = tex_path.with_suffix(".pdf")
     log_path = tex_path.with_suffix(".log")
+    warnings: list[str] = []
 
     try:
         output_path, image_paths = _prepare_output_dir(
@@ -603,6 +610,7 @@ def render_cornell_document(
             document,
             db=db,
             assets_by_id=assets_by_id,
+            warnings=warnings,
         )
         fit_report = _preflight_cornell_fit(
             document,
@@ -619,7 +627,10 @@ def render_cornell_document(
                 pdf_path=pdf_path,
                 log_path=log_path,
                 message=_fit_overflow_message(fit_report),
-                diagnostics=_fit_overflow_diagnostics(fit_report),
+                diagnostics={
+                    **_fit_overflow_diagnostics(fit_report),
+                    "warnings": warnings,
+                },
             )
         tex_path = _write_cornell_document_tex_with_assets(
             document,
@@ -630,6 +641,7 @@ def render_cornell_document(
         )
         result = _compile_cornell_tex(tex_path, output_path)
         result.diagnostics["fit_report"] = fit_report.to_dict()
+        result.diagnostics["warnings"] = warnings
         return result
     except CornellLayoutError as exc:
         return CornellRenderResult(
@@ -639,7 +651,7 @@ def render_cornell_document(
             pdf_path=pdf_path,
             log_path=log_path,
             message=str(exc),
-            diagnostics=exc.diagnostics,
+            diagnostics={**exc.diagnostics, "warnings": warnings},
         )
     except Exception as exc:
         return CornellRenderResult(
@@ -649,5 +661,5 @@ def render_cornell_document(
             pdf_path=pdf_path,
             log_path=log_path,
             message=str(exc),
-            diagnostics={"exception_type": type(exc).__name__},
+            diagnostics={"exception_type": type(exc).__name__, "warnings": warnings},
         )

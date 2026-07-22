@@ -90,10 +90,11 @@ def cornell_watermark_latex(
     document: CornellDocument,
     *,
     asset_paths_by_id: Mapping[str, str] | None = None,
+    page_number: int = 1,
 ) -> str:
     """Return a TikZ watermark node for a full Cornell page."""
     watermark = document.watermark
-    if not watermark.enabled:
+    if not watermark.enabled or (not watermark.all_pages and page_number != 1):
         return ""
     anchor, coordinate = POSITION_ANCHORS[watermark.position]
     if watermark.type == "image":

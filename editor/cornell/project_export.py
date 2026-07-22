@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import re
 import shutil
@@ -18,11 +19,9 @@ from editor.cornell.identity import cornell_watermark_latex
 from editor.cornell.latex_compat import cornell_standalone_preamble
 from editor.cornell.media import _assets_by_id_from_db
 from editor.cornell.media import _normalize_assets_by_id
-from editor.cornell.media import _safe_asset_source_path
-from editor.cornell.media import cornell_document_image_ids
+from editor.cornell.media import cornell_content_image_ids
 from editor.cornell.media import latex_uses_svg_paths
 from editor.cornell.media import render_cornell_region_latex
-from editor.cornell.media import safe_cornell_asset_filename
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
@@ -68,6 +67,7 @@ class CornellProjectExportResult:
     project_dir: Path
     zip_path: Path
     metadata_path: Path
+    warnings: tuple[str, ...] = ()
 
 
 def safe_project_slug(value: object, fallback: str = "cornell_project") -> str:
@@ -100,6 +100,7 @@ def _resolve_project_images(
     *,
     db: Any | None = None,
     assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+    warnings: list[str] | None = None,
 ) -> dict[str, str]:
     images_dir = project_dir / "images"
     images_dir.mkdir(parents=True, exist_ok=True)
@@ -107,32 +108,24 @@ def _resolve_project_images(
         raise FileNotFoundError(f"Historical Cornell lines image not found: {HISTORICAL_LINES_IMAGE}")
     shutil.copyfile(HISTORICAL_LINES_IMAGE, images_dir / LINES_IMAGE_FILENAME)
 
-    image_ids = cornell_document_image_ids(document)
-    if not image_ids:
-        return {}
+    from editor.cornell.media import prepare_cornell_image_assets
 
-    resolved_assets = _normalize_assets_by_id(assets_by_id)
-    if db is not None:
-        resolved_assets.update(_assets_by_id_from_db(db, image_ids))
-    missing = [asset_id for asset_id in image_ids if asset_id not in resolved_assets]
-    if missing:
-        raise ValueError(f"Cornell image asset not found: {', '.join(missing)}")
-
-    latex_paths: dict[str, str] = {}
-    used_names: set[str] = set()
-    for asset_id in image_ids:
-        asset = resolved_assets[asset_id]
-        source = _safe_asset_source_path(asset)
-        safe_name = safe_cornell_asset_filename(asset)
-        if safe_name in used_names:
-            stem = Path(safe_name).stem
-            suffix = Path(safe_name).suffix
-            safe_name = f"{stem}_{asset_id[:8]}{suffix}"
-        used_names.add(safe_name)
-        destination = images_dir / safe_name
-        shutil.copyfile(source, destination)
-        latex_paths[asset_id] = destination.relative_to(project_dir).as_posix()
-    return latex_paths
+    prepared = prepare_cornell_image_assets(
+        document,
+        project_dir,
+        db=db,
+        assets_by_id=assets_by_id,
+        warnings=warnings,
+    )
+    source_dir = project_dir / "cornell_assets" / "media"
+    for asset_id, prepared_path in prepared.items():
+        source = project_dir / prepared_path
+        destination = images_dir / source.name
+        shutil.move(source, destination)
+        prepared[asset_id] = destination.relative_to(project_dir).as_posix()
+    if source_dir.parent.exists():
+        shutil.rmtree(source_dir.parent)
+    return prepared
 
 
 def _common_preamble(*, paper_width: str, paper_height: str, include_svg: bool = False) -> str:
@@ -320,7 +313,11 @@ def _notas_page(
           \coordinate (NW) at (current page.north west);
           \coordinate (NE) at (current page.north east);
 
-          {cornell_watermark_latex(document, asset_paths_by_id=asset_paths_by_id)}
+          {cornell_watermark_latex(
+              document,
+              asset_paths_by_id=asset_paths_by_id,
+              page_number=page_number,
+          )}
 
           \node[anchor=north west, inner sep=0pt] at (NW)
             {{\includegraphics[page={page_number},width=2.4in,height=9in]{{Izquierda.pdf}}}};
@@ -369,7 +366,49 @@ def _write_notas(
     (project_dir / "Notas.tex").write_text(source, encoding="utf-8")
 
 
-def _metadata_payload(metadata: Mapping[str, Any], document: CornellDocument) -> dict[str, Any]:
+def portable_asset_manifest(
+    document: Any,
+    project_dir: Path,
+    asset_paths_by_id: Mapping[str, str],
+    *,
+    content_image_ids: tuple[str, ...],
+    db: Any | None = None,
+    assets_by_id: Mapping[str, Mapping[str, Any]] | None = None,
+) -> list[dict[str, Any]]:
+    """Build a path-portable, deduplicated manifest for copied note assets."""
+    resolved = _normalize_assets_by_id(assets_by_id)
+    image_ids = tuple(asset_paths_by_id)
+    if db is not None:
+        resolved.update(_assets_by_id_from_db(db, image_ids))
+    watermark_id = document.watermark.image_id if document.watermark.type == "image" else ""
+    manifest = []
+    for asset_id, relative_path in asset_paths_by_id.items():
+        copied = project_dir / relative_path
+        metadata = resolved.get(asset_id, {})
+        roles = []
+        if asset_id in content_image_ids:
+            roles.append("content")
+        if asset_id == watermark_id:
+            roles.append("watermark")
+        manifest.append(
+            {
+                "asset_id": asset_id,
+                "path": relative_path,
+                "sha256": hashlib.sha256(copied.read_bytes()).hexdigest(),
+                "size_bytes": copied.stat().st_size,
+                "mime_type": str(metadata.get("mime_type") or "application/octet-stream"),
+                "roles": roles,
+            }
+        )
+    return manifest
+
+
+def _metadata_payload(
+    metadata: Mapping[str, Any],
+    document: CornellDocument,
+    *,
+    asset_manifest: list[dict[str, Any]] | None = None,
+) -> dict[str, Any]:
     pages = document.ordered_pages()
     return {
         "title": str(metadata.get("title") or "Nueva nota Cornell"),
@@ -383,13 +422,25 @@ def _metadata_payload(metadata: Mapping[str, Any], document: CornellDocument) ->
         "order": [{"page_id": page.page_id, "order": page.order} for page in pages],
         "attribution": document.attribution.to_dict(),
         "watermark": document.watermark.to_dict(),
+        "assets": list(asset_manifest or []),
     }
 
 
-def _write_metadata(project_dir: Path, metadata: Mapping[str, Any], document: CornellDocument) -> Path:
+def _write_metadata(
+    project_dir: Path,
+    metadata: Mapping[str, Any],
+    document: CornellDocument,
+    *,
+    asset_manifest: list[dict[str, Any]] | None = None,
+) -> Path:
     metadata_path = project_dir / "metadata.json"
     metadata_path.write_text(
-        json.dumps(_metadata_payload(metadata, document), ensure_ascii=False, indent=2) + "\n",
+        json.dumps(
+            _metadata_payload(metadata, document, asset_manifest=asset_manifest),
+            ensure_ascii=False,
+            indent=2,
+        )
+        + "\n",
         encoding="utf-8",
     )
     return metadata_path
@@ -496,13 +547,27 @@ def export_cornell_project(
         allowed_root=output_root if allowed_root is None else allowed_root,
         expected_note_format=CORNELL_NOTE_FORMAT,
     )
-    metadata_path = _write_metadata(project_dir, metadata, document)
-
+    warnings: list[str] = []
     asset_paths = _resolve_project_images(
         document,
         project_dir,
         db=db,
         assets_by_id=assets_by_id,
+        warnings=warnings,
+    )
+    asset_manifest = portable_asset_manifest(
+        document,
+        project_dir,
+        asset_paths,
+        content_image_ids=cornell_content_image_ids(document),
+        db=db,
+        assets_by_id=assets_by_id,
+    )
+    metadata_path = _write_metadata(
+        project_dir,
+        metadata,
+        document,
+        asset_manifest=asset_manifest,
     )
     _write_region_templates(project_dir, asset_paths_by_id=asset_paths)
     _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
@@ -514,4 +579,5 @@ def export_cornell_project(
         project_dir=project_dir,
         zip_path=zip_path,
         metadata_path=metadata_path,
+        warnings=tuple(warnings),
     )

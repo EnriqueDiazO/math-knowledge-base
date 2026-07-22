@@ -183,7 +183,11 @@ def _cpi_page_body(
           \coordinate (NW) at (current page.north west);
           \coordinate (NE) at (current page.north east);
 
-          {cpi_watermark_latex(document, asset_paths_by_id=asset_paths_by_id)}
+          {cpi_watermark_latex(
+              document,
+              asset_paths_by_id=asset_paths_by_id,
+              page_number=page_number,
+          )}
 
           \draw[line width=0.45pt] ($(SW)+(0,\alturaIntegracion)$) -- ($(SE)+(0,\alturaIntegracion)$);
           \draw[line width=0.45pt] ($(SW)+(\mitadPagina,\alturaIntegracion)$) -- ($(NW)+(\mitadPagina,0)$);
@@ -504,6 +508,7 @@ def render_cpi_document(
     tex_path = output_path / f"{_slugify_output_name(output_name)}.tex"
     pdf_path = tex_path.with_suffix(".pdf")
     log_path = tex_path.with_suffix(".log")
+    warnings: list[str] = []
 
     try:
         output_path = _prepare_output_dir(output_path)
@@ -513,6 +518,7 @@ def render_cpi_document(
             assets_dirname=ASSETS_DIRNAME,
             db=db,
             assets_by_id=assets_by_id,
+            warnings=warnings,
         )
         fit_report = _preflight_cpi_fit(
             document,
@@ -529,7 +535,10 @@ def render_cpi_document(
                 pdf_path=pdf_path,
                 log_path=log_path,
                 message=_fit_overflow_message(fit_report),
-                diagnostics=_fit_overflow_diagnostics(fit_report),
+                diagnostics={
+                    **_fit_overflow_diagnostics(fit_report),
+                    "warnings": warnings,
+                },
             )
         tex_path.write_text(
             generate_cpi_document_tex(
@@ -541,6 +550,7 @@ def render_cpi_document(
         )
         result = _compile_cpi_tex(tex_path, output_path)
         result.diagnostics["fit_report"] = fit_report.to_dict()
+        result.diagnostics["warnings"] = warnings
         return result
     except CpiLayoutError as exc:
         return CpiRenderResult(
@@ -550,7 +560,7 @@ def render_cpi_document(
             pdf_path=pdf_path,
             log_path=log_path,
             message=str(exc),
-            diagnostics=exc.diagnostics,
+            diagnostics={**exc.diagnostics, "warnings": warnings},
         )
     except Exception as exc:
         return CpiRenderResult(
@@ -560,5 +570,5 @@ def render_cpi_document(
             pdf_path=pdf_path,
             log_path=log_path,
             message=str(exc),
-            diagnostics={"exception_type": type(exc).__name__},
+            diagnostics={"exception_type": type(exc).__name__, "warnings": warnings},
         )
