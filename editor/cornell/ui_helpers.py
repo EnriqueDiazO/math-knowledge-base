@@ -12,7 +12,7 @@ from typing import Any
 NO_PROJECT_LABEL = "(sin proyecto)"
 NEW_PROJECT_LABEL = "Escribir proyecto nuevo"
 ALL_LABEL = "(all)"
-DEFAULT_NOTE_CONTEXTS = ("estudio", "debug", "lectura", "idea", "reflexion")
+DEFAULT_NOTE_CONTEXTS = ("estudio", "debug", "lectura", "idea", "reflexion", "capacitación")
 
 
 @dataclass(frozen=True, slots=True)

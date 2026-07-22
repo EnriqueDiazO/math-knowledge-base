@@ -54,7 +54,10 @@ def update_cpi_note(
     if existing is None:
         return None
     extract_cpi_document(existing)
-    note = build_cpi_note_document(metadata, document)
+    safe_metadata = deepcopy(dict(metadata))
+    if existing.get("seed_id") and "seed_id" not in safe_metadata:
+        safe_metadata["seed_id"] = existing["seed_id"]
+    note = build_cpi_note_document(safe_metadata, document)
     return db.update_notebook_note(note_id, note)
 
 

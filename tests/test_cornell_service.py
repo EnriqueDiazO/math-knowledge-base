@@ -188,6 +188,16 @@ def test_update_cornell_note_preserves_metadata_and_rebuilds_payload() -> None:
     assert stored["cornell"]["pages"][0]["main"]["heading"] == "Matrices actualizadas"
 
 
+def test_update_cornell_note_preserves_seed_identity() -> None:
+    db = FakeMathMongo()
+    note_id = create_sample_cornell(db)
+    db.notes[note_id]["seed_id"] = "stable-tutorial"
+
+    update_cornell_note(db, note_id, sample_metadata(), sample_document())
+
+    assert db.notes[note_id]["seed_id"] == "stable-tutorial"
+
+
 def test_delete_cornell_note_deletes_only_valid_cornell_note() -> None:
     db = FakeMathMongo()
     note_id = create_sample_cornell(db)

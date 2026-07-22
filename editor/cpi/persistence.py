@@ -20,6 +20,7 @@ NORMAL_NOTE_FIELDS = (
     "image_ids",
     "created_at",
     "updated_at",
+    "seed_id",
 )
 
 

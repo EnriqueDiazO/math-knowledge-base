@@ -332,7 +332,9 @@ def _latex_notes_validator() -> dict[str, Any]:
                 "title": {"bsonType": "string"},
                 "date": {"bsonType": "string", "description": "YYYY-MM-DD"},
                 "project": {"bsonType": ["string", "null"]},
-                "context": {"enum": ["estudio", "debug", "lectura", "idea", "reflexion"]},
+                "context": {
+                    "enum": ["estudio", "debug", "lectura", "idea", "reflexion", "capacitación"]
+                },
                 "note_format": {"enum": [CORNELL_NOTE_FORMAT, CPI_NOTE_FORMAT]},
                 "latex_body": {"bsonType": "string"},
                 "cornell": _cornell_document_validator(),

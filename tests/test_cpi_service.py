@@ -200,6 +200,16 @@ def test_update_cpi_note_rejects_legacy_without_mutating_it() -> None:
     assert db.notes["legacy"] == legacy
 
 
+def test_update_cpi_note_preserves_seed_identity() -> None:
+    db = FakeMathMongo()
+    note_id = create_sample_cpi(db)
+    db.notes[note_id]["seed_id"] = "stable-tutorial"
+
+    update_cpi_note(db, note_id, sample_metadata(), sample_document())
+
+    assert db.notes[note_id]["seed_id"] == "stable-tutorial"
+
+
 def test_delete_cpi_note_deletes_only_valid_cpi_note() -> None:
     db = FakeMathMongo()
     note_id = create_sample_cpi(db)
