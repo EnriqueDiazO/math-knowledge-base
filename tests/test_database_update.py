@@ -409,6 +409,70 @@ def test_dry_run_accepts_historical_persisted_concepts_and_their_relations(
     assert "autor" not in incoming["referencia"]
 
 
+def test_dry_run_reports_preupdate_backup_portability_before_backup(
+    tmp_path: Path,
+    configured_paths: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    archive = tmp_path / "update.zip"
+    _fixture_archive(archive)
+    database = _fixture_database()
+    database["concepts"].exists = True
+    database["concept_evidence_links"].exists = True
+    database["concept_evidence_links"].documents.append(
+        {
+            "evidence_link_id": "ev_missing_concept",
+            "concept_legacy_id": "missing",
+            "concept_legacy_source": "legacy-source",
+        }
+    )
+    mongo = _Mongo(database)
+    store = SourceDocumentBlobStore(configured_paths)
+    backup_called = False
+
+    def fail_if_backup_called(*_args, **_kwargs):
+        nonlocal backup_called
+        backup_called = True
+        raise AssertionError("preview must not create the pre-update backup")
+
+    monkeypatch.setattr(db_update, "export_database_to_zip", fail_if_backup_called)
+
+    plan = db_update.analyze_database_update(
+        archive,
+        mongo,
+        source_document_blob_store=store,
+        data_root=configured_paths,
+    )
+
+    portability = [
+        item
+        for item in plan.blocking_issues
+        if item.record_id == "ev_missing_concept"
+    ]
+    assert len(portability) == 1
+    assert portability[0].collection == "concept_evidence_links"
+    assert portability[0].legacy_identity == ("missing", "legacy-source")
+    assert portability[0].cause == "absent"
+    assert portability[0].matching_count == 0
+    assert plan.totals["invalid"] == 1
+    assert plan.can_apply is False
+    assert backup_called is False
+    assert all(collection.insert_calls == 0 for collection in database._collections.values())
+
+    with pytest.raises(ValueError, match="blocking validation"):
+        db_update.apply_database_update(
+            archive,
+            mongo,
+            plan,
+            conflict_policies={},
+            backup_root=configured_paths / "backups",
+            source_document_blob_store=store,
+            data_root=configured_paths,
+        )
+    assert backup_called is False
+    assert not (configured_paths / "backups").exists()
+
+
 def test_update_ui_groups_repeated_blocking_issues() -> None:
     issues = (
         db_update.UpdateIssue("concepts", "first", "Invalid historical concept"),

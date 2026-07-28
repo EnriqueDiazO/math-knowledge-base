@@ -27,6 +27,8 @@ from pymongo.errors import DuplicateKeyError
 
 from editor.utils import db_import
 from editor.utils.db_export import export_database_to_zip
+from editor.utils.db_portability import PortabilityIssue
+from editor.utils.db_portability import legacy_concept_portability_issues
 from mathkb_config import DOCUMENT_PAGE_MAP_COLLECTIONS
 from mathkb_config import MEDIA_ASSETS_COLLECTION
 from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
@@ -164,6 +166,10 @@ class UpdateIssue:
     collection: str
     token: str
     reason: str
+    record_id: str | None = None
+    legacy_identity: tuple[str, str] | None = None
+    cause: str | None = None
+    matching_count: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -240,13 +246,24 @@ class DatabaseUpdatePlan:
     @property
     def totals(self) -> dict[str, int]:
         """Aggregate per-collection and portable-file plan counts."""
+        planned_collections = {item.name for item in self.collection_plans}
+        unplanned_invalid = {
+            (issue.collection, issue.token)
+            for issue in self.blocking_issues
+            if issue.collection not in planned_collections
+            and issue.legacy_identity is not None
+            and issue.cause in {"absent", "ambiguous"}
+        }
         return {
             "current": sum(item.current_documents for item in self.collection_plans),
             "backup": sum(item.backup_documents for item in self.collection_plans),
             "identical": sum(item.identical for item in self.collection_plans),
             "new": sum(item.new for item in self.collection_plans),
             "conflicts": sum(item.conflicts for item in self.collection_plans),
-            "invalid": sum(item.invalid for item in self.collection_plans),
+            "invalid": (
+                sum(item.invalid for item in self.collection_plans)
+                + len(unplanned_invalid)
+            ),
             "blobs_new": sum(not item.exists for item in self.blob_plans),
             "blobs_existing": sum(item.exists for item in self.blob_plans),
             "media_new": sum(not item.exists for item in self.media_plans),
@@ -1219,17 +1236,76 @@ def _relationship_issues(
         )
     except (TypeError, ValueError) as exc:
         issues.append(UpdateIssue("portable", "validation", str(exc)))
+    portability_by_id: dict[str, PortabilityIssue] = {
+        issue.evidence_link_id: issue for issue in report.portability_issues
+    }
     for conflict in report.catalog_conflicts:
         if conflict.reason.startswith("destination contains a different"):
             continue
+        portability_issue = portability_by_id.get(conflict.domain_id)
         issues.append(
             UpdateIssue(
                 conflict.collection,
                 _token(conflict.collection, {"domain": conflict.domain_id}),
                 conflict.reason,
+                record_id=conflict.domain_id,
+                legacy_identity=(
+                    portability_issue.legacy_identity
+                    if portability_issue is not None
+                    else None
+                ),
+                cause=(
+                    portability_issue.cause
+                    if portability_issue is not None
+                    else None
+                ),
+                matching_count=(
+                    portability_issue.matching_concepts
+                    if portability_issue is not None
+                    else None
+                ),
             )
         )
     return issues
+
+
+def _preupdate_backup_portability_issues(
+    database: Any,
+    *,
+    existing_names: set[str],
+) -> list[UpdateIssue]:
+    """Diagnose failures that a full pre-update backup would hit."""
+    if "concept_evidence_links" not in existing_names:
+        return []
+    evidence_links = database["concept_evidence_links"].find({})
+
+    def count_matching_concepts(concept_id: str, concept_source: str) -> int:
+        if "concepts" not in existing_names:
+            return 0
+        return int(
+            database["concepts"].count_documents(
+                {"id": concept_id, "source": concept_source}
+            )
+        )
+
+    portability_issues = legacy_concept_portability_issues(
+        evidence_links,
+        count_matching_concepts=count_matching_concepts,
+    )
+    return [
+        UpdateIssue(
+            issue.collection,
+            _token(issue.collection, {"domain": issue.evidence_link_id}),
+            "Pre-update backup would fail: Concept Evidence Link points to a legacy "
+            f"Concept {issue.cause} "
+            f"({issue.matching_concepts} matching Concepts)",
+            record_id=issue.evidence_link_id,
+            legacy_identity=issue.legacy_identity,
+            cause=issue.cause,
+            matching_count=issue.matching_concepts,
+        )
+        for issue in portability_issues
+    ]
 
 
 def _read_regular_file(path: Path) -> bytes:
@@ -1412,7 +1488,18 @@ def _plan_fingerprint(
             }
             for item in actions
         ],
-        "issues": [(item.collection, item.token, item.reason) for item in issues],
+        "issues": [
+            (
+                item.collection,
+                item.token,
+                item.reason,
+                item.record_id,
+                item.legacy_identity,
+                item.cause,
+                item.matching_count,
+            )
+            for item in issues
+        ],
         "blobs": [(item.prepared.sha256, item.exists) for item in blob_plans],
         "media": [(item.relative_path.as_posix(), item.exists) for item in media_plans],
     }
@@ -1463,6 +1550,12 @@ def analyze_database_update(
     loaded = _load_archive(zip_path)
     existing_names = set(database.list_collection_names())
     candidates, issues = _build_candidates(loaded)
+    issues.extend(
+        _preupdate_backup_portability_issues(
+            database,
+            existing_names=existing_names,
+        )
+    )
     actions: list[DocumentAction] = []
     for collection_candidates in candidates.values():
         for candidate in collection_candidates:
@@ -1491,8 +1584,18 @@ def analyze_database_update(
 
     issues.extend(_relationship_issues(database, candidates, existing_names=existing_names))
     issues.extend(_managed_index_issues(database, set(loaded.collections)))
-    issue_keys = {(item.collection, item.token, item.reason) for item in issues}
-    issues = [UpdateIssue(*values) for values in sorted(issue_keys)]
+    issues = sorted(
+        set(issues),
+        key=lambda item: (
+            item.collection,
+            item.token,
+            item.reason,
+            item.record_id or "",
+            item.legacy_identity or ("", ""),
+            item.cause or "",
+            item.matching_count if item.matching_count is not None else -1,
+        ),
+    )
 
     valid_source_documents = [
         candidate.document

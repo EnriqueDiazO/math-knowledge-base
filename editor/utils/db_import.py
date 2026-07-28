@@ -27,6 +27,8 @@ from bson.json_util import dumps as bson_json_dumps
 from bson.json_util import loads as bson_json_loads
 from pymongo.errors import DuplicateKeyError
 
+from editor.utils.db_portability import PortabilityIssue
+from editor.utils.db_portability import legacy_concept_portability_issues
 from mathkb_config import DATA_DIR
 from mathkb_config import DOCUMENT_PAGE_MAP_COLLECTIONS
 from mathkb_config import IMPORT_COLLECTIONS
@@ -112,6 +114,7 @@ class DatabaseImportReport:
     catalog_inserted: dict[str, int] = field(default_factory=dict)
     catalog_identical: dict[str, int] = field(default_factory=dict)
     catalog_conflicts: list[CatalogImportConflict] = field(default_factory=list)
+    portability_issues: list[PortabilityIssue] = field(default_factory=list)
     legacy_inserted: dict[str, int] = field(default_factory=dict)
     legacy_identical: dict[str, int] = field(default_factory=dict)
     source_document_blobs_created: int = 0
@@ -2103,6 +2106,26 @@ def _preflight_reading_annotation_relationships(
         key = (str(concept["id"]), str(concept["source"]))
         incoming_concept_counts[key] = incoming_concept_counts.get(key, 0) + 1
 
+    def count_matching_concepts(concept_id: str, concept_source: str) -> int:
+        incoming_count = incoming_concept_counts.get((concept_id, concept_source), 0)
+        if incoming_count:
+            return incoming_count
+        collection = db["concepts"]
+        query = {"id": concept_id, "source": concept_source}
+        count_documents = getattr(collection, "count_documents", None)
+        if callable(count_documents):
+            return int(count_documents(query))
+        return len(list(collection.find(query)))
+
+    portability_issues = legacy_concept_portability_issues(
+        raw_evidence_links,
+        count_matching_concepts=count_matching_concepts,
+    )
+    report.portability_issues.extend(portability_issues)
+    portability_by_link = {
+        issue.evidence_link_id: issue for issue in portability_issues
+    }
+
     seen_evidence_identities: dict[tuple[tuple[str, object], ...], str] = {}
     for raw_link in raw_evidence_links:
         payload = {key: value for key, value in raw_link.items() if key != "_id"}
@@ -2115,17 +2138,14 @@ def _preflight_reading_annotation_relationships(
             link.reference_id,
         )
 
-        concept_key = (link.concept_legacy_id, link.concept_legacy_source)
-        incoming_count = incoming_concept_counts.get(concept_key, 0)
-        destination_concepts = _find_at_most_two(
-            db["concepts"],
-            {"id": concept_key[0], "source": concept_key[1]},
-        )
-        if incoming_count > 1 or (incoming_count == 0 and len(destination_concepts) != 1):
+        portability_issue = portability_by_link.get(link.evidence_link_id)
+        if portability_issue is not None:
             add_conflict(
                 "concept_evidence_links",
                 link.evidence_link_id,
-                "Legacy Concept is absent or ambiguous in archive and destination",
+                "Legacy Concept is absent or ambiguous in archive and destination "
+                f"(cause: {portability_issue.cause}; "
+                f"{portability_issue.matching_concepts} matching Concepts)",
             )
 
         target_source_id: str | None = None

@@ -15,6 +15,8 @@ from bson import ObjectId
 from bson.json_util import CANONICAL_JSON_OPTIONS
 from bson.json_util import dumps as bson_json_dumps
 
+from editor.utils.db_portability import PortabilityValidationError
+from editor.utils.db_portability import legacy_concept_portability_issues
 from mathkb_config import DOCUMENT_PAGE_MAP_COLLECTIONS
 from mathkb_config import EXPORT_COLLECTIONS
 from mathkb_config import EXPORT_TIMEOUT_SECONDS
@@ -493,6 +495,13 @@ def _validate_reading_annotation_portability(
             continue
         key = (str(document["id"]), str(document["source"]))
         concept_counts[key] = concept_counts.get(key, 0) + 1
+    legacy_concept_issues = legacy_concept_portability_issues(
+        evidence_links,
+        count_matching_concepts=lambda concept_id, concept_source: concept_counts.get(
+            (concept_id, concept_source),
+            0,
+        ),
+    )
 
     def require_source(domain_name: str, domain_id: str, source_id: str) -> None:
         if source_id not in source_ids:
@@ -580,11 +589,6 @@ def _validate_reading_annotation_portability(
             link.source_id,
             link.reference_id,
         )
-        if concept_counts.get((link.concept_legacy_id, link.concept_legacy_source)) != 1:
-            raise ValueError(
-                "Concept Evidence Link points to a legacy Concept absent or ambiguous in export"
-            )
-
         target_source_id: str
         target_document_id: str | None
         target_reference_id: str | None
@@ -622,6 +626,8 @@ def _validate_reading_annotation_portability(
             raise ValueError("Concept Evidence Link Document does not match its evidence target")
         if link.reference_id is not None and link.reference_id != target_reference_id:
             raise ValueError("Concept Evidence Link Reference does not match its evidence target")
+    if legacy_concept_issues:
+        raise PortabilityValidationError(legacy_concept_issues, context="export")
 
 
 def export_database_to_zip(

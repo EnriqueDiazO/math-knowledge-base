@@ -17,6 +17,7 @@ from bson.json_util import loads as bson_json_loads
 
 from editor.utils import db_export
 from editor.utils import db_import
+from editor.utils.db_portability import PortabilityIssue
 from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.models import ReadingNote
@@ -667,6 +668,16 @@ def test_ambiguous_legacy_concept_in_archive_blocks_before_writes(
         "Legacy Concept is absent or ambiguous" in item.reason
         for item in caught.value.report.catalog_conflicts
     )
+    assert caught.value.report.portability_issues == [
+        PortabilityIssue(
+            collection="concept_evidence_links",
+            evidence_link_id=documents["concept_evidence_links"][0]["evidence_link_id"],
+            concept_legacy_id="compactness",
+            concept_legacy_source="Topology",
+            cause="ambiguous",
+            matching_concepts=2,
+        )
+    ]
     assert all(collection.insert_calls == 0 for collection in destination.collections.values())
 
 
@@ -679,12 +690,23 @@ def test_export_rejects_dangling_evidence_without_publishing_zip(
     documents["concept_evidence_links"][0]["concept_legacy_id"] = "absent"
     out_dir = tmp_path / "backups"
 
-    with pytest.raises(ValueError, match="legacy Concept absent"):
+    with pytest.raises(ValueError, match="legacy Concept absent") as caught:
         db_export.export_database_to_zip(
             _mongo(_Database(documents)),
             out_dir,
             source_document_blob_store=SourceDocumentBlobStore(tmp_path / "origin-data"),
         )
+    assert isinstance(caught.value, db_export.PortabilityValidationError)
+    assert caught.value.issues == (
+        PortabilityIssue(
+            collection="concept_evidence_links",
+            evidence_link_id=documents["concept_evidence_links"][0]["evidence_link_id"],
+            concept_legacy_id="absent",
+            concept_legacy_source="Topology",
+            cause="absent",
+            matching_concepts=0,
+        ),
+    )
     assert list(out_dir.glob("*.zip")) == []
 
 
