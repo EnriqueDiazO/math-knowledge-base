@@ -16,11 +16,11 @@ from bson.json_util import dumps as bson_json_dumps
 from mathmongo.legacy_concept_aliases import LEGACY_CONCEPT_ALIAS_REGISTRY
 from mathmongo.legacy_concept_aliases import REGISTRY_SHA256
 from mathmongo.legacy_concept_aliases import Identity
-from mathmongo.source_catalog_migration.manifest import MANIFEST_COLLECTION
 
 MIGRATION_ID = "2026_07_28_canonicalize_bottcher_karlovich_curve_links"
 MIGRATION_TYPE = "legacy_concept_evidence_canonicalization"
 MIGRATION_CHECKSUM = "43ed779ebfaaf7a0b27fc502cb743f9bd97143e8cb2975a15990c75aa4c895e4"
+MIGRATION_MARKER_COLLECTION = "legacy_concept_migration_manifest"
 SOURCE = "BottcherKarlovich1997"
 
 EXPECTED_LINK_IDENTITIES: dict[str, Identity] = {
@@ -76,7 +76,7 @@ def _mapping_records() -> list[dict[str, str]]:
 
 
 def validate_legacy_curve_manifest(document: Mapping[str, Any]) -> dict[str, Any]:
-    """Validate the applied marker while preserving its portable payload."""
+    """Validate the applied marker while preserving its operational payload."""
     payload = dict(document)
     mongo_id = payload.pop("_id", MIGRATION_ID)
     required = {
@@ -161,9 +161,9 @@ def _rollback(
 ) -> bool:
     verified = True
     if marker is not None:
-        current = database[MANIFEST_COLLECTION].find_one({"_id": MIGRATION_ID})
+        current = database[MIGRATION_MARKER_COLLECTION].find_one({"_id": MIGRATION_ID})
         if current is not None and _hash(current) == _hash(marker):
-            result = database[MANIFEST_COLLECTION].delete_one(
+            result = database[MIGRATION_MARKER_COLLECTION].delete_one(
                 {"_id": MIGRATION_ID, "applied_at": marker["applied_at"]}
             )
             verified &= getattr(result, "deleted_count", 0) == 1
@@ -188,7 +188,7 @@ def apply_legacy_curve_migration(
     clock: Any = None,
 ) -> dict[str, Any]:
     """Restore two exact Concepts, validate six links, then persist one marker."""
-    existing = database[MANIFEST_COLLECTION].find_one({"_id": MIGRATION_ID})
+    existing = database[MIGRATION_MARKER_COLLECTION].find_one({"_id": MIGRATION_ID})
     if existing is not None:
         validate_legacy_curve_manifest(existing)
         _validate_links(database)
@@ -222,7 +222,7 @@ def apply_legacy_curve_migration(
             "links_modified": 0,
             "concepts_restored": len(inserted),
         }
-        database[MANIFEST_COLLECTION].insert_one(marker)
+        database[MIGRATION_MARKER_COLLECTION].insert_one(marker)
     except Exception as exc:
         if not _rollback(database, inserted, marker):
             raise LegacyCurveMigrationError("Migration failed and rollback was incomplete") from exc

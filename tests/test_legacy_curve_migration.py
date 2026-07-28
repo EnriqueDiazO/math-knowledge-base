@@ -13,10 +13,11 @@ from typing import Any
 import pytest
 from bson import ObjectId
 
+from editor.utils import db_import
 from editor.utils.db_portability import legacy_concept_portability_issues
+from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
 from mathmongo import legacy_curve_migration as migration
 from mathmongo.legacy_concept_aliases import normalize_legacy_concept_documents
-from mathmongo.source_catalog_migration.manifest import MANIFEST_COLLECTION
 
 FIXED = datetime(2026, 7, 28, 20, 0, tzinfo=timezone.utc)
 
@@ -118,7 +119,8 @@ def _fixture(monkeypatch: pytest.MonkeyPatch) -> tuple[_Database, list[dict]]:
         {
             "concepts": [{"_id": ObjectId(), "id": "unrelated", "source": "other"}],
             "concept_evidence_links": links,
-            MANIFEST_COLLECTION: [{"_id": "unrelated-marker"}],
+            "source_catalog_migration_manifest": [{"_id": "source-catalog-marker"}],
+            migration.MIGRATION_MARKER_COLLECTION: [{"_id": "unrelated-marker"}],
         }
     )
     return database, recovered
@@ -150,7 +152,11 @@ def test_restores_two_concepts_validates_six_links_and_marks_last(
     checks = {
         "concepts": result["concepts_restored"] == 2,
         "links": issues == (),
-        "marker": database.events[-1] == MANIFEST_COLLECTION,
+        "marker": (
+            database.events[-1] == migration.MIGRATION_MARKER_COLLECTION
+            and database["source_catalog_migration_manifest"].documents
+            == [{"_id": "source-catalog-marker"}]
+        ),
     }
     assert checks[postcondition]
 
@@ -168,6 +174,19 @@ def test_second_execution_is_noop(monkeypatch: pytest.MonkeyPatch) -> None:
     assert database.events == events
 
 
+def test_marker_is_operational_and_not_a_portable_source_catalog_manifest(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    database, recovered = _fixture(monkeypatch)
+    migration.apply_legacy_curve_migration(database, recovered, clock=lambda: FIXED)
+    marker = database[migration.MIGRATION_MARKER_COLLECTION].documents[1]
+
+    migration.validate_legacy_curve_manifest(marker)
+    assert migration.MIGRATION_MARKER_COLLECTION not in PORTABLE_EXTENDED_JSON_COLLECTIONS
+    with pytest.raises(ValueError, match="Source Catalog manifest"):
+        db_import._validate_portable_manifest(marker)
+
+
 @pytest.mark.parametrize("failure_at", (1, 2, 3))
 def test_partial_failure_rolls_back_without_marker(
     monkeypatch: pytest.MonkeyPatch,
@@ -181,7 +200,7 @@ def test_partial_failure_rolls_back_without_marker(
         migration.apply_legacy_curve_migration(database, recovered)
 
     assert database.snapshot() == snapshot
-    assert database[MANIFEST_COLLECTION].count_documents(
+    assert database[migration.MIGRATION_MARKER_COLLECTION].count_documents(
         {"_id": migration.MIGRATION_ID}
     ) == 0
 

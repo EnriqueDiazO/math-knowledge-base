@@ -41,8 +41,6 @@ from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.document_page_maps.models import DocumentPageMap
 from mathmongo.legacy_concept_aliases import LegacyConceptNormalization
 from mathmongo.legacy_concept_aliases import normalize_legacy_concept_documents
-from mathmongo.legacy_curve_migration import MIGRATION_TYPE as LEGACY_CURVE_MIGRATION_TYPE
-from mathmongo.legacy_curve_migration import validate_legacy_curve_manifest
 from mathmongo.paths import validate_mutable_path
 from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
@@ -375,12 +373,6 @@ def _restore_mongo_types(doc: dict, collection_name: str) -> dict:
                 )
 
     if collection_name == MANIFEST_COLLECTION:
-        if "applied_at" in doc:
-            doc["applied_at"] = _restore_iso_datetime(
-                doc["applied_at"],
-                collection_name=collection_name,
-                field_name="applied_at",
-            )
         errors = doc.get("errors")
         if isinstance(errors, list):
             for error in errors:
@@ -1379,11 +1371,6 @@ def _require_existing_documents_are_archive_subset(
 
 def _validate_portable_manifest(document: dict) -> dict:
     """Validate imported manifest authority without rewriting its original target."""
-    if document.get("migration_type") == LEGACY_CURVE_MIGRATION_TYPE:
-        try:
-            return validate_legacy_curve_manifest(document)
-        except (TypeError, ValueError) as exc:
-            raise ValueError("The imported Legacy Curve manifest is invalid") from exc
     payload = {key: value for key, value in document.items() if key != "_id"}
     try:
         manifest = MigrationManifest.model_validate(payload)
