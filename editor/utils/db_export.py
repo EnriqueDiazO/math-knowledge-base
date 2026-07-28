@@ -29,6 +29,9 @@ from mathkb_config import READING_SPACE_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathkb_config import SOURCE_DOCUMENT_COLLECTIONS
 from mathmongo.document_page_maps.models import DocumentPageMap
+from mathmongo.legacy_concept_aliases import REGISTRY_SHA256
+from mathmongo.legacy_concept_aliases import LegacyConceptNormalization
+from mathmongo.legacy_concept_aliases import normalize_legacy_concept_documents
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
@@ -673,6 +676,8 @@ def export_database_to_zip(
         "collection_encodings": {},
         "media_files": {},
         "source_document_blobs": {},
+        "legacy_concept_registry_sha256": REGISTRY_SHA256,
+        "legacy_concept_normalizations": [],
     }
 
     anonymous_descriptor: int | None = None
@@ -708,11 +713,23 @@ def export_database_to_zip(
         raw_sources: list[dict] = []
         raw_references: list[dict] = []
         raw_concepts: list[dict] = []
+        legacy_normalizations: list[LegacyConceptNormalization] = []
         for collection_name in collection_names:
             _raise_if_timed_out(started_at, EXPORT_TIMEOUT_SECONDS, f"reading {collection_name}")
             collection_started_at = time.monotonic()
             cursor = db[collection_name].find({}).max_time_ms(EXPORT_TIMEOUT_SECONDS * 1000)
             raw_docs = list(cursor)
+            if collection_name in {
+                "concepts",
+                "concept_evidence_links",
+                "relations",
+            }:
+                normalized, transformations = normalize_legacy_concept_documents(
+                    collection_name,
+                    raw_docs,
+                )
+                raw_docs = list(normalized)
+                legacy_normalizations.extend(transformations)
             metadata["collections"][collection_name] = len(raw_docs)
 
             if collection_name == "sources":
@@ -766,6 +783,18 @@ def export_database_to_zip(
                 len(raw_docs),
                 time.monotonic() - collection_started_at,
             )
+
+        metadata["legacy_concept_normalizations"] = [
+            {
+                "collection": item.collection,
+                "record_id": item.record_id,
+                "legacy_id": item.legacy_identity[0],
+                "legacy_source": item.legacy_identity[1],
+                "canonical_id": item.canonical_identity[0],
+                "canonical_source": item.canonical_identity[1],
+            }
+            for item in legacy_normalizations
+        ]
 
         _validate_source_document_identities(source_documents)
         _validate_reading_state_portability(reading_states, source_documents)

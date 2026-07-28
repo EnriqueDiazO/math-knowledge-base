@@ -17,7 +17,9 @@ from bson.json_util import loads as bson_json_loads
 
 from editor.utils import db_export
 from editor.utils import db_import
+from editor.utils import db_update
 from editor.utils.db_portability import PortabilityIssue
+from mathmongo import legacy_concept_aliases
 from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.models import ReadingNote
@@ -927,3 +929,82 @@ def test_s5b_relationship_preflight_accepts_a_valid_historical_pdf_version() -> 
     )
 
     assert report.catalog_conflicts == []
+
+
+def test_legacy_zip_is_normalized_before_import_and_update_preflight(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_backup(monkeypatch, tmp_path)
+    legacy = ("legacy-curve", "LegacySource")
+    canonical = ("canonical-curve", "CanonicalSource")
+    monkeypatch.setattr(
+        legacy_concept_aliases,
+        "LEGACY_CONCEPT_ALIAS_REGISTRY",
+        {legacy: (canonical,)},
+    )
+    archive = tmp_path / "legacy-alias.zip"
+    original_id = ObjectId("697000000000000000000099")
+    _write_archive(
+        archive,
+        {
+            "concepts": [
+                {
+                    "_id": original_id,
+                    "id": legacy[0],
+                    "source": legacy[1],
+                    "title": "Exact legacy fixture",
+                }
+            ]
+        },
+    )
+    destination = _Database({"concepts": []})
+
+    first = db_import.import_zip_into_database(archive, _mongo(destination))
+    second = db_import.import_zip_into_database(archive, _mongo(destination))
+    loaded = db_update._load_archive(archive)
+
+    assert len(first.legacy_concept_normalizations) == 1
+    assert destination["concepts"].documents[0]["id"] == canonical[0]
+    assert destination["concepts"].documents[0]["source"] == canonical[1]
+    assert second.legacy_inserted == {}
+    assert second.legacy_identical["concepts"] == 1
+    assert len(destination["concepts"].documents) == 1
+    assert loaded.collections["concepts"][0]["id"] == canonical[0]
+    assert len(loaded.legacy_concept_normalizations) == 1
+
+
+def test_canonical_zip_is_unchanged_by_import_and_update_normalization(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _configure_backup(monkeypatch, tmp_path)
+    legacy = ("legacy-curve", "LegacySource")
+    canonical = ("canonical-curve", "CanonicalSource")
+    monkeypatch.setattr(
+        legacy_concept_aliases,
+        "LEGACY_CONCEPT_ALIAS_REGISTRY",
+        {legacy: (canonical,)},
+    )
+    archive = tmp_path / "canonical-alias.zip"
+    _write_archive(
+        archive,
+        {
+            "concepts": [
+                {
+                    "_id": ObjectId("697000000000000000000098"),
+                    "id": canonical[0],
+                    "source": canonical[1],
+                    "title": "Canonical fixture",
+                }
+            ]
+        },
+    )
+    destination = _Database({"concepts": []})
+
+    report = db_import.import_zip_into_database(archive, _mongo(destination))
+    loaded = db_update._load_archive(archive)
+
+    assert report.legacy_concept_normalizations == []
+    assert loaded.legacy_concept_normalizations == ()
+    assert loaded.collections["concepts"][0]["id"] == canonical[0]

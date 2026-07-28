@@ -39,6 +39,10 @@ from mathkb_config import PORTABLE_EXTENDED_JSON_COLLECTIONS
 from mathkb_config import READING_ANNOTATION_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.document_page_maps.models import DocumentPageMap
+from mathmongo.legacy_concept_aliases import LegacyConceptNormalization
+from mathmongo.legacy_concept_aliases import normalize_legacy_concept_documents
+from mathmongo.legacy_curve_migration import MIGRATION_TYPE as LEGACY_CURVE_MIGRATION_TYPE
+from mathmongo.legacy_curve_migration import validate_legacy_curve_manifest
 from mathmongo.paths import validate_mutable_path
 from mathmongo.reading_annotations.models import ConceptEvidenceLink
 from mathmongo.reading_annotations.models import DocumentAnnotation
@@ -115,6 +119,9 @@ class DatabaseImportReport:
     catalog_identical: dict[str, int] = field(default_factory=dict)
     catalog_conflicts: list[CatalogImportConflict] = field(default_factory=list)
     portability_issues: list[PortabilityIssue] = field(default_factory=list)
+    legacy_concept_normalizations: list[LegacyConceptNormalization] = field(
+        default_factory=list
+    )
     legacy_inserted: dict[str, int] = field(default_factory=dict)
     legacy_identical: dict[str, int] = field(default_factory=dict)
     source_document_blobs_created: int = 0
@@ -368,6 +375,12 @@ def _restore_mongo_types(doc: dict, collection_name: str) -> dict:
                 )
 
     if collection_name == MANIFEST_COLLECTION:
+        if "applied_at" in doc:
+            doc["applied_at"] = _restore_iso_datetime(
+                doc["applied_at"],
+                collection_name=collection_name,
+                field_name="applied_at",
+            )
         errors = doc.get("errors")
         if isinstance(errors, list):
             for error in errors:
@@ -1366,6 +1379,11 @@ def _require_existing_documents_are_archive_subset(
 
 def _validate_portable_manifest(document: dict) -> dict:
     """Validate imported manifest authority without rewriting its original target."""
+    if document.get("migration_type") == LEGACY_CURVE_MIGRATION_TYPE:
+        try:
+            return validate_legacy_curve_manifest(document)
+        except (TypeError, ValueError) as exc:
+            raise ValueError("The imported Legacy Curve manifest is invalid") from exc
     payload = {key: value for key, value in document.items() if key != "_id"}
     try:
         manifest = MigrationManifest.model_validate(payload)
@@ -1403,6 +1421,12 @@ def _prepare_catalog_import(
             collection_name=collection_name,
             encodings=encodings,
         )
+        if collection_name == "concept_evidence_links":
+            raw_documents, transformations = normalize_legacy_concept_documents(
+                collection_name,
+                raw_documents,
+            )
+            report.legacy_concept_normalizations.extend(transformations)
 
         id_field = _PORTABLE_ID_FIELDS[collection_name]
         seen: dict[str, dict] = {}
@@ -2522,6 +2546,16 @@ def import_zip_into_database(
                 collection_members,
                 encodings=encodings,
             )
+            for collection_name in ("concepts", "relations"):
+                documents = legacy_documents.get(collection_name)
+                if documents is None:
+                    continue
+                normalized, transformations = normalize_legacy_concept_documents(
+                    collection_name,
+                    documents,
+                )
+                legacy_documents[collection_name] = list(normalized)
+                report.legacy_concept_normalizations.extend(transformations)
             catalog_pending = _prepare_catalog_import(
                 zf,
                 names,

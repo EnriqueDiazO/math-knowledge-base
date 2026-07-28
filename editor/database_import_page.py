@@ -230,6 +230,11 @@ def _render_plan(ui: Any, plan: DatabaseUpdatePlan) -> dict[str, ConflictPolicy 
         f"Blobs PDF: {totals['blobs_new']} nuevos, {totals['blobs_existing']} presentes. "
         f"Medios: {totals['media_new']} nuevos, {totals['media_existing']} presentes."
     )
+    if plan.legacy_concept_normalizations:
+        ui.info(
+            "Aliases legacy normalizados en memoria antes del preflight: "
+            f"{len(plan.legacy_concept_normalizations)}"
+        )
     for warning in plan.warnings:
         ui.warning(warning)
     for message in _summarize_blocking_issues(plan.blocking_issues):

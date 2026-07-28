@@ -57,6 +57,7 @@ plan = DatabaseUpdatePlan(
     ),
     actions=(),
     blocking_issues=(),
+    legacy_concept_normalizations=(),
     warnings=("future_collection: colección no administrada; no se crearán índices",),
     blob_plans=(),
     media_plans=(),

@@ -36,6 +36,8 @@ from mathkb_config import READING_ANNOTATION_COLLECTIONS
 from mathkb_config import SOURCE_CATALOG_COLLECTIONS
 from mathmongo.document_page_maps.indexes import DocumentPageMapIndexManager
 from mathmongo.document_page_maps.models import DocumentPageMap
+from mathmongo.legacy_concept_aliases import LegacyConceptNormalization
+from mathmongo.legacy_concept_aliases import normalize_legacy_concept_documents
 from mathmongo.paths import get_backups_dir
 from mathmongo.paths import validate_mutable_path
 from mathmongo.reading_annotations.indexes import ReadingAnnotationIndexManager
@@ -48,7 +50,6 @@ from mathmongo.source_catalog.indexes import SourceCatalogIndexManager
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog_migration.manifest import MANIFEST_COLLECTION
-from mathmongo.source_catalog_migration.manifest import MigrationManifest
 from mathmongo.source_catalog_migration.zip_reader import FileIdentity
 from mathmongo.source_catalog_migration.zip_reader import ZipSafetyLimits
 from mathmongo.source_catalog_migration.zip_reader import ZipValidationError
@@ -223,6 +224,7 @@ class DatabaseUpdatePlan:
     collection_plans: tuple[CollectionUpdatePlan, ...]
     actions: tuple[DocumentAction, ...] = field(repr=False)
     blocking_issues: tuple[UpdateIssue, ...]
+    legacy_concept_normalizations: tuple[LegacyConceptNormalization, ...]
     warnings: tuple[str, ...]
     blob_plans: tuple[BlobUpdatePlan, ...] = field(repr=False)
     media_plans: tuple[MediaUpdatePlan, ...] = field(repr=False)
@@ -374,6 +376,7 @@ class _LoadedArchive:
     collections: Mapping[str, tuple[Any, ...]]
     media: Mapping[Path, bytes]
     blobs: Mapping[str, bytes]
+    legacy_concept_normalizations: tuple[LegacyConceptNormalization, ...]
 
 
 @dataclass(slots=True)
@@ -678,6 +681,7 @@ def _load_archive(zip_path: Path) -> _LoadedArchive:
         members = _collection_members(names, base_dir=base_dir)
         declared_counts, encodings = _parse_metadata(metadata, collection_members=members)
         collections: dict[str, tuple[Any, ...]] = {}
+        legacy_normalizations: list[LegacyConceptNormalization] = []
         for collection, member_name in members.items():
             encoding = encodings.get(collection, JSON_ENCODING)
             documents = _decode_collection(
@@ -687,6 +691,16 @@ def _load_archive(zip_path: Path) -> _LoadedArchive:
             )
             if len(documents) != declared_counts[collection]:
                 raise ValueError("metadata count does not match a collection file")
+            if collection in {
+                "concepts",
+                "concept_evidence_links",
+                "relations",
+            }:
+                documents, transformations = normalize_legacy_concept_documents(
+                    collection,
+                    documents,
+                )
+                legacy_normalizations.extend(transformations)
             collections[collection] = documents
 
         media: dict[Path, bytes] = {}
@@ -711,6 +725,7 @@ def _load_archive(zip_path: Path) -> _LoadedArchive:
         collections=collections,
         media=media,
         blobs=blobs,
+        legacy_concept_normalizations=tuple(legacy_normalizations),
     )
 
 
@@ -889,7 +904,7 @@ def _validate_document(
     payload = {key: value for key, value in document.items() if key != "_id"}
     try:
         if collection == MANIFEST_COLLECTION:
-            validated = MigrationManifest.model_validate(payload).model_dump(mode="python")
+            validated = db_import._validate_portable_manifest(document)
             if document.get("_id") != validated.get("manifest_key"):
                 return document, "Manifest _id must equal manifest_key"
         elif collection in _PORTABLE_MODELS:
@@ -1460,6 +1475,7 @@ def _plan_fingerprint(
     issues: list[UpdateIssue],
     blob_plans: list[BlobUpdatePlan],
     media_plans: list[MediaUpdatePlan],
+    legacy_normalizations: tuple[LegacyConceptNormalization, ...],
 ) -> str:
     payload = {
         "target": target_database,
@@ -1502,6 +1518,15 @@ def _plan_fingerprint(
         ],
         "blobs": [(item.prepared.sha256, item.exists) for item in blob_plans],
         "media": [(item.relative_path.as_posix(), item.exists) for item in media_plans],
+        "legacy_normalizations": [
+            (
+                item.collection,
+                item.record_id,
+                item.legacy_identity,
+                item.canonical_identity,
+            )
+            for item in legacy_normalizations
+        ],
     }
     return hashlib.sha256(_canonical(payload).encode("utf-8")).hexdigest()
 
@@ -1655,6 +1680,7 @@ def analyze_database_update(
         issues=issues,
         blob_plans=blob_plans,
         media_plans=media_plans,
+        legacy_normalizations=loaded.legacy_concept_normalizations,
     )
     archive_database = loaded.metadata.get("database_name")
     return DatabaseUpdatePlan(
@@ -1665,6 +1691,7 @@ def analyze_database_update(
         collection_plans=tuple(collection_plans),
         actions=tuple(actions),
         blocking_issues=tuple(issues),
+        legacy_concept_normalizations=loaded.legacy_concept_normalizations,
         warnings=warnings,
         blob_plans=tuple(blob_plans),
         media_plans=tuple(media_plans),
