@@ -31,7 +31,6 @@ import streamlit.components.v1 as components
 from bson import ObjectId
 from pdf_export import analizar_tex_nota_latex_con_chktex
 from pdf_export import generar_pdf_nota_latex_result
-from pdf_export import generar_tex_nota_latex
 from pdf_export import generar_y_abrir_pdf_nota_latex_desde_formulario
 from pdf_export import render_chktex_result
 from pdf_export import render_pdf_export_error
@@ -46,9 +45,11 @@ from editor.helpers.managed_source_selection import can_save_with_managed_source
 from editor.helpers.managed_source_selection import load_active_sources
 from editor.helpers.managed_source_selection import resolve_active_source
 from editor.helpers.managed_source_selection import source_labels
+from editor.latex_bundle import DOWNLOAD_LABEL
+from editor.latex_bundle import latex_project_download_options
 from editor.note_export import NoteExportError
+from editor.note_export import build_note_latex_bundle
 from editor.note_export import export_note_pdf
-from editor.note_export import export_note_tex
 from editor.note_export import normalized_note_format
 from editor.note_export import note_format_badge
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
@@ -841,6 +842,36 @@ def _render_compact_note_rows(notes_col, notes: List[Dict[str, Any]], key_prefix
             st.rerun()
 
 
+def _cached_note_latex_bundle(
+    note: Dict[str, Any],
+    *,
+    db: Any,
+    cache_key: str,
+    chktex_report: object | None = None,
+    diagnostics: Dict[str, Any] | None = None,
+):
+    """Keep a per-session bundle only while its note/diagnostic inputs match."""
+    marker_payload = {
+        "note": note,
+        "chktex": chktex_report,
+        "diagnostics": diagnostics or {},
+    }
+    marker = hashlib.sha256(
+        repr(marker_payload).encode("utf-8", errors="replace")
+    ).hexdigest()
+    cached = st.session_state.get(cache_key)
+    if isinstance(cached, dict) and cached.get("marker") == marker:
+        return cached["bundle"]
+    bundle = build_note_latex_bundle(
+        note,
+        db=db,
+        chktex_report=chktex_report,
+        diagnostics=diagnostics,
+    )
+    st.session_state[cache_key] = {"marker": marker, "bundle": bundle}
+    return bundle
+
+
 def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader") -> None:
     note = _find_one_by_id(notes_col, note_id)
     if not note:
@@ -878,15 +909,19 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
             _select_note(note_id, "edit")
             st.rerun()
     with c2:
+        bundle = _cached_note_latex_bundle(
+            note,
+            db=notes_col.database,
+            cache_key=f"{key_prefix}_latex_bundle_{note_id}",
+            diagnostics=pdf_payload.get("diagnostics") if pdf_payload else None,
+        )
         st.download_button(
-            "Descargar TEX",
-            data=generar_tex_nota_latex(note),
-            file_name=f"latex_note_{note_id}.tex",
-            mime="text/x-tex",
+            DOWNLOAD_LABEL,
+            **latex_project_download_options(bundle),
             key=f"{key_prefix}_latex_{note_id}",
         )
     with c3:
-        if pdf_payload:
+        if pdf_payload and pdf_payload.get("data"):
             _render_pdf_diagnostics(pdf_payload.get("diagnostics"))
             st.download_button(
                 "Descargar PDF",
@@ -909,6 +944,10 @@ def _render_note_reader(notes_col, note_id: str, key_prefix: str = "diary_reader
                 }
                 st.rerun()
             except Exception as exc:
+                st.session_state[pdf_state_key] = {
+                    "marker": pdf_marker,
+                    "diagnostics": getattr(exc, "diagnostic", {}),
+                }
                 render_pdf_export_error(
                     exc,
                     main_message="❌ No se pudo generar el PDF.",
@@ -1393,25 +1432,33 @@ def _render_diary_exports(notes_col) -> None:
         if chktex_data:
             render_chktex_result(chktex_data, expanded=True)
     with e2:
-        if st.button("Generar TEX", key=f"note_tex_gen_{nid}"):
+        if st.button("Preparar proyecto TEX", key=f"note_tex_gen_{nid}"):
             try:
-                tex_export = export_note_tex(note_doc, db=notes_col.database)
-                st.session_state[f"note_tex_{nid}"] = tex_export.tex
-                st.session_state[f"note_tex_file_{nid}"] = tex_export.file_name
-                st.success("✅ TEX listo para descargar.")
+                bundle = _cached_note_latex_bundle(
+                    note_doc,
+                    db=notes_col.database,
+                    cache_key=f"note_tex_bundle_{nid}",
+                    chktex_report=st.session_state.get(f"note_chktex_{nid}"),
+                    diagnostics=st.session_state.get(f"note_pdf_diagnostics_{nid}"),
+                )
+                st.session_state[f"note_tex_{nid}"] = bundle
+                st.success("✅ Proyecto TEX listo para descargar.")
             except ValueError as exc:
                 st.error(str(exc))
             except Exception as exc:
                 render_pdf_export_error(
                     exc,
-                    main_message="❌ No se pudo generar el TEX.",
+                    main_message="❌ No se pudo preparar el proyecto TEX.",
                     fallback_stage="Generar contenido LaTeX",
                     fallback_operation="Construcción de documento TEX",
                 )
-        tex_data = st.session_state.get(f"note_tex_{nid}")
-        if tex_data:
-            tex_file_name = st.session_state.get(f"note_tex_file_{nid}") or f"latex_note_{nid}.tex"
-            st.download_button("Descargar TEX", data=tex_data, file_name=tex_file_name, mime="text/x-tex", key=f"note_tex_dl_{nid}")
+        bundle = st.session_state.get(f"note_tex_{nid}")
+        if bundle:
+            st.download_button(
+                DOWNLOAD_LABEL,
+                **latex_project_download_options(bundle),
+                key=f"note_tex_dl_{nid}",
+            )
     with e3:
         if st.button("Generar PDF", key=f"note_pdf_gen_{nid}"):
             try:
@@ -1424,6 +1471,7 @@ def _render_diary_exports(notes_col) -> None:
                     render_chktex_result(pdf_export.diagnostics.get("chktex"), expanded=False)
                 st.success("✅ PDF listo para descargar.")
             except NoteExportError as exc:
+                st.session_state[f"note_pdf_diagnostics_{nid}"] = exc.diagnostics
                 st.error(str(exc))
                 full_log = exc.diagnostics.get("log_text") or exc.diagnostics.get("log_excerpt")
                 if full_log:
@@ -1432,6 +1480,9 @@ def _render_diary_exports(notes_col) -> None:
             except ValueError as exc:
                 st.error(str(exc))
             except Exception as exc:
+                diagnostic = getattr(exc, "diagnostic", None)
+                if isinstance(diagnostic, dict):
+                    st.session_state[f"note_pdf_diagnostics_{nid}"] = diagnostic
                 render_pdf_export_error(
                     exc,
                     main_message="❌ No se pudo generar el PDF.",

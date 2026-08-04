@@ -469,6 +469,14 @@ def _write_readme(project_dir: Path) -> None:
     )
 
 
+def _write_shared_macros(project_dir: Path) -> None:
+    """Copy the shared MathMongo macro registry used by project masters."""
+    source = PROJECT_ROOT / "templates_latex" / "mathmongo-macros.sty"
+    if not source.is_file():
+        raise FileNotFoundError(f"MathMongo macro registry not found: {source}")
+    shutil.copyfile(source, project_dir / source.name)
+
+
 def _zip_project(project_dir: Path) -> Path:
     project_dir = validate_mutable_path(project_dir)
     zip_path = validate_mutable_path(
@@ -569,6 +577,7 @@ def export_cornell_project(
         document,
         asset_manifest=asset_manifest,
     )
+    _write_shared_macros(project_dir)
     _write_region_templates(project_dir, asset_paths_by_id=asset_paths)
     _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
     _write_region_masters(project_dir, pages)

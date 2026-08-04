@@ -279,6 +279,10 @@ def generate_cpi_tex(
 def _prepare_output_dir(output_dir: str | Path) -> Path:
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
+    macro_source = PROJECT_ROOT / "templates_latex" / "mathmongo-macros.sty"
+    macro_destination = output_path / macro_source.name
+    if macro_source.is_file() and not macro_destination.exists():
+        macro_destination.write_bytes(macro_source.read_bytes())
     return output_path
 
 

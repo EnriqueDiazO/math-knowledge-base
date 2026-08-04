@@ -80,6 +80,14 @@ def _write_template_reference(project_dir: Path) -> None:
     shutil.copyfile(TEMPLATE_PATH, templates_dir / TEMPLATE_PATH.name)
 
 
+def _write_shared_macros(project_dir: Path) -> None:
+    """Copy the macro registry required by the generated CPI preamble."""
+    source = TEMPLATE_PATH.parent / "mathmongo-macros.sty"
+    if not source.is_file():
+        raise FileNotFoundError(f"MathMongo macro registry not found: {source}")
+    shutil.copyfile(source, project_dir / source.name)
+
+
 def _write_page_content(
     project_dir: Path,
     pages: tuple[CpiPage, ...],
@@ -285,6 +293,7 @@ def export_cpi_project(
         asset_manifest=asset_manifest,
     )
     _write_template_reference(project_dir)
+    _write_shared_macros(project_dir)
     _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
     fit_report = _measure_project_fit(project_dir, document, asset_paths_by_id=asset_paths)
     if fit_report.has_overflow:

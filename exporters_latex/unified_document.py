@@ -5,16 +5,21 @@ from __future__ import annotations
 import re
 import shutil
 import unicodedata
+from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 from typing import Any
 
+from editor.latex_bundle import DEFAULT_ENGINE
+from editor.latex_bundle import LatexBundleAsset
+from editor.latex_bundle import LatexBundleResult
+from editor.latex_bundle import build_latex_project_bundle
+from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import latex_failure_message
 from exporters_latex.latex_compile import latex_warning_message
 from exporters_latex.latex_compile import output_tail
 from exporters_latex.latex_compile import run_latex_until_stable
-from editor.utils.media_assets import copy_media_tree_for_latex
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 from mathmongo.config import resolve_config
@@ -22,7 +27,6 @@ from mathmongo.paths import find_symlink_component
 from mathmongo.paths import get_exports_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
-
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATES_DIR = PROJECT_ROOT / "templates_latex"
@@ -231,6 +235,8 @@ def build_master_tex(
         r"\usepackage{miestilo}",
         r"\usepackage{coloredtheorem}",
         r"\usepackage{graphicx}",
+        r"\usepackage{mathmongo-macros}",
+        r"\InputIfFileExists{user_macros.tex}{}{}",
         "",
         r"\title{" + latex_escape_text(title) + "}",
         r"\date{\today}",
@@ -284,6 +290,95 @@ def detect_probable_error_file(log_tail: str) -> str | None:
     if matches:
         return matches[-1]
     return None
+
+
+def _referenced_graphics(tex_sources: Mapping[str, str]) -> list[str]:
+    references: list[str] = []
+    pattern = re.compile(r"\\includegraphics(?:\[[^\]]*\])?\{([^}]+)\}")
+    for source in tex_sources.values():
+        references.extend(pattern.findall(source))
+    return list(dict.fromkeys(references))
+
+
+def _bundle_graphic_assets(output_dir: Path, tex_sources: Mapping[str, str]) -> list[LatexBundleAsset]:
+    """Recover only graphics that are actually referenced by the unified TEX."""
+    assets: list[LatexBundleAsset] = []
+    for reference in _referenced_graphics(tex_sources):
+        path = Path(reference)
+        candidates = [path]
+        if not path.suffix:
+            candidates.extend(path.with_suffix(suffix) for suffix in (".png", ".jpg", ".jpeg", ".pdf"))
+        selected = None
+        for candidate in candidates:
+            if candidate.is_absolute() or ".." in candidate.parts:
+                continue
+            current = output_dir / candidate
+            if current.is_file() and not current.is_symlink():
+                selected = current
+                break
+        if selected is None:
+            assets.append(LatexBundleAsset(data=None, source_path=reference, filename=path.name))
+            continue
+        assets.append(
+            LatexBundleAsset(
+                data=selected.read_bytes(),
+                source_path=reference,
+                filename=selected.name,
+            )
+        )
+    return assets
+
+
+def build_unified_document_bundle(
+    result: UnifiedExportResult,
+    *,
+    source: str,
+    title: str,
+) -> LatexBundleResult:
+    """Bundle a generated modular document whether or not PDF compilation worked."""
+    master_tex = result.master_tex_path.read_text(encoding="utf-8")
+    fragments = {
+        path.relative_to(result.output_dir).as_posix(): path.read_text(encoding="utf-8")
+        for path in sorted(result.concepts_dir.glob("*.tex"))
+        if path.is_file() and not path.is_symlink()
+    }
+    tex_sources = {"main.tex": master_tex, **fragments}
+    styles = {
+        path.name: path.read_bytes()
+        for path in sorted(result.output_dir.glob("*.sty"))
+        if path.is_file() and not path.is_symlink()
+    }
+    styles.update(
+        {
+            path.name: path.read_bytes()
+            for path in sorted(result.output_dir.glob("*.cls"))
+            if path.is_file() and not path.is_symlink()
+        }
+    )
+    log_text = ""
+    if result.latex_log_path and result.latex_log_path.is_file():
+        log_text = result.latex_log_path.read_text(encoding="utf-8", errors="replace")
+    diagnostics = {
+        "engine": DEFAULT_ENGINE,
+        "status": "success" if result.success else "failed",
+        "first_latex_error": result.errors[0] if result.errors else "",
+        "reported_line": result.probable_error_file or "",
+        "pdf_generated": bool(result.pdf_path and result.pdf_path.exists()),
+        "pdf_valid": bool(result.success and result.pdf_path and result.pdf_path.exists()),
+    }
+    return build_latex_project_bundle(
+        main_tex=master_tex,
+        raw_body="\n".join(fragments.values()),
+        metadata={"title": title, "source": source, "warnings": result.warnings, "errors": result.errors},
+        project_styles=styles,
+        images=_bundle_graphic_assets(result.output_dir, tex_sources),
+        additional_assets=fragments,
+        latex_log=log_text,
+        compilation_summary=diagnostics,
+        source_type="unified_document",
+        source_id=source,
+        title=title,
+    )
 
 
 def export_unified_document_with_inputs(

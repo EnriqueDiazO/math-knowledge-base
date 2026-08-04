@@ -160,6 +160,7 @@ def cornell_standalone_preamble(
             \usepackage[paperwidth={paper_width},paperheight={paper_height},margin=0in]{{geometry}}
             \usepackage{{amsmath,amssymb,amsfonts}}
             \usepackage{{graphicx}}
+            \usepackage{{mathmongo-macros}}
             \usepackage{{adjustbox}}
             \usepackage[dvipsnames,svgnames]{{xcolor}}
             \usepackage{{tikz}}
@@ -173,6 +174,7 @@ def cornell_standalone_preamble(
         + dedent(
             r"""
         \usepackage{hyperref}
+        \InputIfFileExists{user_macros.tex}{}{}
         \pagestyle{empty}
         \setlength{\parindent}{0pt}
         \setlength{\parskip}{4pt}

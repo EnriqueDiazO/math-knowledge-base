@@ -762,7 +762,9 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
     if template == "diario":
         latex_doc = r"""\documentclass[12pt,letterpaper]{notes}
 \usepackage{graphicx}
+\usepackage{mathmongo-macros}
 \providecommand{\Inv}{\mathrm{Inv}}
+\InputIfFileExists{user_macros.tex}{}{}
 \begin{document}
 
 """
@@ -794,7 +796,9 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
 \usepackage{miestilo}
 \usepackage{coloredtheorem}
 \usepackage{graphicx}
+\usepackage{mathmongo-macros}
 \providecommand{\Inv}{\mathrm{Inv}}
+\InputIfFileExists{user_macros.tex}{}{}
 \begin{document}
 
 """
@@ -1003,11 +1007,11 @@ def _generar_latex_content(concepto: Dict) -> str:
 
 def _copiar_archivos_estilo(destino: Path) -> None:
     """
-    Copy style files (miestilo.sty, coloredtheorem.sty) to the destination directory.
+    Copy project-owned styles needed by generated documents to the destination.
     Same as ExportadorLatex._copiar_plantillas method.
     """
     # Define style files to copy (same as ExportadorLatex)
-    archivos_plantilla = ("miestilo.sty", "coloredtheorem.sty")
+    archivos_plantilla = ("miestilo.sty", "coloredtheorem.sty", "mathmongo-macros.sty")
     
     # Templates directory (same as ExportadorLatex)
     templates_dir = Path(__file__).parent.parent / "templates_latex"

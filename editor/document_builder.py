@@ -6,6 +6,8 @@ from typing import Any
 import streamlit as st
 
 from editor.database_scope import sync_document_builder_scope
+from editor.latex_bundle import DOWNLOAD_LABEL
+from editor.latex_bundle import latex_project_download_options
 from exporters_latex.concept_ordering import concept_key
 from exporters_latex.concept_ordering import order_by_date
 from exporters_latex.concept_ordering import order_by_graph
@@ -14,6 +16,7 @@ from exporters_latex.concept_ordering import order_by_type
 from exporters_latex.exportadorlatex import ExportadorLatex
 from exporters_latex.latex_validation import validate_selected_concepts_from_mongo
 from exporters_latex.latex_validation import validate_source_from_mongo
+from exporters_latex.unified_document import build_unified_document_bundle
 from mathmongo.config import resolve_config
 from mathmongo.paths import get_exports_dir
 
@@ -538,11 +541,14 @@ def render_document_builder_page(
                 st.code(result.log_tail)
 
         if result.master_tex_path.exists():
+            bundle = build_unified_document_bundle(
+                result,
+                source=source,
+                title=source,
+            )
             st.download_button(
-                "Descargar master .tex",
-                data=result.master_tex_path.read_text(encoding="utf-8"),
-                file_name=result.master_tex_path.name,
-                mime="text/plain",
+                DOWNLOAD_LABEL,
+                **latex_project_download_options(bundle),
                 key=_builder_state_key("download_master"),
             )
         if result.pdf_path and Path(result.pdf_path).exists():

@@ -255,6 +255,10 @@ def _prepare_output_dir(
     assets_path = output_path / ASSETS_DIRNAME
     assets_path.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(HISTORICAL_LINES_IMAGE, assets_path / LINES_IMAGE_FILENAME)
+    shutil.copyfile(
+        PROJECT_ROOT / "templates_latex" / "mathmongo-macros.sty",
+        output_path / "mathmongo-macros.sty",
+    )
     image_paths = {}
     if document is not None:
         image_paths = prepare_cornell_image_assets(

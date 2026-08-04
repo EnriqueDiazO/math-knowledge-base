@@ -12,6 +12,7 @@
 ]{geometry}
 \usepackage{amsmath,amssymb,amsfonts}
 \usepackage{graphicx}
+\usepackage{mathmongo-macros}
 \usepackage{adjustbox}
 \usepackage[dvipsnames,svgnames]{xcolor}
 \usepackage{tikz}
@@ -21,6 +22,7 @@ ${svg_package}
 ${snippet_compat}
 
 \usepackage{hyperref}
+\InputIfFileExists{user_macros.tex}{}{}
 \pagestyle{empty}
 \setlength{\parindent}{0pt}
 \setlength{\parskip}{4pt}
