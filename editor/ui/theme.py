@@ -127,7 +127,7 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
   color: %(muted_text)s !important;
   opacity: 1 !important;
 }
-"""
+""" % tokens
     ui.html(
         """
 <style id="mathmongo-session-theme">

@@ -29,6 +29,8 @@ def test_light_theme_uses_dark_text_for_supporting_ui_copy() -> None:
     assert '[data-testid="stCaptionContainer"]' in ui.markup
     assert "opacity: 1 !important;" in ui.markup
     assert "#17242A" in ui.markup
+    assert "%(text)s" not in ui.markup
+    assert "%(muted_text)s" not in ui.markup
 
 
 def test_dark_theme_tokens_and_chart_layout_remain_unchanged() -> None:
