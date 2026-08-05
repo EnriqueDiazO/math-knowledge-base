@@ -8,6 +8,9 @@ import sys
 from collections.abc import Sequence
 
 from mathmongo import __version__
+from mathmongo.academic_cli.catalog import install_catalog_commands
+from mathmongo.academic_cli.common import AcademicCliError
+from mathmongo.academic_cli.documents import install_document_commands
 from mathmongo.config import active_database_diagnostic
 from mathmongo.config import resolve_config
 from mathmongo.config import sanitize_mongo_error
@@ -53,7 +56,10 @@ def _add_runtime_options(parser: argparse.ArgumentParser) -> None:
 
 def build_parser() -> argparse.ArgumentParser:
     """Build the CLI parser without importing Streamlit or connecting to MongoDB."""
-    parser = argparse.ArgumentParser(prog="mathmongo", description="Inicia la aplicación MathMongo.")
+    parser = argparse.ArgumentParser(
+        prog="mathmongo",
+        description="Controla el runtime y las operaciones académicas seguras de MathMongo.",
+    )
     parser.add_argument("--version", action="version", version=f"%(prog)s {__version__}")
     _add_run_options(parser)
     subparsers = parser.add_subparsers(dest="command")
@@ -98,6 +104,8 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Permite SIGKILL sólo tras un cierre SIGTERM fallido del runtime confirmado.",
     )
+    install_catalog_commands(subparsers)
+    install_document_commands(subparsers)
     return parser
 
 
@@ -175,6 +183,13 @@ def _run_runtime_command(args: argparse.Namespace, config) -> int:
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and translate expected launch failures into exit code 1."""
     args = build_parser().parse_args(argv)
+    handler = getattr(args, "academic_handler", None)
+    if handler is not None:
+        try:
+            return int(handler(args))
+        except AcademicCliError as exc:
+            print(f"Error: {exc}", file=sys.stderr)
+            return int(exc.code)
     settings = resolve_config(
         explicit={
             "streamlit_address": getattr(args, "address", None),
