@@ -26,7 +26,7 @@ def test_make_defaults_and_unified_run_cli_contract() -> None:
     recipe = _target_recipe(source, "run")
 
     assert re.search(r"(?m)^DATABASE\s*\?=\s*MathV0\s*$", source)
-    assert "$(RUNTIME_CLI) start $(RUNTIME_ARGS)" in recipe
+    assert "$(RUNTIME_CLI) run $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)" in recipe
     assert "mathdbmongo/bin/python -m mathmongo runtime" in source
     for option in (
         '--database "$(DATABASE)"',
@@ -44,8 +44,31 @@ def test_runtime_targets_reuse_cli_without_sudo_or_process_killers() -> None:
 
     assert "sudo" not in source.split("# -----------------------\n# 🚀 Aplicación Principal", 1)[0]
     assert "$(RUNTIME_CLI) doctor $(RUNTIME_ARGS)" in _target_recipe(source, "status")
+    assert "$(RUNTIME_CLI) start $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)" in _target_recipe(
+        source, "start"
+    )
     assert "$(RUNTIME_CLI) stop $(RUNTIME_ARGS)" in _target_recipe(source, "stop")
-    assert "$(RUNTIME_CLI) restart $(RUNTIME_ARGS)" in _target_recipe(source, "restart")
+    assert "$(RUNTIME_CLI) restart $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)" in _target_recipe(
+        source, "restart"
+    )
+
+
+def test_make_status_and_stop_never_request_mongo_authorization() -> None:
+    source = MAKEFILE.read_text(encoding="utf-8")
+
+    for target in ("status", "stop"):
+        recipe = _target_recipe(source, target)
+        assert "MONGO_ENSURE_ARGS" not in recipe
+        assert "mongo-ensure" not in recipe
+
+
+def test_make_exposes_safe_mongo_defaults_and_port_overrides() -> None:
+    source = MAKEFILE.read_text(encoding="utf-8")
+
+    assert re.search(r"(?m)^MONGO_AUTH_MODE\s*\?=\s*auto\s*$", source)
+    assert re.search(r"(?m)^MONGO_AUTO_START\s*\?=\s*1\s*$", source)
+    assert '--mongo-auth-mode "$(MONGO_AUTH_MODE)"' in source
+    assert "--no-mongo-auto-start" in source
 
 
 def test_separate_targets_keep_database_and_reader_url_explicit() -> None:

@@ -14,9 +14,11 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from mathmongo.config import redact_mongo_uri
-from mathmongo.launcher import mongodb_available
+from mathmongo.launcher import LaunchError
+from mathmongo.launcher import require_unprivileged_user
 from mathmongo.local_runtime.models import LocalRuntimeError
 from mathmongo.local_runtime.models import RuntimeSettings
+from mathmongo.local_runtime.processes import sanitize_log_line
 from mathmongo.local_runtime.state import ProcessIdentity
 from mathmongo.local_runtime.state import RuntimeObservation
 from mathmongo.local_runtime.state import RuntimeStateKind
@@ -24,6 +26,7 @@ from mathmongo.local_runtime.state import RuntimeStateStore
 from mathmongo.local_runtime.state import inspect_process
 from mathmongo.local_runtime.state import observe_runtime
 from mathmongo.local_runtime.state import repository_root
+from mathmongo.mongodb_service import mongodb_reachable
 
 
 @dataclass(frozen=True)
@@ -68,6 +71,7 @@ class RuntimeController:
         executable: str | None = None,
         repository: Path | None = None,
         popen_factory=subprocess.Popen,
+        mongo_probe=mongodb_reachable,
         monotonic=time.monotonic,
         sleep=time.sleep,
     ) -> None:
@@ -78,6 +82,7 @@ class RuntimeController:
         self.executable = executable or sys.executable
         self.repository = (repository or repository_root()).resolve()
         self._popen = popen_factory
+        self._mongo_probe = mongo_probe
         self._monotonic = monotonic
         self._sleep = sleep
 
@@ -87,24 +92,54 @@ class RuntimeController:
 
     def doctor(self) -> tuple[RuntimeObservation, bool]:
         """Return runtime state and a read-only MongoDB prerequisite check."""
-        return self.status(), mongodb_available(self.mongo_uri)
+        return self.status(), self._mongo_probe(self.mongo_uri, self.settings.database)
 
     def _require_mongo(self) -> None:
-        if mongodb_available(self.mongo_uri):
+        if self._mongo_probe(self.mongo_uri, self.settings.database):
             return
         raise LocalRuntimeError(
             "No fue posible comunicarse con MongoDB. Verifica el estado del servicio "
             "y vuelve a probar la conexión. Ejecuta `make status` o `mathmongo runtime doctor`. "
-            f"Host configurado: {redact_mongo_uri(self.mongo_uri)}. "
-            "MathMongo no ejecuta sudo ni intenta iniciar MongoDB automáticamente."
+            f"Host configurado: {redact_mongo_uri(self.mongo_uri)}."
         )
+
+    @staticmethod
+    def _require_application_user() -> None:
+        try:
+            require_unprivileged_user()
+        except LaunchError as exc:
+            raise LocalRuntimeError(str(exc)) from exc
 
     def _clear_stale_metadata(self, observation: RuntimeObservation) -> None:
         if observation.kind is RuntimeStateKind.STALE:
             self.store.clear()
 
+    def _foreign_port_message(self, observation: RuntimeObservation) -> str:
+        details: list[str] = []
+        for label, port, identity in (
+            ("Streamlit", self.settings.streamlit_port, observation.streamlit),
+            (
+                "Advanced Reader",
+                self.settings.advanced_reader_port,
+                observation.advanced_reader,
+            ),
+        ):
+            if identity is None:
+                continue
+            command = sanitize_log_line(" ".join(identity.command))
+            details.append(
+                f"{label}: puerto {port}, PID {identity.pid}, CWD {identity.cwd}, comando {command}."
+            )
+        occupied = details or [observation.message]
+        return (
+            f"El puerto {self.settings.streamlit_port} o {self.settings.advanced_reader_port} "
+            "está ocupado por otra aplicación. MathMongo no detuvo ese proceso. "
+            + " ".join(occupied)
+        )
+
     def start(self) -> RuntimeAction:
         """Start a fresh detached supervisor after conservative port checks."""
+        self._require_application_user()
         observation = self.status()
         if observation.kind is RuntimeStateKind.OWNED:
             return RuntimeAction(
@@ -125,8 +160,7 @@ class RuntimeController:
                 else "<puerto-libre>"
             )
             raise LocalRuntimeError(
-                "Uno de los puertos del runtime está ocupado por un proceso no confirmado. "
-                "No se detuvo. Usa `mathmongo runtime status` para ver PID, CWD y comando, "
+                f"{self._foreign_port_message(observation)} "
                 f"o elige otro puerto, por ejemplo `--streamlit-port {alternative}`."
             )
         self._clear_stale_metadata(observation)
@@ -139,6 +173,7 @@ class RuntimeController:
         command = _runtime_command(self.settings, self.executable)
         environment = dict(self.environment)
         environment["MONGODB_DB"] = self.settings.database
+        environment["MONGODB_URI"] = self.mongo_uri
         try:
             process = self._popen(
                 command,
@@ -250,8 +285,12 @@ class RuntimeController:
             self._recover_orphan(observation)
         elif observation.kind is RuntimeStateKind.OWNED:
             self.stop(force=force)
+        elif observation.kind in {RuntimeStateKind.STOPPED, RuntimeStateKind.STALE}:
+            return self.start()
         else:
-            raise LocalRuntimeError("restart requiere un runtime MathMongo con identidad confirmada.")
+            raise LocalRuntimeError(
+                "No se reinició ningún proceso: los puertos no pertenecen a un runtime MathMongo confirmado."
+            )
         return self.start()
 
 

@@ -16,6 +16,8 @@ STREAMLIT_PORT ?= 8501
 ADVANCED_READER_HOST ?= 127.0.0.1
 ADVANCED_READER_PORT ?= 8766
 LOG_LEVEL ?= info
+MONGO_AUTH_MODE ?= auto
+MONGO_AUTO_START ?= 1
 ADVANCED_READER_URL_HOST := $(if $(filter ::1,$(ADVANCED_READER_HOST)),[$(ADVANCED_READER_HOST)],$(ADVANCED_READER_HOST))
 
 
@@ -31,17 +33,20 @@ RUNTIME_ARGS := --database "$(DATABASE)" \
 	--advanced-reader-port "$(ADVANCED_READER_PORT)" \
 	--log-level "$(LOG_LEVEL)"
 RUNTIME_CLI := mathdbmongo/bin/python -m mathmongo runtime
+MONGO_ENSURE_ARGS := --mongo-auth-mode "$(MONGO_AUTH_MODE)" \
+	$(if $(filter 0,$(MONGO_AUTO_START)),--no-mongo-auto-start,)
 
 start:
-	@$(RUNTIME_CLI) doctor $(RUNTIME_ARGS)
+	@$(RUNTIME_CLI) start $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)
 
-mongo: start
+mongo:
+	@$(RUNTIME_CLI) mongo-ensure $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)
 
 stop:
 	@$(RUNTIME_CLI) stop $(RUNTIME_ARGS)
 
 restart:
-	@$(RUNTIME_CLI) restart $(RUNTIME_ARGS)
+	@$(RUNTIME_CLI) restart $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)
 
 status:
 	@$(RUNTIME_CLI) doctor $(RUNTIME_ARGS)
@@ -51,7 +56,7 @@ status:
 # -----------------------
 
 run:
-	@$(RUNTIME_CLI) start $(RUNTIME_ARGS)
+	@$(RUNTIME_CLI) run $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)
 
 run-streamlit:
 	MONGODB_DB="$(DATABASE)" \

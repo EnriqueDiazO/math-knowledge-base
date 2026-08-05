@@ -146,7 +146,7 @@ def test_start_never_spawns_when_a_foreign_listener_is_detected(monkeypatch, tmp
         raise AssertionError("no spawn expected")
 
     controller._popen = fail_popen
-    with pytest.raises(LocalRuntimeError, match="no confirmado"):
+    with pytest.raises(LocalRuntimeError, match="MathMongo no detuvo"):
         controller.start()
     assert spawned is False
 
@@ -156,12 +156,25 @@ def test_start_with_inactive_mongo_explains_the_manual_prerequisite(monkeypatch,
         RuntimeSettings(database="runtime_test", streamlit_port=18501, advanced_reader_port=18766),
         mongo_uri="mongodb://temporary:27017",
         environment=_environment(tmp_path),
+        mongo_probe=lambda *_args: False,
     )
     stopped = RuntimeObservation(RuntimeStateKind.STOPPED, "stopped")
     monkeypatch.setattr(controller, "status", lambda: stopped)
-    monkeypatch.setattr(control, "mongodb_available", lambda _uri: False)
 
-    with pytest.raises(LocalRuntimeError, match="no ejecuta sudo"):
+    with pytest.raises(LocalRuntimeError, match="No fue posible comunicarse"):
+        controller.start()
+
+
+def test_start_rejects_root_before_spawning(monkeypatch, tmp_path: Path) -> None:
+    controller = RuntimeController(
+        RuntimeSettings(database="runtime_test", streamlit_port=18501, advanced_reader_port=18766),
+        mongo_uri="mongodb://temporary:27017",
+        environment=_environment(tmp_path),
+    )
+    monkeypatch.setattr("mathmongo.launcher.os.geteuid", lambda: 0)
+    controller._popen = lambda *_args, **_kwargs: pytest.fail("root must not spawn")
+
+    with pytest.raises(LocalRuntimeError, match="no se ejecuta como root"):
         controller.start()
 
 
@@ -213,6 +226,20 @@ def test_restart_requires_explicit_orphan_recovery(monkeypatch, tmp_path: Path) 
 
     with pytest.raises(LocalRuntimeError, match="recover-orphan"):
         controller.restart()
+
+
+def test_restart_starts_when_runtime_is_already_stopped(monkeypatch, tmp_path: Path) -> None:
+    controller = RuntimeController(
+        RuntimeSettings(database="runtime_test", streamlit_port=18501, advanced_reader_port=18766),
+        mongo_uri="mongodb://temporary:27017",
+        environment=_environment(tmp_path),
+    )
+    stopped = RuntimeObservation(RuntimeStateKind.STOPPED, "stopped")
+    expected = control.RuntimeAction(False, stopped, "started")
+    monkeypatch.setattr(controller, "status", lambda: stopped)
+    monkeypatch.setattr(controller, "start", lambda: expected)
+
+    assert controller.restart() is expected
 
 
 def test_runtime_status_cli_is_read_only_for_empty_xdg(monkeypatch, tmp_path: Path, capsys) -> None:

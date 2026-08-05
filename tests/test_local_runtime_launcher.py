@@ -441,3 +441,13 @@ def test_started_commands_use_installed_editor_and_controlled_environment() -> N
     assert streamlit_options["start_new_session"] is True
     assert reader_options["env"]["MONGODB_DB"] == "MathV0"
     assert streamlit_options["env"]["MONGODB_URI"] == "mongodb://temporary:27017"
+
+
+def test_foreground_supervisor_rejects_root_before_port_checks(monkeypatch) -> None:
+    monkeypatch.setattr("mathmongo.launcher.os.geteuid", lambda: 0)
+    supervisor = _supervisor(
+        port_check=lambda *_args: pytest.fail("port checks must not run as root")
+    )
+
+    with pytest.raises(LocalRuntimeError, match="no se ejecuta como root"):
+        supervisor.run(install_signal_handlers=False)

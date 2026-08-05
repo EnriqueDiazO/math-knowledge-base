@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import importlib.util
+import os
 import socket
 import subprocess
 import sys
@@ -22,6 +23,14 @@ MONGODB_URI = DEFAULT_MONGO_URI
 
 class LaunchError(RuntimeError):
     """A user-facing launch failure that does not require a traceback."""
+
+
+def require_unprivileged_user() -> None:
+    """Refuse to launch any MathMongo application process as root."""
+    if os.geteuid() == 0:
+        raise LaunchError(
+            "MathMongo no se ejecuta como root. Sólo `systemctl start mongod` puede elevarse."
+        )
 
 
 def resolve_streamlit_app() -> Path:
@@ -126,6 +135,7 @@ def launch_mathmongo(
     desktop_launch: bool = False,
 ) -> int:
     """Validate prerequisites, run Streamlit, and return a useful exit code."""
+    require_unprivileged_user()
     address = validate_address(address)
     port = validate_port(port)
     if not dependency_check():
@@ -173,3 +183,17 @@ def launch_mathmongo(
     except (OSError, ValueError) as exc:
         raise LaunchError(f"No se pudo ejecutar Streamlit: {exc}") from exc
     return int(result.returncode)
+
+
+__all__ = [
+    "LaunchError",
+    "build_streamlit_command",
+    "launch_mathmongo",
+    "mongodb_available",
+    "port_available",
+    "require_unprivileged_user",
+    "resolve_streamlit_app",
+    "streamlit_available",
+    "validate_address",
+    "validate_port",
+]

@@ -78,6 +78,15 @@ def test_missing_streamlit_fails_before_process_execution() -> None:
         launch_mathmongo(dependency_check=lambda: False)
 
 
+def test_launcher_rejects_root_before_dependency_checks(monkeypatch) -> None:
+    monkeypatch.setattr("mathmongo.launcher.os.geteuid", lambda: 0)
+
+    with pytest.raises(LaunchError, match="no se ejecuta como root"):
+        launch_mathmongo(
+            dependency_check=lambda: pytest.fail("dependency check must not run as root")
+        )
+
+
 def test_missing_mongodb_is_a_clear_failure() -> None:
     with pytest.raises(LaunchError, match="MongoDB no está disponible"):
         launch_mathmongo(

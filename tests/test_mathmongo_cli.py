@@ -16,6 +16,9 @@ from mathmongo.cli import main
 from mathmongo.config import AppConfig
 from mathmongo.config import resolve_config
 from mathmongo.launcher import LaunchError
+from mathmongo.local_runtime.control import RuntimeAction
+from mathmongo.local_runtime.state import RuntimeObservation
+from mathmongo.local_runtime.state import RuntimeStateKind
 
 _CLI_CONFIGURATION_ENVIRONMENT = (
     "MONGODB_URI",
@@ -267,3 +270,114 @@ def test_cli_never_follows_a_launcher_log_symlink(tmp_path: Path, monkeypatch, c
     assert main(["run"]) == 1
     assert "failed" in capsys.readouterr().err
     assert outside.read_text(encoding="utf-8") == "keep\n"
+
+
+def test_runtime_start_ensures_mongodb_before_starting_controller(monkeypatch, capsys) -> None:
+    events: list[str] = []
+    owned = RuntimeObservation(RuntimeStateKind.OWNED, "owned")
+
+    class Controller:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def start(self):
+            events.append("start")
+            return RuntimeAction(True, owned, "started")
+
+    monkeypatch.setattr("mathmongo.local_runtime.control.RuntimeController", Controller)
+    monkeypatch.setattr(
+        "mathmongo.cli._ensure_mongo",
+        lambda *_args, **_kwargs: events.append("ensure"),
+    )
+
+    assert (
+        main(
+            [
+                "runtime",
+                "start",
+                "--database",
+                "runtime_test",
+                "--streamlit-port",
+                "18501",
+                "--advanced-reader-port",
+                "18766",
+            ]
+        )
+        == 0
+    )
+    assert events == ["ensure", "start"]
+    assert "http://127.0.0.1:18501" in capsys.readouterr().out
+
+
+def test_runtime_run_ensures_mongodb_before_foreground_supervisor(monkeypatch) -> None:
+    events: list[str] = []
+
+    class Controller:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+    class Supervisor:
+        def __init__(self, *_args, **_kwargs):
+            events.append("supervisor")
+
+        def run(self):
+            events.append("run")
+            return 17
+
+    monkeypatch.setattr("mathmongo.local_runtime.control.RuntimeController", Controller)
+    monkeypatch.setattr("mathmongo.local_runtime.launcher.LocalRuntimeSupervisor", Supervisor)
+    monkeypatch.setattr(
+        "mathmongo.cli._ensure_mongo",
+        lambda *_args, **_kwargs: events.append("ensure"),
+    )
+
+    assert (
+        main(
+            [
+                "runtime",
+                "run",
+                "--database",
+                "runtime_test",
+                "--streamlit-port",
+                "18501",
+                "--advanced-reader-port",
+                "18766",
+            ]
+        )
+        == 17
+    )
+    assert events == ["ensure", "supervisor", "run"]
+
+
+def test_runtime_stop_never_calls_mongodb_ensure(monkeypatch) -> None:
+    stopped = RuntimeObservation(RuntimeStateKind.STOPPED, "stopped")
+
+    class Controller:
+        def __init__(self, *_args, **_kwargs):
+            pass
+
+        def stop(self, *, force):
+            assert force is False
+            return RuntimeAction(False, stopped, "stopped")
+
+    monkeypatch.setattr("mathmongo.local_runtime.control.RuntimeController", Controller)
+    monkeypatch.setattr(
+        "mathmongo.cli._ensure_mongo",
+        lambda *_args, **_kwargs: pytest.fail("stop must not ensure MongoDB"),
+    )
+
+    assert (
+        main(
+            [
+                "runtime",
+                "stop",
+                "--database",
+                "runtime_test",
+                "--streamlit-port",
+                "18501",
+                "--advanced-reader-port",
+                "18766",
+            ]
+        )
+        == 0
+    )

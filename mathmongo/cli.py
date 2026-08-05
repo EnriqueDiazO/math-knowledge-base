@@ -25,6 +25,7 @@ if TYPE_CHECKING:
 # Keep this vocabulary local so ``import mathmongo.cli`` does not import the
 # runtime supervisor (whose execution-only dependencies include PyMongo).
 RUNTIME_LOG_LEVELS = ("critical", "error", "warning", "info", "debug")
+MONGO_AUTHORIZATION_MODES = ("auto", "sudo", "pkexec", "none")
 
 
 def _add_run_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool = False) -> None:
@@ -52,6 +53,17 @@ def _add_runtime_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--advanced-reader-port", type=int, help="Puerto loopback del Advanced Reader.")
     parser.add_argument("--mongo-uri", help="URI MongoDB sólo para esta invocación; nunca se muestra.")
     parser.add_argument("--log-level", choices=RUNTIME_LOG_LEVELS, help="Nivel de diagnóstico local.")
+    parser.add_argument(
+        "--mongo-auth-mode",
+        choices=MONGO_AUTHORIZATION_MODES,
+        default="auto",
+        help="Autorización para iniciar mongod: auto, sudo, pkexec o none.",
+    )
+    parser.add_argument(
+        "--no-mongo-auto-start",
+        action="store_true",
+        help="No intentar iniciar mongod; sólo informar cómo resolverlo.",
+    )
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -77,7 +89,9 @@ def build_parser() -> argparse.ArgumentParser:
     for name, help_text in (
         ("status", "Muestra el estado sin escribir ni detener procesos."),
         ("doctor", "Comprueba el runtime y MongoDB sin modificar servicios."),
-        ("start", "Inicia un supervisor local en segundo plano tras verificar identidad."),
+        ("mongo-ensure", "Asegura únicamente el servicio mongod cuando está detenido."),
+        ("start", "Asegura MongoDB e inicia un supervisor local en segundo plano."),
+        ("run", "Asegura MongoDB y ejecuta el supervisor local en primer plano."),
     ):
         command_parser = runtime_subparsers.add_parser(name, help=help_text)
         _add_runtime_options(command_parser)
@@ -123,12 +137,14 @@ def _runtime_settings(args: argparse.Namespace, config) -> RuntimeSettings:
     if configured_streamlit_host == "localhost":
         configured_streamlit_host = "127.0.0.1"
     return RuntimeSettings(
-        database=args.database or config.mongo_database,
-        streamlit_host=args.streamlit_host or configured_streamlit_host,
-        streamlit_port=args.streamlit_port or config.streamlit_port,
-        advanced_reader_host=args.advanced_reader_host or config.advanced_reader_host,
-        advanced_reader_port=args.advanced_reader_port or config.advanced_reader_port,
-        log_level=args.log_level or "info",
+        database=getattr(args, "database", None) or config.mongo_database,
+        streamlit_host=getattr(args, "streamlit_host", None) or configured_streamlit_host,
+        streamlit_port=getattr(args, "streamlit_port", None) or config.streamlit_port,
+        advanced_reader_host=getattr(args, "advanced_reader_host", None)
+        or config.advanced_reader_host,
+        advanced_reader_port=getattr(args, "advanced_reader_port", None)
+        or config.advanced_reader_port,
+        log_level=getattr(args, "log_level", None) or "info",
     )
 
 
@@ -157,6 +173,47 @@ def _print_runtime_observation(
     _print_identity("Advanced Reader", observation.advanced_reader)
 
 
+def _inspect_mongo(settings: RuntimeSettings, mongo_uri: str):
+    from mathmongo.mongodb_service import inspect_mongodb_service
+
+    return inspect_mongodb_service(mongo_uri, settings.database)
+
+
+def _print_mongo_status(status) -> None:
+    from mathmongo.mongodb_service import mongo_status_lines
+
+    for line in mongo_status_lines(status):
+        print(line)
+
+
+def _ensure_mongo(args: argparse.Namespace, settings: RuntimeSettings, mongo_uri: str):
+    from mathmongo.local_runtime.models import LocalRuntimeError
+    from mathmongo.mongodb_service import ensure_mongodb_running
+
+    result = ensure_mongodb_running(
+        mongo_uri=mongo_uri,
+        database=settings.database,
+        authorization_mode=getattr(args, "mongo_auth_mode", "auto"),
+        interactive=sys.stdin.isatty(),
+        auto_start=not getattr(args, "no_mongo_auto_start", False),
+    )
+    if not result.ok:
+        raise LocalRuntimeError(result.message)
+    print(result.message)
+    return result
+
+
+def _require_application_user() -> None:
+    from mathmongo.launcher import require_unprivileged_user
+
+    try:
+        require_unprivileged_user()
+    except LaunchError as exc:
+        from mathmongo.local_runtime.models import LocalRuntimeError
+
+        raise LocalRuntimeError(str(exc)) from exc
+
+
 def _run_runtime_command(args: argparse.Namespace, config) -> int:
     from mathmongo.local_runtime.control import RuntimeController
     from mathmongo.local_runtime.models import LocalRuntimeError
@@ -166,20 +223,36 @@ def _run_runtime_command(args: argparse.Namespace, config) -> int:
         settings,
         mongo_uri=args.mongo_uri or config.mongo_uri,
     )
+    mongo_uri = args.mongo_uri or config.mongo_uri
     command = args.runtime_command
     if command == "status":
         _print_runtime_observation(controller.status(), settings)
         return 0
     if command == "doctor":
-        observation, mongo_available = controller.doctor()
+        observation = controller.status()
+        mongo_status = _inspect_mongo(settings, mongo_uri)
         _print_runtime_observation(observation, settings)
-        print(f"MongoDB: {'activo' if mongo_available else 'no disponible'}")
-        if not mongo_available:
+        _print_mongo_status(mongo_status)
+        if not mongo_status.reachable:
             print("No fue posible comunicarse con MongoDB. Verifica el estado del servicio y vuelve a probar la conexión.")
             return 6
         return 0
+    if command == "mongo-ensure":
+        _require_application_user()
+        _ensure_mongo(args, settings, mongo_uri)
+        return 0
+    if command in {"start", "run", "restart"}:
+        _require_application_user()
+        _ensure_mongo(args, settings, mongo_uri)
     if command == "start":
         action = controller.start()
+    elif command == "run":
+        from mathmongo.local_runtime.launcher import LocalRuntimeSupervisor
+
+        environment = dict(os.environ)
+        environment["MONGODB_URI"] = mongo_uri
+        environment["MONGODB_DB"] = settings.database
+        return LocalRuntimeSupervisor(settings, base_environment=environment).run()
     elif command == "stop":
         action = controller.stop(force=args.force)
     elif command == "restart":
@@ -191,6 +264,14 @@ def _run_runtime_command(args: argparse.Namespace, config) -> int:
         raise LocalRuntimeError("Comando de runtime no reconocido.")
     print(action.message)
     _print_runtime_observation(action.observation, settings)
+    if action.observation.kind.value == "owned":
+        from mathmongo.local_runtime.health import loopback_url
+
+        print(f"Streamlit: {loopback_url(settings.streamlit_host, settings.streamlit_port)}")
+        print(
+            "Advanced Reader: "
+            f"{loopback_url(settings.advanced_reader_host, settings.advanced_reader_port)}"
+        )
     return 0
 
 

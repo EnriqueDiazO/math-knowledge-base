@@ -19,7 +19,9 @@ from pathlib import Path
 from types import FrameType
 from typing import Any
 
+from mathmongo.launcher import LaunchError
 from mathmongo.launcher import port_available
+from mathmongo.launcher import require_unprivileged_user
 from mathmongo.launcher import resolve_streamlit_app
 from mathmongo.local_runtime.health import loopback_url
 from mathmongo.local_runtime.health import probe_advanced_reader
@@ -373,6 +375,10 @@ class LocalRuntimeSupervisor:
 
     def run(self, *, install_signal_handlers: bool = True) -> int:
         """Run both services in the foreground and always reap owned children."""
+        try:
+            require_unprivileged_user()
+        except LaunchError as exc:
+            raise LocalRuntimeError(str(exc)) from exc
         with self._signal_handlers(install_signal_handlers):
             try:
                 self._raise_if_shutdown()
