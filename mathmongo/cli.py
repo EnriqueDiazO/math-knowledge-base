@@ -77,6 +77,11 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     run_parser = subparsers.add_parser("run", help="Inicia la aplicación Streamlit.")
     _add_run_options(run_parser, suppress_defaults=True)
+    desktop_launch_parser = subparsers.add_parser(
+        "desktop-launch",
+        help="Asegura MongoDB y abre el runtime local desde un acceso directo.",
+    )
+    _add_runtime_options(desktop_launch_parser)
     subparsers.add_parser(
         "config",
         help="Muestra producto y base configurada sin conectarse.",
@@ -275,6 +280,24 @@ def _run_runtime_command(args: argparse.Namespace, config) -> int:
     return 0
 
 
+def _run_desktop_command(args: argparse.Namespace, config) -> int:
+    from mathmongo.desktop_launch import launch_desktop_runtime
+    from mathmongo.local_runtime.models import LocalRuntimeError
+
+    settings = _runtime_settings(args, config)
+    mongo_uri = getattr(args, "mongo_uri", None) or config.mongo_uri
+    try:
+        return launch_desktop_runtime(
+            settings,
+            mongo_uri=mongo_uri,
+            authorization_mode=getattr(args, "mongo_auth_mode", "auto"),
+            auto_start=not getattr(args, "no_mongo_auto_start", False),
+        )
+    except LocalRuntimeError as exc:
+        print(f"Error: {sanitize_mongo_error(exc, mongo_uri)}", file=sys.stderr)
+        return 6
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     """Run the CLI and translate expected launch failures into exit code 1."""
     args = build_parser().parse_args(argv)
@@ -308,6 +331,10 @@ def main(argv: Sequence[str] | None = None) -> int:
         except LocalRuntimeError as exc:
             print(f"Error: {sanitize_mongo_error(exc, getattr(args, 'mongo_uri', None) or settings.mongo_uri)}", file=sys.stderr)
             return 6
+    if args.command == "desktop-launch" or (
+        args.command == "run" and getattr(args, "desktop_launch", False)
+    ):
+        return _run_desktop_command(args, settings)
     try:
         return launch_mathmongo(
             address=settings.streamlit_address,

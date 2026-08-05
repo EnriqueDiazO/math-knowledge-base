@@ -68,7 +68,7 @@ def test_install_uses_xdg_and_writes_valid_application_files(tmp_path: Path) -> 
     assert "GenericName=Math Knowledge Base\n" in content
     assert "Icon=mathmongo\n" in content
     assert "Terminal=false\n" in content
-    assert f'Exec="{executable.resolve()}" run --desktop-launch' in content
+    assert f'Exec="{executable.resolve()}" desktop-launch' in content
     assert "TryExec=" not in content
     exec_line = next(line for line in content.splitlines() if line.startswith("Exec="))
     assert "streamlit" not in exec_line.lower()
@@ -170,7 +170,7 @@ def test_desktop_file_has_required_stable_fields(tmp_path: Path) -> None:
     content = desktop_file_content(executable.resolve())
     assert content.startswith("[Desktop Entry]\nType=Application\n")
     assert "StartupNotify=true\n" in content
-    assert "Categories=Education;Science;Office;\n" in content
+    assert "Categories=Education;Science;\n" in content
     assert "Keywords=mathematics;knowledge;MongoDB;LaTeX;Streamlit;\n" in content
     assert "bash -c" not in content
 

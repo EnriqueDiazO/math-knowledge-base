@@ -122,11 +122,11 @@ def desktop_file_content(executable: Path) -> str:
             "Name=MathMongo",
             "GenericName=Math Knowledge Base",
             "Comment=Mathematical knowledge base with MongoDB, LaTeX and Streamlit",
-            f"Exec={quoted} run --desktop-launch",
+            f"Exec={quoted} desktop-launch",
             "Icon=mathmongo",
             "Terminal=false",
             "StartupNotify=true",
-            "Categories=Education;Science;Office;",
+            "Categories=Education;Science;",
             "Keywords=mathematics;knowledge;MongoDB;LaTeX;Streamlit;",
             "",
         ]
@@ -162,7 +162,7 @@ def install_desktop_launcher(
     print(f"Icono PNG: {paths['png_icon']}")
     print(f"Lanzador: {paths['desktop_file']}")
     print(f"Escritorio: {desktop}")
-    print(f"Exec={quote_exec_path(command)} run --desktop-launch")
+    print(f"Exec={quote_exec_path(command)} desktop-launch")
     if dry_run:
         print("Dry-run: no se escribieron archivos.")
         return targets
