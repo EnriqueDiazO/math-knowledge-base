@@ -100,7 +100,7 @@ The complete installation sequence is documented below.
 
 - Ubuntu 20.04, 22.04, or similar (recommended).
 - Python 3.10+ (recommended: 3.10.14 or 3.11.6).
-- MongoDB installed and running.
+- MongoDB installed; `make start` can start an installed inactive `mongod` service.
 - Full LaTeX installation (`texlive-full`) for correct PDF export.
 - ChkTeX (`chktex`) for static LaTeX analysis in notebook exports.
 - `make`, Git, pip.
@@ -113,7 +113,7 @@ The complete installation sequence is documented below.
 
 The application needs four things before running:
 
-1. MongoDB running locally.
+1. MongoDB installed locally (the safe launcher checks and starts it when authorized).
 2. A Python virtual environment with the project dependencies.
 3. LaTeX/Quarto if you want PDF and book exports.
 4. MongoDB collections/indexes initialized for the database you will use.
@@ -134,17 +134,9 @@ sudo apt update
 sudo apt install -y python3 python3-venv python3-pip git make texlive-full
 ```
 
-Start MongoDB:
-
-```bash
-make start
-```
-
-You can also check it directly:
-
-```bash
-sudo systemctl status mongod
-```
+The service may remain stopped at this point. After creating the Python
+environment below, `make start` will check it and request authorization only if
+`mongod` is inactive.
 
 ### 3. Create the Python environment
 
@@ -281,10 +273,17 @@ Generated Cornell exports live under `runtime/cornell_exports/`. Safe cleanup sh
 make run
 ```
 
-This starts and supervises both Streamlit and the Advanced Reader in the
-foreground. Both default to `MathV0`; Streamlit listens on
+This ensures MongoDB, then starts and supervises both Streamlit and the Advanced
+Reader in the foreground. If MongoDB already responds, no authorization command
+is run. Both default to `MathV0`; Streamlit listens on
 `http://127.0.0.1:8501` and the reader on `http://127.0.0.1:8766`. Press
 `Ctrl+C` to stop only the services created by this launcher.
+
+Use `make start` for the same verified runtime in the background, `make stop`
+to stop only that owned runtime, and `make restart` to ensure MongoDB and safely
+replace it. MongoDB is not stopped when MathMongo closes. In CI/non-interactive
+sessions no `sudo` attempt is made; set `MONGO_AUTO_START=0` or
+`MONGO_AUTH_MODE=none` to require an already-running database explicitly.
 
 The services can still be run separately:
 
@@ -317,8 +316,15 @@ inspector for selection, mark confirmation and concept association. See
 
 ```bash
 chmod +x scripts/make_desktop_shortcut.sh
-./scripts/make_desktop_shortcut.sh
+./scripts/make_desktop_shortcut.sh --install --desktop
 ```
+
+The generated launcher calls `mathmongo desktop-launch`. It reuses the same
+MongoDB ensure and runtime identity checks, uses `pkexec` only for
+`systemctl start mongod`, then opens the healthy Streamlit URL. Failures are
+reported through `notify-send` when available and logged without credentials at
+`$XDG_STATE_HOME/mathmongo/logs/desktop-launch.log`. Never run the shortcut or
+MathMongo itself with `sudo`.
 
 ## 🔁 Recuperación segura de una base (MathV0)
 
