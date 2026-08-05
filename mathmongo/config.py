@@ -234,6 +234,19 @@ def sanitize_mongo_error(error: object, uri: str) -> str:
     return sanitized
 
 
+def mongo_connection_guidance(error: object, uri: str, database: str) -> tuple[str, str]:
+    """Return a calm public MongoDB error and a separately sanitized detail."""
+    safe_detail = sanitize_mongo_error(error, uri)
+    safe_database = " ".join(str(database or "").split()) or "<no configurada>"
+    public = (
+        "No fue posible comunicarse con MongoDB. Verifica el estado del servicio y vuelve "
+        "a probar la conexión. "
+        f"Base configurada: {safe_database}. Host: {redact_mongo_uri(uri)}. "
+        "Consulta `make status` para el diagnóstico local."
+    )
+    return public, safe_detail
+
+
 def active_database_diagnostic(config: AppConfig) -> dict[str, str]:
     """Return safe, side-effect-free identity details for support diagnostics."""
     return {

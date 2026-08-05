@@ -26,7 +26,8 @@ def test_make_defaults_and_unified_run_cli_contract() -> None:
     recipe = _target_recipe(source, "run")
 
     assert re.search(r"(?m)^DATABASE\s*\?=\s*MathV0\s*$", source)
-    assert "mathdbmongo/bin/python -m mathmongo.local_runtime" in recipe
+    assert "$(RUNTIME_CLI) start $(RUNTIME_ARGS)" in recipe
+    assert "mathdbmongo/bin/python -m mathmongo runtime" in source
     for option in (
         '--database "$(DATABASE)"',
         '--streamlit-host "$(STREAMLIT_HOST)"',
@@ -35,7 +36,16 @@ def test_make_defaults_and_unified_run_cli_contract() -> None:
         '--advanced-reader-port "$(ADVANCED_READER_PORT)"',
         '--log-level "$(LOG_LEVEL)"',
     ):
-        assert option in recipe
+        assert option in source
+
+
+def test_runtime_targets_reuse_cli_without_sudo_or_process_killers() -> None:
+    source = MAKEFILE.read_text(encoding="utf-8")
+
+    assert "sudo" not in source.split("# -----------------------\n# 🚀 Aplicación Principal", 1)[0]
+    assert "$(RUNTIME_CLI) doctor $(RUNTIME_ARGS)" in _target_recipe(source, "status")
+    assert "$(RUNTIME_CLI) stop $(RUNTIME_ARGS)" in _target_recipe(source, "stop")
+    assert "$(RUNTIME_CLI) restart $(RUNTIME_ARGS)" in _target_recipe(source, "restart")
 
 
 def test_separate_targets_keep_database_and_reader_url_explicit() -> None:

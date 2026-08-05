@@ -24,34 +24,34 @@ ADVANCED_READER_URL_HOST := $(if $(filter ::1,$(ADVANCED_READER_HOST)),[$(ADVANC
         book-clean book-export book-preview book-render \
         clean clean-all book-clean-artifacts clean-book cuaderno-install cuaderno-status clean-notes
 
-start:
-	@$(MAKE) mongo
+RUNTIME_ARGS := --database "$(DATABASE)" \
+	--streamlit-host "$(STREAMLIT_HOST)" \
+	--streamlit-port "$(STREAMLIT_PORT)" \
+	--advanced-reader-host "$(ADVANCED_READER_HOST)" \
+	--advanced-reader-port "$(ADVANCED_READER_PORT)" \
+	--log-level "$(LOG_LEVEL)"
+RUNTIME_CLI := mathdbmongo/bin/python -m mathmongo runtime
 
-mongo:
-	@sudo systemctl start mongod
-	@sudo systemctl --no-pager status mongod || true
+start:
+	@$(RUNTIME_CLI) doctor $(RUNTIME_ARGS)
+
+mongo: start
 
 stop:
-	@sudo systemctl stop mongod && echo "✅ MongoDB detenido."
+	@$(RUNTIME_CLI) stop $(RUNTIME_ARGS)
 
 restart:
-	@sudo systemctl restart mongod && $(MAKE) status
+	@$(RUNTIME_CLI) restart $(RUNTIME_ARGS)
 
 status:
-	@sudo systemctl status mongod
+	@$(RUNTIME_CLI) doctor $(RUNTIME_ARGS)
 
 # -----------------------
 # 🚀 Aplicación Principal
 # -----------------------
 
 run:
-	mathdbmongo/bin/python -m mathmongo.local_runtime \
-		--database "$(DATABASE)" \
-		--streamlit-host "$(STREAMLIT_HOST)" \
-		--streamlit-port "$(STREAMLIT_PORT)" \
-		--advanced-reader-host "$(ADVANCED_READER_HOST)" \
-		--advanced-reader-port "$(ADVANCED_READER_PORT)" \
-		--log-level "$(LOG_LEVEL)"
+	@$(RUNTIME_CLI) start $(RUNTIME_ARGS)
 
 run-streamlit:
 	MONGODB_DB="$(DATABASE)" \

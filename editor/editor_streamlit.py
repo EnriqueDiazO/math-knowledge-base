@@ -20,19 +20,19 @@ from editor.concept_reference_form import concept_reference_has_content
 from editor.concept_reference_form import render_concept_reference_form
 from editor.concept_reference_form import state_key as concept_reference_state_key
 from editor.concept_reference_form import sync_reference_scope as sync_concept_reference_scope
-from editor.db.concept_edit_service import update_concept_fields_preserving_identity
-from editor.db.concept_repository import concept_exists
-from editor.db.concept_source_link_service import ConceptSourceLinkStatus
-from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
 from editor.database_connections import active_database_display_label
 from editor.database_connections import initialize_configured_connection
+from editor.database_import_page import render_database_import_page
 from editor.database_scope import KNOWLEDGE_GRAPH_LOADED_MAP_KEY
 from editor.database_scope import database_scope_token
 from editor.database_scope import knowledge_map_is_loaded
 from editor.database_scope import knowledge_map_session_identity
 from editor.database_scope import mark_knowledge_map_loaded
 from editor.database_scope import sync_knowledge_graph_scope
-from editor.database_import_page import render_database_import_page
+from editor.db.concept_edit_service import update_concept_fields_preserving_identity
+from editor.db.concept_repository import concept_exists
+from editor.db.concept_source_link_service import ConceptSourceLinkStatus
+from editor.db.concept_source_link_service import link_concept_to_existing_managed_source
 from editor.edit_concept_feedback import feedback_for_update_result
 from editor.edit_concept_feedback import render_update_flash
 from editor.edit_concept_feedback import safe_update_exception_message
@@ -147,6 +147,7 @@ from mathkb_config import GRAPH_RUNTIME_DIR
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
 from mathkb_config import PROJECT_ROOT
+from mathmongo.config import mongo_connection_guidance
 from mathmongo.config import resolve_config
 from mathmongo.config import sanitize_mongo_error
 from mathmongo.paths import get_backups_dir
@@ -988,8 +989,10 @@ class DatabaseManager:
             )
             return False
         except Exception as e:
-            safe_error = sanitize_mongo_error(e, mongo_uri)
-            st.error(f"No se pudo conectar a MongoDB para {name}: {safe_error}")
+            public_error, technical_detail = mongo_connection_guidance(e, mongo_uri, db_name)
+            st.error(public_error)
+            with st.expander("Detalle técnico de conexión", expanded=False):
+                st.code(technical_detail, language=None)
             return False
 
     def get_connection(self, name):

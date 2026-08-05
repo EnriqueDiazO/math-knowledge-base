@@ -40,6 +40,9 @@ from mathmongo.local_runtime.processes import ProcessLike
 from mathmongo.local_runtime.processes import build_advanced_reader_command
 from mathmongo.local_runtime.processes import build_child_environment
 from mathmongo.local_runtime.processes import build_streamlit_command
+from mathmongo.local_runtime.state import RuntimeStateStore
+from mathmongo.local_runtime.state import build_runtime_record
+from mathmongo.local_runtime.state import inspect_process
 
 PortCheck = Callable[[str, int], bool]
 ReaderProbe = Callable[..., AdvancedReaderHealth | None]
@@ -96,6 +99,7 @@ class LocalRuntimeSupervisor:
         monotonic: Callable[[], float] = time.monotonic,
         sleep: Callable[[float], None] = time.sleep,
         emit: Callable[[str], None] | None = None,
+        state_store: RuntimeStateStore | None = None,
     ) -> None:
         self.settings = settings
         self._base_environment = dict(os.environ if base_environment is None else base_environment)
@@ -113,6 +117,10 @@ class LocalRuntimeSupervisor:
         self._owned_children: list[ManagedChild] = []
         self._reader_disposition = ServiceDisposition.UNAVAILABLE
         self._streamlit_disposition = ServiceDisposition.UNAVAILABLE
+        self._state_store = state_store
+        if self._state_store is None and self._base_environment.get("HOME"):
+            self._state_store = RuntimeStateStore(self._base_environment)
+        self._runtime_id: str | None = None
 
     @property
     def reader_disposition(self) -> ServiceDisposition:
@@ -294,6 +302,36 @@ class LocalRuntimeSupervisor:
         self._emit("")
         self._emit("Press Ctrl+C to stop services started by this launcher.")
 
+    def _write_runtime_state(self) -> None:
+        """Record ownership only after both children passed their health checks."""
+        if self._state_store is None or len(self._owned_children) < 2:
+            # Tests and reused-reader mode do not own enough processes to make a
+            # stop/restart promise.  Leaving no state is safer than partial state.
+            return
+        reader, streamlit = self._owned_children[-2:]
+        supervisor_identity = inspect_process(os.getpid())
+        reader_identity = inspect_process(getattr(reader.process, "pid", 0))
+        streamlit_identity = inspect_process(getattr(streamlit.process, "pid", 0))
+        if (
+            supervisor_identity is None
+            or reader_identity is None
+            or streamlit_identity is None
+        ):
+            return
+        try:
+            record = build_runtime_record(
+                settings=self.settings,
+                supervisor=supervisor_identity,
+                streamlit=streamlit_identity,
+                advanced_reader=reader_identity,
+            )
+            self._state_store.write(record)
+        except (OSError, ValueError) as exc:
+            raise LocalRuntimeError(
+                "No se pudo registrar la identidad privada del runtime local."
+            ) from exc
+        self._runtime_id = str(record["runtime_id"])
+
     def _monitor(self) -> int:
         while self._shutdown_signal is None:
             for child in tuple(self._owned_children):
@@ -377,6 +415,7 @@ class LocalRuntimeSupervisor:
                 self._streamlit_disposition = ServiceDisposition.STARTED
                 self._wait_for_streamlit(streamlit)
                 self._raise_if_shutdown()
+                self._write_runtime_state()
                 self._print_ready()
                 return self._monitor()
             except KeyboardInterrupt:
@@ -386,6 +425,9 @@ class LocalRuntimeSupervisor:
                 return 130 if self._shutdown_signal == signal.SIGINT else 143
             finally:
                 self._stop_owned_children()
+                if self._runtime_id is not None:
+                    if self._state_store is not None:
+                        self._state_store.clear(runtime_id=self._runtime_id)
 
 
 def main(argv: Sequence[str] | None = None) -> int:

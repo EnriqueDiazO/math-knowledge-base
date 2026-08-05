@@ -14,6 +14,7 @@ from mathmongo.config import active_database_diagnostic
 from mathmongo.config import get_config_file
 from mathmongo.config import initialize_config
 from mathmongo.config import load_config
+from mathmongo.config import mongo_connection_guidance
 from mathmongo.config import redact_mongo_uri
 from mathmongo.config import resolve_config
 from mathmongo.config import sanitize_mongo_error
@@ -152,8 +153,22 @@ def test_known_mongo_uri_is_removed_from_error_text() -> None:
     )
 
 
+def test_connection_guidance_keeps_broken_pipe_out_of_the_primary_message() -> None:
+    public, detail = mongo_connection_guidance(
+        BrokenPipeError(32, "Broken pipe"),
+        "mongodb://user:secret@localhost:27017",
+        "MathV0",
+    )
+
+    assert "Broken pipe" not in public
+    assert "MathV0" in public
+    assert "localhost" in public
+    assert "secret" not in public
+    assert "Broken pipe" in detail
+
+
 def test_streamlit_masks_uri_input_and_sanitizes_connection_errors() -> None:
     root = Path(__file__).resolve().parents[1]
     source = (root / "editor/editor_streamlit.py").read_text(encoding="utf-8")
     assert 'type="password"' in source
-    assert "sanitize_mongo_error(e, mongo_uri)" in source
+    assert "mongo_connection_guidance(e, mongo_uri, db_name)" in source

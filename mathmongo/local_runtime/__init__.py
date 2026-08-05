@@ -1,5 +1,6 @@
 """Public API for MathMongo's unified foreground local runtime."""
 
+from mathmongo.local_runtime.control import RuntimeController
 from mathmongo.local_runtime.health import loopback_url
 from mathmongo.local_runtime.health import probe_advanced_reader
 from mathmongo.local_runtime.health import probe_streamlit
@@ -15,6 +16,10 @@ from mathmongo.local_runtime.processes import DATABASE_ENV_VAR
 from mathmongo.local_runtime.processes import build_advanced_reader_command
 from mathmongo.local_runtime.processes import build_child_environment
 from mathmongo.local_runtime.processes import build_streamlit_command
+from mathmongo.local_runtime.state import RuntimeObservation
+from mathmongo.local_runtime.state import RuntimeStateKind
+from mathmongo.local_runtime.state import RuntimeStateStore
+from mathmongo.local_runtime.state import observe_runtime
 
 __all__ = [
     "AdvancedReaderHealth",
@@ -22,6 +27,10 @@ __all__ = [
     "LocalRuntimeError",
     "LocalRuntimeSupervisor",
     "RuntimeSettings",
+    "RuntimeController",
+    "RuntimeObservation",
+    "RuntimeStateKind",
+    "RuntimeStateStore",
     "ServiceDisposition",
     "build_advanced_reader_command",
     "build_child_environment",
@@ -31,5 +40,6 @@ __all__ = [
     "main",
     "probe_advanced_reader",
     "probe_streamlit",
+    "observe_runtime",
     "settings_from_args",
 ]
