@@ -83,8 +83,9 @@ from editor.source_catalog.state import apply_pending_navigation
 from editor.source_catalog.state import consume_legacy_concept_open
 from editor.source_catalog.state import state_key as source_catalog_state_key
 from editor.source_catalog.state import sync_database_state
+from editor.ui.theme import THEME_TOKENS
+from editor.ui.theme import apply_chart_theme
 from editor.ui.theme import apply_mathmongo_theme
-from editor.ui.theme import plotly_layout
 from editor.ui.theme import render_theme_control
 from editor.utils.cleanup_exports import cleanup_old_graph_runtime_files
 from editor.utils.cleanup_exports import delete_files_safely
@@ -1042,11 +1043,7 @@ if current_db:
         current_db,
         st.session_state.db_manager.get_current_connection(),
     )
-    st.sidebar.caption("Base activa")
-    st.sidebar.success(
-        current_database_label,
-        icon=":material/check_circle:",
-    )
+    st.sidebar.caption(f"{current_database_label} · conectada")
 else:
     st.sidebar.warning("No hay una base conectada.", icon=":material/portable_wifi_off:")
 
@@ -1111,9 +1108,10 @@ with st.sidebar.expander("Acciones de conexión", expanded=False, icon=":materia
         else:
             st.sidebar.error("No hay una conexión activa.")
 
-st.sidebar.divider()
-st.sidebar.subheader("Tema")
-active_theme = render_theme_control(st)
+with st.sidebar:
+    st.divider()
+    st.subheader("Tema")
+    active_theme = render_theme_control(st)
 apply_mathmongo_theme(active_theme, st)
 st.sidebar.divider()
 
@@ -1202,11 +1200,14 @@ apply_pending_reading_navigation(
 )
 if st.session_state.get(NAVIGATION_WIDGET) not in nav_options:
     st.session_state.pop(NAVIGATION_WIDGET, None)
-selected_page = st.sidebar.selectbox(
-    "Navegación",
-    nav_options,
-    key=NAVIGATION_WIDGET,
-)
+with st.sidebar:
+    st.subheader("Navegación")
+    selected_page = st.selectbox(
+        "Navegación",
+        nav_options,
+        key=NAVIGATION_WIDGET,
+        label_visibility="collapsed",
+    )
 page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page
 
 
@@ -1342,7 +1343,26 @@ elif page == "🏠 Inicio":
         type_data = list(db.concepts.aggregate(types_pipeline))
         if type_data:
             df_types = pd.DataFrame(type_data)
-            st.bar_chart(df_types.set_index("_id")["count"])
+            try:
+                import plotly.graph_objects as go
+            except Exception:
+                st.bar_chart(df_types.set_index("_id")["count"])
+            else:
+                type_counts = df_types.set_index("_id")["count"]
+                type_figure = go.Figure(
+                    go.Bar(
+                        x=type_counts.index.tolist(),
+                        y=type_counts.tolist(),
+                        marker_color=THEME_TOKENS[active_theme]["primary"],
+                    )
+                )
+                apply_chart_theme(type_figure, active_theme)
+                type_figure.update_layout(
+                    xaxis_title="Tipo de concepto",
+                    yaxis_title="Cantidad",
+                    margin=dict(l=10, r=10, t=24, b=10),
+                )
+                st.plotly_chart(type_figure, width="stretch", key="dashboard_type_distribution")
         else:
             if match_stage:
                 st.info("No data for the selected source filter.")
@@ -1443,8 +1463,8 @@ elif page == "🏠 Inicio":
                                 )
                             ]
                         )
+                        apply_chart_theme(fig, active_theme)
                         fig.update_layout(
-                            **plotly_layout(active_theme),
                             height=600,
                             margin=dict(l=10, r=10, t=10, b=10),
                         )
@@ -1701,8 +1721,8 @@ elif page == "🏠 Inicio":
                                     )
                                 ]
                             )
+                            apply_chart_theme(fig, active_theme)
                             fig.update_layout(
-                                **plotly_layout(active_theme),
                                 height=650,
                                 margin=dict(l=10, r=10, t=10, b=10),
                             )
@@ -4382,7 +4402,29 @@ elif page == "🕸️ Relaciones":
             if relation_types:
                 type_counts = pd.Series(relation_types).value_counts()
                 st.subheader("📊 Relation Type Distribution")
-                st.bar_chart(type_counts)
+                try:
+                    import plotly.graph_objects as go
+                except Exception:
+                    st.bar_chart(type_counts)
+                else:
+                    relation_figure = go.Figure(
+                        go.Bar(
+                            x=type_counts.index.tolist(),
+                            y=type_counts.tolist(),
+                            marker_color=THEME_TOKENS[active_theme]["primary"],
+                        )
+                    )
+                    apply_chart_theme(relation_figure, active_theme)
+                    relation_figure.update_layout(
+                        xaxis_title="Tipo de relación",
+                        yaxis_title="Cantidad",
+                        margin=dict(l=10, r=10, t=24, b=10),
+                    )
+                    st.plotly_chart(
+                        relation_figure,
+                        width="stretch",
+                        key="relation_type_distribution",
+                    )
         else:
             st.info("No relations found with the selected filters.")
 

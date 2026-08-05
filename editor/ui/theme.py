@@ -13,27 +13,43 @@ THEME_STATE_KEY = "mathmongo_ui_theme"
 
 THEME_TOKENS: dict[ThemeName, dict[str, str]] = {
     "light": {
-        "primary": "#176B63",
-        "background": "#F4F1EA",
-        "surface": "#FFFCF6",
-        "secondary": "#EAE5DA",
-        "text": "#202B2F",
-        "muted_text": "#59666A",
-        "border": "#D2CBC0",
-        "sidebar": "#ECE8DE",
-        "sidebar_secondary": "#E2DDD2",
+        "primary": "#2F6F68",
+        "primary_hover": "#255A55",
+        "background": "#F5F2EA",
+        "surface": "#FBF9F4",
+        "panel": "#FBF9F4",
+        "secondary": "#ECE7DC",
+        "input": "#FFFDF8",
+        "table_header": "#E4DED1",
+        "text": "#243037",
+        "muted_text": "#657177",
+        "border": "#CFC8BA",
+        "sidebar": "#E9E4D8",
+        "sidebar_secondary": "#F0ECE2",
+        "success": "#E4F0E6",
+        "warning": "#F6EDC9",
+        "error": "#F5DFDB",
+        "info": "#DFEAF0",
         "chart_grid": "#D9D3C8",
     },
     "dark": {
-        "primary": "#54A79D",
-        "background": "#172126",
-        "surface": "#202C32",
-        "secondary": "#29363C",
-        "text": "#E8EAE4",
-        "muted_text": "#BAC4C2",
-        "border": "#3B4B51",
-        "sidebar": "#121B20",
-        "sidebar_secondary": "#1B272C",
+        "primary": "#69AFA4",
+        "primary_hover": "#82C4BA",
+        "background": "#11191D",
+        "surface": "#1D2A30",
+        "panel": "#1D2A30",
+        "secondary": "#182329",
+        "input": "#213037",
+        "table_header": "#26373E",
+        "text": "#E7E4DA",
+        "muted_text": "#A8B2B3",
+        "border": "#34464D",
+        "sidebar": "#152126",
+        "sidebar_secondary": "#1B2A30",
+        "success": "#203B2D",
+        "warning": "#493E21",
+        "error": "#482826",
+        "info": "#223A48",
         "chart_grid": "#35434A",
     },
 }
@@ -62,6 +78,7 @@ def render_theme_control(ui: Any) -> ThemeName:
         key=THEME_STATE_KEY,
         required=True,
         width="stretch",
+        label_visibility="collapsed",
         persist_state="session",
         help="El tema se conserva durante esta sesión y no modifica la base de datos.",
     )
@@ -72,9 +89,9 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
     """Apply central, value-only CSS tokens for the active session theme.
 
     Streamlit's built-in light/dark themes remain declared in ``config.toml``.
-    These stable ``data-testid`` selectors let the visible sidebar control apply
-    its session preference immediately, without browser cookies, DOM hashes, or
-    positional selectors.
+    These stable accessibility and test-id selectors let the visible sidebar
+    control apply its session preference immediately, without browser cookies,
+    generated CSS hashes, or positional selectors.
     """
     tokens = THEME_TOKENS[normalize_theme(theme)]
     ui.html(
@@ -82,14 +99,24 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
 <style id="mathmongo-session-theme">
 :root {
   --primary-color: %(primary)s;
+  --primary-hover-color: %(primary_hover)s;
   --background-color: %(background)s;
   --secondary-background-color: %(secondary)s;
   --text-color: %(text)s;
   --border-color: %(border)s;
+  --mathmongo-panel: %(panel)s;
+  --mathmongo-input: %(input)s;
+  --mathmongo-muted: %(muted_text)s;
 }
 [data-testid="stAppViewContainer"],
 [data-testid="stApp"],
 [data-testid="stMain"] {
+  background-color: %(background)s !important;
+  color: %(text)s !important;
+}
+[data-testid="stHeader"],
+[data-testid="stToolbar"],
+[data-testid="stToolbarActions"] {
   background-color: %(background)s !important;
   color: %(text)s !important;
 }
@@ -102,14 +129,17 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
   background-color: %(sidebar_secondary)s !important;
 }
 [data-testid="stVerticalBlockBorderWrapper"],
-[data-testid="stForm"] {
-  background-color: %(surface)s;
+[data-testid="stForm"],
+[data-testid="stExpander"],
+[data-testid="stMetric"] {
+  background-color: %(panel)s;
   border-color: %(border)s !important;
+  color: %(text)s !important;
 }
 [data-testid="stTextInput"] input,
 [data-testid="stTextArea"] textarea,
 [data-baseweb="select"] > div {
-  background-color: %(surface)s !important;
+  background-color: %(input)s !important;
   border-color: %(border)s !important;
   color: %(text)s !important;
 }
@@ -119,10 +149,51 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
 }
 [data-testid="stButton"] button,
 [data-testid="stFormSubmitButton"] button {
+  background-color: %(surface)s;
+  border-color: %(border)s !important;
+  color: %(text)s !important;
+}
+[data-testid="stButton"] button[kind="primary"],
+[data-testid="stFormSubmitButton"] button[kind="primary"] {
+  background-color: %(primary)s !important;
+  border-color: %(primary)s !important;
+  color: %(surface)s !important;
+}
+[data-testid="stButton"] button:hover,
+[data-testid="stFormSubmitButton"] button:hover {
+  border-color: %(primary_hover)s !important;
+}
+[data-testid="stSegmentedControl"] [role="radio"] {
+  background-color: %(input)s !important;
+  border-color: %(border)s !important;
+  color: %(text)s !important;
+}
+[data-testid="stSegmentedControl"] [role="radio"][aria-checked="true"] {
+  background-color: %(primary)s !important;
+  border-color: %(primary)s !important;
+  color: %(surface)s !important;
+}
+[data-baseweb="tab-list"] {
+  background-color: %(secondary)s !important;
+}
+[data-baseweb="tab"] {
+  color: %(muted_text)s !important;
+}
+[aria-selected="true"][data-baseweb="tab"] {
+  color: %(primary)s !important;
+}
+[data-testid="stDataFrame"] {
+  background-color: %(panel)s !important;
   border-color: %(border)s !important;
 }
 [data-testid="stAlert"] {
+  background-color: %(secondary)s !important;
   border-color: %(border)s;
+  color: %(text)s !important;
+}
+[data-testid="stCaptionContainer"],
+[data-testid="stMarkdownContainer"] small {
+  color: %(muted_text)s;
 }
 </style>
         """
@@ -134,19 +205,31 @@ def plotly_layout(theme: ThemeName) -> dict[str, Any]:
     """Return readable, non-neon Plotly defaults for the Panorama charts."""
     tokens = THEME_TOKENS[normalize_theme(theme)]
     return {
-        "paper_bgcolor": tokens["background"],
-        "plot_bgcolor": tokens["secondary"],
+        "paper_bgcolor": tokens["panel"],
+        "plot_bgcolor": tokens["panel"],
         "font": {"color": tokens["text"]},
         "legend": {"font": {"color": tokens["text"]}},
+        "hoverlabel": {
+            "bgcolor": tokens["input"],
+            "bordercolor": tokens["border"],
+            "font": {"color": tokens["text"]},
+        },
         "xaxis": {"gridcolor": tokens["chart_grid"], "zerolinecolor": tokens["border"]},
         "yaxis": {"gridcolor": tokens["chart_grid"], "zerolinecolor": tokens["border"]},
     }
+
+
+def apply_chart_theme(fig: Any, theme: ThemeName) -> Any:
+    """Apply MathMongo's readable Plotly layout and return the same figure."""
+    fig.update_layout(**plotly_layout(theme))
+    return fig
 
 
 __all__ = [
     "THEME_STATE_KEY",
     "THEME_TOKENS",
     "ThemeName",
+    "apply_chart_theme",
     "apply_mathmongo_theme",
     "get_mathmongo_theme",
     "normalize_theme",

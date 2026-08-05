@@ -17,11 +17,34 @@ def test_teaching_theme_declares_native_warm_light_and_dark_tokens() -> None:
     theme = THEME.read_text(encoding="utf-8")
 
     assert 'base = "light"' in theme
-    assert 'primaryColor = "#176B63"' in theme
-    assert 'backgroundColor = "#F4F1EA"' in theme
+    assert 'primaryColor = "#2F6F68"' in theme
+    assert 'backgroundColor = "#F5F2EA"' in theme
+    assert 'secondaryBackgroundColor = "#ECE7DC"' in theme
+    assert 'textColor = "#243037"' in theme
+    assert 'backgroundColor = "#11191D"' in theme
+    assert 'primaryColor = "#69AFA4"' in theme
+    assert "#000000" not in theme
     assert "[theme.sidebar]" in theme
     assert "[theme.light]" in theme
     assert "[theme.dark]" in theme
+
+
+def test_theme_control_and_navigation_are_rendered_in_the_sidebar() -> None:
+    """Keep the complete visual preference control out of the page body."""
+    app = STREAMLIT_APP.read_text(encoding="utf-8")
+
+    assert 'with st.sidebar:\n    st.divider()\n    st.subheader("Tema")\n    active_theme = render_theme_control(st)' in app
+    assert 'with st.sidebar:\n    st.subheader("Navegación")\n    selected_page = st.selectbox(' in app
+    assert app.count("render_theme_control(st)") == 1
+
+
+def test_chart_theming_uses_the_shared_plotly_helper() -> None:
+    """Dashboard charts must not fall back to unthemed light/dark containers."""
+    app = STREAMLIT_APP.read_text(encoding="utf-8")
+    theme_module = (ROOT / "editor" / "ui" / "theme.py").read_text(encoding="utf-8")
+
+    assert "def apply_chart_theme" in theme_module
+    assert app.count("apply_chart_theme(") >= 4
 
 
 def test_stale_or_destructive_teaching_copy_is_absent() -> None:

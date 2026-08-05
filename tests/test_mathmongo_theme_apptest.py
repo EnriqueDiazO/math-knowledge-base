@@ -22,7 +22,9 @@ def test_theme_control_preserves_navigation_and_unsent_form_draft(tmp_path: Path
             from editor.ui.theme import render_theme_control
 
 
-            theme = render_theme_control(st)
+            with st.sidebar:
+                st.subheader("Tema")
+                theme = render_theme_control(st)
             apply_mathmongo_theme(theme, st)
             page = st.selectbox("Navegación", ["🏠 Inicio", "➕ Add Source"], key="nav")
             with st.form("source_draft"):
