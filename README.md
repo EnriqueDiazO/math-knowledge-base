@@ -335,7 +335,7 @@ histórica activa; el flujo docente no usa `--drop` ni acciones de "borrar todo"
 
 No ejecutes `dropDatabase`, `--drop` ni "Clear All Data" como parte de una
 actualización o una clase. Las guías de backup y restauración verificable se
-documentan junto con el entorno docente.
+documentan en [`docs/BACKUP_AND_RECOVERY.md`](docs/BACKUP_AND_RECOVERY.md).
 
 
 ---
