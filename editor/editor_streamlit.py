@@ -1,3 +1,5 @@
+"""Main Streamlit interface for MathMongo."""
+
 import html
 import json
 import os
@@ -968,7 +970,10 @@ st.set_page_config(
 
 # Database connection management
 class DatabaseManager:
+    """Keep the explicit set of database connections used by the interface."""
+
     def __init__(self):
+        """Initialize the empty connection registry."""
         self.connections = {}
         self.current_connection = None
 
@@ -1430,6 +1435,7 @@ elif page == "🏠 Inicio":
                         labels = []
 
                         def add_node(nid, label):
+                            """Append a graph node only when its identifier is new."""
                             if nid not in node_ids:
                                 node_ids.append(nid)
                                 labels.append(label)
@@ -1839,7 +1845,7 @@ elif page == "💡 Nuevo concepto":
             if source_selection_valid:
                 source = selected_source_preview.name
                 source_id = selected_source_preview.source_id
-        
+
         if source:
             try:
                 docs = list(
@@ -1860,7 +1866,7 @@ elif page == "💡 Nuevo concepto":
                 )
             except Exception:
                 items = []
-            
+
             st.markdown("#### Existing IDs for this source")
             if items:
                 show_n = 50
@@ -2686,7 +2692,7 @@ elif page == "🖊️ Editar concepto":
         with col2:
             titulo = st.text_input("Title", key="edit_titulo")
             tipo_titulo = st.selectbox(
-                "Title Type", 
+                "Title Type",
                 [t.value for t in TipoTitulo],
                 key="edit_tipo_titulo",
             )
@@ -2881,20 +2887,20 @@ elif page == "🖊️ Editar concepto":
             all_categories,
             key="edit_categorias",
         )
-        
+
         # LaTeX content with helper toolbar
         st.subheader("📝 LaTeX Content")
-        
+
         # LaTeX Helper Toolbar (same as Add Concept)
         st.write("**🔧 LaTeX Helper Tools:**")
-        
+
         # Main structures
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
             if st.button("📝 Definition", key="edit_btn_def"):
                 st.session_state.edit_latex_insert = r"\begin{definition}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
-            
+
             if st.button("📋 Theorem", key="edit_btn_theorem"):
                 st.session_state.edit_latex_insert = r"\begin{theorem}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
 
@@ -2962,9 +2968,9 @@ elif page == "🖊️ Editar concepto":
 
         # Mathematical symbols (abbreviated for edit page)
         st.write("**🔢 Common Symbols:**")
-        
+
         col1, col2, col3, col4 = st.columns(4)
-        
+
         with col1:
             if st.button("∑ Sum", key="edit_btn_sum"):
                 st.session_state.edit_latex_insert = r"\sum_{i=1}^{n}"
@@ -3004,11 +3010,11 @@ elif page == "🖊️ Editar concepto":
                 st.session_state.edit_latex_insert = r"\lambda"
             if st.button("θ Theta", key="edit_btn_theta"):
                 st.session_state.edit_latex_insert = r"\theta"
-        
+
         # Initialize edit_latex_insert in session state if not exists
         if 'edit_latex_insert' not in st.session_state:
             st.session_state["edit_latex_insert"] = ""
-        
+
         # Show current insertion if any
         if st.session_state["edit_latex_insert"]:
             st.info(f"**Ready to insert:** `{st.session_state['edit_latex_insert']}`")
@@ -3040,7 +3046,7 @@ elif page == "🖊️ Editar concepto":
             st.session_state["edit_latex_insert"] = ""
         if "edit_insert_latex" not in st.session_state:
             st.session_state["edit_insert_latex"] = False
-        
+
         # Handle insertion (DEBE IR ANTES del st_ace)
         if st.session_state.get("edit_insert_latex") and st.session_state.get("edit_latex_insert"):
             current_text = st.session_state.get("edit_latex_text", "") or ""
@@ -3101,7 +3107,7 @@ elif page == "🖊️ Editar concepto":
             col1, col2 = st.columns(2)
             with col1:
                 ref_tipo = st.selectbox(
-                    "Reference Type", 
+                    "Reference Type",
                     [t.value for t in TipoReferencia],
                     key="edit_ref_tipo"
                 )
@@ -3131,7 +3137,7 @@ elif page == "🖊️ Editar concepto":
             col1, col2 = st.columns(2)
             with col1:
                 nivel_contexto = st.selectbox(
-                    "Context Level", 
+                    "Context Level",
                     [n.value for n in NivelContexto],
                     key="edit_nivel",
                 )
@@ -3156,30 +3162,30 @@ elif page == "🖊️ Editar concepto":
 
             with col2:
                 requiere_conceptos_previos = st.text_area(
-                    "Required Previous Concepts", 
+                    "Required Previous Concepts",
                     key="edit_previos"
                 )
                 incluye_ejemplo = st.checkbox("Includes Example", key="edit_ejemplo")
                 es_autocontenible = st.checkbox("Is Self-Contained", key="edit_autocontenible")
 
             tipo_presentacion = st.selectbox(
-                "Presentation Type", 
+                "Presentation Type",
                 [t.value for t in TipoPresentacion],
                 key="edit_presentacion"
             )
             nivel_simbolico = st.selectbox(
-                "Symbolic Level", 
+                "Symbolic Level",
                 [n.value for n in NivelSimbolico],
                 key="edit_simbolico"
             )
             tipo_aplicacion = st.multiselect(
-                "Application Type", 
+                "Application Type",
                 [t.value for t in TipoAplicacion],
                 key="edit_aplicacion"
             )
         # Comment
         comentario = st.text_area(
-            "Comment", 
+            "Comment",
             key="edit_comentario"
         )
         # Action buttons
@@ -3473,7 +3479,7 @@ elif page == "🧠 Conceptos":
                 from exporters_quarto.quarto_exporter import QuartoBookExporter
                 from scripts.export_quarto_book import _write_book_quarto_yml
                 build_path = validate_mutable_path(resolve_home_path(build_dir))
-                selected_ids = {concept_id_map[l] for l in selected_labels}
+                selected_ids = {concept_id_map[label] for label in selected_labels}
                 selected_concepts = []
                 for c in concepts:
                     if c["id"] in selected_ids:

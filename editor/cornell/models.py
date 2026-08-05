@@ -73,7 +73,7 @@ def _require_float(
     minimum: float,
     maximum: float,
 ) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
+    if isinstance(value, bool) or not isinstance(value, int | float):
         raise ValueError(f"{field_name} must be a number")
     result = float(value)
     if result < minimum or result > maximum:
@@ -420,7 +420,7 @@ class CornellDocument:
         """Build a Cornell document from a MongoDB-compatible dictionary."""
         source = _require_mapping(data, "cornell")
         raw_pages = source.get("pages")
-        if raw_pages is None or isinstance(raw_pages, (str, bytes)):
+        if raw_pages is None or isinstance(raw_pages, str | bytes):
             raise ValueError("pages must be a sequence of page dictionaries")
         try:
             pages = tuple(CornellPage.from_dict(page) for page in raw_pages)

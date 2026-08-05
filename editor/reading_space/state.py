@@ -5,9 +5,8 @@ from __future__ import annotations
 from collections.abc import MutableMapping
 from typing import Any
 
-from editor.source_catalog.state import EDIT_SOURCE_NAV_LABEL
-
 from editor.pdf_preview import clear_pdf_preview
+from editor.source_catalog.state import EDIT_SOURCE_NAV_LABEL
 
 SESSION_PREFIX = "reading_space_"
 READING_SPACE_NAV_LABEL = "📖 Reading Space"
@@ -116,7 +115,7 @@ def queue_document_widget_clear(
 ) -> None:
     """Queue a widget cleanup for the next rerun, before widgets are instantiated."""
     pending = state.get(PENDING_DOCUMENT_WIDGET_CLEARS)
-    document_ids = set(pending) if isinstance(pending, (list, tuple, set)) else set()
+    document_ids = set(pending) if isinstance(pending, list | tuple | set) else set()
     document_ids.add(document_id)
     state[PENDING_DOCUMENT_WIDGET_CLEARS] = sorted(document_ids)
 
@@ -127,7 +126,7 @@ def queue_current_page_widget_clear(
 ) -> None:
     """Queue only a Current page widget reset while preserving an open viewer."""
     pending = state.get(PENDING_CURRENT_PAGE_WIDGET_CLEARS)
-    document_ids = set(pending) if isinstance(pending, (list, tuple, set)) else set()
+    document_ids = set(pending) if isinstance(pending, list | tuple | set) else set()
     document_ids.add(document_id)
     state[PENDING_CURRENT_PAGE_WIDGET_CLEARS] = sorted(document_ids)
 
@@ -205,7 +204,7 @@ def migrate_legacy_workspace_tab(state: MutableMapping[str, Any]) -> bool:
 def apply_pending_document_widget_clears(state: MutableMapping[str, Any]) -> tuple[str, ...]:
     """Apply queued post-action widget cleanup at the start of a page render."""
     pending = state.pop(PENDING_DOCUMENT_WIDGET_CLEARS, ())
-    if not isinstance(pending, (list, tuple, set)):
+    if not isinstance(pending, list | tuple | set):
         return ()
     document_ids = tuple(value for value in pending if isinstance(value, str) and value)
     for document_id in document_ids:
@@ -218,7 +217,7 @@ def apply_pending_current_page_widget_clears(
 ) -> tuple[str, ...]:
     """Apply queued Reset cleanups before Current page widgets are instantiated."""
     pending = state.pop(PENDING_CURRENT_PAGE_WIDGET_CLEARS, ())
-    if not isinstance(pending, (list, tuple, set)):
+    if not isinstance(pending, list | tuple | set):
         return ()
     document_ids = tuple(value for value in pending if isinstance(value, str) and value)
     for document_id in document_ids:
