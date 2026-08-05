@@ -6,25 +6,25 @@ import argparse
 import os
 import sys
 from collections.abc import Sequence
+from typing import TYPE_CHECKING
 
 from mathmongo import __version__
-from mathmongo.academic_cli.catalog import install_catalog_commands
-from mathmongo.academic_cli.common import AcademicCliError
-from mathmongo.academic_cli.documents import install_document_commands
 from mathmongo.config import active_database_diagnostic
 from mathmongo.config import resolve_config
 from mathmongo.config import sanitize_mongo_error
 from mathmongo.launcher import LaunchError
 from mathmongo.launcher import launch_mathmongo
-from mathmongo.local_runtime.control import RuntimeController
-from mathmongo.local_runtime.models import LOG_LEVELS
-from mathmongo.local_runtime.models import LocalRuntimeError
-from mathmongo.local_runtime.models import RuntimeSettings
-from mathmongo.local_runtime.processes import sanitize_log_line
-from mathmongo.local_runtime.state import ProcessIdentity
-from mathmongo.local_runtime.state import RuntimeObservation
 from mathmongo.paths import get_logs_dir
 from mathmongo.paths import validate_mutable_path
+
+if TYPE_CHECKING:
+    from mathmongo.local_runtime.models import RuntimeSettings
+    from mathmongo.local_runtime.state import ProcessIdentity
+    from mathmongo.local_runtime.state import RuntimeObservation
+
+# Keep this vocabulary local so ``import mathmongo.cli`` does not import the
+# runtime supervisor (whose execution-only dependencies include PyMongo).
+RUNTIME_LOG_LEVELS = ("critical", "error", "warning", "info", "debug")
 
 
 def _add_run_options(parser: argparse.ArgumentParser, *, suppress_defaults: bool = False) -> None:
@@ -51,7 +51,7 @@ def _add_runtime_options(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--advanced-reader-host", help="Host loopback del Advanced Reader.")
     parser.add_argument("--advanced-reader-port", type=int, help="Puerto loopback del Advanced Reader.")
     parser.add_argument("--mongo-uri", help="URI MongoDB sólo para esta invocación; nunca se muestra.")
-    parser.add_argument("--log-level", choices=sorted(LOG_LEVELS), help="Nivel de diagnóstico local.")
+    parser.add_argument("--log-level", choices=RUNTIME_LOG_LEVELS, help="Nivel de diagnóstico local.")
 
 
 def build_parser() -> argparse.ArgumentParser:
@@ -104,12 +104,21 @@ def build_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Permite SIGKILL sólo tras un cierre SIGTERM fallido del runtime confirmado.",
     )
+    # Academic command handlers import repositories and domain models that
+    # depend on PyMongo.  Keep the module entry point light: importing
+    # ``mathmongo.cli`` must never load those dependencies or touch MongoDB.
+    # They are needed only when a parser is actually constructed.
+    from mathmongo.academic_cli.catalog import install_catalog_commands
+    from mathmongo.academic_cli.documents import install_document_commands
+
     install_catalog_commands(subparsers)
     install_document_commands(subparsers)
     return parser
 
 
 def _runtime_settings(args: argparse.Namespace, config) -> RuntimeSettings:
+    from mathmongo.local_runtime.models import RuntimeSettings
+
     configured_streamlit_host = config.streamlit_address
     if configured_streamlit_host == "localhost":
         configured_streamlit_host = "127.0.0.1"
@@ -124,6 +133,8 @@ def _runtime_settings(args: argparse.Namespace, config) -> RuntimeSettings:
 
 
 def _print_identity(label: str, identity: ProcessIdentity | None) -> None:
+    from mathmongo.local_runtime.processes import sanitize_log_line
+
     if identity is None:
         print(f"{label}: no identificado")
         return
@@ -147,6 +158,9 @@ def _print_runtime_observation(
 
 
 def _run_runtime_command(args: argparse.Namespace, config) -> int:
+    from mathmongo.local_runtime.control import RuntimeController
+    from mathmongo.local_runtime.models import LocalRuntimeError
+
     settings = _runtime_settings(args, config)
     controller = RuntimeController(
         settings,
@@ -185,6 +199,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     handler = getattr(args, "academic_handler", None)
     if handler is not None:
+        from mathmongo.academic_cli.common import AcademicCliError
+
         try:
             return int(handler(args))
         except AcademicCliError as exc:
@@ -204,6 +220,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         print(f"MongoDB: {diagnostic['mongo_uri']}")
         return 0
     if args.command == "runtime":
+        from mathmongo.local_runtime.models import LocalRuntimeError
+
         try:
             return _run_runtime_command(args, settings)
         except LocalRuntimeError as exc:

@@ -17,7 +17,10 @@ from mathmongo.config import AppConfig
 from mathmongo.launcher import LaunchError
 
 
-@pytest.mark.parametrize("arguments", [["--help"], ["run", "--help"]])
+@pytest.mark.parametrize(
+    "arguments",
+    [["--help"], ["run", "--help"], ["source", "--help"], ["document", "--help"]],
+)
 def test_cli_help(arguments: list[str], capsys) -> None:
     with pytest.raises(SystemExit) as exc_info:
         main(arguments)
@@ -117,8 +120,11 @@ def test_run_gui_is_thin_compatible_wrapper() -> None:
 
 def test_importing_cli_does_not_import_streamlit_or_pymongo() -> None:
     code = (
-        "import sys; import mathmongo.cli; "
-        "assert 'streamlit' not in sys.modules; assert 'pymongo' not in sys.modules"
+        "import sys; attempts = []; "
+        "sys.addaudithook(lambda event, _args: attempts.append(event) if event == 'socket.connect' else None); "
+        "import mathmongo.cli; "
+        "assert 'streamlit' not in sys.modules; assert 'pymongo' not in sys.modules; "
+        "assert not attempts"
     )
     result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
     assert result.returncode == 0, result.stderr

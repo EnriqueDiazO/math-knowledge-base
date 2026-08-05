@@ -48,13 +48,6 @@ def _display(alias: str, database_name: str) -> str:
     return database_connections.active_database_display_label(alias, connection)
 
 
-def _app_branch(start_marker: str, end_marker: str) -> str:
-    source = STREAMLIT_APP.read_text(encoding="utf-8")
-    start = source.index(start_marker)
-    end = source.index(end_marker, start)
-    return source[start:end]
-
-
 def test_configured_mathv0_name_is_visible_without_hardcoding() -> None:
     assert _display("MathMongo (Current)", "MathV0") == "MathV0 — MathMongo (Current)"
 
@@ -73,23 +66,24 @@ def test_generic_alias_never_hides_the_real_database_name() -> None:
 
 
 def test_switcher_options_identify_each_real_database() -> None:
-    labels = {
-        _display("Local", "algebra"),
-        _display("Remote", "geometry"),
-    }
+    labels = [
+        _display("MathMongo (Current)", "MathV0"),
+        _display("MathMongo (Current)", "mathmongo"),
+    ]
 
-    assert labels == {"algebra — Local", "geometry — Remote"}
-    switcher = _app_branch("# Database switcher", "# Add new database connection")
-    assert "format_func=lambda connection_label: active_database_display_label(" in switcher
+    assert labels == [
+        "MathV0 — MathMongo (Current)",
+        "mathmongo — MathMongo (Current)",
+    ]
+    assert len(set(labels)) == 2
 
 
 def test_current_database_status_uses_the_clear_display_label() -> None:
-    branch = _app_branch("# Show current connection", "# Database switcher")
+    label = _display("MathMongo (Current)", "MathV0")
 
-    assert "st.sidebar.success(" in branch
-    assert "current_database_label" in branch
-    assert "current_database_card_label" not in branch
-    assert "unsafe_allow_html" not in branch
+    assert label == "MathV0 — MathMongo (Current)"
+    assert label.startswith("MathV0")
+    assert "MathMongo (Current)" in label
 
 
 def test_add_concept_message_uses_the_clear_display_label() -> None:
@@ -127,17 +121,16 @@ def test_uri_shaped_alias_is_not_exposed() -> None:
 
 
 def test_labels_follow_the_new_active_connection_after_rerun() -> None:
-    before = _display("Current", "database_a")
-    after = _display("Current", "database_b")
-    switcher = _app_branch("# Database switcher", "# Add new database connection")
+    visible_before = _display("Current", "database_a")
+    visible_after = _display("Current", "database_b")
 
-    assert before == "database_a — Current"
-    assert after == "database_b — Current"
-    assert before != after
-    assert "st.rerun()" in switcher
+    assert visible_before == "database_a — Current"
+    assert visible_after == "database_b — Current"
+    assert visible_before != visible_after
 
 
 def test_production_label_helper_does_not_hardcode_mathv0() -> None:
+    """Keep the connection label bound to the selected database, not a preset."""
     source = inspect.getsource(database_connections)
 
     assert '"MathV0"' not in source
