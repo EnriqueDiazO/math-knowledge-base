@@ -10,8 +10,9 @@ from typing import Any
 from editor.pdf_preview import clear_pdf_preview
 
 SESSION_PREFIX = "source_catalog_"
+HOME_NAV_LABEL = "🏠 Inicio"
 ADD_SOURCE_NAV_LABEL = "➕ Add Source"
-EDIT_SOURCE_NAV_LABEL = "✏️ Edit / Analyze Source"
+EDIT_SOURCE_NAV_LABEL = "✏️ Edit Source"
 
 ACTIVE_DATABASE_IDENTITY = f"{SESSION_PREFIX}active_database_identity"
 NAVIGATION_WIDGET = f"{SESSION_PREFIX}navigation"
@@ -44,7 +45,7 @@ def draft_fingerprint(value: Any) -> str:
                     "raw",
                 }
             }
-        if isinstance(item, (list, tuple)):
+        if isinstance(item, list | tuple):
             return [scrub(nested) for nested in item]
         return item
 
@@ -100,14 +101,15 @@ def sync_database_state(
 
 
 def add_source_catalog_navigation(options: list[str] | tuple[str, ...]) -> list[str]:
-    """Insert both S1B pages once while preserving every existing option."""
+    """Insert both S1B pages after the daily notebook pages once."""
     result = [
         option for option in options if option not in {ADD_SOURCE_NAV_LABEL, EDIT_SOURCE_NAV_LABEL}
     ]
-    try:
-        insert_at = result.index("🏠 Dashboard") + 1
-    except ValueError:
-        insert_at = 0
+    anchors = ("🟥 CPI", "🟩 Cornell", "📝 Cuaderno", HOME_NAV_LABEL)
+    insert_at = next(
+        (result.index(anchor) + 1 for anchor in anchors if anchor in result),
+        0,
+    )
     result[insert_at:insert_at] = [ADD_SOURCE_NAV_LABEL, EDIT_SOURCE_NAV_LABEL]
     return result
 
@@ -144,7 +146,7 @@ def queue_legacy_concept_open(
 ) -> None:
     """Queue the existing Edit Concept page with an exact legacy identity."""
     state[PENDING_LEGACY_CONCEPT] = {"id": concept_id, "source": source}
-    request_navigation(state, "✏️ Edit Concept")
+    request_navigation(state, "🖊️ Editar concepto")
 
 
 def consume_legacy_concept_open(state: MutableMapping[str, Any]) -> dict[str, str] | None:
@@ -228,6 +230,7 @@ __all__ = [
     "ADD_SOURCE_NAV_LABEL",
     "EDIT_SOURCE_NAV_LABEL",
     "FLASH_MESSAGE",
+    "HOME_NAV_LABEL",
     "NAVIGATION_WIDGET",
     "PENDING_LEGACY_CONCEPT",
     "PENDING_NAVIGATION",

@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import shutil
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from editor.cornell.layout import default_cornell_fit_report
 from editor.cornell.models import DEFAULT_TEMPLATE_ID as CORNELL_DEFAULT_TEMPLATE_ID
 from editor.cornell.models import HYBRID_COMPACT_TEMPLATE_ID as CORNELL_HYBRID_TEMPLATE_ID
 from editor.cornell.models import CornellDocument
@@ -18,6 +20,7 @@ from editor.cornell.models import template_ids as cornell_template_ids
 from editor.cornell.project_export import export_cornell_project
 from editor.cornell.renderer import generate_cornell_document_tex
 from editor.cornell.renderer import render_cornell_document
+from editor.cpi.layout import default_cpi_fit_report
 from editor.cpi.models import DEFAULT_TEMPLATE_ID as CPI_DEFAULT_TEMPLATE_ID
 from editor.cpi.models import HYBRID_COMPACT_TEMPLATE_ID as CPI_HYBRID_TEMPLATE_ID
 from editor.cpi.models import CpiDocument
@@ -109,20 +112,73 @@ def test_compact_template_registries_are_opt_in_and_unknown_ids_fall_back_safely
     assert legacy_cpi.to_dict()["template_id"] == "legacy-cpi-template"
 
 
-def test_hybrid_templates_emit_semantic_cards_without_historical_fixed_bands() -> None:
-    """Emit compact semantic cards rather than the historical fixed backgrounds."""
+def test_hybrid_templates_use_continuous_semantic_regions() -> None:
+    """Use continuous, colour-coded sheets for Cornell and CPI."""
     cornell_tex = generate_cornell_document_tex(_cornell_document())
     cpi_tex = generate_cpi_document_tex(_cpi_document())
 
-    assert "CornellHybridCard" in cornell_tex
+    assert "CornellHybridCard" not in cornell_tex
     assert "CornellHybridCue" in cornell_tex
     assert "CornellHybridSummarySoft" in cornell_tex
+    assert r"\fill[CornellHybridCueSoft,opacity=.55]" in cornell_tex
+    assert r"\fill[CornellHybridMainSoft,opacity=.30]" in cornell_tex
+    assert r"\fill[CornellHybridSummarySoft,opacity=.65]" in cornell_tex
+    assert r"\foreach \y in {2.35,2.70,...,10.55}" in cornell_tex
+    assert r"\draw[line width=.65pt] ($(SW)+(0,2in)$)" in cornell_tex
     assert "lineas.png" not in cornell_tex
-    assert "CPIHybridCard" in cpi_tex
+    assert "CPIHybridCard" not in cpi_tex
     assert "CPIHybridComprehensionSoft" in cpi_tex
     assert "CPIHybridIntegrationSoft" in cpi_tex
+    assert r"\fill[CPIHybridComprehensionSoft,opacity=.62]" in cpi_tex
+    assert r"\fill[CPIHybridProductionSoft,opacity=.50]" in cpi_tex
+    assert r"\fill[CPIHybridIntegrationSoft,opacity=.75]" in cpi_tex
+    assert r"\draw[line width=.65pt] ($(SW)+(0,2.4in)$)" in cpi_tex
     assert "Valor epistémico" in cpi_tex
     assert "Valor pragmático" in cpi_tex
+
+
+def test_scaled_hybrid_region_keeps_its_paragraph_width() -> None:
+    """Scaling a long hybrid region must not turn its paragraph into one wide box."""
+    document = _cornell_document()
+    base_report = default_cornell_fit_report(document)
+    page_report = base_report.pages[0]
+    scaled_regions = tuple(
+        replace(region, applied_scale=0.84)
+        if region.region == "main"
+        else region
+        for region in page_report.regions
+    )
+    fit_report = replace(base_report, pages=(replace(page_report, regions=scaled_regions),))
+
+    tex = generate_cornell_document_tex(document, fit_report=fit_report)
+
+    scaled_main = tex[tex.index(r"\begin{adjustbox}{scale=0.840000}") :]
+    assert r"\begin{minipage}[t]{5.68in}" in scaled_main
+    assert scaled_main.index(r"\begin{minipage}[t]{5.68in}") < scaled_main.index(
+        r"% Cornell source page=1 region=main"
+    )
+
+
+def test_scaled_cpi_hybrid_region_keeps_its_paragraph_width() -> None:
+    """Scaling a CPI region must retain its constrained paragraph width."""
+    document = _cpi_document()
+    base_report = default_cpi_fit_report(document)
+    page_report = base_report.pages[0]
+    scaled_regions = tuple(
+        replace(region, applied_scale=0.84)
+        if region.region == "production"
+        else region
+        for region in page_report.regions
+    )
+    fit_report = replace(base_report, pages=(replace(page_report, regions=scaled_regions),))
+
+    tex = generate_cpi_document_tex(document, fit_report=fit_report)
+
+    scaled_production = tex[tex.index(r"\begin{adjustbox}{scale=0.840000}") :]
+    assert r"\begin{minipage}[t]{5.04in}" in scaled_production
+    assert scaled_production.index(r"\begin{minipage}[t]{5.04in}") < scaled_production.index(
+        r"% CPI source page=1 region=production"
+    )
 
 
 @pytest.mark.skipif(shutil.which("pdflatex") is None, reason="pdflatex is required for template rendering")
@@ -140,7 +196,11 @@ def test_hybrid_templates_render_and_export_the_same_tex_style(tmp_path: Path) -
 
     cornell_project = export_cornell_project(cornell, {"title": "Cornell híbrido"}, tmp_path / "cornell_project")
     cpi_project = export_cpi_project(cpi, {"title": "CPI híbrido"}, tmp_path / "cpi_project")
-    assert "CornellHybridCard" in (cornell_project.project_dir / "Notas.tex").read_text(encoding="utf-8")
-    assert "CPIHybridCard" in (cpi_project.project_dir / "Notas.tex").read_text(encoding="utf-8")
+    assert r"\fill[CornellHybridCueSoft,opacity=.55]" in (
+        cornell_project.project_dir / "Notas.tex"
+    ).read_text(encoding="utf-8")
+    assert r"\fill[CPIHybridComprehensionSoft,opacity=.62]" in (
+        cpi_project.project_dir / "Notas.tex"
+    ).read_text(encoding="utf-8")
     _compile_project_notas(cornell_project.project_dir)
     _compile_project_notas(cpi_project.project_dir)

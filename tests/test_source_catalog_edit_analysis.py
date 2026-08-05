@@ -99,7 +99,7 @@ class _ActionUI(_MessageUI):
 class _SearchUI(_MessageUI):
     def __init__(self) -> None:
         super().__init__()
-        self.rows: list[dict[str, Any]] = []
+        self.source_options: list[object] = []
 
     def subheader(self, value: object) -> None:
         self._record("subheader", value)
@@ -110,20 +110,19 @@ class _SearchUI(_MessageUI):
     def text_input(self, label: str, **_kwargs: Any) -> str:
         return "operator" if label == "Tag" else ""
 
-    def selectbox(self, label: str, _options, **_kwargs: Any) -> str:
-        return "archived" if label == "Status" else "book"
+    def selectbox(self, label: str, options, **_kwargs: Any) -> str | None:
+        if label == "Status":
+            return "archived"
+        if label == "Source type":
+            return "book"
+        self.source_options = list(options)
+        return None
 
     def number_input(self, _label: str, **_kwargs: Any) -> int:
         return 3
 
     def caption(self, value: object) -> None:
         self._record("caption", value)
-
-    def dataframe(self, rows, **_kwargs: Any) -> None:
-        self.rows = list(rows)
-
-    def button(self, _label: str, **_kwargs: Any) -> bool:
-        return False
 
 
 def test_execute_write_once_blocks_rerun_and_sanitizes_failures() -> None:
@@ -324,8 +323,7 @@ def test_source_search_is_server_paged_and_keeps_archived_sources_visible() -> N
             "tag": "operator",
         }
     ]
-    assert ui.rows[0]["source_id"] == archived.source_id
-    assert ui.rows[0]["status"] == "archived"
+    assert ui.source_options == [None, archived.source_id]
     assert any("41 Sources · page 3" in message for _level, message in ui.messages)
 
 
@@ -360,7 +358,10 @@ def test_source_rename_keeps_id_and_wires_optional_previous_alias(monkeypatch) -
         update_source=update_source,
     )
     context = SimpleNamespace(database_name="isolated_s1b", service=service)
-    ui = _ActionUI(submitted={"Save Source changes"})
+    ui = _ActionUI(
+        submitted={"Save Source changes"},
+        clicked={"Vista previa de cambios"},
+    )
     monkeypatch.setattr(
         edit_source_page,
         "render_source_form",
@@ -399,7 +400,11 @@ def test_source_update_submit_is_not_deadlocked_by_inner_confirmation(monkeypatc
             update_source=lambda source_id, *_args, **_kwargs: update_calls.append(source_id),
         ),
     )
-    ui = _ActionUI(submitted={"Save Source changes"}, confirmed=False)
+    ui = _ActionUI(
+        submitted={"Save Source changes"},
+        clicked={"Vista previa de cambios"},
+        confirmed=False,
+    )
     monkeypatch.setattr(
         edit_source_page,
         "render_source_form",

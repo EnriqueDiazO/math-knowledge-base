@@ -5,6 +5,8 @@ from __future__ import annotations
 from typing import Any
 
 from editor.source_catalog.bibtex_ui import render_bibtex_input
+from editor.source_catalog.presentation import render_section_header
+from editor.source_catalog.presentation import render_source_summary_card
 from editor.source_catalog.reference_actions import render_reference_save_plan
 from editor.source_catalog.reference_form import ReferenceFormDraft
 from editor.source_catalog.reference_form import render_reference_form
@@ -109,7 +111,7 @@ def _render_outcome(ui: Any, outcome: AddSourceOutcome) -> None:
     if outcome.partial:
         ui.warning(
             "Partial result: the Source was preserved, while at least one Reference action "
-            "needs correction in Edit / Analyze Source. No rollback or unrelated deletion occurred."
+            "needs correction in Edit Source. No rollback or unrelated deletion occurred."
         )
 
 
@@ -125,17 +127,26 @@ def render_add_source_page(
     ui.title("➕ Add Source")
     render_active_database(ui, context)
     snapshot = render_catalog_status(ui, context)
-    ui.divider()
-    ui.subheader("A. Basic Information")
-    ui.caption("Las fuentes nuevas se crean con estado activo.")
+    render_section_header(
+        ui,
+        "Información principal",
+        "Las fuentes nuevas se crean con estado activo. No se escribe nada hasta confirmar.",
+    )
     draft = render_source_form(ui, key_prefix="add_source")
 
     preview_clicked = ui.button(
-        "Preview Source",
+        "Vista previa",
         key=state_key("add_preview_button"),
         disabled=not draft.valid,
     )
-    if preview_clicked and draft.source is not None:
+    cancel_preview = ui.button(
+        "Cancelar vista previa",
+        key=state_key("add_cancel_preview_button"),
+        disabled=ADD_PREVIEW_KEY not in ui.session_state,
+    )
+    if cancel_preview:
+        ui.session_state.pop(ADD_PREVIEW_KEY, None)
+    elif preview_clicked and draft.source is not None:
         ui.session_state[ADD_PREVIEW_KEY] = {
             "values": dict(draft.values),
             "source": draft.source,
@@ -154,16 +165,9 @@ def render_add_source_page(
     source_duplicates: list[Any] = []
     source_confirmed = False
     if source is not None:
-        ui.subheader("B. Duplicate Preview")
-        ui.write(
-            {
-                "source_id_generated": source.source_id,
-                "name": source.name,
-                "type": source.source_type.value,
-                "aliases": [alias.value for alias in source.aliases],
-                "status": source.status.value,
-            }
-        )
+        render_section_header(ui, "Vista previa")
+        render_source_summary_card(ui, source, title="Source propuesta")
+        render_section_header(ui, "Coincidencias")
         try:
             source_duplicates = context.service.detect_source_duplicates(source)
             render_duplicate_preview(ui, source_duplicates)
@@ -177,26 +181,43 @@ def render_add_source_page(
                 key=state_key("add_source_allow_duplicate", source_fingerprint),
             )
 
-    ui.subheader("C. Optional References")
-    reference_mode = ui.radio(
-        "Reference input",
-        REFERENCE_MODES,
-        horizontal=True,
-        key=state_key("add_reference_mode"),
+    render_section_header(
+        ui,
+        "Referencia bibliográfica",
+        "Es opcional y se procesa junto con la Source sólo después de la confirmación.",
     )
+    segmented_control = getattr(ui, "segmented_control", None)
+    if callable(segmented_control):
+        reference_mode = segmented_control(
+            "Entrada de Reference",
+            REFERENCE_MODES,
+            key=state_key("add_reference_mode"),
+            width="stretch",
+        )
+    else:
+        reference_mode = ui.radio(
+            "Reference input",
+            REFERENCE_MODES,
+            horizontal=True,
+            key=state_key("add_reference_mode"),
+        )
     plans: list[ReferenceSavePlan] = []
     references_ready = True
     if reference_mode == "Manual":
         plans, references_ready = _manual_reference_plan(ui, context)
     elif reference_mode == "Paste / Upload BibTeX":
-        ui.subheader("D. BibTeX Preview")
+        render_section_header(ui, "Vista previa de BibTeX")
         plans, references_ready = _bibtex_reference_plans(ui, context)
 
-    ui.subheader("E. Save Workflow")
+    render_section_header(ui, "Confirmar creación")
     if source is not None:
-        ui.write(
-            f"Summary: create Source `{source.source_id}` in `{context.database_name}` "
-            f"and process {len(plans)} Reference action(s)."
+        render_source_summary_card(
+            ui,
+            source,
+            title=(
+                f"Se creará esta Source en {context.database_name} "
+                f"con {len(plans)} acción(es) de Reference"
+            ),
         )
     source_ready = source is not None and allow_source_creation(
         source_duplicates,
@@ -211,7 +232,7 @@ def render_add_source_page(
             key=state_key("add_final_confirmation"),
         )
         submitted = ui.form_submit_button(
-            "Create Source and selected References",
+            "Crear Source y References seleccionadas",
             disabled=not (source_ready and references_ready and catalog_ready),
         )
     save_clicked = submitted and final_confirmation
@@ -249,7 +270,7 @@ def render_add_source_page(
 
     recent_source_id = ui.session_state.get(RECENT_CREATED_SOURCE_ID)
     if isinstance(recent_source_id, str) and ui.button(
-        "Open newly created Source in Edit / Analyze Source",
+        "Abrir la Source creada en Edit Source",
         key=state_key("open_created", recent_source_id),
     ):
         request_navigation(

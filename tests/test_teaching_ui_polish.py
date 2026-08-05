@@ -12,15 +12,16 @@ ADD_SOURCE = ROOT / "editor" / "source_catalog" / "add_source_page.py"
 REFERENCE_FORM = ROOT / "editor" / "concept_reference_form.py"
 
 
-def test_teaching_theme_uses_native_warm_light_tokens() -> None:
-    """Keep the shared Streamlit theme calm, light, and native."""
+def test_teaching_theme_declares_native_warm_light_and_dark_tokens() -> None:
+    """Keep the shared Streamlit theme calm, native, and available in both modes."""
     theme = THEME.read_text(encoding="utf-8")
 
     assert 'base = "light"' in theme
     assert 'primaryColor = "#176B63"' in theme
-    assert 'backgroundColor = "#F8F6F1"' in theme
+    assert 'backgroundColor = "#F4F1EA"' in theme
     assert "[theme.sidebar]" in theme
-    assert 'base = "dark"' not in theme
+    assert "[theme.light]" in theme
+    assert "[theme.dark]" in theme
 
 
 def test_stale_or_destructive_teaching_copy_is_absent() -> None:

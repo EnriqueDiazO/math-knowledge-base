@@ -242,7 +242,8 @@ def _write_readme(project_dir: Path) -> None:
             ```
 
             Edita los archivos en `contenido/pagina_NNN/` para modificar cada zona.
-            El documento conserva la geometría CPI carta horizontal.
+            El documento conserva la geometría CPI carta horizontal; la plantilla híbrida
+            se exporta como una hoja de regiones continuas.
             """
         ).strip()
         + "\n",

@@ -1,4 +1,4 @@
-"""Streamlit Edit / Analyze Source page backed by the S1A facade."""
+"""Streamlit Edit Source page backed by the S1A facade."""
 
 from __future__ import annotations
 
@@ -7,11 +7,16 @@ import json
 from typing import Any
 
 from editor.source_catalog.bibtex_ui import render_bibtex_input
-from editor.source_catalog.data_quality import incomplete_reference_fields
 from editor.source_catalog.data_quality import render_data_quality
 from editor.source_catalog.document_ui import clear_source_document_preview
 from editor.source_catalog.document_ui import render_source_documents
 from editor.source_catalog.legacy_concepts import render_legacy_concepts
+from editor.source_catalog.presentation import render_association_cards
+from editor.source_catalog.presentation import render_change_cards
+from editor.source_catalog.presentation import render_key_value_card
+from editor.source_catalog.presentation import render_reference_summary_card
+from editor.source_catalog.presentation import render_section_header
+from editor.source_catalog.presentation import render_source_summary_card
 from editor.source_catalog.reference_actions import render_reference_save_plan
 from editor.source_catalog.reference_form import render_reference_form
 from editor.source_catalog.shared import CatalogUIContext
@@ -65,6 +70,7 @@ REFERENCE_UPDATE_FIELDS = (
     "notes",
     "provenance",
 )
+SOURCE_EDIT_PREVIEW_KEY = state_key("edit_source_preview")
 
 
 def _write_token(
@@ -175,48 +181,8 @@ def _association_rows(context: CatalogUIContext, reference: Reference) -> list[d
     return rows
 
 
-def _source_rows(items: tuple[Source, ...]) -> list[dict[str, Any]]:
-    return [
-        {
-            "source_id": item.source_id,
-            "name": item.name,
-            "type": item.source_type.value,
-            "aliases": ", ".join(alias.value for alias in item.aliases),
-            "tags": ", ".join(item.tags),
-            "status": item.status.value,
-            "updated_at": item.updated_at,
-        }
-        for item in items
-    ]
-
-
-def _reference_rows(items: tuple[Reference, ...]) -> list[dict[str, Any]]:
-    rows: list[dict[str, Any]] = []
-    for item in items:
-        authors = "; ".join(
-            author.literal or " ".join(part for part in (author.given, author.family) if part)
-            for author in item.authors
-        )
-        rows.append(
-            {
-                "reference_id": item.reference_id,
-                "type": item.reference_type.value,
-                "authors": authors,
-                "title": item.title or "",
-                "year": item.year if item.year is not None else item.year_raw or "",
-                "DOI": item.doi or "",
-                "ISBN": ", ".join(item.isbn),
-                "citekey": item.bibtex.key or "",
-                "status": item.status.value,
-                "quality": ", ".join(incomplete_reference_fields(item)) or "complete",
-                "associations": len(item.source_ids),
-            }
-        )
-    return rows
-
-
 def _render_source_search(ui: Any, context: CatalogUIContext) -> Source | None:
-    ui.subheader("A. Search and Select")
+    render_section_header(ui, "Buscar y seleccionar")
     filters = ui.columns(4)
     with filters[0]:
         search = ui.text_input("Search", key=state_key("edit_search"))
@@ -260,20 +226,45 @@ def _render_source_search(ui: Any, context: CatalogUIContext) -> Source | None:
         ui.error(f"Database error searching Sources: {safe_error_message(exc)}")
         return None
     ui.caption(f"{page.total} Sources · page {page.page} of {max(page.pages, 1)}")
-    ui.dataframe(_source_rows(page.items), width="stretch", hide_index=True)
-    for source in page.items:
-        if ui.button(
-            f"Select {source.name} ({source.source_id})",
-            key=state_key("edit_select_source", source.source_id),
-        ):
-            clear_source_document_preview(ui.session_state)
-            ui.session_state[SELECTED_SOURCE_ID] = source.source_id
-            ui.rerun()
     selected_id = ui.session_state.get(SELECTED_SOURCE_ID)
+    visible_sources = list(page.items)
+    if isinstance(selected_id, str) and selected_id not in {item.source_id for item in visible_sources}:
+        try:
+            retained = context.source_repository.get_by_id(selected_id)
+        except Exception as exc:
+            ui.error(f"Database error loading selected Source: {safe_error_message(exc)}")
+            retained = None
+        if retained is not None:
+            visible_sources.insert(0, retained)
+
+    source_by_id = {item.source_id: item for item in visible_sources}
+    options = [None, *source_by_id]
+    choice_key = state_key("edit_source_choice")
+    current_choice = ui.session_state.get(choice_key)
+    if current_choice not in options:
+        ui.session_state.pop(choice_key, None)
+    selected_id = ui.selectbox(
+        "Source",
+        options,
+        index=options.index(selected_id) if selected_id in options else 0,
+        format_func=lambda source_id: (
+            "Selecciona una Source"
+            if source_id is None
+            else (
+                f"{source_by_id[source_id].name} · "
+                f"{source_by_id[source_id].source_type.value} · {source_id[:8]}"
+            )
+        ),
+        key=choice_key,
+    )
     if not isinstance(selected_id, str):
         return None
+    previous_selected = ui.session_state.get(SELECTED_SOURCE_ID)
+    if previous_selected != selected_id:
+        clear_source_document_preview(ui.session_state)
+        ui.session_state[SELECTED_SOURCE_ID] = selected_id
     try:
-        selected = context.source_repository.get_by_id(selected_id)
+        selected = source_by_id.get(selected_id) or context.source_repository.get_by_id(selected_id)
     except Exception as exc:
         ui.error(f"Database error loading Source: {safe_error_message(exc)}")
         return None
@@ -296,24 +287,39 @@ def _render_overview_header(ui: Any, context: CatalogUIContext, source: Source) 
     except Exception as exc:
         ui.error(f"Database error reading overview counts: {safe_error_message(exc)}")
         reference_count, concept_count = 0, 0
-    ui.subheader("B. Overview")
-    ui.write(
-        {
-            "source_id": source.source_id,
-            "name": source.name,
-            "type": source.source_type.value,
-            "language": source.language,
-            "aliases": [alias.value for alias in source.aliases],
-            "tags": source.tags,
-            "description": source.description,
-            "status": source.status.value,
-            "rights_default": source.rights_default.model_dump(mode="json"),
-            "created_at": source.created_at,
-            "updated_at": source.updated_at,
-            "references": reference_count,
-            "legacy_concepts": concept_count,
-        }
+    render_section_header(ui, "Source seleccionada")
+    render_source_summary_card(ui, source, title="Resumen")
+    render_key_value_card(
+        ui,
+        "Actividad vinculada",
+        (("References", reference_count), ("Conceptos heredados", concept_count)),
     )
+
+
+def _source_changes(source: Source, candidate: Source) -> dict[str, tuple[object, object]]:
+    """Return only Source fields whose user-visible values would change."""
+    current_aliases = tuple(alias.value for alias in source.aliases)
+    candidate_aliases = tuple(alias.value for alias in candidate.aliases)
+    current_rights = source.rights_default.model_dump(mode="json")
+    candidate_rights = candidate.rights_default.model_dump(mode="json")
+    fields = (
+        ("Nombre", source.name, candidate.name),
+        ("Descripción", source.description, candidate.description),
+        ("Tipo", source.source_type.value, candidate.source_type.value),
+        ("Idioma", source.language, candidate.language),
+        ("Aliases", current_aliases, candidate_aliases),
+        ("Etiquetas", tuple(source.tags), tuple(candidate.tags)),
+        ("Derechos predeterminados", current_rights, candidate_rights),
+    )
+    return {label: (before, after) for label, before, after in fields if before != after}
+
+
+def _draft_values(draft: Any, candidate: Source) -> dict[str, Any]:
+    """Use visible form values, with a model fallback for compatibility adapters."""
+    values = getattr(draft, "values", None)
+    if isinstance(values, dict):
+        return dict(values)
+    return candidate.model_dump(mode="json")
 
 
 def _render_source_editor(
@@ -323,6 +329,14 @@ def _render_source_editor(
     *,
     writes_enabled: bool,
 ) -> None:
+    if not writes_enabled:
+        ui.warning("Read-only until the approved Source Catalog indexes are initialized.")
+        return
+    render_section_header(
+        ui,
+        "Editar Source",
+        "Los campos permanecen como borrador local hasta que confirmes el guardado.",
+    )
     draft = render_source_form(
         ui,
         key_prefix=f"edit_source_{source.source_id}",
@@ -333,18 +347,55 @@ def _render_source_editor(
             ui.error(f"Validation error: {safe_error_message(error)}")
         return
     candidate = draft.source
+    draft_values = _draft_values(draft, candidate)
+    reset_clicked = ui.button(
+        "Restablecer",
+        key=state_key("edit_source_reset", source.source_id),
+    )
+    if reset_clicked:
+        clear_state_group(ui.session_state, f"edit_source_{source.source_id}")
+        ui.session_state.pop(SOURCE_EDIT_PREVIEW_KEY, None)
+        ui.rerun()
+
+    preview_clicked = ui.button(
+        "Vista previa de cambios",
+        key=state_key("edit_source_preview_button", source.source_id),
+    )
+    if preview_clicked:
+        ui.session_state[SOURCE_EDIT_PREVIEW_KEY] = {
+            "source_id": source.source_id,
+            "base_updated_at": source.updated_at.isoformat(),
+            "values": draft_values,
+            "candidate": candidate,
+        }
+
+    stored = ui.session_state.get(SOURCE_EDIT_PREVIEW_KEY)
+    preview_candidate: Source | None = None
+    if isinstance(stored, dict) and stored.get("source_id") == source.source_id:
+        candidate_value = stored.get("candidate")
+        if stored.get("values") == draft_values and isinstance(candidate_value, Source):
+            preview_candidate = candidate_value
+        else:
+            ui.warning("Los campos cambiaron. Genera una nueva vista previa antes de guardar.")
+    if preview_candidate is None:
+        ui.info("Usa Vista previa de cambios para revisar y habilitar el guardado.")
+        return
+
+    changes = _source_changes(source, preview_candidate)
+    render_change_cards(ui, changes)
     try:
         duplicates = context.service.detect_source_duplicates(
-            candidate,
+            preview_candidate,
             exclude_source_id=source.source_id,
         )
     except Exception as exc:
         ui.error(f"Database error during duplicate preview: {safe_error_message(exc)}")
         return
+    render_section_header(ui, "Coincidencias")
     render_duplicate_preview(ui, duplicates)
-    candidate_fingerprint = draft_fingerprint(candidate)
+    candidate_fingerprint = draft_fingerprint(preview_candidate)
     preserve_old = False
-    if candidate.name != source.name:
+    if preview_candidate.name != source.name:
         preserve_old = ui.checkbox(
             "Preserve previous name as alias",
             value=True,
@@ -364,9 +415,7 @@ def _render_source_editor(
                 candidate_fingerprint,
             ),
         )
-    if not writes_enabled:
-        ui.warning("Read-only until the approved Source Catalog indexes are initialized.")
-        return
+    render_section_header(ui, "Confirmar y guardar")
     with ui.form(key=state_key("edit_source_save_form", source.source_id)):
         confirmed = ui.checkbox(
             f"Confirm updating {source.source_id} only in {context.database_name}",
@@ -381,20 +430,32 @@ def _render_source_editor(
     if not confirmed:
         ui.warning("Confirm the Source update before saving.")
         return
+    repository = getattr(context, "source_repository", None)
+    fresh_source = None
+    if repository is not None and hasattr(repository, "get_by_id"):
+        try:
+            fresh_source = repository.get_by_id(source.source_id)
+        except Exception as exc:
+            ui.error(f"Database error checking Source freshness: {safe_error_message(exc)}")
+            return
+    preview_version = stored.get("base_updated_at") if isinstance(stored, dict) else None
+    if fresh_source is not None and fresh_source.updated_at.isoformat() != preview_version:
+        ui.warning("La Source cambió desde la vista previa. Revisa y confirma una nueva vista previa.")
+        return
     changes = {
-        "name": candidate.name,
-        "aliases": [alias.model_dump(mode="python") for alias in candidate.aliases],
-        "source_type": candidate.source_type,
-        "description": candidate.description,
-        "language": candidate.language,
-        "tags": candidate.tags,
-        "rights_default": candidate.rights_default.model_dump(mode="python"),
+        "name": preview_candidate.name,
+        "aliases": [alias.model_dump(mode="python") for alias in preview_candidate.aliases],
+        "source_type": preview_candidate.source_type,
+        "description": preview_candidate.description,
+        "language": preview_candidate.language,
+        "tags": preview_candidate.tags,
+        "rights_default": preview_candidate.rights_default.model_dump(mode="python"),
     }
     token = _write_token(
         context,
         "edit_source",
         source.source_id,
-        source.updated_at.isoformat(),
+        f"{source.updated_at.isoformat()}:{draft_fingerprint(preview_candidate)}",
     )
     _execute_write_once(
         ui,
@@ -428,10 +489,15 @@ def _render_reference_editor(
         else "Edits preserve the stable Reference ID and any BibTeX raw not explicitly replaced."
     )
     try:
-        ui.write({"associations": _association_rows(context, reference)})
+        render_section_header(ui, "Sources asociadas")
+        render_association_cards(ui, _association_rows(context, reference))
     except Exception as exc:
         ui.error(f"Database error resolving Source associations: {safe_error_message(exc)}")
-        ui.write({"source_ids": reference.source_ids})
+        render_key_value_card(
+            ui,
+            "Asociaciones no disponibles",
+            (("IDs de Source", reference.source_ids),),
+        )
     draft = render_reference_form(
         ui,
         key_prefix=f"edit_reference_{reference.reference_id}",
@@ -631,22 +697,24 @@ def _render_detached_reference(
     if reference is None:
         ui.session_state.pop(state_key("detached_reference_id"), None)
         return
-    ui.subheader("Recently unlinked Reference")
+    render_section_header(ui, "Reference desvinculada recientemente")
     try:
         inspection = context.service.inspect_reference_deletion(reference.reference_id)
     except Exception as exc:
         ui.error(f"Database error inspecting Reference deletion: {safe_error_message(exc)}")
         return
     blockers = tuple(safe_error_message(value) for value in inspection.blockers)
-    ui.write(
-        {
-            "database": context.database_name,
-            "reference_id": reference.reference_id,
-            "title": reference.title,
-            "source_ids": reference.source_ids,
-            "blockers": blockers,
-            "consequence": "Permanent removal of this unused Reference only.",
-        }
+    render_key_value_card(
+        ui,
+        "Revisión antes de borrado físico",
+        (
+            ("Base", context.database_name),
+            ("ID de Reference", reference.reference_id),
+            ("Título", reference.title),
+            ("Sources asociadas", reference.source_ids),
+            ("Bloqueos", blockers),
+            ("Consecuencia", "Sólo elimina esta Reference sin uso."),
+        ),
     )
     if not inspection.allowed:
         ui.warning("Physical deletion blocked: " + ", ".join(blockers))
@@ -830,7 +898,7 @@ def _render_references(
     *,
     writes_enabled: bool,
 ) -> None:
-    ui.subheader("C. References")
+    render_section_header(ui, "References")
     _render_add_reference(
         ui,
         context,
@@ -856,13 +924,13 @@ def _render_references(
         ui.error(f"Database error reading References: {safe_error_message(exc)}")
         return
     ui.caption(f"{page.total} References · page {page.page} of {max(page.pages, 1)}")
-    ui.dataframe(_reference_rows(page.items), width="stretch", hide_index=True)
     editing_id = ui.session_state.get(state_key("editing_reference_id"))
     for reference in page.items:
         with ui.expander(
             f"{reference.title or reference.bibtex.key or reference.reference_id}",
             expanded=editing_id == reference.reference_id,
         ):
+            render_reference_summary_card(ui, reference, title="Resumen de Reference")
             try:
                 associations = _association_rows(context, reference)
             except Exception as exc:
@@ -871,16 +939,18 @@ def _render_references(
                     {"source_id": source_id, "name": "<unavailable>", "status": "unknown"}
                     for source_id in reference.source_ids
                 ]
-            ui.write(
-                {
-                    "reference_id": reference.reference_id,
-                    "associations": associations,
-                    "bibtex_key": reference.bibtex.key,
-                    "bibtex_raw_sha256": reference.bibtex.raw_sha256,
-                    "warnings": [
-                        safe_error_message(warning) for warning in reference.provenance.warnings
-                    ],
-                }
+            render_association_cards(ui, associations)
+            render_key_value_card(
+                ui,
+                "Detalles técnicos",
+                (
+                    ("Clave BibTeX", reference.bibtex.key),
+                    ("Huella del BibTeX preservado", reference.bibtex.raw_sha256),
+                    (
+                        "Advertencias",
+                        [safe_error_message(warning) for warning in reference.provenance.warnings],
+                    ),
+                ),
             )
             if len(reference.source_ids) > 1:
                 ui.warning("Shared Reference: edits affect every associated Source.")
@@ -914,7 +984,7 @@ def _render_source_actions(
     *,
     writes_enabled: bool,
 ) -> None:
-    ui.subheader("F. Actions")
+    render_section_header(ui, "Acciones")
     if not writes_enabled:
         ui.warning("Source actions are read-only until catalog indexes are initialized.")
         return
@@ -983,16 +1053,18 @@ def _render_source_actions(
         ui.error(f"Database error inspecting deletion: {safe_error_message(exc)}")
         return
     blockers = tuple(safe_error_message(value) for value in inspection.blockers)
-    ui.write(
-        {
-            "database": context.database_name,
-            "source_id": source.source_id,
-            "name": source.name,
-            "references": reference_count,
-            "legacy_concepts": concept_count,
-            "blockers": blockers,
-            "consequence": "Permanent removal of the unused Source catalog record only.",
-        }
+    render_key_value_card(
+        ui,
+        "Revisión antes de borrado físico",
+        (
+            ("Base", context.database_name),
+            ("ID de Source", source.source_id),
+            ("Nombre", source.name),
+            ("References", reference_count),
+            ("Conceptos heredados", concept_count),
+            ("Bloqueos", blockers),
+            ("Consecuencia", "Sólo elimina este registro de Source sin uso."),
+        ),
     )
     if not inspection.allowed:
         ui.error("Physical deletion blocked: " + ", ".join(blockers))
@@ -1041,7 +1113,7 @@ def render_edit_source_page(
     if ui is None:
         import streamlit as ui
 
-    ui.title("✏️ Edit / Analyze Source")
+    ui.title("✏️ Edit Source")
     render_active_database(ui, context)
     status_snapshot = render_catalog_status(ui, context)
     writes_enabled = bool(status_snapshot is not None and status_snapshot.initialized)

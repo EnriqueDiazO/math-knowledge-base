@@ -26,15 +26,15 @@ def _branch(start_marker: str, end_marker: str) -> str:
 
 def _edit_branch() -> str:
     return _branch(
-        'elif page == "✏️ Edit Concept":',
-        '\nelif page == "📚 Browse Concepts":',
+        'elif page == "🖊️ Editar concepto":',
+        '\nelif page == "🧠 Conceptos":',
     )
 
 
 def _add_concept_branch() -> str:
     return _branch(
-        'elif page == "➕ Add Concept":',
-        '\nelif page == "✏️ Edit Concept":',
+        'elif page == "💡 Nuevo concepto":',
+        '\nelif page == "🖊️ Editar concepto":',
     )
 
 

@@ -943,8 +943,8 @@ def _render_metadata_editor(db: Any) -> None:
         format_func=template_label,
         key="cornell_template_id",
         help=(
-            "Híbrido compacto: conserva los colores semánticos y organiza cada región "
-            "en cajas de menor altura."
+            "Híbrido continuo: usa una hoja Cornell clásica dividida en tres regiones "
+            "de color suave, sin tarjetas independientes."
         ),
         on_change=_mark_template_dirty,
     )

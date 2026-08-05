@@ -39,6 +39,11 @@ LINES_IMAGE_INCLUDE_PATH = f"{ASSETS_DIRNAME}/{LINES_IMAGE_FILENAME}"
 SOURCE_MARKER_PATTERN = re.compile(r"% Cornell source page=(?P<page>\d+) region=(?P<region>\w+)")
 LATEX_FILE_LINE_PATTERN = re.compile(r"(?P<file>[^\s:]+\.tex):(?P<line>\d+):")
 LATEX_ERROR_PATTERN = re.compile(r"LaTeX Error:\s*(?P<message>.+)")
+HYBRID_REGION_CONTENT_WIDTHS = {
+    "cue": "2.08in",
+    "main": "5.68in",
+    "summary": "7.94in",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,13 +94,28 @@ def _latex_preamble(*, include_svg: bool = False) -> str:
     )
 
 
-def _scaled_region_latex(region_box: str, scale: float) -> str:
+def _scaled_region_latex(
+    region_box: str,
+    scale: float,
+    *,
+    content_width: str | None = None,
+) -> str:
+    """Scale a region while retaining paragraph layout when a width is supplied."""
     if scale >= 1.0:
         return region_box
+    scalable_content = region_box
+    if content_width is not None:
+        scalable_content = dedent(
+            rf"""
+            \begin{{minipage}}[t]{{{content_width}}}
+            {region_box}
+            \end{{minipage}}
+            """
+        ).strip()
     return dedent(
         rf"""
         \begin{{adjustbox}}{{scale={scale:.6f}}}
-        {region_box}
+        {scalable_content}
         \end{{adjustbox}}
         """
     ).strip()
@@ -130,11 +150,11 @@ def _region_scope_latex(
     ).strip()
 
 
-def _cornell_hybrid_compact_style_latex() -> str:
-    """Return the compact semantic-card definitions shared by every hybrid page."""
+def _cornell_hybrid_sheet_style_latex() -> str:
+    """Return the semantic colours and typography for the continuous hybrid sheet."""
     return dedent(
         r"""
-        % Compact hybrid Cornell palette, derived from the documented semantic colors.
+        % Continuous hybrid Cornell palette, derived from the documented semantic colors.
         \definecolor{CornellHybridCue}{HTML}{2E7D32}
         \definecolor{CornellHybridMain}{HTML}{C2185B}
         \definecolor{CornellHybridSummary}{HTML}{1565C0}
@@ -142,26 +162,26 @@ def _cornell_hybrid_compact_style_latex() -> str:
         \definecolor{CornellHybridMainSoft}{HTML}{FCEAF3}
         \definecolor{CornellHybridSummarySoft}{HTML}{EAF4FA}
         \definecolor{CornellHybridInk}{HTML}{1F2937}
-        \newtcolorbox{CornellHybridCard}[2]{
-          enhanced,
-          colframe=#1,
-          colback=#2,
-          boxrule=.6pt,
-          arc=1.8mm,
-          outer arc=1.8mm,
-          left=2.7mm,
-          right=2.7mm,
-          top=2.4mm,
-          bottom=2.4mm,
-          boxsep=0pt,
-          before skip=0pt,
-          after skip=0pt
+        \newcommand{\CornellHybridCueHeading}[1]{%
+          {\centering\fontsize{15}{17}\selectfont\color{CornellHybridCue}\bfseries #1\par}%
+          \vspace{2mm}%
         }
-        \newcommand{\CornellHybridHeading}[2]{%
-          {\color{#1}\bfseries\large #2}\par\vspace{1.0mm}%
+        \newcommand{\CornellHybridMainHeading}[1]{%
+          {\fontsize{18}{20}\selectfont\color{CornellHybridMain}\bfseries #1\par}%
+          \vspace{1.5mm}%
         }
-        \newcommand{\CornellHybridBody}{%
-          \normalfont\color{CornellHybridInk}\fontsize{9.6}{12.2}\selectfont\raggedright%
+        \newcommand{\CornellHybridSummaryHeading}[1]{%
+          {\fontsize{12}{14}\selectfont\color{CornellHybridSummary}\bfseries #1\par}%
+          \vspace{.7mm}%
+        }
+        \newcommand{\CornellHybridCueBody}{%
+          \normalfont\color{CornellHybridInk}\fontsize{8.2}{10.1}\selectfont\raggedright%
+        }
+        \newcommand{\CornellHybridMainBody}{%
+          \normalfont\color{CornellHybridInk}\fontsize{9.2}{11.2}\selectfont\raggedright%
+        }
+        \newcommand{\CornellHybridSummaryBody}{%
+          \normalfont\color{CornellHybridInk}\fontsize{8.8}{10.7}\selectfont\raggedright%
         }
         """
     ).strip()
@@ -184,10 +204,14 @@ def _hybrid_region_body_latex(
     )
     scale = fit_report.region_scale(page_number, region_name)
     marker = f"% Cornell source page={page_number} region={region_name}"
-    return _scaled_region_latex(f"{marker}\n{body}", scale)
+    return _scaled_region_latex(
+        f"{marker}\n{body}",
+        scale,
+        content_width=HYBRID_REGION_CONTENT_WIDTHS[region_name],
+    )
 
 
-def _cornell_hybrid_compact_page_body(
+def _cornell_hybrid_sheet_page_body(
     document: CornellDocument,
     page: CornellPage,
     *,
@@ -195,7 +219,7 @@ def _cornell_hybrid_compact_page_body(
     fit_report: CornellFitReport,
     asset_paths_by_id: Mapping[str, str] | None = None,
 ) -> str:
-    """Render compact Cornell cards without reserving a fixed summary band."""
+    """Render one continuous Cornell sheet with fixed semantic regions."""
     cue_heading = escape_latex_text(page.cue.heading or "Preguntas clave")
     main_heading = escape_latex_text(page.main.heading or "Contenido principal")
     summary_heading = escape_latex_text(page.summary.heading or "Síntesis")
@@ -224,37 +248,65 @@ def _cornell_hybrid_compact_page_body(
         rf"""
         \null
         \begin{{tikzpicture}}[remember picture,overlay]
+          \coordinate (SW) at (current page.south west);
+          \coordinate (SE) at (current page.south east);
+          \coordinate (NW) at (current page.north west);
+          \coordinate (NE) at (current page.north east);
+
+          \fill[CornellHybridCueSoft,opacity=.55] (NW) rectangle ($(SW)+(2.4in,2in)$);
+          \fill[CornellHybridMainSoft,opacity=.30] ($(NW)+(2.4in,0)$) rectangle ($(SE)+(0,2in)$);
+          \fill[CornellHybridSummarySoft,opacity=.65] (SW) rectangle ($(SE)+(0,2in)$);
+
           {cornell_watermark_latex(
               document,
               asset_paths_by_id=asset_paths_by_id,
               page_number=page_number,
           )}
+
+          \foreach \y in {{2.35,2.70,...,10.55}}{{
+            \draw[black!8,line width=.25pt] ($(SW)+(2.4in,\y in)$) -- ($(SE)+(0,\y in)$);
+          }}
+          \draw[line width=.65pt] ($(SW)+(0,2in)$) -- ($(SE)+(0,2in)$);
+          \draw[line width=.65pt] ($(SW)+(2.4in,2in)$) -- ($(NW)+(2.4in,0)$);
+
+          \begin{{scope}}
+            \clip (NW) rectangle ($(SW)+(2.4in,2in)$);
+            \node[anchor=north west,inner sep=0pt] at ($(NW)+(.16in,-.18in)$) {{%
+              \begin{{minipage}}[t]{{{HYBRID_REGION_CONTENT_WIDTHS["cue"]}}}
+                \CornellHybridCueHeading{{{cue_heading}}}
+                {{\CornellHybridCueBody
+                {cue_body}
+                }}
+              \end{{minipage}}%
+            }};
+          \end{{scope}}
+
+          \begin{{scope}}
+            \clip ($(NW)+(2.4in,0)$) rectangle ($(SE)+(0,2in)$);
+            \node[anchor=north west,inner sep=0pt] at ($(NW)+(2.58in,-.14in)$) {{%
+              \begin{{minipage}}[t]{{{HYBRID_REGION_CONTENT_WIDTHS["main"]}}}
+                \CornellHybridMainHeading{{{main_heading}}}
+                {{\CornellHybridMainBody
+                {main_body}
+                }}
+              \end{{minipage}}%
+            }};
+          \end{{scope}}
+
+          \begin{{scope}}
+            \clip (SW) rectangle ($(SE)+(0,2in)$);
+            \node[anchor=north west,inner sep=0pt] at ($(SW)+(.28in,1.78in)$) {{%
+              \begin{{minipage}}[t]{{{HYBRID_REGION_CONTENT_WIDTHS["summary"]}}}
+                \CornellHybridSummaryHeading{{{summary_heading}}}
+                {{\CornellHybridSummaryBody
+                {summary_body}
+                }}
+              \end{{minipage}}%
+            }};
+          \end{{scope}}
+
+          {cornell_attribution_latex(document)}
         \end{{tikzpicture}}
-        \vspace*{{.18in}}
-        \noindent\hspace*{{.17in}}%
-        \begin{{minipage}}[t]{{2.30in}}
-          \begin{{CornellHybridCard}}{{CornellHybridCue}}{{CornellHybridCueSoft}}
-            \CornellHybridHeading{{CornellHybridCue}}{{{cue_heading}}}
-            \CornellHybridBody
-            {cue_body}
-          \end{{CornellHybridCard}}
-        \end{{minipage}}\hfill%
-        \begin{{minipage}}[t]{{5.71in}}
-          \begin{{CornellHybridCard}}{{CornellHybridMain}}{{CornellHybridMainSoft}}
-            \CornellHybridHeading{{CornellHybridMain}}{{{main_heading}}}
-            \CornellHybridBody
-            {main_body}
-          \end{{CornellHybridCard}}
-        \end{{minipage}}%
-        \par\vspace{{1.8mm}}
-        \noindent\hspace*{{.17in}}\begin{{minipage}}[t]{{8.16in}}
-          \begin{{CornellHybridCard}}{{CornellHybridSummary}}{{CornellHybridSummarySoft}}
-            \CornellHybridHeading{{CornellHybridSummary}}{{{summary_heading}}}
-            \CornellHybridBody
-            {summary_body}
-          \end{{CornellHybridCard}}
-        \end{{minipage}}
-        {cornell_attribution_latex(document)}
         """
     ).strip() + "\n"
 
@@ -322,17 +374,17 @@ def _generate_document_tex(
         raise ValueError("CornellDocument must contain at least one page")
     if fit_report is None:
         fit_report = default_cornell_fit_report(document)
-    hybrid_compact = is_hybrid_compact_template(document.template_id)
+    hybrid_sheet = is_hybrid_compact_template(document.template_id)
     page_bodies = [
         (
-            _cornell_hybrid_compact_page_body(
+            _cornell_hybrid_sheet_page_body(
                 document,
                 page,
                 page_number=index,
                 fit_report=fit_report,
                 asset_paths_by_id=asset_paths_by_id,
             )
-            if hybrid_compact
+            if hybrid_sheet
             else _cornell_page_body(
                 document,
                 page,
@@ -346,7 +398,7 @@ def _generate_document_tex(
     ]
     return (
         _latex_preamble(include_svg=latex_uses_svg_paths(dict(asset_paths_by_id or {})))
-        + ("\n" + _cornell_hybrid_compact_style_latex() if hybrid_compact else "")
+        + ("\n" + _cornell_hybrid_sheet_style_latex() if hybrid_sheet else "")
         + "\n\n\\begin{document}\n"
         + "\n\\clearpage\n".join(page_bodies)
         + "\n\\end{document}\n"

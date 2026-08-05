@@ -5,6 +5,8 @@ from __future__ import annotations
 from collections.abc import MutableMapping
 from typing import Any
 
+from editor.source_catalog.state import EDIT_SOURCE_NAV_LABEL
+
 from editor.pdf_preview import clear_pdf_preview
 
 SESSION_PREFIX = "reading_space_"
@@ -325,12 +327,12 @@ def sync_source_filter(state: MutableMapping[str, Any], source_id: str | None) -
 def add_reading_space_navigation(options: list[str] | tuple[str, ...]) -> list[str]:
     """Insert Reading Space once next to Source Catalog administration."""
     result = [option for option in options if option != READING_SPACE_NAV_LABEL]
-    anchor = "✏️ Edit / Analyze Source"
+    anchor = EDIT_SOURCE_NAV_LABEL
     try:
         insert_at = result.index(anchor) + 1
     except ValueError:
         try:
-            insert_at = result.index("🏠 Dashboard") + 1
+            insert_at = result.index("🏠 Inicio") + 1
         except ValueError:
             insert_at = 0
     result.insert(insert_at, READING_SPACE_NAV_LABEL)

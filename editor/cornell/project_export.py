@@ -529,7 +529,7 @@ def _write_readme(project_dir: Path, *, hybrid_compact: bool = False) -> None:
             ```
 
             Edita los archivos en `contenido/pagina_NNN/` para modificar cada región.
-            `Notas.tex` conserva el estilo híbrido compacto usado por la vista previa y el PDF.
+            `Notas.tex` conserva el estilo híbrido continuo usado por la vista previa y el PDF.
             """
     else:
         source = """

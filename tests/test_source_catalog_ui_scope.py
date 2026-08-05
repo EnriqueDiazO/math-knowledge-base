@@ -27,22 +27,22 @@ S1B_MODULE_DIRS = (
 )
 
 EXISTING_NAVIGATION = (
-    "\U0001f3e0 Dashboard",
-    "\u2795 Add Concept",
-    "\u270f\ufe0f Edit Concept",
-    "\U0001f4da Browse Concepts",
-    "\U0001f517 Manage Relations",
-    "\U0001f4ca Knowledge Graph",
-    "\U0001f4c4 Document Builder",
-    "\U0001f4e4 Export",
-    "\U0001f4e6 Database Export",
-    "\U0001f4e5 Database Import",
-    "\U0001f9f9 Maintenance",
-    "\u2699\ufe0f Settings",
+    "\U0001f3e0 Inicio",
+    "\U0001f4c4 Documentos",
+    "\U0001f4a1 Nuevo concepto",
+    "\U0001f58a\ufe0f Editar concepto",
+    "\U0001f9e0 Conceptos",
+    "\U0001f578\ufe0f Relaciones",
+    "\U0001f5fa\ufe0f Grafo de conocimiento",
+    "\U0001f4e4 Exportar",
+    "\U0001f4be Exportar base",
+    "\U0001f4e5 Importar base",
+    "\U0001f9f0 Mantenimiento",
+    "\u2699\ufe0f Configuración",
 )
 OPTIONAL_EXISTING_NAVIGATION = (
-    "\U0001f9ea Cuaderno",
-    "\U0001f9fe Cornell",
+    "\U0001f4dd Cuaderno",
+    "\U0001f7e9 Cornell",
 )
 FORBIDDEN_COLLECTION_NAMES = frozenset(
     {
@@ -67,7 +67,7 @@ def _literal_list_assignment(tree: ast.Module, name: str) -> tuple[str, ...]:
             continue
         if not any(isinstance(target, ast.Name) and target.id == name for target in node.targets):
             continue
-        if not isinstance(node.value, (ast.List, ast.Tuple)):
+        if not isinstance(node.value, ast.List | ast.Tuple):
             continue
         values = tuple(
             item.value
@@ -298,10 +298,12 @@ def test_router_ast_preserves_existing_pages_and_routes_catalog_labels() -> None
         *EXISTING_NAVIGATION[1:],
     ]
     assert ADD_SOURCE_NAV_LABEL == "\u2795 Add Source"
-    assert EDIT_SOURCE_NAV_LABEL == "\u270f\ufe0f Edit / Analyze Source"
+    assert EDIT_SOURCE_NAV_LABEL == "\u270f\ufe0f Edit Source"
     assert NAVIGATION_WIDGET == "source_catalog_navigation"
     assert _selectbox_uses_namespaced_key(tree)
-    assert {*OPTIONAL_EXISTING_NAVIGATION, "CPI_NAV_LABEL"} <= _navigation_appends(tree)
+    source = ROUTER.read_text(encoding="utf-8")
+    assert all(label in source for label in OPTIONAL_EXISTING_NAVIGATION)
+    assert 'CPI_NAV_LABEL = "🟥 CPI"' in source
 
     add_branch = _page_branch(tree, "ADD_SOURCE_NAV_LABEL", symbolic=True)
     edit_branch = _page_branch(tree, "EDIT_SOURCE_NAV_LABEL", symbolic=True)
@@ -327,7 +329,7 @@ def test_s1b_modules_do_not_define_or_access_out_of_scope_collections() -> None:
             elif isinstance(node, ast.Attribute):
                 if node.attr.casefold() in FORBIDDEN_COLLECTION_NAMES:
                     violations.append(f"{path.relative_to(ROOT)}:{node.lineno}: .{node.attr}")
-            elif isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            elif isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
                 compact_name = node.name.replace("_", "").casefold()
                 if any(word in compact_name for word in FORBIDDEN_IMPLEMENTATION_NAMES):
                     violations.append(f"{path.relative_to(ROOT)}:{node.lineno}: {node.name}")

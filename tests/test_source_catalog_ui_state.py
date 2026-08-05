@@ -184,17 +184,17 @@ def _context(
 
 
 def test_navigation_adds_catalog_pages_without_removing_existing_pages() -> None:
-    existing = ["🏠 Dashboard", "➕ Add Concept", "✏️ Edit Concept", "⚙️ Settings"]
+    existing = ["🏠 Inicio", "💡 Nuevo concepto", "🖊️ Editar concepto", "⚙️ Configuración"]
 
     result = add_source_catalog_navigation(existing)
 
     assert result == [
-        "🏠 Dashboard",
+        "🏠 Inicio",
         ADD_SOURCE_NAV_LABEL,
         EDIT_SOURCE_NAV_LABEL,
-        "➕ Add Concept",
-        "✏️ Edit Concept",
-        "⚙️ Settings",
+        "💡 Nuevo concepto",
+        "🖊️ Editar concepto",
+        "⚙️ Configuración",
     ]
     assert add_source_catalog_navigation(result) == result
 
@@ -239,7 +239,7 @@ def test_replaced_endpoint_with_same_label_and_name_clears_catalog_state() -> No
 
 def test_pending_navigation_applies_before_widget_creation() -> None:
     state: dict[str, Any] = {}
-    options = ["🏠 Dashboard", EDIT_SOURCE_NAV_LABEL]
+    options = ["🏠 Inicio", EDIT_SOURCE_NAV_LABEL]
     request_navigation(state, EDIT_SOURCE_NAV_LABEL, source_id="src_test")
 
     applied = apply_pending_navigation(state, options)
@@ -339,11 +339,7 @@ def test_index_status_and_plan_are_read_only_and_render_in_a_form() -> None:
     assert ui.form_count == 1
     assert ui.form_submit_count == 1
     assert ui.regular_button_count == 0
-    assert any(
-        row["collection"] == "sources" and row["index"] == "sources_test"
-        for dataframe in ui.dataframes
-        for row in dataframe
-    )
+    assert any("sources_test" in message for _level, message in ui.messages)
 
 
 def test_confirmed_index_apply_is_one_shot_after_rerun() -> None:

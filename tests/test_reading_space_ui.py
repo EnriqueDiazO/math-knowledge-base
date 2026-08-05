@@ -388,7 +388,7 @@ def _context(source: Source) -> SimpleNamespace:
 
 
 def test_navigation_handoff_keeps_only_logical_target() -> None:
-    existing = ["🏠 Dashboard", "➕ Add Source", "✏️ Edit / Analyze Source", "Settings"]
+    existing = ["🏠 Inicio", "➕ Add Source", "✏️ Edit Source", "Settings"]
     options = add_reading_space_navigation(existing)
     state: dict[str, Any] = {}
 
@@ -408,7 +408,7 @@ def test_navigation_handoff_keeps_only_logical_target() -> None:
         "kind": "pdf",
         "user_scope": "local",
     }
-    assert options.index(READING_SPACE_NAV_LABEL) == options.index("✏️ Edit / Analyze Source") + 1
+    assert options.index(READING_SPACE_NAV_LABEL) == options.index("✏️ Edit Source") + 1
 
 
 def test_database_and_document_changes_invalidate_only_reading_preview() -> None:
@@ -1031,7 +1031,7 @@ def test_reading_space_ui_has_no_local_url_network_or_s4_escape_hatch() -> None:
             elif isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute):
                 if node.func.attr in {"html", "iframe"}:
                     violations.append(f"{path.name}:{node.lineno}: {node.func.attr}")
-            elif isinstance(node, (ast.ClassDef, ast.FunctionDef, ast.AsyncFunctionDef)):
+            elif isinstance(node, ast.ClassDef | ast.FunctionDef | ast.AsyncFunctionDef):
                 compact = node.name.replace("_", "").casefold()
                 if any(term in compact for term in ("annotation", "readingnote", "evidence")):
                     violations.append(f"{path.name}:{node.lineno}: {node.name}")

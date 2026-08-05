@@ -538,8 +538,8 @@ def test_form_module_has_no_mongodb_write_or_managed_source_mutation_path() -> N
 
 def test_add_concept_uses_component_and_persists_the_confirmed_reference_contract() -> None:
     source = APP.read_text(encoding="utf-8")
-    start = source.index('elif page == "➕ Add Concept":')
-    end = source.index('\nelif page == "✏️ Edit Concept":', start)
+    start = source.index('elif page == "💡 Nuevo concepto":')
+    end = source.index('\nelif page == "🖊️ Editar concepto":', start)
     branch = source[start:end]
 
     assert "render_concept_reference_form(" in branch
@@ -552,8 +552,8 @@ def test_add_concept_uses_component_and_persists_the_confirmed_reference_contrac
 
 def test_add_concept_import_does_not_change_managed_source_contract() -> None:
     source = APP.read_text(encoding="utf-8")
-    start = source.index('elif page == "➕ Add Concept":')
-    end = source.index('\nelif page == "✏️ Edit Concept":', start)
+    start = source.index('elif page == "💡 Nuevo concepto":')
+    end = source.index('\nelif page == "🖊️ Editar concepto":', start)
     branch = source[start:end]
 
     assert '"source": source' in branch

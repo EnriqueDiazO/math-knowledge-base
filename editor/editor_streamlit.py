@@ -82,6 +82,9 @@ from editor.source_catalog.state import apply_pending_navigation
 from editor.source_catalog.state import consume_legacy_concept_open
 from editor.source_catalog.state import state_key as source_catalog_state_key
 from editor.source_catalog.state import sync_database_state
+from editor.ui.theme import apply_mathmongo_theme
+from editor.ui.theme import plotly_layout
+from editor.ui.theme import render_theme_control
 from editor.utils.cleanup_exports import cleanup_old_graph_runtime_files
 from editor.utils.cleanup_exports import delete_files_safely
 from editor.utils.cleanup_exports import empty_directory_contents_safely
@@ -1068,8 +1071,8 @@ if available_dbs:
             )
             st.rerun()
 
-# Add new database connection
-with st.sidebar.expander("Añadir conexión", expanded=False, icon=":material/add:"):
+# Secondary database actions
+with st.sidebar.expander("Administrar conexiones", expanded=False, icon=":material/settings:"):
     new_db_name = st.text_input("Etiqueta de conexión", placeholder="p. ej., base docente")
     new_db_uri = st.text_input(
         "MongoDB URI",
@@ -1086,24 +1089,28 @@ with st.sidebar.expander("Añadir conexión", expanded=False, icon=":material/ad
         else:
             st.error("Completa los tres campos para añadir una conexión.")
 
-# Test database connection
-if st.sidebar.button("Probar conexión", icon=":material/network_check:"):
-    current_conn = st.session_state.db_manager.get_current_connection()
-    if current_conn:
-        try:
-            # Test connection by getting collection count
-            concept_count = current_conn.concepts.count_documents({})
-            st.sidebar.success(
-                f"Conexión disponible · {concept_count} conceptos.",
-                icon=":material/check_circle:",
-            )
-        except Exception as e:
-            connection_info = st.session_state.db_manager.connections.get(current_db or "", {})
-            uri = str(connection_info.get("uri") or resolve_config().mongo_uri)
-            st.sidebar.error(f"No se pudo conectar: {sanitize_mongo_error(e, uri)}")
-    else:
-        st.sidebar.error("No hay una conexión activa.")
+with st.sidebar.expander("Acciones de conexión", expanded=False, icon=":material/network_check:"):
+    if st.button("Probar conexión", icon=":material/network_check:"):
+        current_conn = st.session_state.db_manager.get_current_connection()
+        if current_conn:
+            try:
+                # Test connection by getting collection count
+                concept_count = current_conn.concepts.count_documents({})
+                st.sidebar.success(
+                    f"Conexión disponible · {concept_count} conceptos.",
+                    icon=":material/check_circle:",
+                )
+            except Exception as e:
+                connection_info = st.session_state.db_manager.connections.get(current_db or "", {})
+                uri = str(connection_info.get("uri") or resolve_config().mongo_uri)
+                st.sidebar.error(f"No se pudo conectar: {sanitize_mongo_error(e, uri)}")
+        else:
+            st.sidebar.error("No hay una conexión activa.")
 
+st.sidebar.divider()
+st.sidebar.subheader("Tema")
+active_theme = render_theme_control(st)
+apply_mathmongo_theme(active_theme, st)
 st.sidebar.divider()
 
 # Get current database connection
@@ -1162,28 +1169,26 @@ def _cuaderno_is_installed(conn) -> bool:
         return False
 
 
-CPI_NAV_LABEL = "🧩 CPI"
+CPI_NAV_LABEL = "🟥 CPI"
 
 nav_options = [
-    "🏠 Dashboard",
-    "➕ Add Concept",
-    "✏️ Edit Concept",
-    "📚 Browse Concepts",
-    "🔗 Manage Relations",
-    "📊 Knowledge Graph",
-    "📄 Document Builder",
-    "📤 Export",
-    "📦 Database Export",
-    "📥 Database Import",
-    "🧹 Maintenance",
-    "⚙️ Settings",
+    "🏠 Inicio",
+    "📄 Documentos",
+    "💡 Nuevo concepto",
+    "🖊️ Editar concepto",
+    "🧠 Conceptos",
+    "🕸️ Relaciones",
+    "🗺️ Grafo de conocimiento",
+    "📤 Exportar",
+    "💾 Exportar base",
+    "📥 Importar base",
+    "🧰 Mantenimiento",
+    "⚙️ Configuración",
 ]
+if _cuaderno_is_installed(db):
+    nav_options[1:1] = ["📝 Cuaderno", "🟩 Cornell", CPI_NAV_LABEL]
 nav_options = add_source_catalog_navigation(nav_options)
 nav_options = add_reading_space_navigation(nav_options)
-if _cuaderno_is_installed(db):
-    nav_options.append("🧪 Cuaderno")
-    nav_options.append("🧾 Cornell")
-    nav_options.append(CPI_NAV_LABEL)
 
 apply_pending_navigation(st.session_state, nav_options)
 apply_pending_reading_navigation(
@@ -1194,7 +1199,7 @@ apply_pending_reading_navigation(
 if st.session_state.get(NAVIGATION_WIDGET) not in nav_options:
     st.session_state.pop(NAVIGATION_WIDGET, None)
 selected_page = st.sidebar.selectbox(
-    "Navigation",
+    "Navegación",
     nav_options,
     key=NAVIGATION_WIDGET,
 )
@@ -1230,7 +1235,7 @@ elif page == READING_SPACE_NAV_LABEL:
         render_reading_space_page(catalog_context)
 
 # Dashboard page
-elif page == "🏠 Dashboard":
+elif page == "🏠 Inicio":
     st.title("MathMongo")
     st.caption("Un cuaderno académico para organizar conceptos, fuentes y lecturas.")
 
@@ -1434,7 +1439,11 @@ elif page == "🏠 Dashboard":
                                 )
                             ]
                         )
-                        fig.update_layout(height=600, margin=dict(l=10, r=10, t=10, b=10))
+                        fig.update_layout(
+                            **plotly_layout(active_theme),
+                            height=600,
+                            margin=dict(l=10, r=10, t=10, b=10),
+                        )
                         st.plotly_chart(fig, width='stretch')
 
             # --- MVP: Relaciones (Sankey) a nivel de conceptos ---
@@ -1688,7 +1697,11 @@ elif page == "🏠 Dashboard":
                                     )
                                 ]
                             )
-                            fig.update_layout(height=650, margin=dict(l=10, r=10, t=10, b=10))
+                            fig.update_layout(
+                                **plotly_layout(active_theme),
+                                height=650,
+                                margin=dict(l=10, r=10, t=10, b=10),
+                            )
                             st.plotly_chart(fig, width='stretch', key=f"concept_sankey_{key_suffix}")
 
                         tab_dep, tab_log = st.tabs(["🧠 Dependencies", "⚖️ Logical / Critical"])
@@ -1717,16 +1730,16 @@ elif page == "🏠 Dashboard":
             # --- end MVP: concept-level sankey ---
 
 # Add Concept page
-elif page == "🧪 Cuaderno":
+elif page == "📝 Cuaderno":
     from cuaderno_page import render_cuaderno
     render_cuaderno(db, _cuaderno_is_installed)
-elif page == "🧾 Cornell":
+elif page == "🟩 Cornell":
     from editor.cornell.streamlit_page import render_cornell_page
     render_cornell_page(db)
 elif page == "CPI":
     from editor.cpi.streamlit_page import render_cpi_page
     render_cpi_page(db)
-elif page == "➕ Add Concept":
+elif page == "💡 Nuevo concepto":
     st.title("➕ Add New Mathematical Concept")
 
     if db is None:
@@ -2392,7 +2405,7 @@ elif page == "➕ Add Concept":
     )
 
 # Edit Concept page
-elif page == "✏️ Edit Concept":
+elif page == "🖊️ Editar concepto":
     st.title("✏️ Edit Mathematical Concept")
 
     if db is None:
@@ -3351,7 +3364,7 @@ elif page == "✏️ Edit Concept":
                         st.info("Deletion cancelled.")
 
 # Browse Concepts page
-elif page == "📚 Browse Concepts":
+elif page == "🧠 Conceptos":
     st.title("📚 Browse Mathematical Concepts")
 
     if db is None:
@@ -3627,7 +3640,7 @@ elif page == "📚 Browse Concepts":
         st.info("No concepts found matching the criteria.")
 
 # Manage Relations page
-elif page == "🔗 Manage Relations":
+elif page == "🕸️ Relaciones":
     st.title("🔗 Manage Concept Relations")
 
     if db is None:
@@ -4370,7 +4383,7 @@ elif page == "🔗 Manage Relations":
             st.info("No relations found with the selected filters.")
 
 # Knowledge Graph page
-elif page == "📊 Knowledge Graph":
+elif page == "🗺️ Grafo de conocimiento":
     st.title("📊 Knowledge Graph Visualization")
 
     if db is None:
@@ -5683,7 +5696,7 @@ elif page == "📊 Knowledge Graph":
                     st.error(f"No se pudo importar el mapa: {exc}")
 
 # Document Builder page
-elif page == "📄 Document Builder":
+elif page == "📄 Documentos":
     render_document_builder_page(
         db,
         current_db,
@@ -5692,7 +5705,7 @@ elif page == "📄 Document Builder":
     )
 
 # Export page
-elif page == "📤 Export":
+elif page == "📤 Exportar":
     st.title("📤 Export Concepts")
 
     if db is None:
@@ -5849,11 +5862,11 @@ elif page == "📤 Export":
             st.error(f"❌ Bulk export failed: {e}")
 
 # Maintenance page
-elif page == "🧹 Maintenance":
+elif page == "🧰 Mantenimiento":
     _render_cleanup_maintenance_page()
 
 # Settings page
-elif page == "⚙️ Settings":
+elif page == "⚙️ Configuración":
     st.title("Ajustes")
 
     st.subheader("Base activa")
@@ -5906,7 +5919,7 @@ elif page == "⚙️ Settings":
     st.write("**MathMongo** · cuaderno académico con LaTeX y almacenamiento MongoDB.")
     st.caption("Autor: Enrique Díaz Ocampo · Licencia MIT")
 
-elif page == "📦 Database Export":
+elif page == "💾 Exportar base":
     st.header("📦 Database Export")
     st.markdown(
         """
@@ -5936,7 +5949,7 @@ elif page == "📦 Database Export":
                 st.error(f"Export failed: {e}")
 
 
-elif page == "📥 Database Import":
+elif page == "📥 Importar base":
     render_database_import_page(st, db)
 
 

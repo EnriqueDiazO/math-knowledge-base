@@ -156,7 +156,7 @@ def test_switch_is_pure_session_cleanup_with_no_mongodb_writes() -> None:
 
 def test_graph_scope_sync_precedes_reads_and_map_identity_guards_writes() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
-    branch = source[source.index('elif page == "📊 Knowledge Graph":'):]
+    branch = source[source.index('elif page == "🗺️ Grafo de conocimiento":'):]
 
     assert branch.index("sync_knowledge_graph_scope(") < branch.index(
         'maps_col = db.db["knowledge_graph_maps"]'

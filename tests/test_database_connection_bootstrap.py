@@ -84,9 +84,10 @@ def test_streamlit_bootstrap_has_no_implicit_mathv0_connection() -> None:
 
 def test_additional_connections_remain_an_explicit_sidebar_action() -> None:
     source = STREAMLIT_APP.read_text(encoding="utf-8")
-    start = source.index("# Add new database connection")
-    end = source.index("# Test database connection", start)
+    start = source.index("# Secondary database actions")
+    end = source.index("st.sidebar.divider()", start)
     branch = source[start:end]
 
+    assert 'with st.sidebar.expander("Administrar conexiones"' in branch
     assert 'st.button("Añadir conexión", icon=":material/add:")' in branch
     assert "db_manager.add_connection(" in branch

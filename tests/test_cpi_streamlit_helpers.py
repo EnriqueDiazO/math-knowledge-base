@@ -256,6 +256,6 @@ def test_editor_navigation_shows_cpi_icon_but_routes_to_cpi() -> None:
         encoding="utf-8",
     )
 
-    assert 'CPI_NAV_LABEL = "🧩 CPI"' in source
+    assert 'CPI_NAV_LABEL = "🟥 CPI"' in source
     assert 'page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page' in source
     assert 'elif page == "CPI":' in source

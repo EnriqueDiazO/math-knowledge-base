@@ -7,6 +7,8 @@ import re
 from dataclasses import dataclass
 from typing import Any
 
+from editor.source_catalog.presentation import render_duplicate_cards
+from editor.source_catalog.presentation import render_key_value_card
 from editor.source_catalog.state import begin_operation
 from editor.source_catalog.state import clear_completed_operation
 from editor.source_catalog.state import finish_operation
@@ -255,19 +257,35 @@ def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSn
             f"sources={'sí' if snapshot.source_collection_exists else 'no'} · "
             f"references={'sí' if snapshot.reference_collection_exists else 'no'}"
         )
-        ui.dataframe(_index_rows(snapshot.index_statuses), width="stretch", hide_index=True)
         ui.write(
             f"Plan: {len(snapshot.plan.present)} presentes, "
             f"{missing_count} faltantes, "
             f"{conflict_count} diferencias."
         )
+        for item in snapshot.index_statuses:
+            render_key_value_card(
+                ui,
+                "Índice del catálogo",
+                (
+                    ("Colección", item.spec.collection),
+                    ("Índice", item.spec.name),
+                    ("Estado", item.state.value),
+                    ("Detalle", item.detail),
+                ),
+            )
         if snapshot.plan.missing:
             ui.write("Índices faltantes que Initialize aplicaría:")
-            ui.dataframe(
-                _missing_index_rows(snapshot.plan),
-                width="stretch",
-                hide_index=True,
-            )
+            for spec in snapshot.plan.missing:
+                render_key_value_card(
+                    ui,
+                    "Índice pendiente",
+                    (
+                        ("Colección", spec.collection),
+                        ("Índice", spec.name),
+                        ("Claves", ", ".join(f"{field}:{direction}" for field, direction in spec.keys)),
+                        ("Único", "sí" if spec.unique else "no"),
+                    ),
+                )
         if snapshot.plan.conflicts:
             ui.error(
                 "Hay conflictos de definición de índices. Initialize no puede resolverlos; "
@@ -348,26 +366,10 @@ def duplicate_groups(matches: list[Any] | tuple[Any, ...]) -> dict[str, list[Any
 
 
 def render_duplicate_preview(ui: Any, matches: list[Any] | tuple[Any, ...]) -> None:
-    """Render exact/strong/possible/weak duplicate evidence separately."""
+    """Render duplicate evidence as small, readable cards."""
     groups = duplicate_groups(matches)
-    labels = {
-        "exact": "Coincidencias exactas",
-        "strong": "Duplicados fuertes",
-        "possible": "Posibles duplicados",
-        "weak": "Sugerencias débiles",
-    }
-    for level in ("exact", "strong", "possible", "weak"):
-        values = groups[level]
-        if not values:
-            continue
-        ui.markdown(f"**{labels[level]}**")
-        for match in values:
-            evidence = ", ".join(
-                item.evidence_type.value for item in getattr(match, "evidence", ())
-            )
-            ui.write(f"- `{match.entity_id}` · {evidence or level}")
-    if not any(groups.values()):
-        ui.success("No se encontraron candidatos duplicados en la base activa.")
+    ordered = tuple(match for level in ("exact", "strong", "possible", "weak") for match in groups[level])
+    render_duplicate_cards(ui, ordered)
 
 
 __all__ = [

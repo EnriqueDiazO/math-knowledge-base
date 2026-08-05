@@ -12,7 +12,7 @@ DEFAULT_TEMPLATE_ID = "historical_cornell_math_letter_v1"
 HYBRID_COMPACT_TEMPLATE_ID = "cornell_hybrid_compact_v1"
 TEMPLATE_LABELS = {
     DEFAULT_TEMPLATE_ID: "Actual / clásico",
-    HYBRID_COMPACT_TEMPLATE_ID: "Híbrido compacto",
+    HYBRID_COMPACT_TEMPLATE_ID: "Híbrido continuo",
 }
 IDENTITY_POSITIONS = ("center", "bottom_right", "top_right")
 WATERMARK_TYPES = ("text", "image")
@@ -36,7 +36,7 @@ def resolve_template_id(template_id: object) -> str:
 
 
 def is_hybrid_compact_template(template_id: object) -> bool:
-    """Return whether a template uses the optional compact hybrid layout."""
+    """Return whether a template uses the optional continuous hybrid sheet."""
     return str(template_id or "").strip() == HYBRID_COMPACT_TEMPLATE_ID
 
 

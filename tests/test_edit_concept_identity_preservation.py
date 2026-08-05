@@ -246,8 +246,8 @@ def _edit_concept_branch() -> str:
     source = (
         Path(__file__).resolve().parents[1] / "editor" / "editor_streamlit.py"
     ).read_text(encoding="utf-8")
-    start = source.index('elif page == "✏️ Edit Concept":')
-    end = source.index('\nelif page == "📚 Browse Concepts":', start)
+    start = source.index('elif page == "🖊️ Editar concepto":')
+    end = source.index('\nelif page == "🧠 Conceptos":', start)
     return source[start:end]
 
 
