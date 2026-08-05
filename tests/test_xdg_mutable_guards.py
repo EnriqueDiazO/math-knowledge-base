@@ -7,11 +7,13 @@ from __future__ import annotations
 import hashlib
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 
 from editor import interactive_graph
 from editor import pdf_export
+from editor.utils import db_import
 from exporters_latex import latex_validation
 from exporters_latex.unified_document import copy_latex_styles
 from scripts import install_cuaderno_mode
@@ -81,7 +83,8 @@ def test_interactive_graph_cleanup_rejects_a_symlinked_html_leaf(
 
 
 def test_editor_streamlit_backup_and_import_staging_are_guarded() -> None:
-    source = (Path(__file__).resolve().parents[1] / "editor/editor_streamlit.py").read_text(
+    root = Path(__file__).resolve().parents[1]
+    source = (root / "editor/editor_streamlit.py").read_text(
         encoding="utf-8"
     )
 
@@ -90,21 +93,31 @@ def test_editor_streamlit_backup_and_import_staging_are_guarded() -> None:
     backup_export = source.index("export_database_to_zip(db, out_dir)", backup_mkdir)
     assert backup_guard < backup_mkdir < backup_export
 
-    runtime_guard = source.index("runtime_root = validate_mutable_path(get_runtime_dir())")
-    import_guard = source.index("import_runtime = validate_mutable_path(", runtime_guard)
-    import_mkdir = source.index("import_runtime.mkdir(", import_guard)
-    leaf_guard = source.index("tmp_path = validate_mutable_path(", import_mkdir)
-    write_open = source.index("upload_descriptor = os.open(", leaf_guard)
+    import_source = (root / "editor/database_import_page.py").read_text(encoding="utf-8")
+    runtime_guard = import_source.index("runtime_root = validate_mutable_path(get_runtime_dir())")
+    import_guard = import_source.index("import_runtime = validate_mutable_path(", runtime_guard)
+    import_mkdir = import_source.index("import_runtime.mkdir(", import_guard)
+    leaf_guard = import_source.index("path = validate_mutable_path(", import_mkdir)
+    write_open = import_source.index("descriptor = os.open(", leaf_guard)
     assert runtime_guard < import_guard < import_mkdir < leaf_guard < write_open
-
-    protected_guard = source.index("if new_db_name.casefold()", write_open)
-    mongo_constructor = source.index("MathMongo(db_name=new_db_name)", protected_guard)
-    assert protected_guard < mongo_constructor
 
     preflight_guard = source.index("latex_runtime = validate_mutable_path(get_latex_runtime_dir())")
     preflight_mkdir = source.index("latex_runtime.mkdir(", preflight_guard)
     preflight_temp = source.index("tempfile.TemporaryDirectory(", preflight_mkdir)
     assert preflight_guard < preflight_mkdir < preflight_temp
+
+
+def test_database_import_blocks_protected_target_before_reading_archive(tmp_path: Path) -> None:
+    class ProtectedDatabase:
+        name = "mathmongo"
+
+        def list_collection_names(self) -> list[str]:
+            raise AssertionError("protected target must be rejected before database inspection")
+
+    protected_mongo = SimpleNamespace(db=ProtectedDatabase())
+
+    with pytest.raises(ValueError, match="protected MongoDB targets"):
+        db_import.import_zip_into_database(tmp_path / "unreadable.zip", protected_mongo)
 
 
 def test_cuaderno_install_rejects_a_symlinked_media_root(

@@ -421,8 +421,8 @@ Fields and actions:
 - Total Relations.
 - Sources.
 - Categories.
-- Clear All Data.
-- Confirm Clear All.
+- Recuperación mediante backup y restauración en una base nueva (no usar
+  "Clear All Data" como flujo de actualización).
 - Cancel.
 - Rebuild Indexes.
 - Application version.

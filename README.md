@@ -320,23 +320,22 @@ chmod +x scripts/make_desktop_shortcut.sh
 ./scripts/make_desktop_shortcut.sh
 ```
 
-## 🔁 Updating a Database (MathV0)
+## 🔁 Recuperación segura de una base (MathV0)
 
-To update a database, follow these steps:
+**No borres una base para actualizarla.** MathV0 se conserva como la base
+histórica activa; el flujo docente no usa `--drop` ni acciones de "borrar todo".
 
-1. In the database you want to update, go to **Navigation → Settings**.
+1. Crea un respaldo que incluya MongoDB y los directorios XDG de media/PDF.
+2. Inspecciona el respaldo y ejecuta primero una restauración de prueba en una
+   **base nueva** con un nombre distinto de `MathV0`.
+3. Valida documentos, colecciones, índices, validators, asociaciones y hashes
+   de media antes de aprobarla.
+4. Cambia `MONGODB_DB` sólo después de esa aprobación. Conserva el respaldo y
+   el HEAD de Git que lo produjo para permitir rollback.
 
-2. Select **Clear All Data**.  
-   This will delete all existing content while keeping the database name **MathV0**.
-
-3. Then go to **Database Import** and import the database using the name **MathV0**.  
-   Fill in all required fields, and make sure you use the name **MathV0**.
-
-4. To enable notebook mode, run the following command in your terminal:
-
-   ```bash
-   python scripts/install_cuaderno_mode.py --mongo-uri mongodb://127.0.0.1:27017 --db MathV0
-   ```
+No ejecutes `dropDatabase`, `--drop` ni "Clear All Data" como parte de una
+actualización o una clase. Las guías de backup y restauración verificable se
+documentan junto con el entorno docente.
 
 
 ---

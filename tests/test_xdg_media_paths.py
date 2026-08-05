@@ -234,6 +234,11 @@ class _FixedExportDatetime:
     def utcnow(cls) -> datetime:
         return datetime(2026, 7, 11, 12, 34, 56)
 
+    @classmethod
+    def now(cls, tz=None) -> datetime:
+        value = datetime(2026, 7, 11, 12, 34, 56)
+        return value.replace(tzinfo=tz) if tz is not None else value
+
 
 @pytest.mark.parametrize(
     "symlink_location",
