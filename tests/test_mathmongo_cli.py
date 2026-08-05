@@ -14,7 +14,48 @@ import pytest
 from mathmongo import __version__
 from mathmongo.cli import main
 from mathmongo.config import AppConfig
+from mathmongo.config import resolve_config
 from mathmongo.launcher import LaunchError
+
+_CLI_CONFIGURATION_ENVIRONMENT = (
+    "MONGODB_URI",
+    "MONGO_URI",
+    "MONGODB_DB",
+    "MONGO_DB",
+    "DB_NAME",
+    "MATHMONGO_EXPORT_DIRECTORY",
+    "MATHMONGO_STREAMLIT_ADDRESS",
+    "MATHMONGO_STREAMLIT_PORT",
+    "MATHMONGO_BROWSER_ENABLED",
+    "MATHMONGO_ADVANCED_READER_ENABLED",
+    "MATHMONGO_ADVANCED_READER_HOST",
+    "MATHMONGO_ADVANCED_READER_PORT",
+    "MATHMONGO_ADVANCED_READER_URL",
+    "MATHMONGO_DESKTOP",
+)
+
+
+def _configure_cli_environment(
+    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path,
+    *,
+    mongo_uri: str,
+    mongo_database: str,
+) -> None:
+    """Set every configuration input used by launcher tests explicitly."""
+    for name in _CLI_CONFIGURATION_ENVIRONMENT:
+        monkeypatch.delenv(name, raising=False)
+    for name, value in {
+        "HOME": tmp_path / "home",
+        "XDG_CONFIG_HOME": tmp_path / "config",
+        "XDG_DATA_HOME": tmp_path / "data",
+        "XDG_CACHE_HOME": tmp_path / "cache",
+        "XDG_STATE_HOME": tmp_path / "state",
+        "XDG_RUNTIME_DIR": tmp_path / "runtime",
+        "MONGODB_URI": mongo_uri,
+        "MONGODB_DB": mongo_database,
+    }.items():
+        monkeypatch.setenv(name, str(value))
 
 
 @pytest.mark.parametrize(
@@ -57,7 +98,17 @@ def test_config_command_reports_product_and_active_database_without_launching(mo
 
 
 @pytest.mark.parametrize("arguments", [[], ["run"]])
-def test_default_command_and_explicit_run_are_equivalent(arguments, monkeypatch) -> None:
+def test_default_command_and_explicit_run_are_equivalent(arguments, monkeypatch, tmp_path: Path) -> None:
+    mongo_uri = "mongodb://127.0.0.1:27017"
+    _configure_cli_environment(
+        monkeypatch,
+        tmp_path,
+        mongo_uri=mongo_uri,
+        mongo_database="cli_equivalence_database",
+    )
+    resolved = resolve_config()
+    assert resolved.mongo_uri == mongo_uri
+    assert resolved.mongo_database == "cli_equivalence_database"
     calls = []
     monkeypatch.setattr("mathmongo.cli.launch_mathmongo", lambda **kwargs: calls.append(kwargs) or 0)
     assert main(arguments) == 0
@@ -66,13 +117,23 @@ def test_default_command_and_explicit_run_are_equivalent(arguments, monkeypatch)
             "address": "localhost",
             "port": 8501,
             "no_browser": False,
-            "mongodb_uri": "mongodb://localhost:27017",
+            "mongodb_uri": mongo_uri,
             "desktop_launch": False,
         }
     ]
 
 
-def test_cli_forwards_custom_run_options(monkeypatch) -> None:
+def test_cli_forwards_custom_run_options(monkeypatch, tmp_path: Path) -> None:
+    mongo_uri = "mongodb://127.0.0.1:27018"
+    _configure_cli_environment(
+        monkeypatch,
+        tmp_path,
+        mongo_uri=mongo_uri,
+        mongo_database="cli_test_database",
+    )
+    resolved = resolve_config()
+    assert resolved.mongo_uri == mongo_uri
+    assert resolved.mongo_database == "cli_test_database"
     calls = []
     monkeypatch.setattr("mathmongo.cli.launch_mathmongo", lambda **kwargs: calls.append(kwargs) or 0)
     assert main(["run", "--port", "8502", "--address", "::1", "--no-browser"]) == 0
@@ -81,7 +142,7 @@ def test_cli_forwards_custom_run_options(monkeypatch) -> None:
             "address": "::1",
             "port": 8502,
             "no_browser": True,
-            "mongodb_uri": "mongodb://localhost:27017",
+            "mongodb_uri": mongo_uri,
             "desktop_launch": False,
         }
     ]
@@ -118,15 +179,48 @@ def test_run_gui_is_thin_compatible_wrapper() -> None:
     assert "raise SystemExit(main())" in source
 
 
-def test_importing_cli_does_not_import_streamlit_or_pymongo() -> None:
+def test_importing_cli_does_not_import_streamlit_or_pymongo(tmp_path: Path) -> None:
+    project_root = Path(__file__).resolve().parents[1]
+    isolated_paths = [
+        tmp_path / "home",
+        tmp_path / "config",
+        tmp_path / "data",
+        tmp_path / "cache",
+        tmp_path / "state",
+        tmp_path / "runtime",
+    ]
+    environment = os.environ.copy()
+    for name in _CLI_CONFIGURATION_ENVIRONMENT:
+        environment.pop(name, None)
+    environment.update(
+        {
+            "PYTHONPATH": str(project_root),
+            "HOME": str(isolated_paths[0]),
+            "XDG_CONFIG_HOME": str(isolated_paths[1]),
+            "XDG_DATA_HOME": str(isolated_paths[2]),
+            "XDG_CACHE_HOME": str(isolated_paths[3]),
+            "XDG_STATE_HOME": str(isolated_paths[4]),
+            "XDG_RUNTIME_DIR": str(isolated_paths[5]),
+            "MONGODB_URI": "mongodb://127.0.0.1:27017",
+            "MONGODB_DB": "cli_import_isolation",
+        }
+    )
     code = (
-        "import sys; attempts = []; "
+        "from pathlib import Path; import sys; attempts = []; "
         "sys.addaudithook(lambda event, _args: attempts.append(event) if event == 'socket.connect' else None); "
         "import mathmongo.cli; "
         "assert 'streamlit' not in sys.modules; assert 'pymongo' not in sys.modules; "
+        f"assert all(not Path(path).exists() for path in {list(map(str, isolated_paths))!r}); "
         "assert not attempts"
     )
-    result = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True, check=False)
+    result = subprocess.run(
+        [sys.executable, "-c", code],
+        cwd=tmp_path,
+        env=environment,
+        capture_output=True,
+        text=True,
+        check=False,
+    )
     assert result.returncode == 0, result.stderr
 
 
