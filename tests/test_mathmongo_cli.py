@@ -32,6 +32,27 @@ def test_cli_version_has_single_metadata_source(capsys) -> None:
     assert capsys.readouterr().out.strip() == f"mathmongo {__version__}"
 
 
+def test_config_command_reports_product_and_active_database_without_launching(monkeypatch, capsys) -> None:
+    monkeypatch.setattr(
+        "mathmongo.cli.resolve_config",
+        lambda **_kwargs: AppConfig(
+            mongo_uri="mongodb://teacher:secret@localhost:27017/MathV0",
+            mongo_database="MathV0",
+        ),
+    )
+    monkeypatch.setattr(
+        "mathmongo.cli.launch_mathmongo",
+        lambda **_kwargs: pytest.fail("config must not launch Streamlit or connect to MongoDB"),
+    )
+    assert main(["config"]) == 0
+    output = capsys.readouterr().out
+    assert "Producto: MathMongo" in output
+    assert "Base activa: MathV0" in output
+    assert "mongodb://localhost:27017/MathV0" in output
+    assert "teacher" not in output
+    assert "secret" not in output
+
+
 @pytest.mark.parametrize("arguments", [[], ["run"]])
 def test_default_command_and_explicit_run_are_equivalent(arguments, monkeypatch) -> None:
     calls = []

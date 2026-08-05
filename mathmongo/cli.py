@@ -8,6 +8,7 @@ import sys
 from collections.abc import Sequence
 
 from mathmongo import __version__
+from mathmongo.config import active_database_diagnostic
 from mathmongo.config import resolve_config
 from mathmongo.config import sanitize_mongo_error
 from mathmongo.launcher import LaunchError
@@ -41,6 +42,10 @@ def build_parser() -> argparse.ArgumentParser:
     subparsers = parser.add_subparsers(dest="command")
     run_parser = subparsers.add_parser("run", help="Inicia la aplicación Streamlit.")
     _add_run_options(run_parser, suppress_defaults=True)
+    subparsers.add_parser(
+        "config",
+        help="Muestra producto y base configurada sin conectarse.",
+    )
     return parser
 
 
@@ -54,6 +59,12 @@ def main(argv: Sequence[str] | None = None) -> int:
             "browser_enabled": False if getattr(args, "no_browser", False) else None,
         }
     )
+    if args.command == "config":
+        diagnostic = active_database_diagnostic(settings)
+        print(f"Producto: {diagnostic['product']}")
+        print(f"Base activa: {diagnostic['database']}")
+        print(f"MongoDB: {diagnostic['mongo_uri']}")
+        return 0
     try:
         return launch_mathmongo(
             address=settings.streamlit_address,

@@ -19,6 +19,7 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import validate_mutable_path
 
 CONFIG_VERSION = 1
+PRODUCT_NAME = "MathMongo"
 DEFAULT_MONGO_URI = "mongodb://localhost:27017"
 DEFAULT_MONGO_DATABASE = "mathmongo"
 DEFAULT_STREAMLIT_ADDRESS = "localhost"
@@ -231,3 +232,12 @@ def sanitize_mongo_error(error: object, uri: str) -> str:
         if credential:
             sanitized = sanitized.replace(credential, "<redacted>")
     return sanitized
+
+
+def active_database_diagnostic(config: AppConfig) -> dict[str, str]:
+    """Return safe, side-effect-free identity details for support diagnostics."""
+    return {
+        "product": PRODUCT_NAME,
+        "database": config.mongo_database,
+        "mongo_uri": redact_mongo_uri(config.mongo_uri),
+    }

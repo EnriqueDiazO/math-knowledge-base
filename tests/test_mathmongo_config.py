@@ -10,6 +10,7 @@ from pathlib import Path
 import pytest
 
 from mathmongo.config import AppConfig
+from mathmongo.config import active_database_diagnostic
 from mathmongo.config import get_config_file
 from mathmongo.config import initialize_config
 from mathmongo.config import load_config
@@ -64,6 +65,37 @@ def test_existing_mongo_environment_aliases(tmp_path: Path) -> None:
     resolved = resolve_config(environment=environment, stored=AppConfig())
     assert resolved.mongo_uri == "mongodb://primary"
     assert resolved.mongo_database == "PrimaryDb"
+
+
+def test_database_name_precedence_is_explicit_and_keeps_mathv0_configurable() -> None:
+    environment = {
+        "MONGODB_DB": "MathV0",
+        "MONGO_DB": "ignored-secondary-alias",
+        "DB_NAME": "ignored-legacy-alias",
+    }
+    stored = AppConfig(mongo_database="stored_database")
+    resolved = resolve_config(environment=environment, stored=stored)
+    assert resolved.mongo_database == "MathV0"
+    explicit = resolve_config(
+        explicit={"mongo_database": "teaching_copy"},
+        environment=environment,
+        stored=stored,
+    )
+    assert explicit.mongo_database == "teaching_copy"
+
+
+def test_active_database_diagnostic_is_safe_and_does_not_connect() -> None:
+    diagnostic = active_database_diagnostic(
+        AppConfig(
+            mongo_uri="mongodb://teacher:secret@localhost:27017/MathV0",
+            mongo_database="MathV0",
+        )
+    )
+    assert diagnostic == {
+        "product": "MathMongo",
+        "database": "MathV0",
+        "mongo_uri": "mongodb://localhost:27017/MathV0",
+    }
 
 
 def test_invalid_config_types_fall_back_safely(tmp_path: Path) -> None:
