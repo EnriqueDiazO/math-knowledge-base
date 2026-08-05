@@ -127,7 +127,7 @@ def render_add_source_page(
     snapshot = render_catalog_status(ui, context)
     ui.divider()
     ui.subheader("A. Basic Information")
-    ui.caption("Initial status: active")
+    ui.caption("Las fuentes nuevas se crean con estado activo.")
     draft = render_source_form(ui, key_prefix="add_source")
 
     preview_clicked = ui.button(

@@ -239,8 +239,8 @@ def _render_notice_and_preview(ui: Any) -> None:
         ui.success(str(notice))
     preview = ui.session_state.get(state_key("last_preview"))
     if isinstance(preview, Mapping):
-        ui.markdown("##### Resultado normalizado")
-        ui.json(dict(preview))
+        with ui.expander("Resultado normalizado", expanded=False):
+            ui.json(dict(preview))
     warnings = ui.session_state.get(state_key("last_warnings"))
     if isinstance(warnings, list | tuple):
         for warning in warnings:

@@ -2084,28 +2084,28 @@ def _render_latex_ace_editor(prefix: str, initial_text: str, height: int = 320) 
     return st.session_state[keys["text"]]
 def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     """
-    Renderiza la página 🧪 Cuaderno (Experimental).
+    Renderiza la página Cuaderno.
 
     Args:
         db: handle de MongoDB (pymongo database)
         _cuaderno_is_installed: función que valida si el modo cuaderno está instalado
     """
-    st.title("🧪 Cuaderno (Experimental)")
+    st.title(":material/menu_book: Cuaderno")
 
     if db is None:
-        st.error("❌ No database connection. Please select a database in the sidebar.")
+        st.error("No hay una conexión a la base. Selecciona una conexión en la barra lateral.")
         st.stop()
 
     if not _cuaderno_is_installed(db):
         st.warning(
-        "El modo cuaderno no está instalado en esta base de datos. "
-        "Ejecuta: `make cuaderno-install`"
-    )
-    else:
-        mongo_db = getattr(db, "db", None)
-        if mongo_db is None:
-            st.error("❌ No se pudo acceder al objeto pymongo database (db.db).")
-            st.stop()
+            "Cuaderno no está disponible en esta base. Selecciona una base docente ya "
+            "preparada; esta pantalla no inicializa ni modifica estructuras."
+        )
+        return
+    mongo_db = getattr(db, "db", None)
+    if mongo_db is None:
+        st.error("No se pudo acceder a la base seleccionada.")
+        st.stop()
 
     c_worklog = mongo_db["worklog_entries"].count_documents({})
     c_backlog = mongo_db["backlog_items"].count_documents({})
@@ -2120,8 +2120,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
     col4.metric("Deliverables", c_deliv)
     col5.metric("Diario", c_notes)
 
-    with st.expander("Instalación / Estado", expanded=False):
-        st.code("make cuaderno-install\nmake cuaderno-status", language="bash")
+    st.caption("Las métricas corresponden exclusivamente a la base activa.")
 
     tabs = st.tabs(["Worklog", "Backlog", "Weekly Review", "Deliverables", "Kanban", "Diario"])
 
@@ -2214,7 +2213,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             st.error(f"❌ Error cargando worklog: {e}")
 
         st.divider()
-        st.markdown("### ⬇️ Exportar Worklog a CSV (MVP-4)")
+        st.markdown("### ⬇️ Exportar Worklog a CSV")
         st.caption("Selecciona entradas y descárgalas como CSV. Por defecto se muestran las entradas recientes; opcionalmente puedes filtrar.")
 
         export_mode = st.selectbox(
@@ -2324,7 +2323,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     st.button("Descargar CSV", disabled=True, key="worklog_export_download_disabled")
 
         st.divider()
-        st.markdown("### ✏️ Editar entrada (MVP-1)")
+        st.markdown("### ✏️ Editar entrada")
 
         try:
             edit_rows = list(
@@ -2419,7 +2418,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
 
         st.divider()
-        st.markdown("### ➕ Crear entrada desde Backlog (MVP-2)")
+        st.markdown("### ➕ Crear entrada desde Backlog")
         st.caption("Integración unidireccional: Backlog → Worklog. No se modifica el Backlog.")
 
         try:
@@ -2529,7 +2528,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
 
         st.divider()
-        st.markdown("### 🗑️ Borrar entrada (MVP-3)")
+        st.markdown("### 🗑️ Borrar entrada")
 
         try:
             del_rows = list(
@@ -2717,7 +2716,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
             df = pd.DataFrame(rows)
             st.dataframe(df, width='stretch', hide_index=True)
-            st.markdown("### ⬇️ Exportar Backlog a CSV (MVP)")
+            st.markdown("### ⬇️ Exportar Backlog a CSV")
             st.caption("Selecciona items y descárgalos como CSV. Por defecto se muestran los ítems recientes; opcionalmente puedes filtrar.")
 
             export_mode = st.selectbox(
@@ -3216,7 +3215,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             "Objetivos de la semana (1 por línea)",
             value=str(st.session_state.get("weekly_objectives_txt", "")),
             height=120,
-            placeholder="- Terminar MVP V4\n- Revisar paper X\n- Debug de microservicio Y",
+            placeholder="- Terminar una revisión\n- Revisar una fuente\n- Preparar la siguiente sesión",
             key="weekly_objectives_txt",
         )
         wins_txt = st.text_area(
@@ -3367,7 +3366,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
 
         st.divider()
-        st.markdown("### ⬇️ Exportar Weekly Review a CSV (MVP)")
+        st.markdown("### ⬇️ Exportar Weekly Review a CSV")
         st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran las weekly reviews recientes; opcionalmente puedes filtrar.")
 
         export_mode = st.selectbox(
@@ -3606,7 +3605,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
 
 
         st.divider()
-        st.markdown("### ⬇️ Exportar Deliverables a CSV (MVP)")
+        st.markdown("### ⬇️ Exportar entregables a CSV")
         st.caption("Mismo patrón que Worklog/Backlog: seleccionar filas y descargar CSV. Por defecto se muestran los entregables recientes; opcionalmente puedes filtrar.")
         
         
@@ -3714,7 +3713,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 else:
                     st.button("Descargar CSV", disabled=True, key="deliverables_export_download_disabled")
         st.divider()
-        st.markdown("### ✏️ Editar entregable (MVP)")
+        st.markdown("### ✏️ Editar entregable")
 
         # Carga rápida desde los recientes (si ya se consultaron), si no vuelve a consultar.
         deliv_rows = []

@@ -83,11 +83,13 @@ def test_switcher_options_identify_each_real_database() -> None:
     assert "format_func=lambda connection_label: active_database_display_label(" in switcher
 
 
-def test_current_database_card_uses_the_clear_display_label() -> None:
+def test_current_database_status_uses_the_clear_display_label() -> None:
     branch = _app_branch("# Show current connection", "# Database switcher")
 
-    assert "{current_database_card_label}" in branch
-    assert "{current_db}<br>" not in branch
+    assert "st.sidebar.success(" in branch
+    assert "current_database_label" in branch
+    assert "current_database_card_label" not in branch
+    assert "unsafe_allow_html" not in branch
 
 
 def test_add_concept_message_uses_the_clear_display_label() -> None:

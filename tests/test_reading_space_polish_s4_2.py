@@ -172,12 +172,14 @@ def test_catalog_ready_uses_one_normal_summary_and_keeps_index_rows_advanced() -
     assert all(scope == "Advanced catalog diagnostics" for scope, _rows in ui.dataframes)
 
 
-def test_cuaderno_removes_only_the_exact_experimental_banner() -> None:
+def test_cuaderno_uses_the_teaching_title_and_safe_unavailable_state() -> None:
     source = (ROOT / "editor" / "cuaderno_page.py").read_text(encoding="utf-8")
 
-    assert "Este módulo es experimental. En los siguientes MVP" not in source
-    assert 'st.title("🧪 Cuaderno (Experimental)")' in source
-    assert 'with st.expander("Instalación / Estado", expanded=False):' in source
+    assert 'st.title(":material/menu_book: Cuaderno")' in source
+    assert "Cuaderno (Experimental)" not in source
+    assert "make cuaderno-" not in source
+    assert 'with st.expander("Instalación / Estado", expanded=False):' not in source
+    assert "esta pantalla no inicializa ni modifica estructuras" in source
     for collection in (
         "worklog_entries",
         "backlog_items",

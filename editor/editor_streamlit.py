@@ -954,105 +954,11 @@ def load_last_reference_by_source(db, source: str) -> dict | None:
 
 # Page configuration
 st.set_page_config(
-    page_title="Math Knowledge Base",
-    page_icon="🧮",
+    page_title="MathMongo · cuaderno académico",
+    page_icon=":material/functions:",
     layout="wide",
-    initial_sidebar_state="expanded"
+    initial_sidebar_state="auto",
 )
-# Custom CSS for better styling
-st.markdown("""
-<style>
-    :root {
-        --bg: #0B0F19;
-        --panel: #111827;
-        --panel-2: #0F172A;
-        --border: #243244;
-        --text: #E5E7EB;
-        --muted: #9CA3AF;
-        --accent: #60A5FA;
-        --good: #22C55E;
-        --bad: #EF4444;
-    }
-
-    .main-header {
-        font-size: 3rem;
-        font-weight: bold;
-        color: var(--text);
-        text-align: center;
-        margin-bottom: 2rem;
-    }
-
-    /* Cards */
-    .metric-card {
-        background-color: var(--panel);
-        color: var(--text);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border-left: 4px solid var(--accent);
-        border: 1px solid var(--border);
-    }
-
-    .concept-card {
-        background-color: var(--panel);
-        color: var(--text);
-        padding: 1.5rem;
-        border-radius: 0.75rem;
-        border: 1px solid var(--border);
-        margin-bottom: 1rem;
-        box-shadow: none;
-    }
-
-
-    /* MVP: make Recent Concepts a fixed-height scroll panel */
-    .recent-concepts-panel {
-        max-height: 520px;
-        overflow-y: auto;
-        padding-right: 0.5rem;
-    }
-
-    .latex-preview {
-        background-color: #0B1220;
-        color: var(--text);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border: 1px solid var(--border);
-        font-family: monospace;
-    }
-
-    .db-connection-card {
-        background-color: #0B1220;
-        color: var(--text);
-        padding: 1rem;
-        border-radius: 0.75rem;
-        border: 1px solid var(--border);
-        margin-bottom: 1rem;
-    }
-
-    .db-status-connected {
-        color: var(--good);
-        font-weight: bold;
-    }
-
-    .db-status-disconnected {
-        color: var(--bad);
-        font-weight: bold;
-    }
-
-    /* Buttons */
-    .stButton > button {
-        width: 100%;
-        border-radius: 0.75rem;
-        background: var(--panel);
-        color: var(--text);
-        border: 1px solid var(--border);
-    }
-
-    /* Sidebar fix (you were forcing light) */
-    [data-testid="stSidebar"] {
-        background-color: var(--panel-2);
-    }
-</style>
-""", unsafe_allow_html=True)
 
 # Database connection management
 class DatabaseManager:
@@ -1109,11 +1015,12 @@ if 'db_manager' not in st.session_state:
     initialize_configured_connection(st.session_state.db_manager, app_settings)
 
 # Database connection sidebar
-st.sidebar.title("🧮 Math Knowledge Base")
-st.sidebar.markdown("---")
+st.sidebar.title(":material/functions: MathMongo")
+st.sidebar.caption("Cuaderno académico para lectura, escritura y conocimiento matemático.")
+st.sidebar.divider()
 
 # Database connection section
-st.sidebar.subheader("🗄️ Database Connection")
+st.sidebar.subheader("Conexión a la base")
 
 # Show current connection
 current_db = None
@@ -1128,27 +1035,19 @@ if current_db:
         current_db,
         st.session_state.db_manager.get_current_connection(),
     )
-    current_database_card_label = html.escape(current_database_label)
-    st.sidebar.markdown(f"""
-    <div class="db-connection-card">
-        <strong>Current Database:</strong><br>
-        {current_database_card_label}<br>
-        <span class="db-status-connected">✅ Connected</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.sidebar.caption("Base activa")
+    st.sidebar.success(
+        current_database_label,
+        icon=":material/check_circle:",
+    )
 else:
-    st.sidebar.markdown("""
-    <div class="db-connection-card">
-        <strong>Current Database:</strong><br>
-        <span class="db-status-disconnected">❌ Not Connected</span>
-    </div>
-    """, unsafe_allow_html=True)
+    st.sidebar.warning("No hay una base conectada.", icon=":material/portable_wifi_off:")
 
 # Database switcher
 available_dbs = st.session_state.db_manager.list_connections()
 if available_dbs:
     selected_db = st.sidebar.selectbox(
-        "Switch Database",
+        "Cambiar base activa",
         available_dbs,
         index=available_dbs.index(current_db) if current_db in available_dbs else 0,
         format_func=lambda connection_label: active_database_display_label(
@@ -1163,41 +1062,49 @@ if available_dbs:
                 selected_db,
                 st.session_state.db_manager.get_current_connection(),
             )
-            st.sidebar.success(f"✅ Switched to {selected_database_label}")
+            st.sidebar.success(
+                f"Base activa: {selected_database_label}",
+                icon=":material/check_circle:",
+            )
             st.rerun()
 
 # Add new database connection
-with st.sidebar.expander("➕ Add New Database", expanded=False):
-    new_db_name = st.text_input("Database Name", placeholder="e.g., MathV1, ResearchDB")
+with st.sidebar.expander("Añadir conexión", expanded=False, icon=":material/add:"):
+    new_db_name = st.text_input("Etiqueta de conexión", placeholder="p. ej., base docente")
     new_db_uri = st.text_input(
         "MongoDB URI",
         value=resolve_config().mongo_uri,
         type="password",
     )
-    new_db_collection = st.text_input("Database Name", placeholder="e.g., mathmongo")
+    new_db_collection = st.text_input("Nombre de la base", placeholder="p. ej., MathV0")
 
-    if st.button("Add Connection"):
+    if st.button("Añadir conexión", icon=":material/add:"):
         if new_db_name and new_db_uri and new_db_collection:
             if st.session_state.db_manager.add_connection(new_db_name, new_db_uri, new_db_collection):
-                st.success(f"✅ Added {new_db_name}")
+                st.success(f"Conexión añadida: {new_db_name}", icon=":material/check_circle:")
                 st.rerun()
         else:
-            st.error("Please fill in all fields")
+            st.error("Completa los tres campos para añadir una conexión.")
 
 # Test database connection
-if st.sidebar.button("🔍 Test Connection"):
+if st.sidebar.button("Probar conexión", icon=":material/network_check:"):
     current_conn = st.session_state.db_manager.get_current_connection()
     if current_conn:
         try:
             # Test connection by getting collection count
             concept_count = current_conn.concepts.count_documents({})
-            st.sidebar.success(f"✅ Connection successful! {concept_count} concepts found.")
+            st.sidebar.success(
+                f"Conexión disponible · {concept_count} conceptos.",
+                icon=":material/check_circle:",
+            )
         except Exception as e:
-            st.sidebar.error(f"❌ Connection failed: {e}")
+            connection_info = st.session_state.db_manager.connections.get(current_db or "", {})
+            uri = str(connection_info.get("uri") or resolve_config().mongo_uri)
+            st.sidebar.error(f"No se pudo conectar: {sanitize_mongo_error(e, uri)}")
     else:
-        st.sidebar.error("❌ No active connection")
+        st.sidebar.error("No hay una conexión activa.")
 
-st.sidebar.markdown("---")
+st.sidebar.divider()
 
 # Get current database connection
 db = st.session_state.db_manager.get_current_connection()
@@ -1324,33 +1231,34 @@ elif page == READING_SPACE_NAV_LABEL:
 
 # Dashboard page
 elif page == "🏠 Dashboard":
-    st.markdown('<h1 class="main-header">Math Knowledge Base</h1>', unsafe_allow_html=True)
+    st.title("MathMongo")
+    st.caption("Un cuaderno académico para organizar conceptos, fuentes y lecturas.")
 
     if db is None:
-        st.error("❌ No database connection. Please select a database in the sidebar.")
+        st.error("No hay una conexión a la base. Selecciona una conexión en la barra lateral.")
         st.stop()
 
     # Show current database info
-    st.info(f"📊 Currently connected to: **{current_database_label}**")
+    st.caption(f"Base activa: {current_database_label}")
 
     # Statistics
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
         concept_count = db.concepts.count_documents({})
-        st.metric("📚 Total Concepts", concept_count)
+        st.metric("Conceptos", concept_count)
 
     with col2:
         relation_count = db.relations.count_documents({})
-        st.metric("🔗 Total Relations", relation_count)
+        st.metric("Relaciones", relation_count)
 
     with col3:
         sources = db.concepts.distinct("source")
-        st.metric("📁 Sources", len(sources))
+        st.metric("Fuentes", len(sources))
 
     with col4:
         categories = db.concepts.distinct("categorias")
-        st.metric("🏷️ Categories", len(categories))
+        st.metric("Categorías", len(categories))
 
     st.markdown("---")
 
@@ -1358,27 +1266,24 @@ elif page == "🏠 Dashboard":
     col1, col2 = st.columns([1, 2])
 
     with col1:
-        st.subheader("📝 Recent Concepts")
+        st.subheader("Conceptos recientes")
         recent_concepts = list(db.concepts.find().sort("fecha_creacion", -1).limit(2))
 
         if recent_concepts:
-            st.markdown('<div class=\"recent-concepts-panel\">', unsafe_allow_html=True)
             for concept in recent_concepts:
-                with st.container():
-                    st.markdown(f"""
-                    <div class="concept-card">
-                        <h4>{concept.get('titulo', concept['id'])}</h4>
-                        <p><strong>Type:</strong> {concept['tipo']} | <strong>Source:</strong> {concept['source']}</p>
-                        <p><strong>Categories:</strong> {', '.join(concept.get('categorias', []))}</p>
-                        <p><strong>Created:</strong> {concept.get('fecha_creacion', 'Unknown')}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-            st.markdown('</div>', unsafe_allow_html=True)
+                with st.container(border=True):
+                    st.markdown(f"**{concept.get('titulo', concept['id'])}**")
+                    st.caption(
+                        f"{concept.get('tipo', '—')} · {concept.get('source', '—')} · "
+                        f"{concept.get('fecha_creacion', 'sin fecha')}"
+                    )
+                    concept_categories = ", ".join(concept.get("categorias", []))
+                    st.write(concept_categories or "Sin categorías")
         else:
-            st.info("No concepts found. Add your first concept!")
+            st.info("Aún no hay conceptos. Puedes añadir el primero desde la navegación.")
 
     with col2:
-        st.subheader("📊 Quick Stats")
+        st.subheader("Panorama")
 
         # --- MVP: filter Quick Stats by Source (All vs selected) ---
         # Behavior:
@@ -1453,10 +1358,10 @@ elif page == "🏠 Dashboard":
             # --- MVP: Relaciones (Sankey) por Source y Tipo ---
             # Flujo: Source (origen) -> Tipo de relacion -> Source (destino)
             # Util para ver conectividad entre fuentes y distribucion de tipos.
-            with st.expander("🔗 Relations Flow (Sankey)", expanded=False):
+            with st.expander("Flujo de relaciones (Sankey)", expanded=False):
                 st.caption(
-                    "MVP: resume relaciones como flujo Source -> Tipo -> Source. "
-                    "Si desactivaste 'All sources' arriba, el grafico se filtra por esas sources."
+                    "Resume relaciones como flujo Fuente → tipo → Fuente. "
+                    "Si desactivaste todas las fuentes, el gráfico usa ese filtro."
                     )
 
                 try:
@@ -1535,17 +1440,17 @@ elif page == "🏠 Dashboard":
             # --- MVP: Relaciones (Sankey) a nivel de conceptos ---
             # Flujo: Concepto (desde) -> Tipo de relacion -> Concepto (hasta)
             # Nota: usa llaves flexibles para soportar esquemas {desde/hasta/tipo} o {from/to/relation_type}.
-            with st.expander("Concepts Flow (Sankey) [MVP]", expanded=False):
+            with st.expander("Flujo de conceptos (Sankey)", expanded=False):
                 st.caption(
-                    "MVP: resume relaciones como flujo Concept -> Tipo -> Concept. "
-                    "Incluye limites para evitar sobrecargar el grafico."
+                    "Resume relaciones como flujo Concepto → tipo → Concepto. "
+                    "Incluye límites para mantener el gráfico legible."
                 )
 
                 # Controles MVP
                 c1, c2 = st.columns(2)
                 with c1:
                     max_edges = st.slider(
-                        "max_edges",
+                        "Máximo de relaciones",
                         min_value=50,
                         max_value=2000,
                         value=400,
@@ -1555,7 +1460,7 @@ elif page == "🏠 Dashboard":
                     )
                 with c2:
                     top_concepts = st.slider(
-                        "top_concepts",
+                        "Conceptos frecuentes",
                         min_value=10,
                         max_value=400,
                         value=60,
@@ -3845,14 +3750,10 @@ elif page == "🔗 Manage Relations":
             a_col, mid_col, b_col = st.columns([5, 2, 5])
             with a_col:
                 st.markdown("**A (From)**")
-                st.markdown(
-                    f"""<div class="concept-card">
-                    <div style="font-size:1.05rem;font-weight:700">{_concept_label(_from_doc, desde_id)}</div>
-                    <div style="opacity:0.85;margin-top:0.25rem"><b>Type:</b> {_from_doc.get('tipo','—')} &nbsp;&nbsp; <b>Source:</b> {desde_source}</div>
-                    <div style="opacity:0.85;margin-top:0.25rem"><b>ID:</b> {desde_id}</div>
-                    </div>""",
-                    unsafe_allow_html=True
-                )
+                with st.container(border=True):
+                    st.markdown(f"**{_concept_label(_from_doc, desde_id)}**")
+                    st.caption(f"Tipo: {_from_doc.get('tipo', '—')} · Fuente: {desde_source}")
+                    st.caption(f"ID: {desde_id}")
             with mid_col:
                 st.markdown("**Relation**")
                 rel_symbol = {
@@ -3865,23 +3766,15 @@ elif page == "🔗 Manage Relations":
                     "contradice": "⊥",
                     "contra_ejemplo": "→/",
                 }.get(tipo_relacion, "→")
-                st.markdown(
-                    f"""<div class="metric-card" style="text-align:center">
-                    <div style="font-size:1.6rem;font-weight:800">{rel_symbol}</div>
-                    <div style="margin-top:0.25rem"><b>{tipo_relacion}</b></div>
-                    </div>""",
-                    unsafe_allow_html=True
-                )
+                with st.container(border=True):
+                    st.subheader(rel_symbol)
+                    st.caption(tipo_relacion)
             with b_col:
                 st.markdown("**B (To)**")
-                st.markdown(
-                    f"""<div class="concept-card">
-                    <div style="font-size:1.05rem;font-weight:700">{_concept_label(_to_doc, hasta_id)}</div>
-                    <div style="opacity:0.85;margin-top:0.25rem"><b>Type:</b> {_to_doc.get('tipo','—')} &nbsp;&nbsp; <b>Source:</b> {hasta_source}</div>
-                    <div style="opacity:0.85;margin-top:0.25rem"><b>ID:</b> {hasta_id}</div>
-                    </div>""",
-                    unsafe_allow_html=True
-                )
+                with st.container(border=True):
+                    st.markdown(f"**{_concept_label(_to_doc, hasta_id)}**")
+                    st.caption(f"Tipo: {_to_doc.get('tipo', '—')} · Fuente: {hasta_source}")
+                    st.caption(f"ID: {hasta_id}")
 
             # Heuristic warnings
             warnings = []
@@ -5961,86 +5854,57 @@ elif page == "🧹 Maintenance":
 
 # Settings page
 elif page == "⚙️ Settings":
-    st.title("⚙️ Settings")
+    st.title("Ajustes")
 
-    st.subheader("🔧 Database Configuration")
+    st.subheader("Base activa")
 
     # Database status
     if db is None:
-        st.error("❌ No database connection.")
+        st.error("No hay una conexión a la base.")
         st.stop()
     else:
-        st.success(f"✅ Connected to: **{current_database_label}**")
+        st.success(
+            f"Conectada a: {current_database_label}",
+            icon=":material/check_circle:",
+        )
 
     # Database statistics
-    st.subheader("📊 Database Statistics")
+    st.subheader("Resumen")
 
     col1, col2 = st.columns(2)
 
     with col1:
         concept_count = db.concepts.count_documents({})
-        st.metric("Total Concepts", concept_count)
+        st.metric("Conceptos", concept_count)
 
         relation_count = db.relations.count_documents({})
-        st.metric("Total Relations", relation_count)
+        st.metric("Relaciones", relation_count)
 
     with col2:
         source_count = len(db.concepts.distinct("source"))
-        st.metric("Sources", source_count)
+        st.metric("Fuentes", source_count)
 
         category_count = len(db.concepts.distinct("categorias"))
-        st.metric("Categories", category_count)
+        st.metric("Categorías", category_count)
 
-    # Database operations
-    st.subheader("🗄️ Database Operations")
-
-    if "confirm_clear_all" not in st.session_state:
-        st.session_state.confirm_clear_all = False
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        if not st.session_state.confirm_clear_all:
-            if st.button("🧹 Clear All Data", type="secondary", key="clear_all_data_btn"):
-                st.session_state.confirm_clear_all = True
-                st.rerun()
-        else:
-            st.warning("⚠️ This will permanently delete all concepts, relations, and LaTeX documents from the current database.")
-
-            c1, c2 = st.columns(2)
-
-            with c1:
-                 if st.button("⚠️ Confirm Clear All", type="primary", key="confirm_clear_all_btn"):
-                    try:
-                        for collection_name in EXPORT_COLLECTIONS:
-                            db.db[collection_name].delete_many({})
-                        st.session_state.confirm_clear_all = False
-                        st.success("✅ All data cleared!")
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"❌ Error clearing data: {e}")
-            with c2:
-                if st.button("Cancel", key="cancel_clear_all_btn"):
-                    st.session_state.confirm_clear_all = False
-                    st.rerun()
-
-    with col2:
-        if st.button("📊 Rebuild Indexes", key="rebuild_indexes_btn"):
-            try:
-                db.ensure_indexes()
-                st.success("✅ Indexes rebuilt successfully!")
-            except MongoIndexInitializationError as e:
-                st.error(f"❌ MongoDB está conectado, pero falló la inicialización de índices: {e}")
-            except Exception as e:
-                st.error(f"❌ Error rebuilding indexes: {e}")
+    st.subheader("Protección de datos")
+    st.info(
+        "La release docente no ofrece borrado masivo ni reconstrucción de índices desde esta "
+        "pantalla. Usa el respaldo verificado y el diagnóstico seguro antes de cualquier cambio.",
+        icon=":material/shield:",
+    )
+    st.caption("Consulta `docs/BACKUP_AND_RECOVERY.md` y `docs/DOCTOR_AND_BOOTSTRAP.md`.")
+    with st.expander("Diagnóstico seguro", expanded=False, icon=":material/diagnosis:"):
+        st.caption(
+            "Este comando inspecciona la base activa, los índices y las rutas XDG sin crear "
+            "estructuras ni mostrar contenido privado."
+        )
+        st.code("python -m mathmongo.doctor doctor", language="bash")
 
     # Application information
-    st.subheader("ℹ️ Application Information")
-
-    st.write("**Math Knowledge Base** - Version 0.1.0b1")
-    st.write("A platform for managing mathematical knowledge with LaTeX support and MongoDB storage.")
-    st.write("**Author:** Enrique Díaz Ocampo")
-    st.write("**License:** MIT")
+    st.subheader("Aplicación")
+    st.write("**MathMongo** · cuaderno académico con LaTeX y almacenamiento MongoDB.")
+    st.caption("Autor: Enrique Díaz Ocampo · Licencia MIT")
 
 elif page == "📦 Database Export":
     st.header("📦 Database Export")
@@ -6077,11 +5941,5 @@ elif page == "📥 Database Import":
 
 
 # Footer
-st.markdown("---")
-st.markdown(
-    """
-    <div style='text-align: center; color: #666;'>
-        Math Knowledge Base - Built with Streamlit and MongoDB
-    </div>
-    """,
-    unsafe_allow_html=True)
+st.divider()
+st.caption("MathMongo · cuaderno académico")
