@@ -1,0 +1,5 @@
+# Development and test tools are intentionally separate from the runtime.
+-c constraints/teaching-2026.txt
+-r requirements.txt
+pytest==8.4.2
+ruff==0.4.10

@@ -1,17 +1,4 @@
-streamlit[pdf]
-streamlit-pdf>=1.0.0,<2
-pymongo
-latexify-py
-pyvis
-networkx
-tk
-pyyaml
-python-slugify
-ruff
-markdown-it-py[linkify,plugins]
-rapidfuzz
-matplotlib
-pydantic
-bibtexparser
-streamlit-ace
-plotly>=5.0
+# Runtime dependencies are declared in pyproject.toml.
+# This file remains a pip-friendly teaching installation entry point.
+-c constraints/teaching-2026.txt
+-e .
