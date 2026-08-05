@@ -354,8 +354,8 @@ def test_mathv0_status_inspection_and_render_without_submit_are_read_only() -> N
     assert inspected.plan.missing
     assert rendered is not None
     assert rendered.database_name == "MathV0"
-    assert ui.form_submit_count == 1
-    assert ui.submit_disabled is False
+    assert ui.form_submit_count == 0
+    assert ui.submit_disabled is None
     assert index_manager.apply_attempts == 0
     assert database.write_attempts == []
     assert "database[sources]" in database.reads

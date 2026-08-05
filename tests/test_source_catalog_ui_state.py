@@ -323,7 +323,7 @@ def test_active_banner_sanitizes_connection_label_but_keeps_real_database_name()
     assert "Base MongoDB real: MathV0" in rendered
 
 
-def test_index_status_and_plan_are_read_only_and_render_in_a_form() -> None:
+def test_index_status_and_plan_are_read_only_without_an_administrative_write_form() -> None:
     database = _Database("isolated")
     manager = _IndexManager(database)
     context = _context(database, manager)
@@ -336,8 +336,8 @@ def test_index_status_and_plan_are_read_only_and_render_in_a_form() -> None:
     assert manager.plan_count == 1
     assert database.list_collection_names_count == 1
     assert database.accessed == []
-    assert ui.form_count == 1
-    assert ui.form_submit_count == 1
+    assert ui.form_count == 0
+    assert ui.form_submit_count == 0
     assert ui.regular_button_count == 0
     assert any("sources_test" in message for _level, message in ui.messages)
 
@@ -348,8 +348,8 @@ def test_confirmed_index_apply_is_one_shot_after_rerun() -> None:
     context = _context(database, manager)
     ui = _UI(database_name="isolated", click=True)
 
-    render_catalog_status(ui, context)
-    render_catalog_status(ui, context)
+    render_catalog_status(ui, context, allow_index_initialization=True)
+    render_catalog_status(ui, context, allow_index_initialization=True)
 
     assert manager.apply_count == 1
     assert ui.disabled_history == [False, True]
@@ -361,18 +361,18 @@ def test_index_apply_requires_exact_name_checkbox_missing_plan_and_no_conflict()
     context = _context(database, manager)
 
     wrong_name = _UI(click=True, confirmation_text="Friendly label")
-    render_catalog_status(wrong_name, context)
+    render_catalog_status(wrong_name, context, allow_index_initialization=True)
     assert wrong_name.disabled is False
-    assert any("not executed" in message for _level, message in wrong_name.messages)
+    assert any("No se inicializaron" in message for _level, message in wrong_name.messages)
 
     unchecked = _UI(click=True, confirmed=False)
-    render_catalog_status(unchecked, context)
+    render_catalog_status(unchecked, context, allow_index_initialization=True)
     assert unchecked.disabled is False
-    assert any("not executed" in message for _level, message in unchecked.messages)
+    assert any("No se inicializaron" in message for _level, message in unchecked.messages)
 
     manager.conflict = True
     conflict = _UI(click=True)
-    render_catalog_status(conflict, context)
+    render_catalog_status(conflict, context, allow_index_initialization=True)
     assert conflict.disabled is True
     assert any(
         level == "error" and "revisión humana" in message for level, message in conflict.messages
@@ -386,10 +386,10 @@ def test_index_apply_can_run_again_after_initialized_plan_later_becomes_missing(
     context = _context(database, manager)
     ui = _UI(click=True)
 
-    render_catalog_status(ui, context)
-    render_catalog_status(ui, context)
+    render_catalog_status(ui, context, allow_index_initialization=True)
+    render_catalog_status(ui, context, allow_index_initialization=True)
     manager.ready = False
-    render_catalog_status(ui, context)
+    render_catalog_status(ui, context, allow_index_initialization=True)
 
     assert manager.apply_count == 2
 

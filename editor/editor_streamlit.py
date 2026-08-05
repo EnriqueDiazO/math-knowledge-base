@@ -73,6 +73,7 @@ from editor.helpers.tipo_titulo import TipoTitulo
 from editor.source_catalog.add_source_page import render_add_source_page
 from editor.source_catalog.edit_source_page import render_edit_source_page
 from editor.source_catalog.shared import build_catalog_context
+from editor.source_catalog.shared import render_catalog_status
 from editor.source_catalog.shared import safe_error_message as safe_catalog_error
 from editor.source_catalog.state import ADD_SOURCE_NAV_LABEL
 from editor.source_catalog.state import EDIT_SOURCE_NAV_LABEL
@@ -5916,6 +5917,15 @@ elif page == "⚙️ Configuración":
             "estructuras ni mostrar contenido privado."
         )
         st.code("python -m mathmongo.doctor doctor", language="bash")
+    if catalog_context is not None:
+        st.subheader("Diagnóstico del catálogo")
+        render_catalog_status(
+            st,
+            catalog_context,
+            allow_index_initialization=True,
+        )
+    elif catalog_context_error:
+        st.warning(f"No se pudo inspeccionar el catálogo: {catalog_context_error}")
 
     # Application information
     st.subheader("Aplicación")

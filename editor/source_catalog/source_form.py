@@ -114,15 +114,11 @@ def render_source_form(
     else:
         ui.caption(f"Source ID: {current.source_id} · stable and read-only")
 
+    ui.markdown("#### Información principal")
     name = ui.text_input(
         "Name *",
         value=defaults["name"],
         key=state_key(key_prefix, "name"),
-    )
-    description = ui.text_area(
-        "Display / description",
-        value=defaults["description"],
-        key=state_key(key_prefix, "description"),
     )
     type_values = [item.value for item in SourceType]
     source_type = ui.selectbox(
@@ -131,6 +127,13 @@ def render_source_form(
         index=type_values.index(defaults["source_type"]),
         key=state_key(key_prefix, "source_type"),
     )
+    ui.markdown("#### Descripción")
+    description = ui.text_area(
+        "Definition / descripción",
+        value=defaults["description"],
+        key=state_key(key_prefix, "description"),
+    )
+    ui.markdown("#### Metadata")
     language = ui.text_input(
         "Language",
         value=defaults["language"],
@@ -148,7 +151,7 @@ def render_source_form(
         key=state_key(key_prefix, "tags"),
         help="Separate tags with commas or new lines.",
     )
-    ui.markdown("**Default rights**")
+    ui.markdown("#### Derechos predeterminados")
     copyright_values = [item.value for item in CopyrightStatus]
     copyright_status = ui.selectbox(
         "Copyright status",

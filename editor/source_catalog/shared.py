@@ -231,9 +231,81 @@ def _index_plan_fingerprint(plan: IndexPlan) -> str:
     return hashlib.sha256(repr(payload).encode("utf-8")).hexdigest()
 
 
-def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSnapshot | None:
-    """Render read-only status and an explicitly confirmed initialization action."""
-    ui.subheader("Catalog Status")
+def _render_catalog_index_initialization(
+    ui: Any,
+    context: CatalogUIContext,
+    snapshot: CatalogStatusSnapshot,
+) -> None:
+    """Render the explicitly confirmed index write in an administrative context only."""
+    plan_fingerprint = _index_plan_fingerprint(snapshot.plan)
+    plan_state_key = state_key("index_plan_fingerprint")
+    if ui.session_state.get(plan_state_key) != plan_fingerprint:
+        ui.session_state.pop(state_key("index_confirmation_text"), None)
+        ui.session_state.pop(state_key("index_confirmation_checkbox"), None)
+        ui.session_state[plan_state_key] = plan_fingerprint
+    if snapshot.initialized:
+        clear_completed_operation(ui.session_state, "initialize_indexes")
+
+    with ui.expander("Inicializar índices del catálogo", expanded=False):
+        ui.warning(
+            "Esta acción escribe índices únicamente en la base real mostrada arriba. "
+            "No se ejecuta automáticamente."
+        )
+        with ui.form(key=state_key("index_apply_form"), clear_on_submit=False):
+            confirmation_text = ui.text_input(
+                "Escribe el nombre real de la base para confirmar",
+                key=state_key("index_confirmation_text"),
+            )
+            confirmed = ui.checkbox(
+                f"Confirmo aplicar el plan exclusivamente en {context.database_name}",
+                key=state_key("index_confirmation_checkbox"),
+            )
+            can_apply = bool(snapshot.plan.missing) and not snapshot.plan.conflicts
+            apply_clicked = ui.form_submit_button(
+                "Inicializar índices del catálogo",
+                disabled=not can_apply,
+            )
+        if apply_clicked:
+            if not confirmed or confirmation_text.strip() != context.database_name:
+                ui.warning(
+                    "No se inicializaron índices: escribe el nombre real exacto de la base "
+                    "y marca la confirmación."
+                )
+            else:
+                token = f"indexes:{context.database_name}:{plan_fingerprint}"
+                if not begin_operation(ui.session_state, "initialize_indexes", token):
+                    ui.info("La inicialización ya fue procesada para esta confirmación.")
+                else:
+                    succeeded = False
+                    try:
+                        applied = initialize_catalog_indexes(
+                            context,
+                            confirmation_text=confirmation_text,
+                            confirmed=confirmed,
+                        )
+                        succeeded = not applied.missing and not applied.conflicts
+                        ui.success(
+                            f"Índices del catálogo verificados en {context.database_name}: "
+                            f"{len(applied.present)} presentes."
+                        )
+                    except Exception as exc:
+                        ui.error(f"No se pudieron inicializar los índices: {safe_error_message(exc)}")
+                    finally:
+                        finish_operation(
+                            ui.session_state,
+                            "initialize_indexes",
+                            token,
+                            succeeded=succeeded,
+                        )
+
+
+def render_catalog_status(
+    ui: Any,
+    context: CatalogUIContext,
+    *,
+    allow_index_initialization: bool = False,
+) -> CatalogStatusSnapshot | None:
+    """Render compact read-only catalog status and optional admin-only index initialization."""
     try:
         snapshot = inspect_catalog_status(context)
     except Exception as exc:
@@ -243,15 +315,19 @@ def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSn
     missing_count = len(snapshot.plan.missing)
     conflict_count = len(snapshot.plan.conflicts)
     if snapshot.initialized:
-        ui.success(f"Catalog ready · Source y Reference en {context.database_name}.")
+        ui.success(
+            "Catálogo listo · "
+            f"{len(snapshot.plan.present)} índices presentes · 0 faltantes · 0 diferencias."
+        )
     else:
         ui.warning(
-            "Catalog missing · "
+            "Catálogo requiere atención · "
+            f"{len(snapshot.plan.present)} índices presentes · "
             f"{missing_count} índice(s) pendiente(s), "
             f"{conflict_count} conflicto(s)."
         )
 
-    with ui.expander("Advanced catalog diagnostics", expanded=False):
+    with ui.expander("Diagnóstico avanzado del catálogo", expanded=False):
         ui.caption(
             "Colecciones: "
             f"sources={'sí' if snapshot.source_collection_exists else 'no'} · "
@@ -291,67 +367,8 @@ def render_catalog_status(ui: Any, context: CatalogUIContext) -> CatalogStatusSn
                 "Hay conflictos de definición de índices. Initialize no puede resolverlos; "
                 "se requiere revisión humana antes de escribir."
             )
-
-    plan_fingerprint = _index_plan_fingerprint(snapshot.plan)
-    plan_state_key = state_key("index_plan_fingerprint")
-    if ui.session_state.get(plan_state_key) != plan_fingerprint:
-        ui.session_state.pop(state_key("index_confirmation_text"), None)
-        ui.session_state.pop(state_key("index_confirmation_checkbox"), None)
-        ui.session_state[plan_state_key] = plan_fingerprint
-    if snapshot.initialized:
-        clear_completed_operation(ui.session_state, "initialize_indexes")
-
-    with ui.expander("Initialize catalog indexes", expanded=False):
-        ui.warning(
-            "Esta acción escribe índices únicamente en la base real mostrada arriba. "
-            "No se ejecuta automáticamente."
-        )
-        with ui.form(key=state_key("index_apply_form"), clear_on_submit=False):
-            confirmation_text = ui.text_input(
-                "Escribe el nombre real de la base para confirmar",
-                key=state_key("index_confirmation_text"),
-            )
-            confirmed = ui.checkbox(
-                f"Confirmo aplicar el plan exclusivamente en {context.database_name}",
-                key=state_key("index_confirmation_checkbox"),
-            )
-            can_apply = bool(snapshot.plan.missing) and not snapshot.plan.conflicts
-            apply_clicked = ui.form_submit_button(
-                "Initialize catalog indexes",
-                disabled=not can_apply,
-            )
-        if apply_clicked:
-            if not confirmed or confirmation_text.strip() != context.database_name:
-                ui.warning(
-                    "Initialization was not executed: type the exact real database name "
-                    "and check the confirmation box."
-                )
-            else:
-                token = f"indexes:{context.database_name}:{plan_fingerprint}"
-                if not begin_operation(ui.session_state, "initialize_indexes", token):
-                    ui.info("La inicialización ya fue procesada para esta confirmación.")
-                else:
-                    succeeded = False
-                    try:
-                        applied = initialize_catalog_indexes(
-                            context,
-                            confirmation_text=confirmation_text,
-                            confirmed=confirmed,
-                        )
-                        succeeded = not applied.missing and not applied.conflicts
-                        ui.success(
-                            f"Índices del catálogo verificados en {context.database_name}: "
-                            f"{len(applied.present)} presentes."
-                        )
-                    except Exception as exc:
-                        ui.error(f"Index initialization failed: {safe_error_message(exc)}")
-                    finally:
-                        finish_operation(
-                            ui.session_state,
-                            "initialize_indexes",
-                            token,
-                            succeeded=succeeded,
-                        )
+    if allow_index_initialization:
+        _render_catalog_index_initialization(ui, context, snapshot)
     return snapshot
 
 

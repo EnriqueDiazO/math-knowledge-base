@@ -70,7 +70,7 @@ def test_catalog_index_form_submits_invalid_zero_and_valid_once(tmp_path: Path) 
                 database=FakeDatabase(),
                 index_manager=FakeIndexManager(),
             )
-            render_catalog_status(st, context)
+            render_catalog_status(st, context, allow_index_initialization=True)
             st.metric("Fake apply count", st.session_state.get(APPLY_COUNT_KEY, 0))
             """
         ),
@@ -78,7 +78,7 @@ def test_catalog_index_form_submits_invalid_zero_and_valid_once(tmp_path: Path) 
     )
 
     app = AppTest.from_file(str(app_file)).run()
-    submit = next(button for button in app.button if button.label == "Initialize catalog indexes")
+    submit = next(button for button in app.button if button.label == "Inicializar índices del catálogo")
     assert submit.disabled is False
     assert app.metric[0].value == "0"
 
@@ -86,7 +86,7 @@ def test_catalog_index_form_submits_invalid_zero_and_valid_once(tmp_path: Path) 
     app.run()
 
     assert app.metric[0].value == "0"
-    assert any("Initialization was not executed" in item.value for item in app.warning)
+    assert any("No se inicializaron índices" in item.value for item in app.warning)
 
     confirmation_text = next(
         item
@@ -98,7 +98,7 @@ def test_catalog_index_form_submits_invalid_zero_and_valid_once(tmp_path: Path) 
         for item in app.checkbox
         if item.label.startswith("Confirmo aplicar el plan exclusivamente")
     )
-    submit = next(button for button in app.button if button.label == "Initialize catalog indexes")
+    submit = next(button for button in app.button if button.label == "Inicializar índices del catálogo")
     confirmation_text.input("isolated_streamlit_form_test")
     confirmation_checkbox.check()
     submit.click()
@@ -110,5 +110,5 @@ def test_catalog_index_form_submits_invalid_zero_and_valid_once(tmp_path: Path) 
     app.run()
 
     assert app.metric[0].value == "1"
-    submit = next(button for button in app.button if button.label == "Initialize catalog indexes")
+    submit = next(button for button in app.button if button.label == "Inicializar índices del catálogo")
     assert submit.disabled is True

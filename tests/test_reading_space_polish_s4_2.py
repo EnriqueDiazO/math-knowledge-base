@@ -150,13 +150,12 @@ def test_catalog_normal_flow_is_compact_and_diagnostics_are_collapsed() -> None:
 
     assert snapshot is not None and not snapshot.initialized
     normal_messages = [text for scope, _level, text in ui.messages if scope is None]
-    assert any(text.startswith("Catalog missing") for text in normal_messages)
+    assert any(text.startswith("Catálogo requiere atención") for text in normal_messages)
     assert not any("Colecciones:" in text or text.startswith("Plan:") for text in normal_messages)
-    assert ("Advanced catalog diagnostics", False) in ui.expanders
-    assert ("Initialize catalog indexes", False) in ui.expanders
-    assert ui.dataframes
-    assert all(scope == "Advanced catalog diagnostics" for scope, _rows in ui.dataframes)
-    assert ui.form_submit_count == 1
+    assert ("Diagnóstico avanzado del catálogo", False) in ui.expanders
+    assert not any("Inicializar índices" in label for label, _expanded in ui.expanders)
+    assert not ui.dataframes
+    assert ui.form_submit_count == 0
     assert manager.apply_count == 0
 
 
@@ -168,8 +167,8 @@ def test_catalog_ready_uses_one_normal_summary_and_keeps_index_rows_advanced() -
 
     assert snapshot is not None and snapshot.initialized
     normal_messages = [text for scope, _level, text in ui.messages if scope is None]
-    assert any(text.startswith("Catalog ready") for text in normal_messages)
-    assert all(scope == "Advanced catalog diagnostics" for scope, _rows in ui.dataframes)
+    assert any(text.startswith("Catálogo listo") for text in normal_messages)
+    assert all(scope == "Diagnóstico avanzado del catálogo" for scope, _rows in ui.dataframes)
 
 
 def test_cuaderno_uses_the_teaching_title_and_safe_unavailable_state() -> None:
