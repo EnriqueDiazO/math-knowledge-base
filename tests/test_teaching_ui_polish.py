@@ -20,7 +20,7 @@ def test_teaching_theme_declares_native_warm_light_and_dark_tokens() -> None:
     assert 'primaryColor = "#2F6F68"' in theme
     assert 'backgroundColor = "#F5F2EA"' in theme
     assert 'secondaryBackgroundColor = "#ECE7DC"' in theme
-    assert 'textColor = "#243037"' in theme
+    assert 'textColor = "#17242A"' in theme
     assert 'backgroundColor = "#11191D"' in theme
     assert 'primaryColor = "#69AFA4"' in theme
     assert "#000000" not in theme

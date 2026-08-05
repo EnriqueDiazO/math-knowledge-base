@@ -21,8 +21,11 @@ THEME_TOKENS: dict[ThemeName, dict[str, str]] = {
         "secondary": "#ECE7DC",
         "input": "#FFFDF8",
         "table_header": "#E4DED1",
-        "text": "#243037",
-        "muted_text": "#657177",
+        # Keep supporting copy comfortably above the contrast threshold on the
+        # warm paper background.  Streamlit applies reduced opacity to several
+        # labels, so the source colour needs to be intentionally dark.
+        "text": "#17242A",
+        "muted_text": "#28353B",
         "border": "#CFC8BA",
         "sidebar": "#E9E4D8",
         "sidebar_secondary": "#F0ECE2",
@@ -93,7 +96,38 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
     control apply its session preference immediately, without browser cookies,
     generated CSS hashes, or positional selectors.
     """
-    tokens = THEME_TOKENS[normalize_theme(theme)]
+    active_theme = normalize_theme(theme)
+    tokens = THEME_TOKENS[active_theme]
+    light_contrast_overrides = ""
+    if active_theme == "light":
+        # Streamlit's secondary UI copy (widget labels, captions, metrics, and
+        # alerts) may carry its own muted colour or opacity.  Scope these
+        # corrections to the light theme so the already-approved dark theme is
+        # completely unaffected.
+        light_contrast_overrides = """
+[data-testid="stWidgetLabel"],
+[data-testid="stWidgetLabel"] *,
+[data-testid="stCaptionContainer"],
+[data-testid="stCaptionContainer"] *,
+[data-testid="stMetricLabel"],
+[data-testid="stMetricLabel"] *,
+[data-testid="stMetricValue"],
+[data-testid="stMetricValue"] *,
+[data-testid="stMetricDelta"],
+[data-testid="stMetricDelta"] *,
+[data-testid="stAlert"] *,
+[data-testid="stMarkdownContainer"] p,
+[data-testid="stMarkdownContainer"] li,
+[data-testid="stMarkdownContainer"] small {
+  color: %(text)s !important;
+  opacity: 1 !important;
+}
+[data-testid="stTextInput"] input::placeholder,
+[data-testid="stTextArea"] textarea::placeholder {
+  color: %(muted_text)s !important;
+  opacity: 1 !important;
+}
+"""
     ui.html(
         """
 <style id="mathmongo-session-theme">
@@ -195,16 +229,18 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
 [data-testid="stMarkdownContainer"] small {
   color: %(muted_text)s;
 }
+%(light_contrast_overrides)s
 </style>
         """
-        % tokens
+        % (tokens | {"light_contrast_overrides": light_contrast_overrides})
     )
 
 
 def plotly_layout(theme: ThemeName) -> dict[str, Any]:
     """Return readable, non-neon Plotly defaults for the Panorama charts."""
-    tokens = THEME_TOKENS[normalize_theme(theme)]
-    return {
+    active_theme = normalize_theme(theme)
+    tokens = THEME_TOKENS[active_theme]
+    layout = {
         "paper_bgcolor": tokens["panel"],
         "plot_bgcolor": tokens["panel"],
         "font": {"color": tokens["text"]},
@@ -217,6 +253,14 @@ def plotly_layout(theme: ThemeName) -> dict[str, Any]:
         "xaxis": {"gridcolor": tokens["chart_grid"], "zerolinecolor": tokens["border"]},
         "yaxis": {"gridcolor": tokens["chart_grid"], "zerolinecolor": tokens["border"]},
     }
+    if active_theme == "light":
+        layout["xaxis"].update(
+            {"tickfont": {"color": tokens["text"]}, "title": {"font": {"color": tokens["text"]}}}
+        )
+        layout["yaxis"].update(
+            {"tickfont": {"color": tokens["text"]}, "title": {"font": {"color": tokens["text"]}}}
+        )
+    return layout
 
 
 def apply_chart_theme(fig: Any, theme: ThemeName) -> Any:
