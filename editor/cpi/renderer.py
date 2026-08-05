@@ -23,8 +23,10 @@ from editor.cpi.layout import default_cpi_fit_report
 from editor.cpi.layout import measure_cpi_document_fit
 from editor.cpi.media import latex_uses_svg_paths
 from editor.cpi.media import prepare_cpi_image_assets
+from editor.cpi.media import render_cpi_region_latex
 from editor.cpi.models import CpiDocument
 from editor.cpi.models import CpiPage
+from editor.cpi.models import is_hybrid_compact_template
 from exporters_latex.latex_compile import run_latex_until_stable
 from mathkb_config import PROJECT_ROOT
 
@@ -80,9 +82,17 @@ def _template_source() -> str:
     return TEMPLATE_PATH.read_text(encoding="utf-8")
 
 
-def _template_variables(*, include_svg: bool, pages: str) -> dict[str, str]:
+def _template_variables(
+    *,
+    include_svg: bool,
+    pages: str,
+    hybrid_compact: bool = False,
+) -> dict[str, str]:
+    compatibility = cornell_latex_compat_preamble()
+    if hybrid_compact:
+        compatibility += "\n" + _cpi_hybrid_compact_style_latex()
     return {
-        "snippet_compat": cornell_latex_compat_preamble(),
+        "snippet_compat": compatibility,
         "svg_package": "\n\\usepackage{svg}" if include_svg else "",
         "pages": pages,
     }
@@ -111,6 +121,63 @@ def _scaled_region_latex(region_box: str, scale: float) -> str:
         \end{{adjustbox}}
         """
     ).strip()
+
+
+def _cpi_hybrid_compact_style_latex() -> str:
+    """Return the semantic-card definitions shared by compact CPI pages."""
+    return dedent(
+        r"""
+        % Compact hybrid CPI palette, shared with the Cornell compact variant.
+        \definecolor{CPIHybridComprehensionSoft}{HTML}{EAF5EA}
+        \definecolor{CPIHybridProductionSoft}{HTML}{FCEAF3}
+        \definecolor{CPIHybridIntegrationSoft}{HTML}{EAF4FA}
+        \definecolor{CPIHybridInk}{HTML}{1F2937}
+        \newtcolorbox{CPIHybridCard}[2]{
+          enhanced,
+          colframe=#1,
+          colback=#2,
+          boxrule=.6pt,
+          arc=1.8mm,
+          outer arc=1.8mm,
+          left=2.7mm,
+          right=2.7mm,
+          top=2.4mm,
+          bottom=2.4mm,
+          boxsep=0pt,
+          before skip=0pt,
+          after skip=0pt
+        }
+        \newcommand{\CPIHybridHeading}[2]{%
+          {\color{#1}\bfseries\large #2}\par%
+        }
+        \newcommand{\CPIHybridSubtitle}[1]{%
+          {\color{black!58}\footnotesize #1}\par\vspace{1.0mm}%
+        }
+        \newcommand{\CPIHybridBody}{%
+          \normalfont\color{CPIHybridInk}\fontsize{9.6}{12.0}\selectfont\raggedright%
+        }
+        """
+    ).strip()
+
+
+def _hybrid_region_body_latex(
+    page: CpiPage,
+    region_name: str,
+    *,
+    page_number: int,
+    fit_report: CpiFitReport,
+    asset_paths_by_id: Mapping[str, str] | None = None,
+) -> str:
+    """Render established CPI content inside the compact card shell."""
+    region = getattr(page, region_name)
+    body = render_cpi_region_latex(
+        region,
+        region_name=region_name,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    scale = fit_report.region_scale(page_number, region_name)
+    marker = f"% CPI source page={page_number} region={region_name}"
+    return _scaled_region_latex(f"{marker}\n{body}", scale)
 
 
 def _region_node_latex(
@@ -230,6 +297,80 @@ def _cpi_page_body(
     ).strip() + "\n"
 
 
+def _cpi_hybrid_compact_page_body(
+    document: CpiDocument,
+    page: CpiPage,
+    *,
+    page_number: int,
+    fit_report: CpiFitReport,
+    asset_paths_by_id: Mapping[str, str] | None = None,
+) -> str:
+    """Render natural-height CPI cards while retaining the parallel top reading."""
+    comprehension_heading = _escape_latex_text(page.comprehension.heading or "Comprensión")
+    production_heading = _escape_latex_text(page.production.heading or "Producción")
+    integration_heading = _escape_latex_text(page.integration.heading or "Integración")
+    comprehension_body = _hybrid_region_body_latex(
+        page,
+        "comprehension",
+        page_number=page_number,
+        fit_report=fit_report,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    production_body = _hybrid_region_body_latex(
+        page,
+        "production",
+        page_number=page_number,
+        fit_report=fit_report,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    integration_body = _hybrid_region_body_latex(
+        page,
+        "integration",
+        page_number=page_number,
+        fit_report=fit_report,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    return dedent(
+        rf"""
+        \null
+        \begin{{tikzpicture}}[remember picture,overlay]
+          {cpi_watermark_latex(
+              document,
+              asset_paths_by_id=asset_paths_by_id,
+              page_number=page_number,
+          )}
+        \end{{tikzpicture}}
+        \vspace*{{.18in}}
+        \noindent\hspace*{{.19in}}%
+        \begin{{minipage}}[t]{{5.12in}}
+          \begin{{CPIHybridCard}}{{CPIComprehension}}{{CPIHybridComprehensionSoft}}
+            \CPIHybridHeading{{CPIComprehension}}{{{comprehension_heading}}}
+            \CPIHybridSubtitle{{Valor epistémico}}
+            \CPIHybridBody
+            {comprehension_body}
+          \end{{CPIHybridCard}}
+        \end{{minipage}}\hfill%
+        \begin{{minipage}}[t]{{5.12in}}
+          \begin{{CPIHybridCard}}{{CPIProduction}}{{CPIHybridProductionSoft}}
+            \CPIHybridHeading{{CPIProduction}}{{{production_heading}}}
+            \CPIHybridSubtitle{{Valor pragmático}}
+            \CPIHybridBody
+            {production_body}
+          \end{{CPIHybridCard}}
+        \end{{minipage}}%
+        \par\vspace{{1.8mm}}
+        \noindent\hspace*{{.19in}}\begin{{minipage}}[t]{{10.62in}}
+          \begin{{CPIHybridCard}}{{CPIIntegration}}{{CPIHybridIntegrationSoft}}
+            \CPIHybridHeading{{CPIIntegration}}{{{integration_heading}}}
+            \CPIHybridBody
+            {integration_body}
+          \end{{CPIHybridCard}}
+        \end{{minipage}}
+        {cpi_attribution_latex(document)}
+        """
+    ).strip() + "\n"
+
+
 def generate_cpi_document_tex(
     document: CpiDocument,
     *,
@@ -242,13 +383,24 @@ def generate_cpi_document_tex(
         raise ValueError("CpiDocument must contain at least one page")
     if fit_report is None:
         fit_report = default_cpi_fit_report(document)
+    hybrid_compact = is_hybrid_compact_template(document.template_id)
     page_bodies = [
-        _cpi_page_body(
-            document,
-            page,
-            page_number=index,
-            fit_report=fit_report,
-            asset_paths_by_id=asset_paths_by_id,
+        (
+            _cpi_hybrid_compact_page_body(
+                document,
+                page,
+                page_number=index,
+                fit_report=fit_report,
+                asset_paths_by_id=asset_paths_by_id,
+            )
+            if hybrid_compact
+            else _cpi_page_body(
+                document,
+                page,
+                page_number=index,
+                fit_report=fit_report,
+                asset_paths_by_id=asset_paths_by_id,
+            )
         ).strip()
         for index, page in enumerate(pages, start=1)
     ]
@@ -257,6 +409,7 @@ def generate_cpi_document_tex(
         _template_variables(
             include_svg=latex_uses_svg_paths(asset_paths),
             pages="\n\\clearpage\n".join(page_bodies),
+            hybrid_compact=hybrid_compact,
         )
     )
 

@@ -21,11 +21,14 @@ from editor.cornell.layout import CornellLayoutError
 from editor.cornell.layout import PageFitReport
 from editor.cornell.layout import cornell_region_box_latex
 from editor.cornell.layout import default_cornell_fit_report
+from editor.cornell.layout import escape_latex_text
 from editor.cornell.layout import measure_cornell_document_fit
 from editor.cornell.media import latex_uses_svg_paths
 from editor.cornell.media import prepare_cornell_image_assets
+from editor.cornell.media import render_cornell_region_latex
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
+from editor.cornell.models import is_hybrid_compact_template
 from exporters_latex.latex_compile import run_latex_until_stable
 from mathkb_config import PROJECT_ROOT
 
@@ -127,6 +130,135 @@ def _region_scope_latex(
     ).strip()
 
 
+def _cornell_hybrid_compact_style_latex() -> str:
+    """Return the compact semantic-card definitions shared by every hybrid page."""
+    return dedent(
+        r"""
+        % Compact hybrid Cornell palette, derived from the documented semantic colors.
+        \definecolor{CornellHybridCue}{HTML}{2E7D32}
+        \definecolor{CornellHybridMain}{HTML}{C2185B}
+        \definecolor{CornellHybridSummary}{HTML}{1565C0}
+        \definecolor{CornellHybridCueSoft}{HTML}{EAF5EA}
+        \definecolor{CornellHybridMainSoft}{HTML}{FCEAF3}
+        \definecolor{CornellHybridSummarySoft}{HTML}{EAF4FA}
+        \definecolor{CornellHybridInk}{HTML}{1F2937}
+        \newtcolorbox{CornellHybridCard}[2]{
+          enhanced,
+          colframe=#1,
+          colback=#2,
+          boxrule=.6pt,
+          arc=1.8mm,
+          outer arc=1.8mm,
+          left=2.7mm,
+          right=2.7mm,
+          top=2.4mm,
+          bottom=2.4mm,
+          boxsep=0pt,
+          before skip=0pt,
+          after skip=0pt
+        }
+        \newcommand{\CornellHybridHeading}[2]{%
+          {\color{#1}\bfseries\large #2}\par\vspace{1.0mm}%
+        }
+        \newcommand{\CornellHybridBody}{%
+          \normalfont\color{CornellHybridInk}\fontsize{9.6}{12.2}\selectfont\raggedright%
+        }
+        """
+    ).strip()
+
+
+def _hybrid_region_body_latex(
+    page: CornellPage,
+    region_name: str,
+    *,
+    page_number: int,
+    fit_report: CornellFitReport,
+    asset_paths_by_id: Mapping[str, str] | None = None,
+) -> str:
+    """Render one region with the established content and image compatibility layer."""
+    region = getattr(page, region_name)
+    body = render_cornell_region_latex(
+        region,
+        region_name=region_name,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    scale = fit_report.region_scale(page_number, region_name)
+    marker = f"% Cornell source page={page_number} region={region_name}"
+    return _scaled_region_latex(f"{marker}\n{body}", scale)
+
+
+def _cornell_hybrid_compact_page_body(
+    document: CornellDocument,
+    page: CornellPage,
+    *,
+    page_number: int,
+    fit_report: CornellFitReport,
+    asset_paths_by_id: Mapping[str, str] | None = None,
+) -> str:
+    """Render compact Cornell cards without reserving a fixed summary band."""
+    cue_heading = escape_latex_text(page.cue.heading or "Preguntas clave")
+    main_heading = escape_latex_text(page.main.heading or "Contenido principal")
+    summary_heading = escape_latex_text(page.summary.heading or "Síntesis")
+    cue_body = _hybrid_region_body_latex(
+        page,
+        "cue",
+        page_number=page_number,
+        fit_report=fit_report,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    main_body = _hybrid_region_body_latex(
+        page,
+        "main",
+        page_number=page_number,
+        fit_report=fit_report,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    summary_body = _hybrid_region_body_latex(
+        page,
+        "summary",
+        page_number=page_number,
+        fit_report=fit_report,
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    return dedent(
+        rf"""
+        \null
+        \begin{{tikzpicture}}[remember picture,overlay]
+          {cornell_watermark_latex(
+              document,
+              asset_paths_by_id=asset_paths_by_id,
+              page_number=page_number,
+          )}
+        \end{{tikzpicture}}
+        \vspace*{{.18in}}
+        \noindent\hspace*{{.17in}}%
+        \begin{{minipage}}[t]{{2.30in}}
+          \begin{{CornellHybridCard}}{{CornellHybridCue}}{{CornellHybridCueSoft}}
+            \CornellHybridHeading{{CornellHybridCue}}{{{cue_heading}}}
+            \CornellHybridBody
+            {cue_body}
+          \end{{CornellHybridCard}}
+        \end{{minipage}}\hfill%
+        \begin{{minipage}}[t]{{5.71in}}
+          \begin{{CornellHybridCard}}{{CornellHybridMain}}{{CornellHybridMainSoft}}
+            \CornellHybridHeading{{CornellHybridMain}}{{{main_heading}}}
+            \CornellHybridBody
+            {main_body}
+          \end{{CornellHybridCard}}
+        \end{{minipage}}%
+        \par\vspace{{1.8mm}}
+        \noindent\hspace*{{.17in}}\begin{{minipage}}[t]{{8.16in}}
+          \begin{{CornellHybridCard}}{{CornellHybridSummary}}{{CornellHybridSummarySoft}}
+            \CornellHybridHeading{{CornellHybridSummary}}{{{summary_heading}}}
+            \CornellHybridBody
+            {summary_body}
+          \end{{CornellHybridCard}}
+        \end{{minipage}}
+        {cornell_attribution_latex(document)}
+        """
+    ).strip() + "\n"
+
+
 def _cornell_page_body(
     document: CornellDocument,
     page: CornellPage,
@@ -190,19 +322,31 @@ def _generate_document_tex(
         raise ValueError("CornellDocument must contain at least one page")
     if fit_report is None:
         fit_report = default_cornell_fit_report(document)
+    hybrid_compact = is_hybrid_compact_template(document.template_id)
     page_bodies = [
-        _cornell_page_body(
-            document,
-            page,
-            page_number=index,
-            fit_report=fit_report,
-            asset_paths_by_id=asset_paths_by_id,
-            lines_image_path=lines_image_path,
+        (
+            _cornell_hybrid_compact_page_body(
+                document,
+                page,
+                page_number=index,
+                fit_report=fit_report,
+                asset_paths_by_id=asset_paths_by_id,
+            )
+            if hybrid_compact
+            else _cornell_page_body(
+                document,
+                page,
+                page_number=index,
+                fit_report=fit_report,
+                asset_paths_by_id=asset_paths_by_id,
+                lines_image_path=lines_image_path,
+            )
         ).strip()
         for index, page in enumerate(pages, start=1)
     ]
     return (
         _latex_preamble(include_svg=latex_uses_svg_paths(dict(asset_paths_by_id or {})))
+        + ("\n" + _cornell_hybrid_compact_style_latex() if hybrid_compact else "")
         + "\n\n\\begin{document}\n"
         + "\n\\clearpage\n".join(page_bodies)
         + "\n\\end{document}\n"

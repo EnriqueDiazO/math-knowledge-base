@@ -12,6 +12,32 @@ from editor.cornell.models import CornellWatermark
 
 CPI_NOTE_FORMAT = "cpi_v1"
 DEFAULT_TEMPLATE_ID = "cpi_landscape_letter_v1"
+HYBRID_COMPACT_TEMPLATE_ID = "cpi_hybrid_compact_v1"
+TEMPLATE_LABELS = {
+    DEFAULT_TEMPLATE_ID: "Actual / clásico",
+    HYBRID_COMPACT_TEMPLATE_ID: "Híbrido compacto",
+}
+
+
+def template_ids() -> tuple[str, ...]:
+    """Return the CPI styles intentionally offered by the editor."""
+    return tuple(TEMPLATE_LABELS)
+
+
+def template_label(template_id: str) -> str:
+    """Return a stable human label for a known CPI template."""
+    return TEMPLATE_LABELS.get(template_id, TEMPLATE_LABELS[DEFAULT_TEMPLATE_ID])
+
+
+def resolve_template_id(template_id: object) -> str:
+    """Fall back safely to the historical style for unknown persisted IDs."""
+    value = str(template_id or "").strip()
+    return value if value in TEMPLATE_LABELS else DEFAULT_TEMPLATE_ID
+
+
+def is_hybrid_compact_template(template_id: object) -> bool:
+    """Return whether a template uses the optional compact hybrid layout."""
+    return str(template_id or "").strip() == HYBRID_COMPACT_TEMPLATE_ID
 
 
 def _require_mapping(value: Any, field_name: str) -> Mapping[str, Any]:

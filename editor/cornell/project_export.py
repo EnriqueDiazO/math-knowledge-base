@@ -25,6 +25,9 @@ from editor.cornell.media import render_cornell_region_latex
 from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.models import CornellDocument
 from editor.cornell.models import CornellPage
+from editor.cornell.models import CornellRegion
+from editor.cornell.models import is_hybrid_compact_template
+from editor.cornell.renderer import generate_cornell_document_tex
 from editor.pdf_preview import resolve_path_within
 from mathkb_config import PROJECT_ROOT
 from mathmongo.paths import validate_mutable_path
@@ -280,6 +283,74 @@ def _write_page_content(
             )
 
 
+def _write_hybrid_page_content(
+    project_dir: Path,
+    pages: tuple[CornellPage, ...],
+    *,
+    asset_paths_by_id: Mapping[str, str],
+) -> None:
+    """Write raw region content consumed by the hybrid single-document renderer."""
+    content_dir = project_dir / "contenido"
+    for index, page in enumerate(pages, start=1):
+        page_dir = content_dir / f"pagina_{index:03d}"
+        page_dir.mkdir(parents=True, exist_ok=True)
+        for region_name, region_info in REGION_EXPORTS.items():
+            region = getattr(page, region_name)
+            body = render_cornell_region_latex(
+                region,
+                region_name=region_name,
+                asset_paths_by_id=asset_paths_by_id,
+            )
+            (page_dir / region_info["content"]).write_text(body.rstrip() + "\n", encoding="utf-8")
+
+
+def _hybrid_project_input_document(document: CornellDocument) -> CornellDocument:
+    """Reference editable region files while retaining the hybrid template ID."""
+    pages = []
+    for index, page in enumerate(document.ordered_pages(), start=1):
+        page_dir = f"contenido/pagina_{index:03d}"
+        pages.append(
+            CornellPage(
+                page_id=page.page_id,
+                order=index,
+                cue=CornellRegion(
+                    heading=page.cue.heading,
+                    latex=rf"\input{{{page_dir}/{REGION_EXPORTS['cue']['content']}}}",
+                ),
+                main=CornellRegion(
+                    heading=page.main.heading,
+                    latex=rf"\input{{{page_dir}/{REGION_EXPORTS['main']['content']}}}",
+                ),
+                summary=CornellRegion(
+                    heading=page.summary.heading,
+                    latex=rf"\input{{{page_dir}/{REGION_EXPORTS['summary']['content']}}}",
+                ),
+                source_refs=page.source_refs,
+            )
+        )
+    return CornellDocument(
+        schema_version=document.schema_version,
+        template_id=document.template_id,
+        pages=tuple(pages),
+        attribution=document.attribution,
+        watermark=document.watermark,
+    )
+
+
+def _write_hybrid_notas(
+    project_dir: Path,
+    document: CornellDocument,
+    *,
+    asset_paths_by_id: Mapping[str, str],
+) -> None:
+    """Write the exact hybrid source used by PDF preview and export rendering."""
+    source = generate_cornell_document_tex(
+        _hybrid_project_input_document(document),
+        asset_paths_by_id=asset_paths_by_id,
+    )
+    (project_dir / "Notas.tex").write_text(source, encoding="utf-8")
+
+
 def _region_inputs(pages: tuple[CornellPage, ...], content_filename: str) -> str:
     inputs = []
     for index, _page in enumerate(pages, start=1):
@@ -446,10 +517,22 @@ def _write_metadata(
     return metadata_path
 
 
-def _write_readme(project_dir: Path) -> None:
-    (project_dir / "README.md").write_text(
-        dedent(
+def _write_readme(project_dir: Path, *, hybrid_compact: bool = False) -> None:
+    if hybrid_compact:
+        source = """
+            # Proyecto Cornell LaTeX editable
+
+            Compila el documento final:
+
+            ```bash
+            pdflatex Notas.tex
+            ```
+
+            Edita los archivos en `contenido/pagina_NNN/` para modificar cada región.
+            `Notas.tex` conserva el estilo híbrido compacto usado por la vista previa y el PDF.
             """
+    else:
+        source = """
             # Proyecto Cornell LaTeX editable
 
             Compila los documentos regionales y despues el documento final:
@@ -463,7 +546,8 @@ def _write_readme(project_dir: Path) -> None:
 
             Edita los archivos en `contenido/pagina_NNN/` para modificar cada region.
             """
-        ).strip()
+    (project_dir / "README.md").write_text(
+        dedent(source).strip()
         + "\n",
         encoding="utf-8",
     )
@@ -578,11 +662,16 @@ def export_cornell_project(
         asset_manifest=asset_manifest,
     )
     _write_shared_macros(project_dir)
-    _write_region_templates(project_dir, asset_paths_by_id=asset_paths)
-    _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
-    _write_region_masters(project_dir, pages)
-    _write_notas(project_dir, document, asset_paths_by_id=asset_paths)
-    _write_readme(project_dir)
+    hybrid_compact = is_hybrid_compact_template(document.template_id)
+    if hybrid_compact:
+        _write_hybrid_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
+        _write_hybrid_notas(project_dir, document, asset_paths_by_id=asset_paths)
+    else:
+        _write_region_templates(project_dir, asset_paths_by_id=asset_paths)
+        _write_page_content(project_dir, pages, asset_paths_by_id=asset_paths)
+        _write_region_masters(project_dir, pages)
+        _write_notas(project_dir, document, asset_paths_by_id=asset_paths)
+    _write_readme(project_dir, hybrid_compact=hybrid_compact)
     zip_path = _zip_project(project_dir)
     return CornellProjectExportResult(
         project_dir=project_dir,

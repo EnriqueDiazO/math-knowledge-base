@@ -29,6 +29,9 @@ from editor.cpi.models import DEFAULT_TEMPLATE_ID
 from editor.cpi.models import CpiDocument
 from editor.cpi.models import CpiPage
 from editor.cpi.models import CpiRegion
+from editor.cpi.models import resolve_template_id
+from editor.cpi.models import template_ids
+from editor.cpi.models import template_label
 from editor.cpi.persistence import build_cpi_note_document
 from editor.cpi.persistence import extract_cpi_document
 from editor.cpi.renderer import render_cpi_document
@@ -350,6 +353,8 @@ def apply_loaded_note_state(
     state["cpi_comprehension_latex"] = first_page.comprehension.latex
     state["cpi_production_latex"] = first_page.production.latex
     state["cpi_integration_latex"] = first_page.integration.latex
+    state["cpi_template_id"] = resolve_template_id(normalized_document.template_id)
+    state["cpi_template_changed"] = False
     _sync_identity_state_values(state, normalized_document)
     sync_branding_state(
         state,
@@ -411,6 +416,11 @@ def _ensure_state() -> None:
         st.session_state[SESSION_DIRTY] = False
     if SESSION_VIEW not in st.session_state:
         st.session_state[SESSION_VIEW] = VIEW_NEW_NOTE
+    st.session_state.setdefault(
+        "cpi_template_id",
+        resolve_template_id(st.session_state[SESSION_DOCUMENT].template_id),
+    )
+    st.session_state.setdefault("cpi_template_changed", False)
 
 
 def _set_current_note(note_id: Any, note: dict[str, Any] | None, document: CpiDocument) -> None:
@@ -512,9 +522,12 @@ def _document_with_identity_from_inputs(document: CpiDocument) -> CpiDocument:
         note_id=st.session_state.get(SESSION_NOTE_ID),
         fallback=document.watermark,
     )
+    template_id = document.template_id
+    if st.session_state.get("cpi_template_changed"):
+        template_id = resolve_template_id(st.session_state.get("cpi_template_id"))
     return CpiDocument(
         schema_version=document.schema_version,
-        template_id=document.template_id,
+        template_id=template_id,
         pages=document.pages,
         attribution=attribution,
         watermark=watermark,
@@ -575,6 +588,14 @@ def _mark_dirty() -> None:
 
     st.session_state[SESSION_DIRTY] = True
     st.session_state.pop(SESSION_RENDER_DIAGNOSTICS, None)
+
+
+def _mark_template_dirty() -> None:
+    """Record an explicit template choice without rewriting legacy IDs on load."""
+    import streamlit as st
+
+    st.session_state["cpi_template_changed"] = True
+    _mark_dirty()
 
 
 def _sync_view_from_selector() -> None:
@@ -916,6 +937,17 @@ def _render_metadata_editor(db: Any) -> None:
         "Tags",
         key="cpi_tags",
         on_change=_mark_dirty,
+    )
+    st.selectbox(
+        "Estilo de página",
+        options=template_ids(),
+        format_func=template_label,
+        key="cpi_template_id",
+        help=(
+            "Híbrido compacto: conserva los colores semánticos y organiza cada región "
+            "en cajas de menor altura."
+        ),
+        on_change=_mark_template_dirty,
     )
 
 
