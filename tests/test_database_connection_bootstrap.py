@@ -88,5 +88,5 @@ def test_additional_connections_remain_an_explicit_sidebar_action() -> None:
     end = source.index("# Test database connection", start)
     branch = source[start:end]
 
-    assert 'st.button("Add Connection")' in branch
+    assert 'st.button("Añadir conexión", icon=":material/add:")' in branch
     assert "db_manager.add_connection(" in branch

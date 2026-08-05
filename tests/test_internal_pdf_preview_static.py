@@ -103,7 +103,7 @@ def test_streamlit_official_pdf_extra_is_declared_consistently() -> None:
         project = tomllib.load(handle)
     streamlit = project["tool"]["poetry"]["dependencies"]["streamlit"]
 
-    assert streamlit == {"version": "^1.35", "extras": ["pdf"]}
+    assert streamlit == {"version": ">=1.59,<1.60", "extras": ["pdf"]}
     assert project["tool"]["poetry"]["dependencies"]["streamlit-pdf"] == ">=1.0.0,<2"
 
     active_requirements = {
@@ -111,6 +111,11 @@ def test_streamlit_official_pdf_extra_is_declared_consistently() -> None:
         for line in (ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()
         if line.strip() and not line.lstrip().startswith("#")
     }
-    assert "streamlit[pdf]" in active_requirements
-    assert "streamlit-pdf>=1.0.0,<2" in active_requirements
-    assert "streamlit" not in active_requirements
+    assert "-c constraints/teaching-2026.txt" in active_requirements
+    assert "-e ." in active_requirements
+    assert "streamlit[pdf]" not in active_requirements
+    assert "streamlit-pdf>=1.0.0,<2" not in active_requirements
+
+    constraints = (ROOT / "constraints/teaching-2026.txt").read_text(encoding="utf-8")
+    assert "streamlit==1.59.2" in constraints
+    assert "streamlit-pdf==1.0.8" in constraints
