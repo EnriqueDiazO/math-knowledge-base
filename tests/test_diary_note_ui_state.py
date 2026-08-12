@@ -152,3 +152,31 @@ def test_unknown_fields_inside_existing_reference_survive_ui_round_trip() -> Non
     restored = settings_from_ui_state(state, "legacy_reference")
 
     assert restored.references[0].model_dump()["future_catalog_snapshot"] == {"preserve": True}
+
+
+def test_prepared_export_payload_does_not_reset_complete_editor_state() -> None:
+    prefix = "edit_export_state"
+    state: dict[str, object] = {}
+    initialize_note_settings_state(
+        state,
+        prefix=prefix,
+        note={"_id": "note-export-state"},
+        identity="note-export-state",
+    )
+    state[f"{prefix}_settings_academic_institution"] = "Institución sin guardar"
+    reference_id = add_manual_reference_state(state, prefix)
+    state[f"{prefix}_reference_{reference_id}_title"] = "Referencia sin guardar"
+    expected = settings_from_ui_state(state, prefix)
+    state["editor_pdf_export_payload"] = {"marker": "draft", "data": b"%PDF"}
+    state["editor_zip_export_payload"] = {"marker": "draft", "data": b"PK"}
+
+    initialize_note_settings_state(
+        state,
+        prefix=prefix,
+        note={"_id": "note-export-state"},
+        identity="note-export-state",
+    )
+
+    assert settings_from_ui_state(state, prefix) == expected
+    assert state["editor_pdf_export_payload"] == {"marker": "draft", "data": b"%PDF"}
+    assert state["editor_zip_export_payload"] == {"marker": "draft", "data": b"PK"}

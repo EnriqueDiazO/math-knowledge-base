@@ -112,6 +112,13 @@ State sólo mantiene el borrador durante los reruns actuales.
 
 ## Exportación LaTeX, PDF y ZIP
 
+En **Editar nota**, las acciones **Descargar PDF** y **Exportar ZIP LaTeX**
+trabajan con los valores visibles del formulario, incluso si todavía no se han
+guardado. Preparar o descargar estos archivos no ejecuta `$set`, no modifica
+MongoDB y no cambia la vista a modo lectura. Sólo **Guardar cambios** persiste
+el diff de la nota. Los resultados preparados se invalidan automáticamente si
+el usuario modifica después cualquier campo del borrador.
+
 El exportador de Diario genera:
 
 - `\hypersetup` con título, autor, asunto y palabras clave;
@@ -133,4 +140,3 @@ veces desde la raíz extraída del ZIP:
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
 pdflatex -interaction=nonstopmode -halt-on-error main.tex
 ```
-

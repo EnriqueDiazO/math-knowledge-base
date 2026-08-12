@@ -29,6 +29,7 @@ import pandas as pd
 import streamlit as st
 import streamlit.components.v1 as components
 from bson import ObjectId
+from pdf_export import PdfExportError
 from pdf_export import analizar_tex_nota_latex_con_chktex
 from pdf_export import generar_pdf_nota_latex_result
 from pdf_export import generar_y_abrir_pdf_nota_latex_desde_formulario
@@ -40,6 +41,10 @@ from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
 from editor.db.concept_repository import insert_concept_with_latex_atomic
+from editor.diary_note_editor_export import build_diary_editor_export_note
+from editor.diary_note_editor_export import diary_editor_export_marker
+from editor.diary_note_editor_export import prepare_diary_editor_pdf_download
+from editor.diary_note_editor_export import prepare_diary_editor_zip_download
 from editor.diary_note_models import note_with_settings
 from editor.diary_note_models import settings_from_note
 from editor.diary_note_models import settings_document_fields
@@ -1053,9 +1058,34 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
         identity=str(note.get("_id")),
     )
 
-    c1, c2, c3 = st.columns(3)
+    editor_export_note = None
+    export_marker = ""
+    try:
+        editor_note_format = normalized_note_format(current_note)
+    except ValueError:
+        editor_note_format = "unknown"
+    if editor_note_format == "freeform":
+        editor_export_note = build_diary_editor_export_note(current_note, note_settings)
+        export_marker = diary_editor_export_marker(editor_export_note)
+    pdf_payload_key = f"{edit_prefix}_pdf_export_payload"
+    pdf_error_key = f"{edit_prefix}_pdf_export_error"
+    zip_payload_key = f"{edit_prefix}_zip_export_payload"
+    zip_error_key = f"{edit_prefix}_zip_export_error"
+    pdf_payload = st.session_state.get(pdf_payload_key)
+    if not isinstance(pdf_payload, dict) or pdf_payload.get("marker") != export_marker:
+        pdf_payload = None
+    zip_payload = st.session_state.get(zip_payload_key)
+    if not isinstance(zip_payload, dict) or zip_payload.get("marker") != export_marker:
+        zip_payload = None
+
+    c1, c2, c3, c4, c5 = st.columns([1.15, 1.25, 1.45, 0.9, 0.8])
     with c1:
-        if st.button("Guardar cambios", key=f"{edit_prefix}_save"):
+        if st.button(
+            "Guardar cambios",
+            key=f"{edit_prefix}_save",
+            type="primary",
+            width="stretch",
+        ):
             try:
                 if not (e_title or "").strip():
                     raise ValueError("El título es obligatorio.")
@@ -1114,10 +1144,83 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
                 }
                 st.rerun()
     with c2:
+        if editor_export_note is None:
+            st.empty()
+        elif pdf_payload and pdf_payload.get("data"):
+            st.download_button(
+                "📄 Descargar PDF",
+                data=pdf_payload["data"],
+                file_name=pdf_payload["file_name"],
+                mime="application/pdf",
+                key=f"{edit_prefix}_pdf_export_download",
+                on_click="ignore",
+                width="stretch",
+            )
+        elif st.button(
+            "📄 Descargar PDF",
+            key=f"{edit_prefix}_pdf_export_prepare",
+            width="stretch",
+        ):
+            try:
+                prepared_pdf = prepare_diary_editor_pdf_download(
+                    editor_export_note,
+                    db=notes_col.database,
+                )
+                st.session_state[pdf_payload_key] = {
+                    "marker": export_marker,
+                    "data": prepared_pdf.data,
+                    "file_name": prepared_pdf.file_name,
+                    "diagnostics": dict(prepared_pdf.diagnostics),
+                }
+                st.session_state.pop(pdf_error_key, None)
+                st.rerun()
+            except Exception as exc:
+                diagnostic = getattr(exc, "diagnostic", None)
+                if not isinstance(diagnostic, dict):
+                    diagnostic = getattr(exc, "diagnostics", None)
+                st.session_state[pdf_error_key] = {
+                    "marker": export_marker,
+                    "message": str(exc),
+                    "diagnostic": diagnostic if isinstance(diagnostic, dict) else {},
+                }
+    with c3:
+        if editor_export_note is None:
+            st.empty()
+        elif zip_payload and zip_payload.get("bundle"):
+            st.download_button(
+                "📦 Exportar ZIP LaTeX",
+                **latex_project_download_options(zip_payload["bundle"]),
+                key=f"{edit_prefix}_zip_export_download",
+                on_click="ignore",
+                width="stretch",
+            )
+        elif st.button(
+            "📦 Exportar ZIP LaTeX",
+            key=f"{edit_prefix}_zip_export_prepare",
+            width="stretch",
+        ):
+            try:
+                prepared_bundle = prepare_diary_editor_zip_download(
+                    editor_export_note,
+                    db=notes_col.database,
+                    diagnostics=(pdf_payload or {}).get("diagnostics"),
+                )
+                st.session_state[zip_payload_key] = {
+                    "marker": export_marker,
+                    "bundle": prepared_bundle,
+                }
+                st.session_state.pop(zip_error_key, None)
+                st.rerun()
+            except Exception as exc:
+                st.session_state[zip_error_key] = {
+                    "marker": export_marker,
+                    "message": str(exc),
+                }
+    with c4:
         if st.button("Cancelar", key=f"{edit_prefix}_cancel"):
             _select_note(note_id, "read")
             st.rerun()
-    with c3:
+    with c5:
         with st.popover("Borrar"):
             confirm = st.checkbox("Estoy seguro", key=f"{edit_prefix}_delete_confirm")
             typed = st.text_input("Escribe BORRAR", value="", key=f"{edit_prefix}_delete_typed")
@@ -1143,6 +1246,31 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
                         st.rerun()
                     else:
                         st.error("❌ No se pudo borrar la nota.")
+
+    pdf_error = st.session_state.get(pdf_error_key)
+    if isinstance(pdf_error, dict) and pdf_error.get("marker") == export_marker:
+        render_pdf_export_error(
+            PdfExportError(
+                str(pdf_error.get("message") or "No se pudo generar el PDF."),
+                pdf_error.get("diagnostic")
+                if isinstance(pdf_error.get("diagnostic"), dict)
+                else {},
+            ),
+            main_message="❌ No se pudo generar el PDF del borrador actual.",
+            fallback_stage="Exportar borrador de nota a PDF",
+            fallback_operation="Preparar descarga PDF sin guardar",
+        )
+    zip_error = st.session_state.get(zip_error_key)
+    if isinstance(zip_error, dict) and zip_error.get("marker") == export_marker:
+        st.error(
+            "❌ No se pudo preparar el ZIP LaTeX del borrador actual: "
+            + str(zip_error.get("message") or "error desconocido")
+        )
+    if pdf_payload or zip_payload:
+        st.caption(
+            "La descarga fue preparada desde los valores visibles del editor; "
+            "la nota almacenada no fue modificada."
+        )
 
 
 def _render_selected_note_panel(notes_col, key_prefix: str = "diary_selected") -> None:
