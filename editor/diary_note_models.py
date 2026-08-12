@@ -311,16 +311,21 @@ def settings_from_note(note: Mapping[str, Any], *, new_note: bool = False) -> Di
             "academic_metadata": note.get("academic_metadata")
             or defaults.academic_metadata.model_dump(mode="json"),
             "references": note.get("references") or [],
-            "page_layout": note.get("page_layout")
-            or defaults.page_layout.model_dump(mode="json"),
+            "page_layout": note.get("page_layout") or defaults.page_layout.model_dump(mode="json"),
             "table_of_contents": note.get("table_of_contents")
             or defaults.table_of_contents.model_dump(mode="json"),
         }
     )
 
 
-def settings_update(settings: DiaryNoteSettings) -> dict[str, Any]:
-    """Return the exact nested fields written with MongoDB ``$set``."""
+def settings_document_fields(settings: DiaryNoteSettings) -> dict[str, Any]:
+    """Return the complete structured fields for a new note or an export copy.
+
+    This function is deliberately not used to update an existing Mongo document.
+    Existing notes must use :func:`settings_persistence_set`, which emits only the
+    changed dotted paths and therefore never writes lazy defaults back to a legacy
+    note merely because it was opened.
+    """
     data = settings.model_dump(mode="json")
     return {
         "note_schema_version": data["schema_version"],
@@ -331,13 +336,50 @@ def settings_update(settings: DiaryNoteSettings) -> dict[str, Any]:
     }
 
 
+def settings_persistence_set(
+    original_note: Mapping[str, Any],
+    settings: DiaryNoteSettings,
+) -> dict[str, Any]:
+    """Build a minimal ``$set`` payload for one existing Diario note.
+
+    Defaults materialized while reading a legacy note remain memory-only.  Known
+    scalar settings are compared field by field and emitted as dotted Mongo paths;
+    references are emitted as one ordered array only when that array changed.
+    Unknown document and nested configuration fields are never rewritten.
+    """
+    original = settings_from_note(original_note)
+    current_data = settings.model_dump(mode="json")
+    original_data = original.model_dump(mode="json")
+    updates: dict[str, Any] = {}
+
+    for root, model_type in (
+        ("academic_metadata", AcademicMetadata),
+        ("page_layout", HeaderFooterSettings),
+        ("table_of_contents", TableOfContentsSettings),
+    ):
+        for field in model_type.model_fields:
+            if current_data[root][field] != original_data[root][field]:
+                updates[f"{root}.{field}"] = current_data[root][field]
+
+    if current_data["references"] != original_data["references"]:
+        updates["references"] = current_data["references"]
+
+    # Never introduce a schema marker solely because a legacy note was loaded.
+    # If a future stored marker is explicitly upgraded, keep that change narrow.
+    if "note_schema_version" in original_note:
+        stored_version = original_note.get("note_schema_version")
+        if stored_version != current_data["schema_version"]:
+            updates["note_schema_version"] = current_data["schema_version"]
+    return updates
+
+
 def note_with_settings(
     note: Mapping[str, Any],
     settings: DiaryNoteSettings,
 ) -> dict[str, Any]:
     """Overlay structured fields while preserving every unknown top-level field."""
     result = dict(note)
-    result.update(settings_update(settings))
+    result.update(settings_document_fields(settings))
     return result
 
 
@@ -377,9 +419,7 @@ def resolve_tokens(
             return ""
         return str(values.get(token) or "")
 
-    return _clean_text(_TOKEN_RE.sub(replace, str(template or ""))), tuple(
-        dict.fromkeys(warnings)
-    )
+    return _clean_text(_TOKEN_RE.sub(replace, str(template or ""))), tuple(dict.fromkeys(warnings))
 
 
 def reference_warnings(reference: NoteReference) -> tuple[str, ...]:
@@ -435,9 +475,7 @@ def settings_warnings(settings: DiaryNoteSettings) -> tuple[str, ...]:
     ):
         value = getattr(layout, slot_name)
         unknown = [
-            token
-            for token in _TOKEN_RE.findall(value)
-            if token not in KNOWN_HEADER_FOOTER_TOKENS
+            token for token in _TOKEN_RE.findall(value) if token not in KNOWN_HEADER_FOOTER_TOKENS
         ]
         warnings.extend(f"{slot_name}: token desconocido {{{token}}}." for token in unknown)
         if len(value) > 100:
@@ -462,8 +500,7 @@ _CATALOG_KIND_MAP = {
 def note_reference_from_catalog(reference: Reference, *, position: int = 0) -> NoteReference:
     """Create a reproducible note-local snapshot linked to one catalog Reference."""
     authors = "; ".join(
-        author.literal
-        or " ".join(part for part in (author.given, author.family) if part)
+        author.literal or " ".join(part for part in (author.given, author.family) if part)
         for author in reference.authors
     )
     accessed = reference.accessed_at.date().isoformat() if reference.accessed_at else ""
@@ -532,7 +569,8 @@ __all__ = [
     "reference_warnings",
     "resolve_tokens",
     "settings_from_note",
-    "settings_update",
+    "settings_document_fields",
+    "settings_persistence_set",
     "settings_warnings",
     "token_values",
 ]

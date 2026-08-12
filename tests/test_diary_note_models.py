@@ -16,6 +16,7 @@ from editor.diary_note_models import note_with_settings
 from editor.diary_note_models import reference_warnings
 from editor.diary_note_models import resolve_tokens
 from editor.diary_note_models import settings_from_note
+from editor.diary_note_models import settings_persistence_set
 from editor.diary_note_models import settings_warnings
 from editor.diary_note_models import token_values
 from mathmongo.source_catalog.models import Reference
@@ -38,6 +39,7 @@ def test_old_note_loads_with_conservative_defaults() -> None:
     assert settings.table_of_contents.show_table_of_contents is False
     assert round_tripped["unknown_legacy_field"] == {"keep": True}
     assert round_tripped["latex_body"] == note["latex_body"]
+    assert settings_persistence_set(note, settings) == {}
 
 
 def test_new_note_uses_metadata_driven_page_layout_defaults() -> None:
