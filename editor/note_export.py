@@ -340,7 +340,14 @@ def export_note_pdf(
             render_result=result,
         )
 
-    pdf_result = generar_pdf_nota_latex_result(note, template=template)
+    output_path = None
+    if output_dir is not None:
+        output_path = str(Path(output_dir) / f"{base_name}_{template}.pdf")
+    pdf_result = generar_pdf_nota_latex_result(
+        note,
+        output_path=output_path,
+        template=template,
+    )
     pdf_path = Path(pdf_result["pdf_path"])
     return NotePdfExport(
         pdf_path=pdf_path,
