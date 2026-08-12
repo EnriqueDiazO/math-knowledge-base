@@ -125,6 +125,36 @@ def _reference_ids_key(prefix: str) -> str:
     return _state_key(prefix, "reference_ids")
 
 
+def _has_complete_note_settings_state(state: Any, prefix: str) -> bool:
+    """Return whether every persisted-value key needed by the editor still exists.
+
+    Streamlit removes widget-owned keys when the Edit view is no longer rendered,
+    while our non-widget ``loaded_identity`` marker remains.  Reusing that marker
+    alone would skip database reconstruction and recreate empty widgets when the
+    same note is opened again.
+    """
+    required_keys = [
+        *(_state_key(prefix, f"academic_{field}") for field in _ACADEMIC_FIELDS),
+        _state_key(prefix, "academic_pdf_keywords"),
+        *(_state_key(prefix, f"layout_{field}") for field in _LAYOUT_FIELDS),
+        *(_state_key(prefix, f"toc_{field}") for field in _TOC_FIELDS),
+        _reference_ids_key(prefix),
+    ]
+    if any(key not in state for key in required_keys):
+        return False
+    reference_ids = state.get(_reference_ids_key(prefix))
+    if not isinstance(reference_ids, list | tuple):
+        return False
+    for reference_id in reference_ids:
+        reference_keys = [
+            *(_reference_key(prefix, str(reference_id), field) for field in _REFERENCE_FIELDS),
+            _reference_key(prefix, str(reference_id), "__extra__"),
+        ]
+        if any(key not in state for key in reference_keys):
+            return False
+    return True
+
+
 def _set_reference_state(
     state: Any,
     prefix: str,
@@ -149,7 +179,7 @@ def initialize_note_settings_state(
 ) -> None:
     """Load one note exactly once into note-scoped widget state."""
     loaded_key = _state_key(prefix, "loaded_identity")
-    if state.get(loaded_key) == identity:
+    if state.get(loaded_key) == identity and _has_complete_note_settings_state(state, prefix):
         return
     clear_note_settings_state(state, prefix)
     settings = settings_from_note(note, new_note=new_note)
