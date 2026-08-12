@@ -136,16 +136,24 @@ def _unicode_decode_diagnostic(exc: UnicodeDecodeError) -> dict:
 
 
 def _probable_cause(diagnostic: dict) -> str:
-    if diagnostic.get("exception_type") == "UnicodeDecodeError" or diagnostic.get("decode_diagnostics"):
-        return "Se encontró salida diagnóstica que no pudo interpretarse como UTF-8."
     if diagnostic.get("exception_type") == "FileNotFoundError":
         return "No se pudo iniciar el compilador o falta un archivo requerido."
     if diagnostic.get("stage") == "Verificar PDF generado":
         return "El proceso terminó, pero no se encontró el PDF esperado."
     if diagnostic.get("fatal_errors"):
+        first_error = str(diagnostic.get("first_latex_error") or "").strip()
+        if first_error:
+            return f"LaTeX reportó un error fatal: {first_error}"
         return "LaTeX reportó un error fatal durante la compilación."
     if diagnostic.get("returncode") not in (None, 0):
+        first_error = str(diagnostic.get("first_latex_error") or "").strip()
+        if first_error:
+            return f"El compilador LaTeX terminó con error: {first_error}"
         return "El compilador LaTeX terminó con código de error."
+    if diagnostic.get("exception_type") == "UnicodeDecodeError" or diagnostic.get(
+        "decode_diagnostics"
+    ):
+        return "Se encontró salida diagnóstica que no pudo interpretarse como UTF-8."
     return "Ocurrió una excepción durante el flujo de exportación."
 
 

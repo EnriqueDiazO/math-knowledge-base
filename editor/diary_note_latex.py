@@ -48,6 +48,59 @@ _FANCY_COMMANDS = {
     "footer_center": "fancyfoot[C]",
     "footer_right": "fancyfoot[R]",
 }
+_DIARY_TIKZ_LIBRARIES = (
+    "arrows.meta",
+    "positioning",
+    "calc",
+    "fit",
+    "backgrounds",
+    "shapes.geometric",
+    "shapes.multipart",
+    "matrix",
+)
+_DIARY_COMPATIBILITY_BOXES = {
+    "learningobjectives": r"""\ProvideTColorBox{learningobjectives}{}{
+  notesbase,
+  title=Objetivos de aprendizaje,
+  colback=DIlightgreen,
+  colframe=DIgreen
+}""",
+    "precisionbox": r"""\ProvideTColorBox{precisionbox}{O{}}{
+  notesbase,
+  title=Precisión técnica,
+  colback=DIlightorange,
+  colframe=DIorange,
+  #1
+}""",
+    "commonerror": r"""\ProvideTColorBox{commonerror}{O{}}{
+  notesbase,
+  title=Error frecuente,
+  colback=DIlightred,
+  colframe=DIred,
+  #1
+}""",
+    "designchoice": r"""\ProvideTColorBox{designchoice}{O{}}{
+  notesbase,
+  title=Decisión de diseño,
+  colback=teal!5,
+  colframe=DIteal,
+  #1
+}""",
+    "answerbox": r"""\ProvideTColorBox{answerbox}{O{}}{
+  notesbase,
+  title=Respuesta integradora,
+  colback=blue!3,
+  colframe=DIblue,
+  #1
+}""",
+    "checkpoint": r"""\ProvideTColorBox{checkpoint}{O{}}{
+  notesbase,
+  title=Punto de comprobación,
+  colback=DIlightpurple,
+  colframe=DIpurple,
+  #1
+}""",
+}
 
 
 @dataclass(frozen=True, slots=True)
@@ -70,6 +123,78 @@ def latex_escape_text(value: object) -> str:
 
 def _clean(value: object) -> str:
     return re.sub(r"\s+", " ", str(value or "").strip())
+
+
+def _latex_command_defined(body: str, name: str) -> bool:
+    escaped_name = re.escape(name)
+    return bool(
+        re.search(
+            rf"\\(?:newcommand|renewcommand|providecommand|DeclareRobustCommand)\*?\s*"
+            rf"(?:\{{\\{escaped_name}\}}|\\{escaped_name}(?![A-Za-z@]))",
+            body,
+        )
+    )
+
+
+def _latex_environment_defined(body: str, name: str) -> bool:
+    commands = (
+        "newtcolorbox",
+        "renewtcolorbox",
+        "NewTColorBox",
+        "RenewTColorBox",
+        "ProvideTColorBox",
+        "DeclareTColorBox",
+        "newenvironment",
+        "renewenvironment",
+        "provideenvironment",
+    )
+    return bool(
+        re.search(
+            rf"\\(?:{'|'.join(commands)})\s*\{{{re.escape(name)}\}}",
+            body,
+        )
+    )
+
+
+def _diary_body_compatibility_preamble(body: str) -> str:
+    """Supply known, inert preamble features only when the note body needs them."""
+    if not body:
+        return ""
+
+    fragments: list[str] = []
+    if r"\setlist" in body or re.search(
+        r"\\begin\s*\{(?:enumerate|itemize|description)\}\s*\[",
+        body,
+    ):
+        fragments.append(r"\usepackage{enumitem}")
+    if re.search(r"\\begin\s*\{(?:table|figure)\}\s*\[[^]]*H", body):
+        fragments.append(r"\usepackage{float}")
+    if re.search(r"\\begin\s*\{tikzpicture\}", body):
+        fragments.append(
+            r"\usetikzlibrary{" + ",".join(_DIARY_TIKZ_LIBRARIES) + "}"
+        )
+        # Spanish babel activates ``<`` and ``>``.  TikZ usually protects its
+        # own parser, but a picture captured first by commands such as
+        # ``\resizebox`` still sees the active shorthand tokens.
+        fragments.append(r"\AtBeginDocument{\shorthandoff{<>}}")
+
+    for name, definition in (
+        ("code", r"\providecommand{\code}[1]{\texttt{#1}}"),
+        ("concept", r"\providecommand{\concept}[1]{\textbf{\textcolor{DIblue}{#1}}}"),
+    ):
+        if re.search(rf"\\{name}(?![A-Za-z@])", body) and not _latex_command_defined(
+            body, name
+        ):
+            fragments.append(definition)
+
+    for name, definition in _DIARY_COMPATIBILITY_BOXES.items():
+        if re.search(
+            rf"\\begin\s*\{{{re.escape(name)}\}}",
+            body,
+        ) and not _latex_environment_defined(body, name):
+            fragments.append(definition)
+
+    return "\n".join(fragments)
 
 
 def _pdf_metadata(note: Mapping[str, Any], settings: DiaryNoteSettings) -> str:
@@ -350,7 +475,14 @@ def build_diary_latex_fragments(
     """Build all structured additions without mutating or persisting the note."""
     settings = settings_from_note(note)
     page_preamble, page_warnings = _page_layout_preamble(note, settings)
-    preamble = "\n".join(item for item in (_pdf_metadata(note, settings), page_preamble) if item)
+    compatibility_preamble = _diary_body_compatibility_preamble(
+        str(note.get("latex_body") or "")
+    )
+    preamble = "\n".join(
+        item
+        for item in (_pdf_metadata(note, settings), compatibility_preamble, page_preamble)
+        if item
+    )
     warnings = tuple(dict.fromkeys((*settings_warnings(settings), *page_warnings)))
     toc = _toc(settings, report_class=report_class)
     toc_after_title = toc if settings.table_of_contents.position == TocPosition.AFTER_TITLE else ""
