@@ -133,6 +133,31 @@
 
 \lstset{style=mystyle}
 
+% --------------------------------------------
+% Bloques de algoritmo / código procedimental
+% --------------------------------------------
+% `ProvideTCBListing` evita reemplazar una definición aportada por
+% otro paquete. El primer argumento es opcional y se pasa a `listings`; el
+% segundo es el título visible de la caja.
+\tcbuselibrary{listings,breakable,skins}
+\ProvideTCBListing{algoritmo}{O{} m}{
+  enhanced,
+  breakable,
+  listing only,
+  listing engine=listings,
+  colback=blue!2,
+  colframe=blue!15!black,
+  coltitle=white,
+  fonttitle=\bfseries,
+  title={#2},
+  listing options={
+    style=mystyle,
+    breaklines=true,
+    upquote=true,
+    #1
+  }
+}
+
 % --- cajas con tcolorbox a través de coloredtheorem ---
 %   (colores: azul para definiciones, rojo para teoremas,
 %    verde para corolarios, púrpura para lemas… cambia al gusto)

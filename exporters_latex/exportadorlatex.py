@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 # -*- coding: utf-8 -*-
+import filecmp
 import os
 import shutil
 from pathlib import Path
@@ -178,7 +179,8 @@ class ExportadorLatex:
     def _copiar_plantillas(self, destino: str) -> None:
         """
         Copia los archivos .sty listados en `_ARCHIVOS_PLANTILLA` desde
-        `self.templates_dir` a la carpeta `destino` (si aún no existen).
+        `self.templates_dir` a la carpeta `destino` y refresca las copias
+        desactualizadas.
         """
         for fname in self._ARCHIVOS_PLANTILLA:
             src = os.path.join(self.templates_dir, fname)
@@ -186,9 +188,12 @@ class ExportadorLatex:
             if not os.path.exists(src):
                 print(f"⚠️  Plantilla no encontrada: {src}")
                 continue
-            if not os.path.exists(dst):
+            needs_update = not os.path.exists(dst) or not filecmp.cmp(
+                src, dst, shallow=False
+            )
+            if needs_update:
                 shutil.copy2(src, dst)
-                print(f"📄 Plantilla {fname} copiada a {destino}")
+                print(f"📄 Plantilla {fname} actualizada en {destino}")
 
     @staticmethod
     def _escribir_tex(
