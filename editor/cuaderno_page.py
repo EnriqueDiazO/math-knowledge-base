@@ -41,7 +41,9 @@ from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
 from editor.db.concept_repository import insert_concept_with_latex_atomic
 from editor.diary_note_models import note_with_settings
+from editor.diary_note_models import settings_from_note
 from editor.diary_note_models import settings_document_fields
+from editor.diary_note_models import settings_warnings
 from editor.diary_note_persistence import persist_diary_note_update
 from editor.diary_note_ui import clear_note_settings_state
 from editor.diary_note_ui import render_note_settings_editor
@@ -1446,6 +1448,9 @@ def _render_diary_exports(notes_col) -> None:
     except ValueError as exc:
         selected_format = "unknown"
         st.error(str(exc))
+    if selected_format == "freeform":
+        for warning in settings_warnings(settings_from_note(note_doc)):
+            st.warning(warning)
     e1, e2, e3 = st.columns(3)
     with e1:
         if st.button("🔍 Analizar TEX", key=f"note_chktex_gen_{nid}"):

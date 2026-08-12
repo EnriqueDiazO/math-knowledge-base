@@ -186,6 +186,10 @@ pdflatex -interaction=nonstopmode main.tex
 pdflatex -interaction=nonstopmode main.tex
 ```
 
+La segunda pasada es necesaria para resolver índices, números de página y
+referencias internas. Las bibliografías generadas directamente con
+`thebibliography` ya están incorporadas en `main.tex` y no requieren Biber.
+
 No se requiere `--shell-escape`. Agrega macros personales en `user_macros.tex`;
 las macros conocidas del proyecto están en `styles/mathmongo-macros.sty`.
 Revisa `diagnostics/` si la compilación muestra errores o advertencias.

@@ -19,6 +19,8 @@ from typing import Optional
 
 import streamlit as st
 
+from editor.diary_note_latex import build_diary_latex_fragments
+from editor.diary_note_latex import latex_escape_text
 from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import latex_failure_message
 from exporters_latex.latex_compile import latex_warning_message
@@ -649,14 +651,7 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
 
 def _latex_escape_text(s: str) -> str:
     """Best-effort escape for LaTeX text fields (titles/metadata), not for LaTeX bodies."""
-    if s is None:
-        return ""
-    # Keep this intentionally minimal; the body is trusted LaTeX authored by the user.
-    return (
-        s.replace("\\", r"\textbackslash{}")
-         .replace("{", r"\{")
-         .replace("}", r"\}")
-    )
+    return latex_escape_text(s)
 
 
 def _normalize_latex_unicode(latex: str) -> str:
@@ -734,46 +729,37 @@ def _next_line_number(latex_doc: str) -> int:
 def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
     """Generate a standalone diary-note LaTeX document and source map."""
     title = str(nota.get("title") or "Nota sin título").strip() or "Nota sin título"
-    fecha_value = nota.get("date") or ""
-    fecha = fecha_value.strftime("%Y-%m-%d") if hasattr(fecha_value, "strftime") else str(fecha_value).strip()
-    project = str(nota.get("project") or "").strip()
-    context = str(nota.get("context") or "").strip()
-    tags = nota.get("tags") or []
-    if isinstance(tags, str):
-        tags = [tag.strip() for tag in tags.split(",") if tag.strip()]
     body = str(nota.get("latex_body") or "")
     extra_sections = _render_note_pdf_extra_sections(nota.get("pdf_sections") or [])
-
-    # Common metadata block (optional)
-    meta_lines = []
-    if fecha:
-        meta_lines.append(r"\textbf{Fecha:} " + _latex_escape_text(fecha) + r"\\")
-    if project:
-        meta_lines.append(r"\textbf{Proyecto:} " + _latex_escape_text(project) + r"\\")
-    if context:
-        meta_lines.append(r"\textbf{Contexto:} " + _latex_escape_text(context) + r"\\")
-    if tags:
-        meta_lines.append(r"\textbf{Tags:} " + _latex_escape_text(", ".join(tags)) + r"\\")
 
     body_start_line = None
     body_line_count = body.count("\n") + 1 if body else 0
 
     # Template: "diario" (boxed / nicer layout)
     if template == "diario":
+        fragments = build_diary_latex_fragments(nota, report_class=True)
         latex_doc = r"""\documentclass[12pt,letterpaper]{notes}
 \usepackage{graphicx}
 \usepackage{mathmongo-macros}
 \providecommand{\Inv}{\mathrm{Inv}}
 \InputIfFileExists{user_macros.tex}{}{}
-\begin{document}
+"""
+        latex_doc += fragments.preamble + "\n"
+        latex_doc += r"""\begin{document}
 
 """
         latex_doc += r"\notetitle{" + _latex_escape_text(title) + r"}" + "\n\n"
+        if fragments.first_page_style:
+            latex_doc += fragments.first_page_style + "\n\n"
+        if fragments.toc_after_title:
+            latex_doc += fragments.toc_after_title + "\n\n"
 
-        if meta_lines:
+        if fragments.metadata_lines:
             latex_doc += r"\begin{notemeta}" + "\n"
-            latex_doc += "\n".join(meta_lines) + "\n"
+            latex_doc += "\n".join(fragments.metadata_lines) + "\n"
             latex_doc += r"\end{notemeta}" + "\n\n"
+        if fragments.toc_after_metadata:
+            latex_doc += fragments.toc_after_metadata + "\n\n"
 
         if body:
             body_start_line = _next_line_number(latex_doc)
@@ -781,6 +767,9 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
 
         if extra_sections:
             latex_doc += extra_sections + "\n\n"
+
+        if fragments.bibliography:
+            latex_doc += fragments.bibliography + "\n\n"
 
         latex_doc += r"\end{document}" + "\n"
         return {
@@ -790,8 +779,10 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
                 "body_line_count": body_line_count,
                 "template": template,
             },
+            "warnings": list(fragments.warnings),
         }
 
+    fragments = build_diary_latex_fragments(nota, report_class=False)
     latex_doc = r"""\documentclass[12pt]{article}
 \usepackage{miestilo}
 \usepackage{coloredtheorem}
@@ -799,15 +790,23 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
 \usepackage{mathmongo-macros}
 \providecommand{\Inv}{\mathrm{Inv}}
 \InputIfFileExists{user_macros.tex}{}{}
-\begin{document}
+"""
+    latex_doc += fragments.preamble + "\n"
+    latex_doc += r"""\begin{document}
 
 """
     latex_doc += r"\section*{" + _latex_escape_text(title) + r"}" + "\n\n"
+    if fragments.first_page_style:
+        latex_doc += fragments.first_page_style + "\n\n"
+    if fragments.toc_after_title:
+        latex_doc += fragments.toc_after_title + "\n\n"
 
-    if meta_lines:
+    if fragments.metadata_lines:
         latex_doc += r"\noindent\begin{flushleft}\small" + "\n"
-        latex_doc += "\n".join(meta_lines) + "\n"
+        latex_doc += "\n".join(fragments.metadata_lines) + "\n"
         latex_doc += r"\end{flushleft}\normalsize" + "\n\n"
+    if fragments.toc_after_metadata:
+        latex_doc += fragments.toc_after_metadata + "\n\n"
 
     if body:
         body_start_line = _next_line_number(latex_doc)
@@ -815,6 +814,9 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
 
     if extra_sections:
         latex_doc += extra_sections + "\n\n"
+
+    if fragments.bibliography:
+        latex_doc += fragments.bibliography + "\n\n"
 
     latex_doc += r"\end{document}" + "\n"
     return {
@@ -824,6 +826,7 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
             "body_line_count": body_line_count,
             "template": template,
         },
+        "warnings": list(fragments.warnings),
     }
 
 
@@ -879,7 +882,7 @@ def generar_pdf_nota_latex_result(
     else:
         final_pdf = validate_mutable_path(resolve_home_path(output_path))
 
-    return _generar_pdf_desde_latex_temporal(
+    compile_info = _generar_pdf_desde_latex_temporal(
         latex_content=latex_content,
         safe_id=safe_id,
         temp_prefix="mathkb_note_pdf_",
@@ -887,6 +890,8 @@ def generar_pdf_nota_latex_result(
         include_note_styles=template == "diario",
         source_map=source_map,
     )
+    compile_info["generation_warnings"] = list(latex_info.get("warnings") or [])
+    return compile_info
 
 
 def generar_pdf_nota_latex(nota: Dict, output_path: Optional[str] = None, template: str = "diario") -> str:
