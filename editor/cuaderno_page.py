@@ -40,6 +40,11 @@ from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
 from editor.db.concept_repository import insert_concept_with_latex_atomic
+from editor.diary_note_models import note_with_settings
+from editor.diary_note_models import settings_document_fields
+from editor.diary_note_persistence import persist_diary_note_update
+from editor.diary_note_ui import clear_note_settings_state
+from editor.diary_note_ui import render_note_settings_editor
 from editor.helpers.concept_builders import build_concept_metadata
 from editor.helpers.managed_source_selection import can_save_with_managed_source
 from editor.helpers.managed_source_selection import load_active_sources
@@ -1030,6 +1035,21 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
         editor_prefix=edit_prefix,
         allow_upload=True,
     )
+    current_note = {
+        **note,
+        "title": e_title,
+        "date": e_date.strftime("%Y-%m-%d"),
+        "project": _normalize_project_name(e_project),
+        "context": e_context,
+        "tags": _normalize_tags(e_tags_raw),
+        "latex_body": e_latex,
+    }
+    note_settings = render_note_settings_editor(
+        notes_col.database,
+        prefix=f"{edit_prefix}_structured",
+        note=current_note,
+        identity=str(note.get("_id")),
+    )
 
     c1, c2, c3 = st.columns(3)
     with c1:
@@ -1049,7 +1069,12 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
                     "latex_body": e_latex,
                     "updated_at": datetime.utcnow(),
                 }
-                result = notes_col.update_one({"_id": note.get("_id")}, {"$set": upd})
+                result = persist_diary_note_update(
+                    notes_col,
+                    note,
+                    ordinary_fields=upd,
+                    settings=note_settings,
+                )
 
                 if result is None:
                     st.session_state["diary_save_message"] = {
@@ -1138,6 +1163,7 @@ def _render_diary_new_note(notes_col) -> None:
         _keys = _get_editor_keys("diary_new")
         st.session_state.pop(_keys["text"], None)
         st.session_state[_keys["rev"]] = st.session_state.get(_keys["rev"], 0) + 1
+        clear_note_settings_state(st.session_state, "diary_new_structured")
 
     contexts = _existing_note_contexts(notes_col)
     c1, c2 = st.columns([2, 1])
@@ -1153,11 +1179,28 @@ def _render_diary_new_note(notes_col) -> None:
         _render_latex_toolbar(prefix="diary_new")
     n_latex = _render_latex_ace_editor(prefix="diary_new", initial_text="", height=360)
 
+    tags = _normalize_tags(n_tags_raw)
+    current_note = _current_note_pdf_doc(
+        note_id="",
+        title=n_title,
+        date_value=n_date,
+        project=n_project,
+        context=n_context,
+        tags=tags,
+        latex_body=n_latex,
+    )
+    note_settings = render_note_settings_editor(
+        notes_col.database,
+        prefix="diary_new_structured",
+        note=current_note,
+        identity="new",
+        new_note=True,
+    )
+
     preview = st.checkbox("Vista previa simple", value=False, key="diary_new_preview")
     if preview:
         st.code(n_latex or "", language="latex")
 
-    tags = _normalize_tags(n_tags_raw)
     action_cols = st.columns([1, 1, 2])
     with action_cols[0]:
         save_clicked = st.button("Guardar nota", key="diary_new_save", type="primary")
@@ -1169,15 +1212,7 @@ def _render_diary_new_note(notes_col) -> None:
         )
 
     if pdf_clicked:
-        pdf_note = _current_note_pdf_doc(
-            note_id="",
-            title=n_title,
-            date_value=n_date,
-            project=n_project,
-            context=n_context,
-            tags=tags,
-            latex_body=n_latex,
-        )
+        pdf_note = note_with_settings(current_note, note_settings)
         generar_y_abrir_pdf_nota_latex_desde_formulario(pdf_note)
 
     if save_clicked:
@@ -1197,6 +1232,7 @@ def _render_diary_new_note(notes_col) -> None:
                 "created_at": datetime.utcnow(),
                 "updated_at": datetime.utcnow(),
             }
+            doc.update(settings_document_fields(note_settings))
             try:
                 result = notes_col.insert_one(doc)
                 _select_note(str(result.inserted_id), "edit")
