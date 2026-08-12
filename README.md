@@ -483,6 +483,10 @@ This section summarizes the **most recent functional additions** to the Math Kno
 
 A new **Notebook-oriented workflow** has been introduced to complement concept capture with operational and reflective tooling. This subsystem is designed to record *what was done, why it was done, and what comes next*, while remaining tightly integrated with the mathematical knowledge base.
 
+Free-form Diario notes support per-note academic metadata, ordered draftable
+bibliographic references, configurable headers/footers, and a native LaTeX
+table of contents. See [the Diario references and page-layout guide](docs/DIARIO_REFERENCES_PAGE_LAYOUT.md).
+
 ### 🧾 Worklog
 
 * Daily chronological logging of work activities.

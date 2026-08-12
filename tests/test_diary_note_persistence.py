@@ -123,6 +123,9 @@ def test_f_feature_has_no_bulk_update_replace_or_backfill_api() -> None:
     feature_files = (
         Path("editor/diary_note_models.py"),
         Path("editor/diary_note_persistence.py"),
+        Path("editor/diary_note_ui.py"),
+        Path("editor/diary_note_latex.py"),
+        Path("editor/cuaderno_page.py"),
     )
     source = "\n".join(path.read_text(encoding="utf-8") for path in feature_files)
 
