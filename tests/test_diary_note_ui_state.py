@@ -132,3 +132,23 @@ def test_new_and_edit_flows_use_the_shared_editor_and_narrow_persistence() -> No
     assert source.count("render_note_settings_editor(") == 2
     assert "persist_diary_note_update(" in source
     assert "doc.update(settings_document_fields(note_settings))" in source
+
+
+def test_unknown_fields_inside_existing_reference_survive_ui_round_trip() -> None:
+    reference = {
+        "reference_id": "note_ref_114ddde4-f847-4546-b819-b6c8d9e4a881",
+        "title": "Referencia histórica",
+        "position": 0,
+        "future_catalog_snapshot": {"preserve": True},
+    }
+    state: dict[str, object] = {}
+    initialize_note_settings_state(
+        state,
+        prefix="legacy_reference",
+        note={"_id": "legacy", "references": [reference]},
+        identity="legacy",
+    )
+
+    restored = settings_from_ui_state(state, "legacy_reference")
+
+    assert restored.references[0].model_dump()["future_catalog_snapshot"] == {"preserve": True}

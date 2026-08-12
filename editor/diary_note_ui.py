@@ -131,6 +131,10 @@ def _set_reference_state(
     reference: NoteReference,
 ) -> None:
     data = reference.model_dump(mode="json")
+    known = {*_REFERENCE_FIELDS, "reference_id", "position"}
+    state[_reference_key(prefix, reference.reference_id, "__extra__")] = {
+        key: value for key, value in data.items() if key not in known
+    }
     for field in _REFERENCE_FIELDS:
         state[_reference_key(prefix, reference.reference_id, field)] = data.get(field)
 
@@ -185,10 +189,14 @@ def settings_from_ui_state(state: Mapping[str, Any], prefix: str) -> DiaryNoteSe
     toc = {field: state.get(_state_key(prefix, f"toc_{field}")) for field in _TOC_FIELDS}
     references: list[NoteReference] = []
     for position, reference_id in enumerate(state.get(_reference_ids_key(prefix), [])):
-        data = {
-            field: state.get(_reference_key(prefix, reference_id, field), "")
-            for field in _REFERENCE_FIELDS
-        }
+        preserved_extra = state.get(_reference_key(prefix, reference_id, "__extra__"), {})
+        data = dict(preserved_extra) if isinstance(preserved_extra, Mapping) else {}
+        data.update(
+            {
+                field: state.get(_reference_key(prefix, reference_id, field), "")
+                for field in _REFERENCE_FIELDS
+            }
+        )
         data.update({"reference_id": reference_id, "position": position})
         references.append(NoteReference.model_validate(data))
     return DiaryNoteSettings(
