@@ -111,6 +111,7 @@ class DiaryLatexFragments:
     metadata_lines: tuple[str, ...]
     toc_after_title: str
     toc_after_metadata: str
+    lists_after_metadata: str
     first_page_style: str
     bibliography: str
     warnings: tuple[str, ...]
@@ -370,6 +371,54 @@ def _toc(settings: DiaryNoteSettings, *, report_class: bool) -> str:
     return "\n".join(lines)
 
 
+def _native_list(
+    *,
+    show: bool,
+    title: str,
+    title_command: str,
+    list_command: str,
+    page_layout_enabled: bool,
+) -> str:
+    """Render one native LaTeX auxiliary list on clean page boundaries."""
+    if not show:
+        return ""
+    lines = [
+        r"\clearpage",
+        rf"\renewcommand{{\{title_command}}}{{{latex_escape_text(title)}}}",
+        rf"\{list_command}",
+    ]
+    if page_layout_enabled:
+        lines.append(r"\thispagestyle{mathmongonote}")
+    lines.append(r"\clearpage")
+    return "\n".join(lines)
+
+
+def _native_lists(settings: DiaryNoteSettings) -> str:
+    """Render enabled figure/table lists independently in document order."""
+    figures = settings.list_of_figures
+    tables = settings.list_of_tables
+    return "\n".join(
+        fragment
+        for fragment in (
+            _native_list(
+                show=figures.show_list_of_figures,
+                title=figures.title,
+                title_command="listfigurename",
+                list_command="listoffigures",
+                page_layout_enabled=settings.page_layout.enabled,
+            ),
+            _native_list(
+                show=tables.show_list_of_tables,
+                title=tables.title,
+                title_command="listtablename",
+                list_command="listoftables",
+                page_layout_enabled=settings.page_layout.enabled,
+            ),
+        )
+        if fragment
+    )
+
+
 def _citation_key(reference: NoteReference, used: set[str]) -> str:
     source = reference.citation_key or reference.reference_id
     ascii_value = unicodedata.normalize("NFKD", source).encode("ascii", "ignore").decode("ascii")
@@ -489,11 +538,13 @@ def build_diary_latex_fragments(
     toc_after_metadata = (
         toc if settings.table_of_contents.position == TocPosition.AFTER_METADATA else ""
     )
+    lists_after_metadata = _native_lists(settings)
     return DiaryLatexFragments(
         preamble=preamble,
         metadata_lines=_metadata_lines(note, settings),
         toc_after_title=toc_after_title,
         toc_after_metadata=toc_after_metadata,
+        lists_after_metadata=lists_after_metadata,
         first_page_style=_first_page_command(settings),
         bibliography=_bibliography(settings, report_class=report_class),
         warnings=warnings,

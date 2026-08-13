@@ -23,6 +23,8 @@ from editor.diary_note_editor_export import prepare_diary_editor_zip_download
 from editor.diary_note_models import AcademicMetadata
 from editor.diary_note_models import DiaryNoteSettings
 from editor.diary_note_models import HeaderFooterSettings
+from editor.diary_note_models import ListOfFiguresSettings
+from editor.diary_note_models import ListOfTablesSettings
 from editor.diary_note_models import NoteReference
 from editor.diary_note_models import TableOfContentsSettings
 
@@ -67,6 +69,14 @@ def _unsaved_snapshot() -> tuple[dict[str, Any], dict[str, Any], DiaryNoteSettin
             "\n"
             r"\section{Sección actual}"
             "\n"
+            r"\begin{figure}[htbp]\centering\rule{5cm}{3cm}"
+            "\n"
+            r"\caption{Figura actual sin guardar}\end{figure}"
+            "\n"
+            r"\begin{table}[htbp]\centering\begin{tabular}{cc}A & B \\ 1 & 2\end{tabular}"
+            "\n"
+            r"\caption{Tabla actual sin guardar}\end{table}"
+            "\n"
         ),
     }
     settings = DiaryNoteSettings(
@@ -93,6 +103,14 @@ def _unsaved_snapshot() -> tuple[dict[str, Any], dict[str, Any], DiaryNoteSettin
             toc_title="Contenido actual",
             toc_depth=2,
             position="after_metadata",
+        ),
+        list_of_figures=ListOfFiguresSettings(
+            show_list_of_figures=True,
+            title="Figuras actuales",
+        ),
+        list_of_tables=ListOfTablesSettings(
+            show_list_of_tables=True,
+            title="Tablas actuales",
         ),
         references=[
             NoteReference(
@@ -133,6 +151,8 @@ def test_pdf_action_uses_unsaved_values_without_mongodb_write(
     assert "MARCADOR ACTUAL NO GUARDADO" in captured["latex_body"]
     assert captured["academic_metadata"]["institution"] == "Institución actual"
     assert captured["table_of_contents"]["show_table_of_contents"] is True
+    assert captured["list_of_figures"]["show_list_of_figures"] is True
+    assert captured["list_of_tables"]["show_list_of_tables"] is True
     assert len(captured["references"]) == 2
     assert collection.write_calls == []
     assert collection.document == original
@@ -165,6 +185,8 @@ def test_zip_action_uses_unsaved_values_and_contains_portable_project() -> None:
     assert "Título actual sin guardar" in main_tex
     assert "Institución actual" in main_tex
     assert r"\tableofcontents" in main_tex
+    assert main_tex.count(r"\listoffigures") == 1
+    assert main_tex.count(r"\listoftables") == 1
     assert main_tex.count(r"\bibitem{") == 1
     assert "Referencia actual exportable" in main_tex
     assert "BORRADOR OMITIDO" not in main_tex
@@ -180,7 +202,12 @@ def test_export_helpers_do_not_change_current_form_state_or_legacy_document(
     original, current_form, settings = _unsaved_snapshot()
     form_state = {
         "loaded_identity": original["_id"],
+        "diary_selected_mode": "edit",
         "institution_widget": "Institución actual",
+        "show_list_of_figures_widget": True,
+        "list_of_figures_title_widget": "Figuras actuales",
+        "show_list_of_tables_widget": True,
+        "list_of_tables_title_widget": "Tablas actuales",
         "reference_ids": [settings.references[0].reference_id],
     }
     before_state = deepcopy(form_state)
@@ -208,6 +235,8 @@ def test_export_helpers_do_not_change_current_form_state_or_legacy_document(
             "academic_metadata",
             "page_layout",
             "table_of_contents",
+            "list_of_figures",
+            "list_of_tables",
             "references",
         )
     )
@@ -237,8 +266,36 @@ def test_actual_editor_pdf_contains_layout_toc_and_only_exportable_references(
     assert "Institución actual" in text
     assert "PIE ACTUAL" in text
     assert "Contenido actual" in text
+    assert "Figuras actuales" in text
+    assert "Tablas actuales" in text
+    assert "Figura actual sin guardar" in text
+    assert "Tabla actual sin guardar" in text
     assert "Referencia actual exportable" in text
     assert "BORRADOR OMITIDO" not in text
+
+
+def test_editor_zip_recompiles_unsaved_indexes_in_exactly_two_passes(tmp_path: Path) -> None:
+    if shutil.which("pdflatex") is None:
+        pytest.skip("pdflatex is required for editor ZIP verification")
+    original, current_form, settings = _unsaved_snapshot()
+    collection = _RecordingCollection(original)
+    snapshot = build_diary_editor_export_note(current_form, settings)
+    bundle = prepare_diary_editor_zip_download(snapshot)
+
+    with ZipFile(BytesIO(bundle.zip_bytes)) as archive:
+        archive.extractall(tmp_path)
+        root = archive.namelist()[0].split("/", 1)[0]
+    project_dir = tmp_path / root
+    command = ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"]
+    first = subprocess.run(command, cwd=project_dir, capture_output=True, text=True, check=False)
+    second = subprocess.run(command, cwd=project_dir, capture_output=True, text=True, check=False)
+
+    assert first.returncode == 0, first.stdout[-5000:]
+    assert second.returncode == 0, second.stdout[-5000:]
+    assert "Figura actual sin guardar" in (project_dir / "main.lof").read_text(encoding="utf-8")
+    assert "Tabla actual sin guardar" in (project_dir / "main.lot").read_text(encoding="utf-8")
+    assert collection.write_calls == []
+    assert collection.document == original
 
 
 @pytest.mark.parametrize("note_format", ["cornell_math_v1", "cpi_v1"])

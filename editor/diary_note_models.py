@@ -22,6 +22,8 @@ from mathmongo.source_catalog.models import Reference
 
 DIARY_NOTE_SCHEMA_VERSION = 1
 DEFAULT_TOC_TITLE = "Contenido"
+DEFAULT_LIST_OF_FIGURES_TITLE = "Figuras"
+DEFAULT_LIST_OF_TABLES_TITLE = "Tablas"
 KNOWN_HEADER_FOOTER_TOKENS = (
     "institution",
     "program",
@@ -270,6 +272,30 @@ class TableOfContentsSettings(DiarySettingsModel):
         return _clean_text(value) or DEFAULT_TOC_TITLE
 
 
+class ListOfFiguresSettings(DiarySettingsModel):
+    """Native LaTeX list-of-figures configuration for free-form notes."""
+
+    show_list_of_figures: bool = False
+    title: str = DEFAULT_LIST_OF_FIGURES_TITLE
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value: Any) -> str:
+        return _clean_text(value) or DEFAULT_LIST_OF_FIGURES_TITLE
+
+
+class ListOfTablesSettings(DiarySettingsModel):
+    """Native LaTeX list-of-tables configuration for free-form notes."""
+
+    show_list_of_tables: bool = False
+    title: str = DEFAULT_LIST_OF_TABLES_TITLE
+
+    @field_validator("title", mode="before")
+    @classmethod
+    def normalize_title(cls, value: Any) -> str:
+        return _clean_text(value) or DEFAULT_LIST_OF_TABLES_TITLE
+
+
 class DiaryNoteSettings(DiarySettingsModel):
     """All structured additions persisted inside one ``latex_notes`` document."""
 
@@ -278,6 +304,8 @@ class DiaryNoteSettings(DiarySettingsModel):
     references: list[NoteReference] = Field(default_factory=list)
     page_layout: HeaderFooterSettings = Field(default_factory=HeaderFooterSettings)
     table_of_contents: TableOfContentsSettings = Field(default_factory=TableOfContentsSettings)
+    list_of_figures: ListOfFiguresSettings = Field(default_factory=ListOfFiguresSettings)
+    list_of_tables: ListOfTablesSettings = Field(default_factory=ListOfTablesSettings)
 
     @model_validator(mode="after")
     def references_have_stable_order_and_identity(self) -> DiaryNoteSettings:
@@ -314,6 +342,10 @@ def settings_from_note(note: Mapping[str, Any], *, new_note: bool = False) -> Di
             "page_layout": note.get("page_layout") or defaults.page_layout.model_dump(mode="json"),
             "table_of_contents": note.get("table_of_contents")
             or defaults.table_of_contents.model_dump(mode="json"),
+            "list_of_figures": note.get("list_of_figures")
+            or defaults.list_of_figures.model_dump(mode="json"),
+            "list_of_tables": note.get("list_of_tables")
+            or defaults.list_of_tables.model_dump(mode="json"),
         }
     )
 
@@ -333,6 +365,8 @@ def settings_document_fields(settings: DiaryNoteSettings) -> dict[str, Any]:
         "references": data["references"],
         "page_layout": data["page_layout"],
         "table_of_contents": data["table_of_contents"],
+        "list_of_figures": data["list_of_figures"],
+        "list_of_tables": data["list_of_tables"],
     }
 
 
@@ -356,6 +390,8 @@ def settings_persistence_set(
         ("academic_metadata", AcademicMetadata),
         ("page_layout", HeaderFooterSettings),
         ("table_of_contents", TableOfContentsSettings),
+        ("list_of_figures", ListOfFiguresSettings),
+        ("list_of_tables", ListOfTablesSettings),
     ):
         for field in model_type.model_fields:
             if current_data[root][field] != original_data[root][field]:

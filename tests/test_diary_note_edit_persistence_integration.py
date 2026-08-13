@@ -100,6 +100,18 @@ def test_all_edited_settings_persist_and_reconstruct_after_widget_cleanup() -> N
     }
     for field, value in toc_values.items():
         state[_settings_key(prefix, "toc", field)] = value
+    list_of_figures_values: dict[str, Any] = {
+        "show_list_of_figures": True,
+        "title": "Índice de figuras",
+    }
+    for field, value in list_of_figures_values.items():
+        state[_settings_key(prefix, "lof", field)] = value
+    list_of_tables_values: dict[str, Any] = {
+        "show_list_of_tables": True,
+        "title": "Índice de tablas",
+    }
+    for field, value in list_of_tables_values.items():
+        state[_settings_key(prefix, "lot", field)] = value
     reference_id = add_manual_reference_state(state, prefix)
     reference_values = {
         "kind": "article",
@@ -121,6 +133,8 @@ def test_all_edited_settings_persist_and_reconstruct_after_widget_cleanup() -> N
         *(f"academic_metadata.{field}" for field in academic_values),
         *(f"page_layout.{field}" for field in layout_values),
         *(f"table_of_contents.{field}" for field in toc_values),
+        *(f"list_of_figures.{field}" for field in list_of_figures_values),
+        *(f"list_of_tables.{field}" for field in list_of_tables_values),
         "references",
     }
     assert collection.document["unknown_historical_field"] == {"preserve": True}
@@ -150,6 +164,10 @@ def test_all_edited_settings_persist_and_reconstruct_after_widget_cleanup() -> N
     for field, value in toc_values.items():
         actual = getattr(reopened.table_of_contents, field)
         assert getattr(actual, "value", actual) == value
+    for field, value in list_of_figures_values.items():
+        assert getattr(reopened.list_of_figures, field) == value
+    for field, value in list_of_tables_values.items():
+        assert getattr(reopened.list_of_tables, field) == value
     assert len(reopened.references) == 1
     assert reopened.references[0].reference_id == reference_id
     for field, value in reference_values.items():

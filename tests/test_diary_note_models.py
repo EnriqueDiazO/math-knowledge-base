@@ -37,6 +37,10 @@ def test_old_note_loads_with_conservative_defaults() -> None:
     assert settings.references == []
     assert settings.page_layout.enabled is False
     assert settings.table_of_contents.show_table_of_contents is False
+    assert settings.list_of_figures.show_list_of_figures is False
+    assert settings.list_of_figures.title == "Figuras"
+    assert settings.list_of_tables.show_list_of_tables is False
+    assert settings.list_of_tables.title == "Tablas"
     assert round_tripped["unknown_legacy_field"] == {"keep": True}
     assert round_tripped["latex_body"] == note["latex_body"]
     assert settings_persistence_set(note, settings) == {}
@@ -52,6 +56,8 @@ def test_new_note_uses_metadata_driven_page_layout_defaults() -> None:
     assert settings.page_layout.footer_right == "{author}"
     assert settings.page_layout.show_page_number is True
     assert settings.table_of_contents.show_table_of_contents is False
+    assert settings.list_of_figures.show_list_of_figures is False
+    assert settings.list_of_tables.show_list_of_tables is False
 
 
 def test_references_preserve_stable_ids_and_order_after_serialization() -> None:

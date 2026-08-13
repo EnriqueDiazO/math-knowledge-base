@@ -52,6 +52,8 @@ def test_a_opening_legacy_note_performs_no_mongodb_write() -> None:
     settings = settings_from_note(collection.documents["legacy-a"])
 
     assert settings.table_of_contents.show_table_of_contents is False
+    assert settings.list_of_figures.show_list_of_figures is False
+    assert settings.list_of_tables.show_list_of_tables is False
     assert collection.calls == []
 
 
@@ -72,6 +74,8 @@ def test_b_saving_legacy_note_without_new_changes_adds_no_new_fields() -> None:
     assert "academic_metadata" not in collection.documents["legacy-a"]
     assert "page_layout" not in collection.documents["legacy-a"]
     assert "table_of_contents" not in collection.documents["legacy-a"]
+    assert "list_of_figures" not in collection.documents["legacy-a"]
+    assert "list_of_tables" not in collection.documents["legacy-a"]
     assert "references" not in collection.documents["legacy-a"]
 
 
@@ -103,6 +107,54 @@ def test_d_adding_reference_only_sets_ordered_reference_array() -> None:
     assert query == {"_id": "legacy-a"}
     assert set(update["$set"]) == {"references"}
     assert update["$set"]["references"][0]["title"] == "Referencia parcial"
+
+
+def test_d1_changing_only_figure_list_visibility_emits_one_dotted_set() -> None:
+    note = _legacy_note()
+    collection = RecordingCollection([note])
+    settings = settings_from_note(note)
+    settings.list_of_figures.show_list_of_figures = True
+
+    persist_diary_note_update(collection, note, settings=settings)
+
+    assert collection.calls == [
+        (
+            {"_id": "legacy-a"},
+            {"$set": {"list_of_figures.show_list_of_figures": True}},
+        )
+    ]
+
+
+def test_d2_changing_only_table_list_title_emits_one_dotted_set() -> None:
+    note = _legacy_note()
+    collection = RecordingCollection([note])
+    settings = settings_from_note(note)
+    settings.list_of_tables.title = "Índice de tablas"
+
+    persist_diary_note_update(collection, note, settings=settings)
+
+    assert collection.calls == [
+        (
+            {"_id": "legacy-a"},
+            {"$set": {"list_of_tables.title": "Índice de tablas"}},
+        )
+    ]
+
+
+def test_d3_changing_only_table_list_visibility_emits_one_dotted_set() -> None:
+    note = _legacy_note()
+    collection = RecordingCollection([note])
+    settings = settings_from_note(note)
+    settings.list_of_tables.show_list_of_tables = True
+
+    persist_diary_note_update(collection, note, settings=settings)
+
+    assert collection.calls == [
+        (
+            {"_id": "legacy-a"},
+            {"$set": {"list_of_tables.show_list_of_tables": True}},
+        )
+    ]
 
 
 def test_e_only_the_selected_document_is_modified() -> None:

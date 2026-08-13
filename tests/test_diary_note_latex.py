@@ -17,6 +17,8 @@ from editor.diary_note_models import AcademicMetadata
 from editor.diary_note_models import DiaryNoteSettings
 from editor.diary_note_models import FirstPageStyle
 from editor.diary_note_models import HeaderFooterSettings
+from editor.diary_note_models import ListOfFiguresSettings
+from editor.diary_note_models import ListOfTablesSettings
 from editor.diary_note_models import NoteReference
 from editor.diary_note_models import NoteReferenceKind
 from editor.diary_note_models import TableOfContentsSettings
@@ -95,6 +97,57 @@ def _structured_note() -> dict:
     }
 
 
+def _indexed_note() -> dict:
+    note = _structured_note()
+    note["list_of_figures"] = ListOfFiguresSettings(
+        show_list_of_figures=True,
+        title="Figuras & esquemas",
+    ).model_dump(mode="json")
+    note["list_of_tables"] = ListOfTablesSettings(
+        show_list_of_tables=True,
+        title="Tablas 100% útiles",
+    ).model_dump(mode="json")
+    note["latex_body"] = r"""
+\chapter{Redes neuronales}
+\section{Arquitectura}
+\begin{figure}[htbp]
+\centering
+\rule{5cm}{3cm}
+\caption{Arquitectura conceptual de una neurona artificial}
+\label{fig:neurona}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{cc}
+A & B \\
+1 & 2
+\end{tabular}
+\caption{Elementos de una neurona artificial}
+\label{tab:elementos}
+\end{table}
+
+\section{Funciones de activación}
+\begin{figure}[htbp]
+\centering
+\rule{5cm}{3cm}
+\caption{Comparación de funciones de activación}
+\label{fig:activaciones}
+\end{figure}
+
+\begin{table}[htbp]
+\centering
+\begin{tabular}{cc}
+A & B \\
+3 & 4
+\end{tabular}
+\caption{Comparación de funciones de activación}
+\label{tab:activaciones}
+\end{table}
+""".strip()
+    return note
+
+
 def test_ordinary_text_escapes_every_latex_special_character() -> None:
     escaped = latex_escape_text("á é ñ & % _ # $ { } ~ ^ \\")
 
@@ -141,7 +194,49 @@ def test_toc_can_be_placed_after_title_and_old_note_keeps_features_disabled() ->
     assert r"\notetitle{Legacy \& safe}" in legacy
     assert r"\usepackage{fancyhdr}" not in legacy
     assert r"\tableofcontents" not in legacy
+    assert r"\listoffigures" not in legacy
+    assert r"\listoftables" not in legacy
     assert r"\begin{thebibliography}" not in legacy
+
+
+def test_figure_and_table_lists_are_independent_ordered_and_escaped_once() -> None:
+    tex = generar_tex_nota_latex(_indexed_note(), template="diario")
+
+    assert tex.count(r"\tableofcontents") == 1
+    assert tex.count(r"\listoffigures") == 1
+    assert tex.count(r"\listoftables") == 1
+    assert tex.count(r"\renewcommand{\listfigurename}{Figuras \& esquemas}") == 1
+    assert tex.count(r"\renewcommand{\listtablename}{Tablas 100\% útiles}") == 1
+    assert tex.index(r"\end{notemeta}") < tex.index(r"\tableofcontents")
+    assert tex.index(r"\tableofcontents") < tex.index(r"\listoffigures")
+    assert tex.index(r"\listoffigures") < tex.index(r"\listoftables")
+    assert tex.index(r"\listoftables") < tex.index(r"\chapter{Redes neuronales}")
+
+
+def test_each_native_list_can_be_enabled_without_the_other_or_the_toc() -> None:
+    note = _structured_note()
+    note["table_of_contents"]["show_table_of_contents"] = False
+    note["list_of_figures"] = {
+        "show_list_of_figures": True,
+        "title": "Sólo figuras",
+    }
+
+    figures_only = generar_tex_nota_latex(note, template="diario")
+
+    assert r"\tableofcontents" not in figures_only
+    assert figures_only.count(r"\listoffigures") == 1
+    assert r"\listoftables" not in figures_only
+
+    note["list_of_figures"]["show_list_of_figures"] = False
+    note["list_of_tables"] = {
+        "show_list_of_tables": True,
+        "title": "Sólo tablas",
+    }
+    tables_only = generar_tex_nota_latex(note, template="diario")
+
+    assert r"\tableofcontents" not in tables_only
+    assert r"\listoffigures" not in tables_only
+    assert tables_only.count(r"\listoftables") == 1
 
 
 def test_page_number_is_emitted_once_per_style_and_first_page_modes_are_explicit() -> None:
@@ -240,3 +335,47 @@ def test_portable_zip_recompiles_toc_and_references_in_exactly_two_passes(
         "Package fancyhdr Warning",
     ):
         assert pattern.casefold() not in log_text.casefold()
+
+
+def test_portable_zip_builds_figure_and_table_indexes_in_exactly_two_passes(
+    tmp_path: Path,
+) -> None:
+    if shutil.which("pdflatex") is None or shutil.which("pdftotext") is None:
+        pytest.skip("pdflatex and pdftotext are required for native list verification")
+    bundle = build_note_latex_bundle(_indexed_note())
+
+    with ZipFile(BytesIO(bundle.zip_bytes)) as archive:
+        archive.extractall(tmp_path)
+        root_name = archive.namelist()[0].split("/", 1)[0]
+        main_tex = archive.read(f"{root_name}/main.tex").decode()
+
+    assert main_tex.count(r"\listoffigures") == 1
+    assert main_tex.count(r"\listoftables") == 1
+    project_dir = tmp_path / root_name
+    command = ["pdflatex", "-interaction=nonstopmode", "-halt-on-error", "main.tex"]
+    first = subprocess.run(command, cwd=project_dir, capture_output=True, text=True, check=False)
+    second = subprocess.run(command, cwd=project_dir, capture_output=True, text=True, check=False)
+
+    assert first.returncode == 0, first.stdout[-5000:]
+    assert second.returncode == 0, second.stdout[-5000:]
+    lof_path = project_dir / "main.lof"
+    lot_path = project_dir / "main.lot"
+    assert lof_path.exists()
+    assert lot_path.exists()
+    lof_text = lof_path.read_text(encoding="utf-8")
+    lot_text = lot_path.read_text(encoding="utf-8")
+    assert "Arquitectura conceptual de una neurona artificial" in lof_text
+    assert "Comparación de funciones de activación" in lof_text
+    assert "Elementos de una neurona artificial" in lot_text
+    assert "Comparación de funciones de activación" in lot_text
+    pdf_text = subprocess.run(
+        ["pdftotext", "-layout", "main.pdf", "-"],
+        cwd=project_dir,
+        check=True,
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "Figuras & esquemas" in pdf_text
+    assert "Tablas 100 % útiles" in pdf_text
+    assert "Arquitectura conceptual de una neurona artificial" in pdf_text
+    assert "Elementos de una neurona artificial" in pdf_text

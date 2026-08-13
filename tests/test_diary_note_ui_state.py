@@ -31,6 +31,10 @@ def test_old_note_state_initialization_is_conservative_and_isolated() -> None:
     )
 
     assert settings_from_ui_state(state, "editor_note_a").page_layout.enabled is False
+    assert settings_from_ui_state(
+        state, "editor_note_a"
+    ).list_of_figures.show_list_of_figures is False
+    assert settings_from_ui_state(state, "editor_note_b").list_of_tables.show_list_of_tables is False
     assert settings_from_ui_state(state, "editor_note_b").references == []
     assert state["unrelated"] == "keep"
 
@@ -107,6 +111,10 @@ def test_references_order_and_toc_survive_reopen_from_persisted_note() -> None:
     state[f"{prefix}_reference_{second_id}_title"] = "Segunda"
     move_reference_state(state, prefix, second_id, -1)
     state[f"{prefix}_settings_toc_show_table_of_contents"] = True
+    state[f"{prefix}_settings_lof_show_list_of_figures"] = True
+    state[f"{prefix}_settings_lof_title"] = "Índice de figuras"
+    state[f"{prefix}_settings_lot_show_list_of_tables"] = True
+    state[f"{prefix}_settings_lot_title"] = "Índice de tablas"
     persisted = note_with_settings(
         {"_id": "original"},
         settings_from_ui_state(state, prefix),
@@ -124,6 +132,10 @@ def test_references_order_and_toc_survive_reopen_from_persisted_note() -> None:
     assert [item.reference_id for item in reopened.references] == [second_id, first_id]
     assert [item.title for item in reopened.references] == ["Segunda", "Primera"]
     assert reopened.table_of_contents.show_table_of_contents is True
+    assert reopened.list_of_figures.show_list_of_figures is True
+    assert reopened.list_of_figures.title == "Índice de figuras"
+    assert reopened.list_of_tables.show_list_of_tables is True
+    assert reopened.list_of_tables.title == "Índice de tablas"
 
 
 def test_new_and_edit_flows_use_the_shared_editor_and_narrow_persistence() -> None:
@@ -164,6 +176,10 @@ def test_prepared_export_payload_does_not_reset_complete_editor_state() -> None:
         identity="note-export-state",
     )
     state[f"{prefix}_settings_academic_institution"] = "Institución sin guardar"
+    state[f"{prefix}_settings_lof_show_list_of_figures"] = True
+    state[f"{prefix}_settings_lof_title"] = "Figuras sin guardar"
+    state[f"{prefix}_settings_lot_show_list_of_tables"] = True
+    state[f"{prefix}_settings_lot_title"] = "Tablas sin guardar"
     reference_id = add_manual_reference_state(state, prefix)
     state[f"{prefix}_reference_{reference_id}_title"] = "Referencia sin guardar"
     expected = settings_from_ui_state(state, prefix)

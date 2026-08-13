@@ -768,6 +768,8 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
             latex_doc += r"\end{notemeta}" + "\n\n"
         if fragments.toc_after_metadata:
             latex_doc += fragments.toc_after_metadata + "\n\n"
+        if fragments.lists_after_metadata:
+            latex_doc += fragments.lists_after_metadata + "\n\n"
 
         if body:
             body_start_line = _next_line_number(latex_doc)
@@ -815,6 +817,8 @@ def generar_tex_nota_latex_info(nota: Dict, template: str = "simple") -> dict:
         latex_doc += r"\end{flushleft}\normalsize" + "\n\n"
     if fragments.toc_after_metadata:
         latex_doc += fragments.toc_after_metadata + "\n\n"
+    if fragments.lists_after_metadata:
+        latex_doc += fragments.lists_after_metadata + "\n\n"
 
     if body:
         body_start_line = _next_line_number(latex_doc)

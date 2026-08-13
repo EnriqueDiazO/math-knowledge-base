@@ -12,6 +12,8 @@ from editor.diary_note_models import AcademicMetadata
 from editor.diary_note_models import DiaryNoteSettings
 from editor.diary_note_models import FirstPageStyle
 from editor.diary_note_models import HeaderFooterSettings
+from editor.diary_note_models import ListOfFiguresSettings
+from editor.diary_note_models import ListOfTablesSettings
 from editor.diary_note_models import NoteReference
 from editor.diary_note_models import NoteReferenceKind
 from editor.diary_note_models import PageNumberPosition
@@ -59,6 +61,14 @@ _TOC_FIELDS = (
     "toc_title",
     "toc_depth",
     "position",
+)
+_LIST_OF_FIGURES_FIELDS = (
+    "show_list_of_figures",
+    "title",
+)
+_LIST_OF_TABLES_FIELDS = (
+    "show_list_of_tables",
+    "title",
 )
 _REFERENCE_FIELDS = (
     "origin",
@@ -138,6 +148,8 @@ def _has_complete_note_settings_state(state: Any, prefix: str) -> bool:
         _state_key(prefix, "academic_pdf_keywords"),
         *(_state_key(prefix, f"layout_{field}") for field in _LAYOUT_FIELDS),
         *(_state_key(prefix, f"toc_{field}") for field in _TOC_FIELDS),
+        *(_state_key(prefix, f"lof_{field}") for field in _LIST_OF_FIGURES_FIELDS),
+        *(_state_key(prefix, f"lot_{field}") for field in _LIST_OF_TABLES_FIELDS),
         _reference_ids_key(prefix),
     ]
     if any(key not in state for key in required_keys):
@@ -194,6 +206,12 @@ def initialize_note_settings_state(
     toc = settings.table_of_contents.model_dump(mode="json")
     for field in _TOC_FIELDS:
         state[_state_key(prefix, f"toc_{field}")] = toc[field]
+    list_of_figures = settings.list_of_figures.model_dump(mode="json")
+    for field in _LIST_OF_FIGURES_FIELDS:
+        state[_state_key(prefix, f"lof_{field}")] = list_of_figures[field]
+    list_of_tables = settings.list_of_tables.model_dump(mode="json")
+    for field in _LIST_OF_TABLES_FIELDS:
+        state[_state_key(prefix, f"lot_{field}")] = list_of_tables[field]
     state[_reference_ids_key(prefix)] = [
         reference.reference_id for reference in settings.references
     ]
@@ -217,6 +235,14 @@ def settings_from_ui_state(state: Mapping[str, Any], prefix: str) -> DiaryNoteSe
     academic["pdf_keywords"] = state.get(_state_key(prefix, "academic_pdf_keywords"), "")
     layout = {field: state.get(_state_key(prefix, f"layout_{field}")) for field in _LAYOUT_FIELDS}
     toc = {field: state.get(_state_key(prefix, f"toc_{field}")) for field in _TOC_FIELDS}
+    list_of_figures = {
+        field: state.get(_state_key(prefix, f"lof_{field}"))
+        for field in _LIST_OF_FIGURES_FIELDS
+    }
+    list_of_tables = {
+        field: state.get(_state_key(prefix, f"lot_{field}"))
+        for field in _LIST_OF_TABLES_FIELDS
+    }
     references: list[NoteReference] = []
     for position, reference_id in enumerate(state.get(_reference_ids_key(prefix), [])):
         preserved_extra = state.get(_reference_key(prefix, reference_id, "__extra__"), {})
@@ -234,6 +260,8 @@ def settings_from_ui_state(state: Mapping[str, Any], prefix: str) -> DiaryNoteSe
         references=references,
         page_layout=HeaderFooterSettings.model_validate(layout),
         table_of_contents=TableOfContentsSettings.model_validate(toc),
+        list_of_figures=ListOfFiguresSettings.model_validate(list_of_figures),
+        list_of_tables=ListOfTablesSettings.model_validate(list_of_tables),
     )
 
 
@@ -444,6 +472,22 @@ def _render_page_layout(prefix: str, note: Mapping[str, Any]) -> None:
                 format_func=_TOC_POSITION_LABELS.__getitem__,
                 key=_state_key(prefix, "toc_position"),
             )
+
+        st.divider()
+        st.markdown("**Índice de figuras**")
+        st.toggle(
+            "Mostrar índice de figuras",
+            key=_state_key(prefix, "lof_show_list_of_figures"),
+        )
+        st.text_input("Título del índice", key=_state_key(prefix, "lof_title"))
+
+        st.divider()
+        st.markdown("**Índice de tablas**")
+        st.toggle(
+            "Mostrar índice de tablas",
+            key=_state_key(prefix, "lot_show_list_of_tables"),
+        )
+        st.text_input("Título del índice", key=_state_key(prefix, "lot_title"))
 
         settings = settings_from_ui_state(st.session_state, prefix)
         preview, preview_warnings = resolved_layout_preview(note, settings)
