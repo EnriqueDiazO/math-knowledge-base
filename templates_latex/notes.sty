@@ -9,6 +9,11 @@
 
 % Requiere el estilo base del proyecto
 \RequirePackage{miestilo}
+% `babel` aplica los nombres localizados al activar el español. Registrar aquí
+% la preferencia evita que el valor se restablezca a "Cuadro" al iniciar el documento.
+\addto\captionsspanish{%
+  \renewcommand{\tablename}{Tabla}%
+}
 \RequirePackage[most]{tcolorbox}
 \RequirePackage{ulem} %Este paquete también permite \uuline{hacer doble subrayado}, \uwave{subrayar con curva ondulada} y \xout{tachar con ganas}.
 \RequirePackage{tgchorus}

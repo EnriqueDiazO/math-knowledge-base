@@ -379,3 +379,5 @@ def test_portable_zip_builds_figure_and_table_indexes_in_exactly_two_passes(
     assert "Tablas 100 % útiles" in pdf_text
     assert "Arquitectura conceptual de una neurona artificial" in pdf_text
     assert "Elementos de una neurona artificial" in pdf_text
+    assert "Tabla 1.1: Elementos de una neurona artificial" in pdf_text
+    assert "Cuadro 1.1" not in pdf_text
