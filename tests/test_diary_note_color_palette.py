@@ -79,8 +79,8 @@ def _compatibility_note() -> dict[str, object]:
             + boxes
             + "\n"
             r"\resizebox{0.98\textwidth}{!}{%" "\n"
-            r"\begin{tikzpicture}[>=Latex,arrow/.style={->}]"
-            r"\node[rectangle split,rectangle split parts=2] (first) {A\nodepart{second}B};"
+            r"\begin{tikzpicture}[>=Latex,arrow/.style={->},card/.style={drop shadow}]"
+            r"\node[card,rectangle split,rectangle split parts=2] (first) {A\nodepart{second}B};"
             r"\node[below=0.3cm of first] (second) {C};"
             r"\draw[arrow] (first) -- (second);"
             r"\end{tikzpicture}%" "\n"
@@ -107,6 +107,7 @@ def test_diario_adds_only_the_compatibility_features_used_by_the_body() -> None:
     assert tex.count(r"\usetikzlibrary{") == 1
     assert tex.count(r"\AtBeginDocument{\shorthandoff{<>}}") == 1
     assert r"arrows.meta,positioning,calc,fit,backgrounds" in tex
+    assert r"matrix,shadows" in tex
     assert tex.count(r"\providecommand{\code}") == 1
     assert tex.count(r"\providecommand{\concept}") == 1
     for name in (

@@ -57,6 +57,7 @@ _DIARY_TIKZ_LIBRARIES = (
     "shapes.geometric",
     "shapes.multipart",
     "matrix",
+    "shadows",
 )
 _DIARY_COMPATIBILITY_BOXES = {
     "learningobjectives": r"""\ProvideTColorBox{learningobjectives}{}{
