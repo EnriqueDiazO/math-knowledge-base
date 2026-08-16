@@ -176,6 +176,76 @@
   colframe=green!65
 }
 
+% 11. Checkpoint / Punto de control
+\newtcolorbox{checkpoint}[1][]{
+  enhanced,
+  breakable,
+  colback=BootBlueLight,
+  colframe=BootBlue,
+  coltitle=BootWhite,
+  title={Punto de control},
+  fonttitle=\bfseries\sffamily,
+  boxrule=0.8pt,
+  arc=3pt,
+  left=7pt,right=7pt,top=6pt,bottom=6pt,
+  before skip=10pt,after skip=10pt,
+  #1
+}
+% 11. Warning / Advertencia
+\newtcolorbox{warningnote}[1][]{
+  enhanced,
+  breakable,
+  colback=BootAmberLight,
+  colframe=BootAmber,
+  coltitle=BootInk,
+  title={Atención},
+  fonttitle=\bfseries\sffamily,
+  boxrule=0.8pt,
+  arc=3pt,
+  left=7pt,right=7pt,top=6pt,bottom=6pt,
+  before skip=10pt,after skip=10pt,
+  #1
+}
+
+% 12. Success / Resultado esperado
+\newtcolorbox{successnote}[1][]{
+  enhanced,
+  breakable,
+  colback=BootGreenLight,
+  colframe=BootGreen,
+  coltitle=BootWhite,
+  title={Resultado esperado},
+  fonttitle=\bfseries\sffamily,
+  boxrule=0.8pt,
+  arc=3pt,
+  left=7pt,right=7pt,top=6pt,bottom=6pt,
+  before skip=10pt,after skip=10pt,
+  #1
+}
+
+% 13. Error / Resultado inesperado
+\newtcolorbox{errornote}[1][]{
+  enhanced,
+  breakable,
+  colback=BootRedLight,
+  colframe=BootRed,
+  coltitle=BootWhite,
+  title={Qué significa este error},
+  fonttitle=\bfseries\sffamily,
+  boxrule=0.8pt,
+  arc=3pt,
+  left=7pt,right=7pt,top=6pt,bottom=6pt,
+  before skip=10pt,after skip=10pt,
+  #1
+}
+
+% --------------------------------------------
+% Comandos auxiliares
+% --------------------------------------------
+% Comando para resaltar código en línea
+\newcommand{\pathcode}[1]{\texttt{#1}}
+
+
 
 % auxiliary commands for figures
 \newcommand{\capturefig}[3]{%
@@ -204,6 +274,17 @@
 \end{figure}
 }
 
+\newcommand{\capturestack}[5]{%
+\begin{figure}[H]
+\centering
+\setlength{\fboxsep}{1.5pt}%
+\fcolorbox{BootBorder}{BootWhite}{\includegraphics[width=0.90\textwidth,height=0.31\textheight,keepaspectratio]{#1}}\\[-1mm]
+{\scriptsize #2}\par\medskip
+\fcolorbox{BootBorder}{BootWhite}{\includegraphics[width=0.90\textwidth,height=0.31\textheight,keepaspectratio]{#3}}\\[-1mm]
+{\scriptsize #4}
+\caption{#5}
+\end{figure}
+}
 
 
 % --------------------------------------------

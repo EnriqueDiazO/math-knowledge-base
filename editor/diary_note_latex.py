@@ -175,10 +175,11 @@ def _diary_body_compatibility_preamble(body: str) -> str:
         fragments.append(
             r"\usetikzlibrary{" + ",".join(_DIARY_TIKZ_LIBRARIES) + "}"
         )
-        # Spanish babel activates ``<`` and ``>``.  TikZ usually protects its
-        # own parser, but a picture captured first by commands such as
-        # ``\resizebox`` still sees the active shorthand tokens.
-        fragments.append(r"\AtBeginDocument{\shorthandoff{<>}}")
+        # Spanish babel activates ``"``, ``<`` and ``>``. TikZ usually protects
+        # its own parser, but a picture captured first by commands such as
+        # ``\resizebox`` still sees the active shorthand tokens. Literal quotes
+        # are also common in JSON, R and Python fragments embedded in nodes.
+        fragments.append(r'\AtBeginDocument{\shorthandoff{"<>}}')
 
     for name, definition in (
         ("code", r"\providecommand{\code}[1]{\texttt{#1}}"),
