@@ -12,10 +12,8 @@ from editor.cornell.models import CornellAttribution
 from editor.cornell.models import CornellWatermark
 from editor.cornell.models import build_footer_text
 from editor.cornell.ui_helpers import ALL_LABEL
-from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import NEW_PROJECT_LABEL
 from editor.cornell.ui_helpers import NO_PROJECT_LABEL
-from editor.cornell.ui_helpers import append_latex_snippet
 from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
 from editor.cornell.ui_helpers import normalize_project_name
@@ -40,6 +38,8 @@ from editor.cpi.service import delete_cpi_note
 from editor.cpi.service import get_cpi_note
 from editor.cpi.service import list_cpi_notes
 from editor.cpi.service import update_cpi_note
+from editor.latex_tools import LATEX_SURFACE_CPI
+from editor.latex_tools import append_latex_snippet
 from editor.note_branding import finish_pending_watermark
 from editor.note_branding import materialize_pending_watermark
 from editor.note_branding import render_watermark_editor
@@ -55,6 +55,7 @@ from editor.pdf_preview import prepare_stable_preview
 from editor.pdf_preview import render_pdf_preview
 from editor.streamlit_compat import stretch_button
 from editor.ui.editable_text import editable_text_area
+from editor.ui.latex_toolbar import render_latex_toolbar
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import media_path_exists
@@ -1021,29 +1022,20 @@ def _render_latex_tools() -> None:
             "Producción": "cpi_production_latex",
             "Integración": "cpi_integration_latex",
         }[target]
-        cols = st.columns(4)
-        for index, group in enumerate(LATEX_SNIPPET_GROUPS[:4]):
-            with cols[index]:
-                st.caption(group.title)
-                for snippet in group.snippets:
-                    if st.button(snippet.label, key=f"cpi_tool_{target_key}_{snippet.key}"):
-                        st.session_state[target_key] = append_latex_snippet(
-                            st.session_state.get(target_key, ""),
-                            snippet.snippet,
-                        )
-                        _mark_dirty()
-                        st.rerun()
-        st.caption(LATEX_SNIPPET_GROUPS[4].title)
-        semantic_cols = st.columns(5)
-        for index, snippet in enumerate(LATEX_SNIPPET_GROUPS[4].snippets):
-            with semantic_cols[index % len(semantic_cols)]:
-                if st.button(snippet.label, key=f"cpi_tool_{target_key}_{snippet.key}"):
-                    st.session_state[target_key] = append_latex_snippet(
-                        st.session_state.get(target_key, ""),
-                        snippet.snippet,
-                    )
-                    _mark_dirty()
-                    st.rerun()
+
+        def insert_tool(snippet: str) -> None:
+            st.session_state[target_key] = append_latex_snippet(
+                st.session_state.get(target_key, ""),
+                snippet,
+            )
+            _mark_dirty()
+            st.rerun()
+
+        render_latex_toolbar(
+            surface=LATEX_SURFACE_CPI,
+            key_prefix=f"cpi_tool_{target_key}",
+            on_insert=insert_tool,
+        )
 
 
 def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:

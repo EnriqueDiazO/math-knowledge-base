@@ -52,15 +52,15 @@ from editor.cornell.streamlit_page import request_cornell_note_delete
 from editor.cornell.streamlit_page import valid_page_index
 from editor.cornell.ui_helpers import ALL_LABEL
 from editor.cornell.ui_helpers import DEFAULT_NOTE_CONTEXTS
-from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import NEW_PROJECT_LABEL
 from editor.cornell.ui_helpers import NO_PROJECT_LABEL
-from editor.cornell.ui_helpers import append_latex_snippet
 from editor.cornell.ui_helpers import existing_note_contexts_from_values
 from editor.cornell.ui_helpers import filter_cornell_notes_for_explorer
 from editor.cornell.ui_helpers import note_page_count
 from editor.cornell.ui_helpers import project_selector_choices
 from editor.cornell.ui_helpers import resolve_project_choice
+from editor.latex_tools import append_latex_snippet
+from editor.latex_tools import latex_tool_by_id
 
 
 def page(page_id: str, order: int, heading: str | None = None) -> CornellPage:
@@ -374,25 +374,25 @@ def test_date_string_persists_as_iso_format() -> None:
 
 
 def test_insert_snippet_in_cue_preserves_existing_content() -> None:
-    snippet = LATEX_SNIPPET_GROUPS[0].snippets[0].snippet
+    snippet = latex_tool_by_id("definition").snippet
 
     assert append_latex_snippet("cue previo", snippet).startswith("cue previo\n\\begin{definition}")
 
 
 def test_insert_snippet_in_main_preserves_existing_content() -> None:
-    snippet = LATEX_SNIPPET_GROUPS[1].snippets[2].snippet
+    snippet = latex_tool_by_id("equation").snippet
 
     assert append_latex_snippet("main previo\n", snippet) == "main previo\n" + snippet
 
 
 def test_insert_snippet_in_summary_preserves_existing_content() -> None:
-    snippet = LATEX_SNIPPET_GROUPS[4].snippets[0].snippet
+    snippet = latex_tool_by_id("sum").snippet
 
     assert "summary previo" in append_latex_snippet("summary previo", snippet)
 
 
 def test_insert_snippet_does_not_erase_empty_region() -> None:
-    snippet = LATEX_SNIPPET_GROUPS[3].snippets[0].snippet
+    snippet = latex_tool_by_id("sum").snippet
 
     assert append_latex_snippet("", snippet) == snippet + "\n"
 

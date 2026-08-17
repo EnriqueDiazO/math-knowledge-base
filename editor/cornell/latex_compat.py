@@ -6,8 +6,9 @@ import re
 from collections.abc import Iterable
 from textwrap import dedent
 
-from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
-from editor.cornell.ui_helpers import LatexSnippet
+from editor.latex_tools import LATEX_SURFACE_CORNELL
+from editor.latex_tools import LatexTool
+from editor.latex_tools import latex_tools_for_surface
 
 BEGIN_ENV_PATTERN = re.compile(r"\\begin\{([^}]+)\}")
 COMMAND_PATTERN = re.compile(r"\\([A-Za-z]+|.)")
@@ -31,32 +32,40 @@ CORNELL_CUSTOM_ENVIRONMENTS = frozenset(
         "openquestions",
         "technical",
         "nextsteps",
+        "algoritmo",
         "lstlisting",
-        "dirtree",
     }
 )
 
 CORNELL_PACKAGE_ENVIRONMENTS = frozenset(
     {
         "align",
+        "align*",
+        "axis",
+        "bmatrix",
         "cases",
         "description",
         "enumerate",
         "equation",
+        "equation*",
+        "gather",
         "itemize",
         "pmatrix",
         "proof",
+        "tabular",
+        "tabularx",
+        "tikzpicture",
+        "vmatrix",
     }
 )
 
 
-def iter_latex_snippets() -> Iterable[LatexSnippet]:
-    """Yield all snippets from the shared Diario/Cornell toolbar catalog."""
-    for group in LATEX_SNIPPET_GROUPS:
-        yield from group.snippets
+def iter_latex_snippets() -> Iterable[LatexTool]:
+    """Yield every tool exposed by the canonical Cornell catalog."""
+    yield from latex_tools_for_surface(LATEX_SURFACE_CORNELL)
 
 
-def snippet_environment_names(snippets: Iterable[LatexSnippet] | None = None) -> tuple[str, ...]:
+def snippet_environment_names(snippets: Iterable[LatexTool] | None = None) -> tuple[str, ...]:
     """Return distinct environments inserted by the shared snippet catalog."""
     source = snippets if snippets is not None else iter_latex_snippets()
     names: set[str] = set()
@@ -65,7 +74,7 @@ def snippet_environment_names(snippets: Iterable[LatexSnippet] | None = None) ->
     return tuple(sorted(names))
 
 
-def snippet_command_names(snippets: Iterable[LatexSnippet] | None = None) -> tuple[str, ...]:
+def snippet_command_names(snippets: Iterable[LatexTool] | None = None) -> tuple[str, ...]:
     """Return distinct LaTeX commands inserted by the shared snippet catalog."""
     source = snippets if snippets is not None else iter_latex_snippets()
     names: set[str] = set()
@@ -88,6 +97,12 @@ def cornell_latex_compat_preamble() -> str:
         \usepackage{amsthm}
         \usepackage[most]{tcolorbox}
         \usepackage{listings}
+        \usepackage{array,multirow,tabularx,booktabs}
+        \usepackage{dirtree}
+        \usepackage{tikz-qtree}
+        \usepackage{pgfplots}
+        \usepgfplotslibrary{groupplots}
+        \pgfplotsset{compat=1.18}
         \definecolor{CornellCodeBack}{rgb}{0.95,0.95,0.92}
         \definecolor{CornellCodeGray}{rgb}{0.5,0.5,0.5}
         \lstdefinestyle{cornellstyle}{
@@ -133,8 +148,19 @@ def cornell_latex_compat_preamble() -> str:
         \newtcolorbox{openquestions}{enhanced,boxrule=.4pt,arc=2pt,colback=gray!10,colframe=black!60,title=Preguntas abiertas,fonttitle=\bfseries}
         \newtcolorbox{technical}{enhanced,boxrule=.4pt,arc=2pt,colback=CornellCodeBack,colframe=CornellCodeGray,title=Tecnica / Codigo,fonttitle=\bfseries,fontupper=\ttfamily\footnotesize}
         \newtcolorbox{nextsteps}{enhanced,boxrule=.4pt,arc=2pt,colback=green!6,colframe=green!65,title=Proximos pasos,fonttitle=\bfseries}
-        \RenewDocumentEnvironment{lstlisting}{O{}}{\begin{technical}}{\end{technical}}
-        \NewDocumentEnvironment{dirtree}{}{\begin{technical}}{\end{technical}}
+        \tcbuselibrary{listings,breakable,skins}
+        \ProvideTCBListing{algoritmo}{O{} m}{
+          enhanced,
+          breakable,
+          listing only,
+          listing engine=listings,
+          colback=blue!2,
+          colframe=blue!15!black,
+          coltitle=white,
+          fonttitle=\bfseries,
+          title={#2},
+          listing options={style=cornellstyle,breaklines=true,upquote=true,#1}
+        }
         """
     ).strip()
 

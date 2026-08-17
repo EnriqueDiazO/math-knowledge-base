@@ -965,6 +965,7 @@ def _generar_latex_content(concepto: Dict) -> str:
 \usepackage{miestilo}
 \usepackage{coloredtheorem}
 \usepackage{graphicx}
+\usepackage{mathmongo-macros}
 \begin{document}
 
 """

@@ -74,3 +74,29 @@ def test_save_does_not_remove_branding_widget_state_mid_run() -> None:
 
         assert not app.exception
         _assert_no_duplicate_widget_default_warning(app)
+
+
+def test_cornell_create_toolbar_inserts_without_exposing_cuaderno_blocks() -> None:
+    app = AppTest.from_string(_APP_TEMPLATE.format(note_type="cornell")).run()
+
+    labels = {button.label for button in app.button}
+    assert {"Teorema", "Align*", "Booktabs", "Código Python", "PGFPlots", "ℝ"} <= labels
+    assert "Contexto" not in labels
+
+    _button(app, "Teorema").click().run()
+
+    assert not app.exception
+    assert r"\begin{theorem}{Título}" in app.session_state["cornell_cue_latex"]
+
+
+def test_cpi_create_toolbar_inserts_without_exposing_cuaderno_blocks() -> None:
+    app = AppTest.from_string(_APP_TEMPLATE.format(note_type="cpi")).run()
+
+    labels = {button.label for button in app.button}
+    assert {"Teorema", "Align*", "Booktabs", "Código Python", "PGFPlots", "ℝ"} <= labels
+    assert "Contexto" not in labels
+
+    _button(app, "Teorema").click().run()
+
+    assert not app.exception
+    assert r"\begin{theorem}{Título}" in app.session_state["cpi_comprehension_latex"]

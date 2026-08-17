@@ -40,10 +40,8 @@ from editor.cornell.service import remove_cornell_region_image
 from editor.cornell.service import update_cornell_note
 from editor.cornell.service import upload_cornell_region_image
 from editor.cornell.ui_helpers import ALL_LABEL
-from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import NEW_PROJECT_LABEL
 from editor.cornell.ui_helpers import NO_PROJECT_LABEL
-from editor.cornell.ui_helpers import append_latex_snippet
 from editor.cornell.ui_helpers import filter_cornell_notes_for_explorer
 from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
@@ -51,6 +49,8 @@ from editor.cornell.ui_helpers import normalize_tags
 from editor.cornell.ui_helpers import note_page_count
 from editor.cornell.ui_helpers import project_selector_choices
 from editor.cornell.ui_helpers import resolve_project_choice
+from editor.latex_tools import LATEX_SURFACE_CORNELL
+from editor.latex_tools import append_latex_snippet
 from editor.note_branding import finish_pending_watermark
 from editor.note_branding import materialize_pending_watermark
 from editor.note_branding import render_watermark_editor
@@ -65,6 +65,7 @@ from editor.pdf_preview import prepare_stable_preview
 from editor.pdf_preview import render_pdf_preview
 from editor.streamlit_compat import stretch_button
 from editor.ui.editable_text import editable_text_area
+from editor.ui.latex_toolbar import render_latex_toolbar
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_path_exists
 from editor.utils.media_assets import resolve_media_asset_path
@@ -1104,29 +1105,20 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
             "Main": "cornell_main_latex",
             "Summary": "cornell_summary_latex",
         }[target]
-        cols = st.columns(4)
-        for index, group in enumerate(LATEX_SNIPPET_GROUPS[:4]):
-            with cols[index]:
-                st.caption(group.title)
-                for snippet in group.snippets:
-                    if st.button(snippet.label, key=f"cornell_tool_{target}_{snippet.key}"):
-                        st.session_state[target_key] = append_latex_snippet(
-                            st.session_state.get(target_key, ""),
-                            snippet.snippet,
-                        )
-                        _mark_dirty()
-                        st.rerun()
-        st.caption(LATEX_SNIPPET_GROUPS[4].title)
-        semantic_cols = st.columns(5)
-        for index, snippet in enumerate(LATEX_SNIPPET_GROUPS[4].snippets):
-            with semantic_cols[index % len(semantic_cols)]:
-                if st.button(snippet.label, key=f"cornell_tool_{target}_{snippet.key}"):
-                    st.session_state[target_key] = append_latex_snippet(
-                        st.session_state.get(target_key, ""),
-                        snippet.snippet,
-                    )
-                    _mark_dirty()
-                    st.rerun()
+
+        def insert_tool(snippet: str) -> None:
+            st.session_state[target_key] = append_latex_snippet(
+                st.session_state.get(target_key, ""),
+                snippet,
+            )
+            _mark_dirty()
+            st.rerun()
+
+        render_latex_toolbar(
+            surface=LATEX_SURFACE_CORNELL,
+            key_prefix=f"cornell_tool_{target_key}",
+            on_insert=insert_tool,
+        )
 
     left, main = st.columns([1, 2])
     with left:

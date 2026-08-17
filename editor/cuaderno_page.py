@@ -37,7 +37,6 @@ from pdf_export import render_chktex_result
 from pdf_export import render_pdf_export_error
 from streamlit_ace import st_ace
 
-from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
 from editor.cornell.ui_helpers import get_existing_note_contexts
 from editor.cornell.ui_helpers import get_existing_note_projects
 from editor.db.concept_repository import insert_concept_with_latex_atomic
@@ -59,12 +58,16 @@ from editor.helpers.managed_source_selection import resolve_active_source
 from editor.helpers.managed_source_selection import source_labels
 from editor.latex_bundle import DOWNLOAD_LABEL
 from editor.latex_bundle import latex_project_download_options
+from editor.latex_tools import LATEX_SURFACE_CUADERNO
+from editor.latex_tools import apply_queued_latex_snippet
+from editor.latex_tools import queue_latex_snippet
 from editor.note_export import NoteExportError
 from editor.note_export import build_note_latex_bundle
 from editor.note_export import export_note_pdf
 from editor.note_export import normalized_note_format
 from editor.note_export import note_format_badge
 from editor.ui.editable_text import editable_text_area
+from editor.ui.latex_toolbar import render_latex_toolbar
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
 from editor.utils.media_assets import detach_media_asset_from_note
@@ -2193,43 +2196,33 @@ def _ensure_editor_state(prefix: str, initial_text: str = "") -> None:
 
 def _queue_insert(prefix: str, snippet: str) -> None:
     keys = _get_editor_keys(prefix)
-    st.session_state[keys["insert"]] = snippet
-    st.session_state[keys["do_insert"]] = True
+    queue_latex_snippet(
+        st.session_state,
+        snippet_key=keys["insert"],
+        trigger_key=keys["do_insert"],
+        snippet=snippet,
+    )
 
 
 def _handle_pending_insert(prefix: str) -> None:
     keys = _get_editor_keys(prefix)
-    if st.session_state.get(keys["do_insert"]) and st.session_state.get(keys["insert"]):
-        current_text = st.session_state.get(keys["text"], "") or ""
-        to_insert = st.session_state[keys["insert"]]
-
-        if current_text and not current_text.endswith("\n"):
-            current_text += "\n"
-
-        st.session_state[keys["text"]] = current_text + to_insert + "\n"
-        st.session_state[keys["do_insert"]] = False
-        st.session_state[keys["insert"]] = ""
+    if apply_queued_latex_snippet(
+        st.session_state,
+        text_key=keys["text"],
+        snippet_key=keys["insert"],
+        trigger_key=keys["do_insert"],
+    ):
         st.session_state[keys["rev"]] = st.session_state.get(keys["rev"], 0) + 1
         st.rerun()
 
 
 def _render_latex_toolbar(prefix: str) -> None:
-    """Toolbar: same spirit as 'Añadir Concepto' + semantic diary blocks."""
-    st.write("**🔧 Herramientas LaTeX:**")
-    cols = st.columns(4)
-    for index, group in enumerate(LATEX_SNIPPET_GROUPS[:4]):
-        with cols[index]:
-            st.caption(group.title)
-            for snippet in group.snippets:
-                if st.button(snippet.label, key=f"{prefix}_btn_{snippet.key}"):
-                    _queue_insert(prefix, snippet.snippet)
-
-    st.write("**🧩 Bloques semánticos del cuaderno:**")
-    semantic_cols = st.columns(5)
-    for index, snippet in enumerate(LATEX_SNIPPET_GROUPS[4].snippets):
-        with semantic_cols[index % len(semantic_cols)]:
-            if st.button(snippet.label, key=f"{prefix}_sem_{snippet.key}"):
-                _queue_insert(prefix, snippet.snippet)
+    """Render all general tools plus the Cuaderno-only semantic blocks."""
+    render_latex_toolbar(
+        surface=LATEX_SURFACE_CUADERNO,
+        key_prefix=f"{prefix}_latex_tool",
+        on_insert=lambda snippet: _queue_insert(prefix, snippet),
+    )
 
 
 def _render_latex_ace_editor(prefix: str, initial_text: str, height: int = 320) -> str:

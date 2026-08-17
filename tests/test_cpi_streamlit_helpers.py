@@ -73,6 +73,9 @@ class FakeStreamlit:
         count = spec if isinstance(spec, int) else len(spec)
         return [FakeColumn(self) for _ in range(count)]
 
+    def container(self, **kwargs):
+        return FakeContext()
+
     def selectbox(self, label: str, options, **kwargs):
         return options[0]
 
@@ -126,6 +129,7 @@ def test_cpi_page_editor_renders_three_independent_image_managers(monkeypatch) -
         SimpleNamespace(
             session_state=fake_st.session_state,
             expander=fake_st.expander,
+            container=fake_st.container,
             columns=fake_st.columns,
             selectbox=fake_st.selectbox,
             button=fake_st.button,

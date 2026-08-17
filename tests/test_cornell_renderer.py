@@ -25,7 +25,8 @@ from editor.cornell.models import CornellWatermark
 from editor.cornell.models import build_cornell_math_v1_payload
 from editor.cornell.models import build_footer_text
 from editor.cornell.models import generate_latex_body
-from editor.cornell.ui_helpers import LATEX_SNIPPET_GROUPS
+from editor.latex_tools import LATEX_SURFACE_CORNELL
+from editor.latex_tools import latex_tools_for_surface
 
 HREF_REGRESSION_URL = "https://www.r-project.org/"
 HREF_REGRESSION_LATEX = rf"""
@@ -485,8 +486,11 @@ def test_generate_cornell_tex_contains_snippet_compatibility_layer() -> None:
     assert r"\usepackage{hyperref}" in tex
     assert r"\NewDocumentEnvironment{definition}{g}" in tex
     assert r"\NewDocumentEnvironment{theorem}{g}" in tex
-    assert r"\NewDocumentEnvironment{dirtree}" in tex
-    assert r"\RenewDocumentEnvironment{lstlisting}" in tex
+    assert r"\usepackage{dirtree}" in tex
+    assert r"\NewDocumentEnvironment{dirtree}" not in tex
+    assert r"\ProvideTCBListing{algoritmo}" in tex
+    assert r"\usepackage{listings}" in tex
+    assert r"\RenewDocumentEnvironment{lstlisting}" not in tex
 
 
 def test_generate_cornell_tex_isolates_summary_region() -> None:
@@ -679,9 +683,8 @@ def test_render_cornell_pdf_measures_every_shared_latex_snippet_and_rejects_over
         pytest.skip("pdflatex is required for Cornell snippet compilation")
 
     snippets = []
-    for group in LATEX_SNIPPET_GROUPS:
-        for snippet in group.snippets:
-            snippets.append(f"% snippet {snippet.key}\n{snippet.snippet}")
+    for snippet in latex_tools_for_surface(LATEX_SURFACE_CORNELL):
+        snippets.append(f"% snippet {snippet.id}\n{snippet.snippet}")
     result = renderer.render_cornell_pdf(snippet_page("\n\n".join(snippets)), tmp_path)
 
     assert not result.success

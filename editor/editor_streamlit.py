@@ -40,6 +40,9 @@ from editor.edit_concept_feedback import render_update_flash
 from editor.edit_concept_feedback import safe_update_exception_message
 from editor.edit_concept_feedback import store_update_success_flash
 from editor.edit_concept_feedback import sync_update_feedback_scope
+from editor.latex_tools import LATEX_SURFACE_CONCEPTS
+from editor.latex_tools import apply_queued_latex_snippet
+from editor.latex_tools import queue_latex_snippet
 from editor.pdf_preview import PdfPreviewError
 from editor.pdf_preview import clear_pdf_preview
 from editor.pdf_preview import generate_pdf_preview
@@ -86,6 +89,7 @@ from editor.source_catalog.state import consume_legacy_concept_open
 from editor.source_catalog.state import state_key as source_catalog_state_key
 from editor.source_catalog.state import sync_database_state
 from editor.ui.editable_text import editable_text_area
+from editor.ui.latex_toolbar import render_latex_toolbar
 from editor.ui.theme import THEME_TOKENS
 from editor.ui.theme import apply_chart_theme
 from editor.ui.theme import apply_mathmongo_theme
@@ -1936,219 +1940,36 @@ elif page == "💡 Nuevo concepto":
     categorias = st.session_state.categorias_seleccionadas
 
     # LaTeX content with helper toolbar
-    st.subheader("📝 LaTeX Content")
+    st.subheader("Contenido LaTeX")
 
-    # LaTeX Helper Toolbar
-    st.write("**🔧 LaTeX Helper Tools:**")
+    st.session_state.setdefault("latex_text", "")
+    st.session_state.setdefault("latex_editor_rev", 0)
+    st.session_state.setdefault("latex_insert", "")
+    st.session_state.setdefault("insert_latex", False)
 
-    # Main structures
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        if st.button("📝 Definition", key="btn_def"):
-            st.session_state.latex_insert = r"\begin{definition}{% add Name or leave it in blank}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
-
-        if st.button("📋 Theorem", key="btn_theorem"):
-            st.session_state.latex_insert = r"\begin{theorem}{% add Name or leave it in blank}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
-
-        if st.button("📖 Proof", key="btn_proof"):
-            st.session_state.latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
-
-        if st.button("📊 Example", key="btn_example"):
-            st.session_state.latex_insert = r"\begin{example}{% add Name or leave it in blank}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
-
-    with col2:
-        if st.button("📋 Lemma", key="btn_lemma"):
-            st.session_state.latex_insert = r"\begin{lemma}{% add Name or leave it in blank}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
-
-        if st.button("📋 Proposition", key="btn_prop"):
-            st.session_state.latex_insert = r"\begin{proposition}{% add Name or leave it in blank}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
-
-        if st.button("📋 Corollary", key="btn_corollary"):
-            st.session_state.latex_insert = r"\begin{corollary}{% add Name or leave it in blank}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
-
-        if st.button("📋 Remark", key="btn_remark"):
-            st.session_state.latex_insert = r"\begin{remark}{% add Name or leave it in blank}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
-
-    with col3:
-        if st.button("🔢 Equation", key="btn_eq"):
-            st.session_state.latex_insert = r"\begin{equation}" + "\n" + r"% Equation here" + "\n" + r"\end{equation}"
-
-        if st.button("🔢 Align", key="btn_align"):
-            st.session_state.latex_insert = r"\begin{align}" + "\n" + r"% Multiple equations here" + "\n" + r"\end{align}"
-
-        if st.button("🔢 Matrix", key="btn_matrix"):
-            st.session_state.latex_insert = r"\begin{pmatrix}" + "\n" + r"a & b \\" + "\n" + r"c & d" + "\n" + r"\end{pmatrix}"
-
-        if st.button("🔢 Cases", key="btn_cases"):
-            st.session_state.latex_insert = r"\begin{cases}" + "\n" + r"% Case 1 \\" + "\n" + r"% Case 2" + "\n" + r"\end{cases}"
-
-    with col4:
-        if st.button("📋 Itemize", key="btn_itemize"):
-            st.session_state.latex_insert = r"\begin{itemize}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{itemize}"
-
-        if st.button("📋 Enumerate", key="btn_enumerate"):
-            st.session_state.latex_insert = r"\begin{enumerate}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{enumerate}"
-
-        if st.button("📋 Description", key="btn_description"):
-            st.session_state.latex_insert = r"\begin{description}" + "\n" + r"\item[Term 1] Description 1" + "\n" + r"\item[Term 2] Description 2" + "\n" + r"\end{description}"
-
-        if st.button("📋 Quote", key="btn_quote"):
-            st.session_state.latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
-
-        if st.button("🧩 Code", key="btn_code_listing"):
-            st.session_state["latex_insert"] = (
-                r"\begin{lstlisting}[language=ValorLanguage, caption=NombreParaCaption]" "\n"
-                r"# Comentario" "\n"
-                r"codigo" "\n"
-                r"\end{lstlisting}"
-            )
-        if st.button("🌳 Dir Tree", key="btn_dir_tree"):
-            st.session_state["latex_insert"] = (
-                r"\dirtree{%" "\n"
-                r".1 main folder." "\n"
-                r".2 subfolder." "\n"
-                r".3 subsubfolder." "\n"
-                r".4 subsubsubfolder." "\n"
-                r"}")
-
-    # Mathematical symbols and operators
-    st.write("**🔢 Mathematical Symbols:**")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        if st.button("∑ Sum", key="btn_sum"):
-            st.session_state.latex_insert = r"\sum_{i=1}^{n}"
-        if st.button("∏ Product", key="btn_prod"):
-            st.session_state.latex_insert = r"\prod_{i=1}^{n}"
-        if st.button("∫ Integral", key="btn_int"):
-            st.session_state.latex_insert = r"\int_{a}^{b}"
-        if st.button("∂ Partial", key="btn_partial"):
-            st.session_state.latex_insert = r"\partial"
-
-    with col2:
-        if st.button("∞ Infinity", key="btn_inf"):
-            st.session_state.latex_insert = r"\infty"
-        if st.button("→ Arrow", key="btn_arrow"):
-            st.session_state.latex_insert = r"\rightarrow"
-        if st.button("↔ Bidirectional", key="btn_bidir"):
-            st.session_state.latex_insert = r"\leftrightarrow"
-        if st.button("∈ Belongs", key="btn_in"):
-            st.session_state.latex_insert = r"\in"
-
-    with col3:
-        if st.button("⊂ Subset", key="btn_subset"):
-            st.session_state.latex_insert = r"\subset"
-        if st.button("∪ Union", key="btn_union"):
-            st.session_state.latex_insert = r"\cup"
-        if st.button("∩ Intersection", key="btn_intersection"):
-            st.session_state.latex_insert = r"\cap"
-        if st.button("∅ Empty Set", key="btn_empty"):
-            st.session_state.latex_insert = r"\emptyset"
-
-    with col4:
-        if st.button("∀ For All", key="btn_forall"):
-            st.session_state.latex_insert = r"\forall"
-        if st.button("∃ Exists", key="btn_exists"):
-            st.session_state.latex_insert = r"\exists"
-        if st.button("∴ Therefore", key="btn_therefore"):
-            st.session_state.latex_insert = r"\therefore"
-        if st.button("∵ Because", key="btn_because"):
-            st.session_state.latex_insert = r"\because"
-
-    # Greek letters
-    st.write("**🇬🇷 Greek Letters:**")
-
-    col1, col2, col3, col4 = st.columns(4)
-
-    with col1:
-        if st.button("α Alpha", key="btn_alpha"):
-            st.session_state.latex_insert = r"\alpha"
-        if st.button("β Beta", key="btn_beta"):
-            st.session_state.latex_insert = r"\beta"
-        if st.button("γ Gamma", key="btn_gamma"):
-            st.session_state.latex_insert = r"\gamma"
-        if st.button("δ Delta", key="btn_delta"):
-            st.session_state.latex_insert = r"\delta"
-
-    with col2:
-        if st.button("ε Epsilon", key="btn_epsilon"):
-            st.session_state.latex_insert = r"\epsilon"
-        if st.button("θ Theta", key="btn_theta"):
-            st.session_state.latex_insert = r"\theta"
-        if st.button("λ Lambda", key="btn_lambda"):
-            st.session_state.latex_insert = r"\lambda"
-        if st.button("μ Mu", key="btn_mu"):
-            st.session_state.latex_insert = r"\mu"
-
-    with col3:
-        if st.button("π Pi", key="btn_pi"):
-            st.session_state.latex_insert = r"\pi"
-        if st.button("σ Sigma", key="btn_sigma"):
-            st.session_state.latex_insert = r"\sigma"
-        if st.button("τ Tau", key="btn_tau"):
-            st.session_state.latex_insert = r"\tau"
-        if st.button("φ Phi", key="btn_phi"):
-            st.session_state.latex_insert = r"\phi"
-
-    with col4:
-        if st.button("χ Chi", key="btn_chi"):
-            st.session_state.latex_insert = r"\chi"
-        if st.button("ψ Psi", key="btn_psi"):
-            st.session_state.latex_insert = r"\psi"
-        if st.button("ω Omega", key="btn_omega"):
-            st.session_state.latex_insert = r"\omega"
-        if st.button("Γ Gamma", key="btn_Gamma"):
-            st.session_state.latex_insert = r"\Gamma"
-
-    # Initialize latex_insert in session state if not exists
-    if 'latex_insert' not in st.session_state:
-        st.session_state.latex_insert = ""
-
-    # Show current insertion if any
-    if st.session_state.latex_insert:
-        st.info(f"**Ready to insert:** `{st.session_state.latex_insert}`")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("✅ Insert at Cursor", key="insert_btn"):
-                st.session_state.insert_latex = True
-        with col2:
-            if st.button("❌ Clear", key="clear_insert"):
-                st.session_state.latex_insert = ""
-                st.session_state.insert_latex = False
+    with st.expander("Herramientas LaTeX", expanded=False):
+        render_latex_toolbar(
+            surface=LATEX_SURFACE_CONCEPTS,
+            key_prefix="concept_create_latex_tool",
+            on_insert=lambda snippet: queue_latex_snippet(
+                st.session_state,
+                snippet_key="latex_insert",
+                trigger_key="insert_latex",
+                snippet=snippet,
+            ),
+        )
 
     # LaTeX text area
     # -------------------------
     # LaTeX editor (state real + remount para inserciones)
     # -------------------------
-    # Estado real del texto (NO es el key del widget)
-    if "latex_text" not in st.session_state:
-       st.session_state["latex_text"] = ""
-    # Revisión para forzar re-mount del componente cuando insertas
-    if "latex_editor_rev" not in st.session_state:
-        st.session_state["latex_editor_rev"] = 0
-    # Flags de inserción
-    if "latex_insert" not in st.session_state:
-        st.session_state["latex_insert"] = ""
-    if "insert_latex" not in st.session_state:
-        st.session_state["insert_latex"] = False
-
-
     # Handle insertion (DEBE IR ANTES del st_ace)
-    if st.session_state.get("insert_latex") and st.session_state.get("latex_insert"):
-        current_text = st.session_state.get("latex_text", "") or ""
-        to_insert = st.session_state["latex_insert"]
-
-        if current_text and not current_text.endswith("\n"):
-            current_text += "\n"
-
-        st.session_state["latex_text"] = current_text + to_insert + "\n"
-        # limpiar flags
-        st.session_state["insert_latex"] = False
-        st.session_state["latex_insert"] = ""
-        # IMPORTANT: fuerza re-mount para que el nuevo value se refleje
+    if apply_queued_latex_snippet(
+        st.session_state,
+        text_key="latex_text",
+        snippet_key="latex_insert",
+        trigger_key="insert_latex",
+    ):
         st.session_state["latex_editor_rev"] += 1
         st.rerun()
 
@@ -2898,176 +2719,36 @@ elif page == "🖊️ Editar concepto":
         )
 
         # LaTeX content with helper toolbar
-        st.subheader("📝 LaTeX Content")
+        st.subheader("Contenido LaTeX")
 
-        # LaTeX Helper Toolbar (same as Add Concept)
-        st.write("**🔧 LaTeX Helper Tools:**")
+        st.session_state.setdefault("edit_latex_text", "")
+        st.session_state.setdefault("edit_latex_editor_rev", 0)
+        st.session_state.setdefault("edit_latex_insert", "")
+        st.session_state.setdefault("edit_insert_latex", False)
 
-        # Main structures
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            if st.button("📝 Definition", key="edit_btn_def"):
-                st.session_state.edit_latex_insert = r"\begin{definition}" + "\n" + r"% Definition content here" + "\n" + r"\end{definition}"
-
-            if st.button("📋 Theorem", key="edit_btn_theorem"):
-                st.session_state.edit_latex_insert = r"\begin{theorem}" + "\n" + r"% Theorem statement here" + "\n" + r"\end{theorem}"
-
-            if st.button("📖 Proof", key="edit_btn_proof"):
-                st.session_state.edit_latex_insert = r"\begin{proof}" + "\n" + r"% Proof content here" + "\n" + r"\end{proof}"
-
-            if st.button("📊 Example", key="edit_btn_example"):
-                st.session_state.edit_latex_insert = r"\begin{example}" + "\n" + r"% Example content here" + "\n" + r"\end{example}"
-
-        with col2:
-            if st.button("📋 Lemma", key="edit_btn_lemma"):
-                st.session_state.edit_latex_insert = r"\begin{lemma}" + "\n" + r"% Lemma statement here" + "\n" + r"\end{lemma}"
-
-            if st.button("📋 Proposition", key="edit_btn_prop"):
-                st.session_state.edit_latex_insert = r"\begin{proposition}" + "\n" + r"% Proposition statement here" + "\n" + r"\end{proposition}"
-
-            if st.button("📋 Corollary", key="edit_btn_corollary"):
-                st.session_state.edit_latex_insert = r"\begin{corollary}" + "\n" + r"% Corollary statement here" + "\n" + r"\end{corollary}"
-
-            if st.button("📋 Remark", key="edit_btn_remark"):
-                st.session_state.edit_latex_insert = r"\begin{remark}" + "\n" + r"% Remark content here" + "\n" + r"\end{remark}"
-
-        with col3:
-            if st.button("🔢 Equation", key="edit_btn_eq"):
-                st.session_state.edit_latex_insert = r"\begin{equation}" + "\n" + r"% Equation here" + "\n" + r"\end{equation}"
-
-            if st.button("🔢 Align", key="edit_btn_align"):
-                st.session_state.edit_latex_insert = r"\begin{align}" + "\n" + r"% Multiple equations here" + "\n" + r"\end{align}"
-
-            if st.button("🔢 Matrix", key="edit_btn_matrix"):
-                st.session_state.edit_latex_insert = r"\begin{pmatrix}" + "\n" + r"a & b \\" + "\n" + r"c & d" + "\n" + r"\end{pmatrix}"
-
-            if st.button("🔢 Cases", key="edit_btn_cases"):
-                st.session_state.edit_latex_insert = r"\begin{cases}" + "\n" + r"% Case 1 \\" + "\n" + r"% Case 2" + "\n" + r"\end{cases}"
-
-        with col4:
-            if st.button("📋 Itemize", key="edit_btn_itemize"):
-                st.session_state.edit_latex_insert = r"\begin{itemize}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{itemize}"
-
-            if st.button("📋 Enumerate", key="edit_btn_enumerate"):
-                st.session_state.edit_latex_insert = r"\begin{enumerate}" + "\n" + r"\item First item" + "\n" + r"\item Second item" + "\n" + r"\end{enumerate}"
-
-            if st.button("📋 Description", key="edit_btn_description"):
-                st.session_state.edit_latex_insert = r"\begin{description}" + "\n" + r"\item[Term 1] Description 1" + "\n" + r"\item[Term 2] Description 2" + "\n" + r"\end{description}"
-
-            if st.button("📋 Quote", key="edit_btn_quote"):
-                st.session_state.edit_latex_insert = r"\begin{quote}" + "\n" + r"% Quoted text here" + "\n" + r"\end{quote}"
-
-            if st.button("🧩 Code", key="edit_btn_code_listing"):
-                st.session_state["edit_latex_insert"] = (
-                    r"\begin{lstlisting}[language=ValorLanguage, caption=NombreParaCaption]" "\n"
-                    r"# Comentario" "\n"
-                    r"codigo" "\n"
-                    r"\end{lstlisting}")
-
-            if st.button("🌳 Dir Tree", key="edit_btn_dir_tree"):
-                st.session_state["edit_latex_insert"] = (
-                    r"\dirtree{%" "\n"
-                    r".1 main folder." "\n"
-                    r".2 subfolder." "\n"
-                    r".3 subsubfolder." "\n"
-                    r".4 subsubsubfolder." "\n"
-                    r"}"
-                )
-
-        # Mathematical symbols (abbreviated for edit page)
-        st.write("**🔢 Common Symbols:**")
-
-        col1, col2, col3, col4 = st.columns(4)
-
-        with col1:
-            if st.button("∑ Sum", key="edit_btn_sum"):
-                st.session_state.edit_latex_insert = r"\sum_{i=1}^{n}"
-            if st.button("∫ Integral", key="edit_btn_int"):
-                st.session_state.edit_latex_insert = r"\int_{a}^{b}"
-            if st.button("→ Arrow", key="edit_btn_arrow"):
-                st.session_state.edit_latex_insert = r"\rightarrow"
-            if st.button("∈ Belongs", key="edit_btn_in"):
-                st.session_state.edit_latex_insert = r"\in"
-
-        with col2:
-            if st.button("∞ Infinity", key="edit_btn_inf"):
-                st.session_state.edit_latex_insert = r"\infty"
-            if st.button("∪ Union", key="edit_btn_union"):
-                st.session_state.edit_latex_insert = r"\cup"
-            if st.button("∩ Intersection", key="edit_btn_intersection"):
-                st.session_state.edit_latex_insert = r"\cap"
-            if st.button("∀ For All", key="edit_btn_forall"):
-                st.session_state.edit_latex_insert = r"\forall"
-
-        with col3:
-            if st.button("α Alpha", key="edit_btn_alpha"):
-                st.session_state.edit_latex_insert = r"\alpha"
-            if st.button("β Beta", key="edit_btn_beta"):
-                st.session_state.edit_latex_insert = r"\beta"
-            if st.button("γ Gamma", key="edit_btn_gamma"):
-                st.session_state.edit_latex_insert = r"\gamma"
-            if st.button("δ Delta", key="edit_btn_delta"):
-                st.session_state.edit_latex_insert = r"\delta"
-
-        with col4:
-            if st.button("π Pi", key="edit_btn_pi"):
-                st.session_state.edit_latex_insert = r"\pi"
-            if st.button("σ Sigma", key="edit_btn_sigma"):
-                st.session_state.edit_latex_insert = r"\sigma"
-            if st.button("λ Lambda", key="edit_btn_lambda"):
-                st.session_state.edit_latex_insert = r"\lambda"
-            if st.button("θ Theta", key="edit_btn_theta"):
-                st.session_state.edit_latex_insert = r"\theta"
-
-        # Initialize edit_latex_insert in session state if not exists
-        if 'edit_latex_insert' not in st.session_state:
-            st.session_state["edit_latex_insert"] = ""
-
-        # Show current insertion if any
-        if st.session_state["edit_latex_insert"]:
-            st.info(f"**Ready to insert:** `{st.session_state['edit_latex_insert']}`")
-
-            col1, col2 = st.columns(2)
-            with col1:
-                if st.button("✅ Insert at Cursor", key="edit_insert_btn"):
-                    st.session_state["edit_insert_latex"] = True
-            with col2:
-                if st.button("❌ Clear", key="edit_clear_insert"):
-                    st.session_state["edit_latex_insert"] = ""
-                    st.session_state["edit_insert_latex"] = False
-
+        with st.expander("Herramientas LaTeX", expanded=False):
+            render_latex_toolbar(
+                surface=LATEX_SURFACE_CONCEPTS,
+                key_prefix="concept_edit_latex_tool",
+                on_insert=lambda snippet: queue_latex_snippet(
+                    st.session_state,
+                    snippet_key="edit_latex_insert",
+                    trigger_key="edit_insert_latex",
+                    snippet=snippet,
+                ),
+            )
 
         # -------------------------
         # LaTeX editor (ACE) - Edit Concept
         # -------------------------
 
-        # Estado real del texto (NO es el key del widget)
-        if "edit_latex_text" not in st.session_state:
-            st.session_state["edit_latex_text"] = ""
-
-        # Revisión para forzar re-mount del componente cuando insertas
-        if "edit_latex_editor_rev" not in st.session_state:
-            st.session_state["edit_latex_editor_rev"] = 0
-
-        # Flags de inserción (asegurar existencia)
-        if "edit_latex_insert" not in st.session_state:
-            st.session_state["edit_latex_insert"] = ""
-        if "edit_insert_latex" not in st.session_state:
-            st.session_state["edit_insert_latex"] = False
-
         # Handle insertion (DEBE IR ANTES del st_ace)
-        if st.session_state.get("edit_insert_latex") and st.session_state.get("edit_latex_insert"):
-            current_text = st.session_state.get("edit_latex_text", "") or ""
-            to_insert = st.session_state["edit_latex_insert"]
-            if current_text and not current_text.endswith("\n"):
-                current_text += "\n"
-            st.session_state["edit_latex_text"] = current_text + to_insert + "\n"
-            # limpiar flags
-            st.session_state["edit_insert_latex"] = False
-            st.session_state["edit_latex_insert"] = ""
-
-            # fuerza re-mount
+        if apply_queued_latex_snippet(
+            st.session_state,
+            text_key="edit_latex_text",
+            snippet_key="edit_latex_insert",
+            trigger_key="edit_insert_latex",
+        ):
             st.session_state["edit_latex_editor_rev"] += 1
             st.rerun()
 
