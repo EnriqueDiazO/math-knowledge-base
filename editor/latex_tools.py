@@ -49,11 +49,6 @@ class LatexTool:
     packages: tuple[str, ...] = ()
 
     @property
-    def key(self) -> str:
-        """Return the legacy snippet key used by older UI helpers."""
-        return self.id
-
-    @property
     def environments(self) -> tuple[str, ...]:
         """Return environments opened by this snippet in source order."""
         return tuple(_BEGIN_ENVIRONMENT.findall(self.snippet))
@@ -65,12 +60,6 @@ class LatexToolGroup:
 
     title: str
     tools: tuple[LatexTool, ...]
-
-    @property
-    def snippets(self) -> tuple[LatexTool, ...]:
-        """Return tools through the historical group attribute."""
-        return self.tools
-
 
 def _tool(
     tool_id: str,
