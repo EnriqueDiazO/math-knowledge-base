@@ -54,6 +54,7 @@ from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import prepare_stable_preview
 from editor.pdf_preview import render_pdf_preview
 from editor.streamlit_compat import stretch_button
+from editor.ui.editable_text import editable_text_area
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_collection
 from editor.utils.media_assets import media_path_exists
@@ -1053,7 +1054,7 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
     with comprehension_col:
         st.subheader("Comprensión")
         st.caption("Valor epistémico")
-        st.text_area(
+        editable_text_area(
             "LaTeX Comprensión",
             height=280,
             key="cpi_comprehension_latex",
@@ -1171,7 +1172,7 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
     with production_col:
         st.subheader("Producción")
         st.caption("Valor pragmático")
-        st.text_area(
+        editable_text_area(
             "LaTeX Producción",
             height=280,
             key="cpi_production_latex",
@@ -1287,7 +1288,7 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
                     _mark_dirty()
                     st.rerun()
     st.subheader("Integración")
-    st.text_area(
+    editable_text_area(
         "LaTeX Integración",
         height=180,
         key="cpi_integration_latex",

@@ -85,6 +85,7 @@ from editor.source_catalog.state import apply_pending_navigation
 from editor.source_catalog.state import consume_legacy_concept_open
 from editor.source_catalog.state import state_key as source_catalog_state_key
 from editor.source_catalog.state import sync_database_state
+from editor.ui.editable_text import editable_text_area
 from editor.ui.theme import THEME_TOKENS
 from editor.ui.theme import apply_chart_theme
 from editor.ui.theme import apply_mathmongo_theme
@@ -2186,7 +2187,11 @@ elif page == "💡 Nuevo concepto":
         es_algoritmo = st.checkbox("Is this an algorithm?")
     with col2:
         if es_algoritmo:
-            pasos_algoritmo = st.text_area("Algorithm Steps", placeholder="Enter algorithm steps...")
+            pasos_algoritmo = editable_text_area(
+                "Algorithm Steps",
+                key="add_concept_algorithm_steps",
+                placeholder="Enter algorithm steps...",
+            )
 
     st.subheader("📚 Reference Information")
     sync_concept_reference_scope(
@@ -2250,7 +2255,11 @@ elif page == "💡 Nuevo concepto":
         tipo_aplicacion = st.multiselect("Application Type", [t.value for t in TipoAplicacion])
 
     # Comment
-    comentario = st.text_area("Comment (Optional)", placeholder="Additional comments or notes...")
+    comentario = editable_text_area(
+        "Comment (Optional)",
+        key="add_concept_comment",
+        placeholder="Additional comments or notes...",
+    )
 
     # Submit button
     if st.button(
@@ -3097,7 +3106,7 @@ elif page == "🖊️ Editar concepto":
             es_algoritmo = st.checkbox("Is this an algorithm?", key="edit_algoritmo")
         with col2:
             if es_algoritmo:
-                pasos_algoritmo = st.text_area("Algorithm Steps", key="edit_pasos")
+                pasos_algoritmo = editable_text_area("Algorithm Steps", key="edit_pasos")
 
         # Reference information
         st.subheader("📚 Reference Information")
@@ -3184,7 +3193,7 @@ elif page == "🖊️ Editar concepto":
                 key="edit_aplicacion"
             )
         # Comment
-        comentario = st.text_area(
+        comentario = editable_text_area(
             "Comment",
             key="edit_comentario"
         )

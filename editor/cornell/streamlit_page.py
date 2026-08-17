@@ -64,6 +64,7 @@ from editor.pdf_preview import pdf_preview_context
 from editor.pdf_preview import prepare_stable_preview
 from editor.pdf_preview import render_pdf_preview
 from editor.streamlit_compat import stretch_button
+from editor.ui.editable_text import editable_text_area
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import media_path_exists
 from editor.utils.media_assets import resolve_media_asset_path
@@ -1134,7 +1135,7 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
             key="cornell_cue_heading",
             on_change=_mark_dirty,
         )
-        st.text_area(
+        editable_text_area(
             "Cue LaTeX",
             height=220,
             key="cornell_cue_latex",
@@ -1154,7 +1155,7 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
             key="cornell_main_heading",
             on_change=_mark_dirty,
         )
-        st.text_area(
+        editable_text_area(
             "Main LaTeX",
             height=320,
             key="cornell_main_latex",
@@ -1173,7 +1174,7 @@ def _render_page_editor(db: Any, page: CornellPage, page_index: int) -> None:
         key="cornell_summary_heading",
         on_change=_mark_dirty,
     )
-    st.text_area(
+    editable_text_area(
         "Summary LaTeX",
         height=140,
         key="cornell_summary_latex",

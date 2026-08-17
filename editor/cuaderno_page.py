@@ -64,6 +64,7 @@ from editor.note_export import build_note_latex_bundle
 from editor.note_export import export_note_pdf
 from editor.note_export import normalized_note_format
 from editor.note_export import note_format_badge
+from editor.ui.editable_text import editable_text_area
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
 from editor.utils.media_assets import LATEX_IMAGE_EXTENSIONS
 from editor.utils.media_assets import detach_media_asset_from_note
@@ -1721,7 +1722,7 @@ def _render_diary_promote_note(notes_col) -> None:
     default_comment = f"Promovido desde nota: {default_title or _note_id(note)}"
 
     st.markdown("#### Fragmento LaTeX")
-    contenido_latex = st.text_area(
+    contenido_latex = editable_text_area(
         "Fragmento LaTeX a promover",
         value=original_body,
         height=360,
@@ -1821,7 +1822,7 @@ def _render_diary_promote_note(notes_col) -> None:
             value=default_categories,
             key=f"diary_promote_categories_{safe_note_key}",
         )
-        comentario = st.text_area(
+        comentario = editable_text_area(
             "Comentario",
             value=default_comment,
             height=100,
@@ -1946,7 +1947,7 @@ def _render_diary_promote_note(notes_col) -> None:
     with algo_cols[1]:
         pasos_algoritmo = ""
         if es_algoritmo:
-            pasos_algoritmo = st.text_area(
+            pasos_algoritmo = editable_text_area(
                 "Algorithm Steps",
                 placeholder="Enter algorithm steps...",
                 key=f"diary_promote_pasos_algoritmo_{safe_note_key}",
