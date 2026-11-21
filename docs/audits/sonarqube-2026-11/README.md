@@ -277,3 +277,32 @@ Estado antes de verificación global: todos los lotes funcionales probados y
 commiteados; controles del tooling aprobados (15 tests incluyendo Makefile y pins),
 instalación editable actualizada y pip check aprobado. Se inicia ahora suite con
 cobertura + análisis final con exactamente el mismo sonar-project.properties.
+
+## Revisión profunda de HTML de grafos
+
+Se confirmó una inyección HTML/JavaScript que el scanner no detectó: el bootstrap
+sólo escapaba el cierre literal </script> en minúsculas, pero HTML reconoce también
+</ScRiPt>. Un campo de estado con ese texto creaba un segundo script. Prueba antes:
+1 failed / 1 control passed en graph-security-before.log. Ahora el JSON embebido
+escapa delimitadores HTML por Unicode, conservando el valor tras JSON.parse, fórmulas
+y Unicode originales. Los presets de layout usan el mismo serializador.
+
+La vista previa pequeña y los tooltips del grafo de relaciones interpolaban campos
+sin escape; se aplica escape HTML a título, tipo, fuente, IDs, comentario y relación.
+Tres regresiones adicionales fallaron antes: la preview aceptaba script, y grafos
+con tipo como lista (formato real del schema) fallaban con TypeError. Se normaliza
+el primer tipo y se admite titulo=None con fallback al ID. El fallback tras fallo
+PyVis tampoco definía tipo_rel cuando no había aristas; ahora muestra Sin relaciones.
+Se conserva la selección por id/source sin modificar los documentos almacenados.
+
+La generación usaba show(notebook=True) antes de write_html: requería un template
+notebook ajeno a Streamlit y podía abrir navegador. Se usa una sola escritura HTML
+con notebook=False/open_browser=False y recursos PyVis inline. Las pruebas ejercitan
+PyVis real, metadata canónica, títulos opcionales, tooltip y ambos fallbacks.
+Después: 12 passed (graph-security-after.log), sin ejecutar los payloads sintéticos.
+
+Este hallazgo invalidó el primer ensayo final mientras estaba terminando; se conserva
+como intermediate-*. No se usa para la comparación. El Gate de ese ensayo fallaba
+únicamente por new_coverage=28.3% frente al 80% predeterminado, sin nuevas violaciones.
+No se cambiarán reglas, umbrales ni exclusiones para ocultar la cobertura del tooling.
+Se repite la suite/análisis tras este lote para analizar la revisión definitiva.

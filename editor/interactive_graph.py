@@ -5,6 +5,7 @@ Provides real-time, clickable graph visualization with MongoDB sync
 """
 
 import os
+from html import escape
 from typing import Dict
 from typing import List
 from typing import Optional
@@ -119,7 +120,7 @@ class InteractiveGraphManager:
         added_node_ids = set()
         # Create network with basic configuration
         net = Network(height="600px", width="100%", directed=True, 
-                     bgcolor="#ffffff", font_color="#000000")
+                     bgcolor="#ffffff", font_color="#000000", cdn_resources="in_line")
         
         net.force_atlas_2based()
         
@@ -202,8 +203,8 @@ class InteractiveGraphManager:
                 node_color = "#ff4444" if (concept_id == selected_concept_id and concept_source == selected_concept_source) else "#4CAF50"
                 fallback_html += f"""
                         <div class="node" style="border-color: {node_color};">
-                            <strong>{concept_titulo}</strong><br>
-                            <small>{concept_tipo} - {concept_source}</small>
+                            <strong>{escape(str(concept_titulo))}</strong><br>
+                            <small>{escape(str(concept_tipo))} - {escape(str(concept_source))}</small>
                         </div>
                 """
                 
@@ -211,7 +212,7 @@ class InteractiveGraphManager:
                     rel = relations[i]
                     fallback_html += f"""
                         <div class="edge">
-                            <span class="relation-type">{rel['tipo']}</span><br>
+                            <span class="relation-type">{escape(str(rel['tipo']))}</span><br>
                             →
                         </div>
                     """
@@ -252,8 +253,9 @@ class InteractiveGraphManager:
             # Use safe access with fallbacks
             concept_id = concept.get('id', 'unknown')
             concept_source = concept.get('source', 'unknown_source')
-            title = concept.get('titulo', concept_id)
-            tipo = concept.get('tipo', 'otro')
+            title = str(concept.get('titulo') or concept_id)
+            tipo_raw = concept.get('tipo', 'otro')
+            tipo = str(tipo_raw[0] if isinstance(tipo_raw, list) and tipo_raw else tipo_raw or 'otro')
             
             node_id = f"{concept_id}@{concept_source}"
             
@@ -282,12 +284,12 @@ class InteractiveGraphManager:
             
             tooltip = f"""
             <div style='font-family: Arial; font-size: 12px;'>
-                <b>{title}</b><br>
-                <b>ID:</b> {concept_id}<br>
-                <b>Type:</b> {tipo}<br>
-                <b>Source:</b> {concept_source}<br>
-                <b>Categories:</b> {categorias_str}<br>
-                <b>Comment:</b> {comentario}
+                <b>{escape(title)}</b><br>
+                <b>ID:</b> {escape(str(concept_id))}<br>
+                <b>Type:</b> {escape(tipo)}<br>
+                <b>Source:</b> {escape(str(concept_source))}<br>
+                <b>Categories:</b> {escape(categorias_str)}<br>
+                <b>Comment:</b> {escape(str(comentario))}
             </div>
             """
             
@@ -337,10 +339,10 @@ class InteractiveGraphManager:
                 # Create edge tooltip
                 tooltip = f"""
                 <div style='font-family: Arial; font-size: 12px;'>
-                    <b>Relation Type:</b> {tipo_rel}<br>
-                    <b>From:</b> {desde}<br>
-                    <b>To:</b> {hasta}<br>
-                    <b>Description:</b> {relation.get('descripcion', 'No description')[:100]}...
+                    <b>Relation Type:</b> {escape(str(tipo_rel))}<br>
+                    <b>From:</b> {escape(str(desde))}<br>
+                    <b>To:</b> {escape(str(hasta))}<br>
+                    <b>Description:</b> {escape(str(relation.get('descripcion') or 'No description')[:100])}...
                 </div>
                 """
                 
@@ -406,8 +408,7 @@ class InteractiveGraphManager:
             #return self._generate_empty_html(concepts, relations)
             
         try:
-            net.show(str(graph_file))  
-            net.write_html(str(graph_file))
+            net.write_html(str(graph_file), notebook=False, open_browser=False)
             with open(graph_file, "r", encoding="utf-8") as f:
                 content = f.read()
                 if '<div id="mynetwork"' not in content:
@@ -441,6 +442,7 @@ class InteractiveGraphManager:
             #st.warning(f"⚠️ PyVis generation failed: {e}. Using fallback HTML.")
             # If Pyvis fails, try to create a simple fallback
             try:
+                fallback_relation = str(relations[-1].get("tipo", "")) if relations else "Sin relaciones"
                 fallback_html = f"""
                 <!DOCTYPE html>
                 <html>
@@ -492,7 +494,7 @@ class InteractiveGraphManager:
                     <div id="mynetwork">
                         <div class="graph-container">
                             <p><strong>Concepts:</strong> {len(concepts)}</p>
-                            <p><strong>Relation:</strong> {tipo_rel}</p>
+                            <p><strong>Relation:</strong> {escape(fallback_relation)}</p>
                             <div>
                 """
                 
@@ -500,9 +502,9 @@ class InteractiveGraphManager:
                 for concept in concepts:
                     if concept is not None:
                         concept_id = concept.get('id', 'unknown')
-                        concept_titulo = concept.get('titulo', concept_id)
-                        concept_tipo = concept.get('tipo', 'unknown')
-                        concept_source = concept.get('source', 'unknown')
+                        concept_titulo = escape(str(concept.get('titulo', concept_id)))
+                        concept_tipo = escape(str(concept.get('tipo', 'unknown')))
+                        concept_source = escape(str(concept.get('source', 'unknown')))
                         
                         fallback_html += f"""
                             <div class="node">
