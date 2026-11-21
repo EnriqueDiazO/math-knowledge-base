@@ -1,9 +1,10 @@
-# Compatible security fixes selected on 2026-11-21; retain Python 3.10 support.
+# Security fixes selected on 2026-11-21; current profile requires Python >=3.11.5.
 # Constraints apply only when a dependency is actually installed.
 certifi==2026.11.20
 GitPython==3.2.1
 urllib3==2.8.0
-tornado==6.5.9
+tornado==6.6.1
+dnspython==2.9.2
 mistune==3.3.4
 jupyterlab==4.6.4
 jupyter-server==2.21.0
