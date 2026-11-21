@@ -4199,7 +4199,7 @@ elif page == "🗺️ Grafo de conocimiento":
         {t.value for t in TipoRelacion} | saved_relation_type_options | db_relation_type_options,
         key=str.lower,
     )
-    kg_sections = ["📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"]
+    kg_sections = ["🌐 Esfera editable", "📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"]
     requested_kg_section = st.session_state.pop("knowledge_graph_section_request", None)
     if requested_kg_section in kg_sections:
         st.session_state["knowledge_graph_section"] = requested_kg_section
@@ -4209,7 +4209,7 @@ elif page == "🗺️ Grafo de conocimiento":
         elif st.session_state.get("knowledge_graph_active_mode") == "view":
             st.session_state["knowledge_graph_section"] = "📚 Mapas guardados"
         else:
-            st.session_state["knowledge_graph_section"] = "📊 Nuevo mapa"
+            st.session_state["knowledge_graph_section"] = "🌐 Esfera editable"
 
     kg_section = st.radio(
         "Sección de mapas",
@@ -4219,7 +4219,11 @@ elif page == "🗺️ Grafo de conocimiento":
         label_visibility="collapsed",
     )
 
-    if kg_section == "📊 Nuevo mapa":
+    if kg_section == "🌐 Esfera editable":
+        from editor.knowledge_map import render_knowledge_map
+        render_knowledge_map(db, active_database_scope)
+
+    elif kg_section == "📊 Nuevo mapa":
         st.subheader("📊 Nuevo mapa")
         col1, col2 = st.columns(2)
         with col1:

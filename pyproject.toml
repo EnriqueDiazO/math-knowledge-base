@@ -18,6 +18,7 @@ packages = [
     { include = "visualizations" }
 ]
 include = [
+    { path = "mathmongo/pyproject.toml", format = ["sdist", "wheel"] },
     { path = "assets/icons/**", format = ["sdist", "wheel"] },
     { path = "docs/ADVANCED_READER_CONCEPT_LINKING_S5C.md", format = ["sdist", "wheel"] },
     { path = "docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md", format = ["sdist", "wheel"] },

@@ -18,8 +18,9 @@
     "test:e2e": "node tests/e2e-runner.mjs",
     "test:e2e:runner": "node tests/e2e-runner.mjs",
     "prebuild": "npm run prepare:worker",
-    "build": "tsc -b && vite build && node scripts/publish-build.mjs",
-    "publish": "node scripts/publish-build.mjs"
+    "build": "tsc -b && vite build && node scripts/publish-build.mjs && vite build --config vite.map.config.ts",
+    "publish": "node scripts/publish-build.mjs",
+    "build:map": "vite build --config vite.map.config.ts"
   },
   "dependencies": {
     "pdfjs-dist": "6.2.108",
