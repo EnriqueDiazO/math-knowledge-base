@@ -116,7 +116,7 @@ def test_python_package_declares_bounded_runtime_dependencies_and_static_assets(
 
     assert dependencies["fastapi"] == ">=0.115,<1.0"
     assert dependencies["uvicorn"] == ">=0.34,<1.0"
-    assert dependencies["python"] == ">=3.10,<3.14"
+    assert dependencies["python"] == ">=3.11.5,<3.14"
     assert {
         "path": "mathmongo/advanced_reader/static/**",
         "format": ["sdist", "wheel"],
@@ -153,7 +153,7 @@ def test_python_package_contains_the_explicit_factory_and_module_launcher() -> N
 
     makefile = (REPOSITORY_ROOT / "Makefile").read_text(encoding="utf-8")
     assert re.search(r"(?m)^advanced-reader:\s*$", makefile)
-    assert "mathdbmongo/bin/python -m mathmongo.advanced_reader" in makefile
+    assert "$(VENV_DIR)/bin/python -m mathmongo.advanced_reader" in makefile
 
 
 def test_frontend_manifest_has_reproducible_pinned_runtime_and_build_commands() -> None:

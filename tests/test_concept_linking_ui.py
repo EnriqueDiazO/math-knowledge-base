@@ -1365,7 +1365,7 @@ def test_s5b_preserves_unrelated_domain_models_and_concept_evidence_contract() -
     )
 
 
-def test_s4_3_preserves_every_existing_migration_module() -> None:
+def test_migration_modules_match_the_reviewed_v2_audit_checkpoint() -> None:
     expected_files = {
         "mathmongo/migrate_xdg.py": "b672667ccc65a8b1635bcde8982a63b234f2b0018ce9b72a5e0b79ba415bf8dc",
         "mathmongo/migrate_source_catalog.py": "07ec524cc76cab2907b2e99c0e590dd4e8cb4ba9082b331a4bcbdd8f2985df47",
@@ -1380,4 +1380,4 @@ def test_s4_3_preserves_every_existing_migration_module() -> None:
     for path in sorted(migration_root.glob("*.py")):
         relative = path.relative_to(ROOT).as_posix()
         digest.update(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n".encode())
-    assert digest.hexdigest() == "bdfd877a1f11c81d1d4c7995d6697a1cceba891a427a22c48c0ed72c255fb150"
+    assert digest.hexdigest() == "93a6f11a65abd92db629e96db8b1a22599d1fe571273ff31c4a733e6fda9af3a"

@@ -25,6 +25,7 @@ def test_guided_page_flow_confirms_once_across_real_streamlit_reruns(tmp_path: P
             from editor.concept_linking.linking_wizard import render_linking_wizard
             from editor.concept_linking.state import ACTIVE
             from editor.concept_linking.state import start_wizard
+            from editor.concept_linking.state import LAST_RESULT
             from editor.concept_linking.view_models import ConceptLinkingContext
 
 
@@ -141,6 +142,10 @@ def test_guided_page_flow_confirms_once_across_real_streamlit_reruns(tmp_path: P
             if not st.session_state.get("fake_booted"):
                 start_wizard(st.session_state, context)
                 st.session_state["fake_booted"] = True
+            # The production parent panel consumes the post-rerun confirmation.
+            pending_message = st.session_state.pop(LAST_RESULT, None)
+            if pending_message:
+                st.success(pending_message)
             render_linking_wizard(
                 st,
                 database,
@@ -230,6 +235,7 @@ def test_partial_annotation_survives_real_reruns_and_retry_does_not_recreate_it(
 
             from editor.concept_linking.linking_wizard import render_linking_wizard
             from editor.concept_linking.state import start_wizard
+            from editor.concept_linking.state import LAST_RESULT
             from editor.concept_linking.view_models import ConceptLinkingContext
 
 
@@ -353,6 +359,10 @@ def test_partial_annotation_survives_real_reruns_and_retry_does_not_recreate_it(
             if not st.session_state.get("fake_booted"):
                 start_wizard(st.session_state, context)
                 st.session_state["fake_booted"] = True
+            # The production parent panel consumes the post-rerun confirmation.
+            pending_message = st.session_state.pop(LAST_RESULT, None)
+            if pending_message:
+                st.success(pending_message)
             render_linking_wizard(
                 st,
                 Database(),
@@ -429,6 +439,7 @@ def test_duplicate_card_persists_and_its_navigation_runs_on_a_later_rerun(
 
             from editor.concept_linking.linking_wizard import render_linking_wizard
             from editor.concept_linking.state import start_wizard
+            from editor.concept_linking.state import LAST_RESULT
             from editor.concept_linking.view_models import ConceptLinkingContext
 
 
@@ -524,6 +535,10 @@ def test_duplicate_card_persists_and_its_navigation_runs_on_a_later_rerun(
             if not st.session_state.get("fake_booted"):
                 start_wizard(st.session_state, context)
                 st.session_state["fake_booted"] = True
+            # The production parent panel consumes the post-rerun confirmation.
+            pending_message = st.session_state.pop(LAST_RESULT, None)
+            if pending_message:
+                st.success(pending_message)
             render_linking_wizard(
                 st,
                 Database(),

@@ -27,7 +27,7 @@ def test_make_defaults_and_unified_run_cli_contract() -> None:
 
     assert re.search(r"(?m)^DATABASE\s*\?=\s*MathV0\s*$", source)
     assert "$(RUNTIME_CLI) run $(RUNTIME_ARGS) $(MONGO_ENSURE_ARGS)" in recipe
-    assert "mathdbmongo/bin/python -m mathmongo runtime" in source
+    assert "$(VENV_DIR)/bin/python -m mathmongo runtime" in source
     for option in (
         '--database "$(DATABASE)"',
         '--streamlit-host "$(STREAMLIT_HOST)"',

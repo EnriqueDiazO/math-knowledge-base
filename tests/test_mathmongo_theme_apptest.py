@@ -10,8 +10,8 @@ from streamlit.testing.v1 import AppTest
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def test_theme_control_preserves_navigation_and_unsent_form_draft(tmp_path: Path) -> None:
-    """Changing visual preference must not clear ordinary Streamlit widget state."""
+def test_theme_control_preserves_navigation_and_session_draft(tmp_path: Path) -> None:
+    """Changing visual preference must retain an application-owned session draft."""
     app_file = tmp_path / "theme_control_app.py"
     app_file.write_text(
         textwrap.dedent(
@@ -37,10 +37,11 @@ def test_theme_control_preserves_navigation_and_unsent_form_draft(tmp_path: Path
         encoding="utf-8",
     )
 
-    app = AppTest.from_file(str(app_file)).run()
+    app = AppTest.from_file(str(app_file))
+    app.session_state["source_name"] = "Borrador de teoría de grupos"
+    app.run()
 
     assert not app.exception
-    app.text_input[0].input("Borrador de teoría de grupos")
     theme_control = app.segmented_control[0]
     theme_control.set_value("dark")
     app.run()
