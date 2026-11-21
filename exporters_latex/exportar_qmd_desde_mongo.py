@@ -3,9 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
+import json
+import os
 import re
 from collections.abc import Sequence
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 
 from slugify import slugify
 
@@ -43,6 +47,11 @@ def crear_qmd(concepto: dict, base_dir: str | Path | None = None) -> Path:
     referencia = concepto.get("referencia", "N/A")
     comentario = concepto.get("comentario", "")
     concepto_id = concepto.get("id", "")
+    identity = hashlib.sha256(json.dumps(
+        [concepto_id, concepto.get("source", "")], ensure_ascii=False,
+        separators=(",", ":"),
+    ).encode("utf-8")).hexdigest()
+    marker = f"<!-- mathmongo-qmd-identity:{identity} -->\n"
     filename = validate_mutable_path(
         directory / f"{slugify(f'{tipo}_{titulo}')[:60]}.qmd",
         allowed_root=directory,
@@ -63,8 +72,39 @@ def crear_qmd(concepto: dict, base_dir: str | Path | None = None) -> Path:
             "## Código fuente LaTeX\n\n```latex\n" + contenido_latex + "\n```",
         ]
     )
-    filename.write_text("\n\n".join(sections) + "\n", encoding="utf-8")
+    content = marker + "\n\n".join(sections) + "\n"
+    try:
+        _publish_owned_qmd(filename, content, marker)
+    except FileExistsError:
+        # Equal titles (including source-scoped IDs) retain separate documents.
+        # Unmarked legacy output cannot safely be claimed or overwritten.
+        filename = validate_mutable_path(
+            filename.with_stem(filename.stem + "-" + identity), allowed_root=directory,
+        )
+        _publish_owned_qmd(filename, content, marker)
     return filename
+
+
+def _publish_owned_qmd(filename: Path, content: str, marker: str) -> None:
+    """Publish privately without replacing another identity or an unmarked file."""
+    temporary = None
+    try:
+        with NamedTemporaryFile(mode="w", encoding="utf-8", dir=filename.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        try:
+            os.link(temporary, filename)
+        except FileExistsError:
+            validate_mutable_path(filename, allowed_root=filename.parent)
+            with filename.open(encoding="utf-8") as existing:
+                if existing.readline() != marker:
+                    raise FileExistsError("QMD destination belongs to another or unknown identity") from None
+            os.replace(temporary, filename)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def main(argv: Sequence[str] | None = None) -> int:
