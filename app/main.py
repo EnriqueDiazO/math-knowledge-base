@@ -5,7 +5,6 @@ Streamlit GUI for managing mathematical concepts and knowledge graphs.
 """
 
 import sys
-import os
 from pathlib import Path
 
 # Add the project root to Python path

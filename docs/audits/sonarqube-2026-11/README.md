@@ -206,3 +206,24 @@ falla (conserva warnings de deprecación). TypeScript/ESLint, 107 tests y build/
 frontend aprobados; 12 tests Python de empaquetado/constraints aprobados. No se
 eliminó código de app para reducir advertencias. Los reemplazos de recursos generados
 se documentan en DELETIONS.md y se verifican con las pruebas de manifiesto.
+
+## Revisión restante y simplificaciones
+
+Sonar S3923 detectó dos ramas literalmente idénticas en validate_concept_from_mongo;
+se sustituyen por su consulta común. Se conserva el contrato de id/source, LaTeX,
+resultado y excepciones, probado con la suite existente. Se retira el segundo import
+idéntico de List (el primero permanece), el import os redundante del wrapper de app,
+la asignación local fullscreen_key que sólo aparecía en un bloque comentado, y un
+cálculo de title no usado en Quarto (_file_stem ya calcula el mismo título puro).
+No se elimina ninguna función ni API pública. 50 tests de validación/compilación,
+grafo y edición de identidad aprobados tras este lote (refactor-tests.log).
+
+El E2E del runtime completo sí se ejecutó y detectó un harness desactualizado:
+buscaba Navigation/Documents/Workspace/Open y tarjetas en expanders; la UI real ya
+usa Navegación/Biblioteca/Leer y tarjetas container con claves estables. Se actualiza
+sólo el probe, manteniendo sus comprobaciones de apertura, vínculo document-only,
+render PDF real, worker local, aislamiento y limpieza. Primer fallo se conserva en
+runtime-e2e-obsolete-selectors.log. Se añadió espera explícita a la URL destino de
+la nueva pestaña, evitando leer su URL antes de la navegación efectiva.
+Los 8 E2E Mongo (5 nuevos + 3 existentes) ya pasan con el nuevo PyMongo en standalone,
+portabilidad/edición y comprobación de restauración incluidas (final-mongo-e2e.log).

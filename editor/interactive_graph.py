@@ -549,7 +549,6 @@ class InteractiveGraphManager:
             unique_suffix = hashlib.md5(graph_file.encode()).hexdigest()[:8]
         
         refresh_key = f"refresh_graph_{unique_suffix}"
-        fullscreen_key = f"fullscreen_graph_{unique_suffix}"
         
         # Graph controls
         col1, col2, col3 = st.columns([2, 1, 1])

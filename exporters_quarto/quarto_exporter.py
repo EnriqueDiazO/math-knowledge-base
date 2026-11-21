@@ -404,7 +404,6 @@ class QuartoBookExporter:
 
         # 2) generar QMDs
         for c in concepts:
-            title = _safe_title(c)
             stem = _file_stem(c)
             out_dir = self.build_dir / _route(c)
             out_dir.mkdir(parents=True, exist_ok=True)
