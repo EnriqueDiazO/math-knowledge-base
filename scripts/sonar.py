@@ -8,6 +8,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import secrets
 import socket
 import subprocess
@@ -25,6 +26,7 @@ from urllib.request import ProxyHandler
 from urllib.request import Request
 from urllib.request import build_opener
 from urllib.request import urlopen
+from xml.etree import ElementTree
 
 ROOT = Path(__file__).resolve().parents[1]
 INFRA = ROOT / "infra/sonarqube"
@@ -204,8 +206,26 @@ def bootstrap() -> None:
     print("Project ready; admin password/token stored privately at infra/sonarqube/access.local.json")
 
 
+def check_reference(auth: str, gate: dict | None = None) -> None:
+    """Check, without changing, the effective reference pinned by this audit."""
+    expected = json.loads((INFRA / "reference.json").read_text())
+    if gate is None:
+        gate = api("/api/qualitygates/project_status?projectKey=" + PROJECT, auth=auth)
+    actual = gate["projectStatus"].get("period", {})
+    if any(actual.get(key) != expected[key] for key in ("mode", "date")):
+        raise ValueError("New-code reference changed; do not compare or publish this analysis")
+
+
+def evidence_label(value: str) -> str:
+    """Allow descriptive artifact labels without filesystem traversal or version changes."""
+    if not re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9_-]{0,63}", value):
+        raise argparse.ArgumentTypeError("Use a short filename-safe evidence label")
+    return value
+
+
 def snapshot(label: str) -> None:
     """Persist metrics, exact CE result, gate and issues after server processing."""
+    evidence_label(label)
     # Project analysis tokens cannot read every administrative endpoint; use local admin
     # for evidence, while the scanner always receives the scoped analysis token.
     state = credentials()
@@ -228,6 +248,7 @@ def snapshot(label: str) -> None:
     measures = api("/api/measures/component?" + urlencode({"component": PROJECT,
                    "metricKeys": ",".join(keys)}), auth=auth)
     gate = api("/api/qualitygates/project_status?" + urlencode({"analysisId": ce["task"]["analysisId"]}), auth=auth)
+    check_reference(auth, gate)
     issues = []
     page = 1
     while True:
@@ -251,10 +272,23 @@ def snapshot(label: str) -> None:
 
 def scan(label: str) -> int:
     """Generate coverage first, scan locally, then capture the processed result."""
-    subprocess.run([sys.executable, str(ROOT / "scripts/quality.py")], cwd=ROOT, check=True)
+    evidence_label(label)
+    state = credentials()
+    auth = basic(state["admin_password"]) if state.get("admin_password") else token_auth()
+    if api("/api/system/status").get("status") != "UP":
+        raise ValueError("SonarQube is not ready")
+    check_reference(auth)
+    python_report = ROOT / "evidence/sonar/coverage.xml"
+    javascript_report = ROOT / "frontend/advanced-reader/coverage/lcov.info"
+    for report in (python_report, javascript_report):
+        report.unlink(missing_ok=True)
+    subprocess.run([sys.executable, str(ROOT / "scripts/quality.py"), "--with-mongo"], cwd=ROOT, check=True)
+    subprocess.run(["npm", "run", "test:coverage"], cwd=ROOT / "frontend/advanced-reader", check=True)
+    if (ElementTree.parse(python_report).getroot().tag != "coverage"
+            or "end_of_record" not in javascript_report.read_text()):
+        raise ValueError("Coverage reports were not generated correctly")
     install_scanner()
     environment = dict(os.environ, SONAR_HOST_URL=local_url(), SONAR_TOKEN=token_auth().removeprefix("Bearer "))
-    api("/api/system/status")  # Verify connectivity from the actual native scanner host.
     report_task = ROOT / ".scannerwork/report-task.txt"
     report_task.unlink(missing_ok=True)
     result = subprocess.run([str(SCANNER)], cwd=ROOT, env=environment, check=False)
@@ -269,7 +303,7 @@ def main() -> int:
     """Expose deliberately small, explicit lifecycle commands."""
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("command", choices=["init", "install-scanner", "up", "bootstrap", "scan", "snapshot", "status", "down"])
-    parser.add_argument("--label", default="latest", choices=["baseline", "final", "latest"])
+    parser.add_argument("--label", default="latest", type=evidence_label)
     args = parser.parse_args()
     try:
         local_url()

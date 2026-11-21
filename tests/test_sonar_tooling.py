@@ -34,10 +34,22 @@ def test_failed_scanner_does_not_publish_the_previous_analysis(tmp_path, monkeyp
     task.write_text("ceTaskId=previous-success\n")
     monkeypatch.setattr(sonar, "ROOT", tmp_path)
     monkeypatch.setattr(sonar, "install_scanner", lambda: None)
+    monkeypatch.setattr(sonar, "credentials", lambda: {})
+    monkeypatch.setattr(sonar, "check_reference", lambda *_args: None)
     monkeypatch.setattr(sonar, "token_auth", lambda: "Bearer test-only-token")
     monkeypatch.setattr(sonar, "local_url", lambda: "http://127.0.0.1:19000")
     monkeypatch.setattr(sonar, "api", lambda *_args, **_kwargs: {"status": "UP"})
-    monkeypatch.setattr(sonar.subprocess, "run", lambda *_args, **_kwargs: SimpleNamespace(returncode=7))
+    def run(command, **_kwargs):
+        if "--with-mongo" in command:
+            report = tmp_path / "evidence/sonar/coverage.xml"
+            report.parent.mkdir(parents=True)
+            report.write_text("<coverage />")
+        elif command[:2] == ["npm", "run"]:
+            report = tmp_path / "frontend/advanced-reader/coverage/lcov.info"
+            report.parent.mkdir(parents=True)
+            report.write_text("end_of_record")
+        return SimpleNamespace(returncode=7 if command == [str(sonar.SCANNER)] else 0)
+    monkeypatch.setattr(sonar.subprocess, "run", run)
     published = []
     monkeypatch.setattr(sonar, "snapshot", published.append)
     assert sonar.scan("final") == 7

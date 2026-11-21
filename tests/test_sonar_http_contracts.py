@@ -18,6 +18,7 @@ def installation(tmp_path, monkeypatch):
     """Redirect all private files and requests to one disposable local installation."""
     infrastructure = tmp_path / "infra/sonarqube"
     infrastructure.mkdir(parents=True)
+    (infrastructure / "reference.json").write_text(json.dumps({"mode": "PREVIOUS_VERSION", "date": "2026-11-21T16:46:16+0000"}))
     monkeypatch.setattr(sonar, "ROOT", tmp_path)
     monkeypatch.setattr(sonar, "INFRA", infrastructure)
     monkeypatch.setattr(sonar, "PRIVATE", infrastructure / "access.local.json")
