@@ -46,6 +46,8 @@ def insert_concept_with_latex_atomic(
     concepto_dict: dict,
     contenido_latex: str,
     now,
+    *,
+    operation_id: str | None = None,
 ) -> None:
     """
     Best-effort atomic insert across concepts and latex_documents.
@@ -66,6 +68,8 @@ def insert_concept_with_latex_atomic(
         "fecha_creacion": now,
         "ultima_actualizacion": now,
     }
+    if operation_id is not None:
+        latex_doc["_map_operation"] = operation_id
     source_id = doc.get("source_id")
     if source_id is not None:
         latex_doc["source_id"] = source_id
