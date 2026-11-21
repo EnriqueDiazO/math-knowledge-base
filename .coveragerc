@@ -1,5 +1,6 @@
 [run]
 relative_files = True
+patch = subprocess
 source =
     .
 omit =

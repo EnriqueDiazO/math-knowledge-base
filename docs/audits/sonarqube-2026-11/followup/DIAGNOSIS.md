@@ -76,3 +76,18 @@ Tooling de análisis/verificación, definido como sonar.py + quality.py + qualit
 Fuentes primarias de instrumentación: [pytest-cov 7](https://pytest-cov.readthedocs.io/en/latest/subprocess-support.html), [coverage 7.16.2](https://coverage.readthedocs.io/en/7.16.2/subprocess.html), [LCOV/Sonar](https://docs.sonarsource.com/sonarqube-community-build/analyzing-source-code/test-coverage/javascript-typescript-test-coverage).
 
 El JSON detallado local before-line-coverage.json permite comprobar cada línea contra el servidor. Las evidencias previas se preservan sin sobrescribir baseline/final; las nuevas usan followup-* y directorio de fase.
+
+## Error de rutas descubierto al habilitar hijos
+
+El primer smoke de instrumentación aprobó 28 tests, pero se interrumpió durante el
+reporte porque un hijo con cwd distinto interpretaba los omit relativos contra ese
+cwd y entraba al venv. No es un resultado de calibración aprobado. Coverage 7.16.2
+serializa source/data_file absolutos para sus hijos, pero no omit (config.py,
+SERIALIZE_ABSPATH). Se genera coverage-runtime.ini desde .coveragerc anclando source
+y los mismos diez omit a ROOT. No se añade ninguna exclusión. El smoke corregido
+aprueba 28 unitarios y 9 E2E; el XML no contiene tests/venv/.tools y sí los módulos
+propios. Esta normalización es parte de la reparación instrumental, no del Gate.
+
+LCOV inicial de los 107 tests existentes: líneas 1266/1508 (83.95%), ramas 736/1063
+(69.23%). Sonar conservará todos sus archivos fuente; los scripts de build que no
+entran en ese reporte no se excluyen del análisis ni de su denominador de cobertura.

@@ -66,6 +66,11 @@ export default defineConfig({
     },
   },
   test: {
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "json-summary"],
+      include: ["src/**/*.{ts,tsx}"],
+    },
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     css: false,
