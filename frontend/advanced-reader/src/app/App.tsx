@@ -365,6 +365,9 @@ export function AdvancedReaderApp({
     api.getMetadata(documentId, abortController.signal)
       .then((value) => {
         if (!abortController.signal.aborted) {
+          if (!value.capabilities.thumbnails) {
+            setSidebarOpen(false);
+          }
           setMetadata(value);
           const initialPage = value.reading_state.current_page ?? 1;
           currentPageRef.current = initialPage;
@@ -389,12 +392,6 @@ export function AdvancedReaderApp({
       });
     return () => abortController.abort();
   }, [api, documentId, emitEvent, retryKey]);
-
-  useEffect(() => {
-    if (metadata !== null && !metadata.capabilities.thumbnails) {
-      setSidebarOpen(false);
-    }
-  }, [metadata]);
 
   useEffect(() => {
     if (

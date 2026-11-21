@@ -176,3 +176,23 @@ Evidencia antes (unitarias nuevas): 16 failed / 5 passed. Después: 23 passed en
 regresiones de parser/paths y tests XDG preexistentes. Logs en regressions-before.log
 y parsers-after.log. Ruff en el módulo QMD conserva 4 docstrings faltantes de la
 clase stub preexistente ExportadorQuarto: no se ocultan ni se elimina esa API pública.
+
+## Carrera de estado del lector (hallazgo al validar dependencias)
+
+La suite frontend expuso dos veces un fallo intermitente preexistente: el evento
+`document_loaded` podía anunciar el documento con miniaturas no permitidas aún
+visibles (`aria-hidden=false`). La prueba existente events.test.tsx: uses metadata
+capabilities... ya caracteriza el contrato y no se relajó. La restricción se
+aplicaba en un useEffect posterior a la publicación de metadata, con un render
+intermedio inconsistente. Se aplica ahora en el mismo callback que carga metadata,
+antes de publicarla. Se elimina ese efecto duplicado; se conserva la preferencia
+persistida del panel y se evita un render adicional. Evidencia de fallos previos en
+frontend-security-checks.log de los ensayos; el resultado final se registra al
+cerrar el lote. No se mezclará este cambio de estado con el commit de dependencias.
+
+Resultado tras corregir la carrera: typecheck + ESLint + 107 tests frontend
+aprobados; build/publish con los controles de inventario y privacidad aprobado.
+Transcripción del fallo observado antes: events.test.tsx:283 esperaba
+aria-hidden="true" en "Miniaturas PDF" y recibió "false". El test aislado pasaba,
+pero falló dos veces en la suite completa, por lo que no se aceptó como ruido.
+El log frontend-security-checks.log conserva el resultado final del mismo control.
