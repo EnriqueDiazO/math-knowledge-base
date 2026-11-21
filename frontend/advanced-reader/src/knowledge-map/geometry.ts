@@ -24,14 +24,14 @@ export function focus(v: Vec, camera: Camera): Camera {
   return { ...camera, yaw: -Math.atan2(v[0], v[2]), pitch: Math.atan2(v[1], Math.hypot(v[0], v[2])) };
 }
 export function project(v: Vec, camera: Camera, width: number, height: number, flat = false): Point {
-  const radius = Math.min(width, height) * .38 * camera.zoom;
+  const radius = Math.min(width, height) * .36 * camera.zoom;
   if (flat) return { x: width / 2 + Math.atan2(v[0], v[2]) / Math.PI * radius,
     y: height / 2 - Math.asin(v[1]) / (Math.PI / 2) * radius, z: 1 };
   const [x, y, z] = rotate(v, camera);
   return { x: width / 2 + x * radius, y: height / 2 - y * radius, z };
 }
 export function surface(x: number, y: number, camera: Camera, width: number, height: number): Vec {
-  const radius = Math.min(width, height) * .38 * camera.zoom;
+  const radius = Math.min(width, height) * .36 * camera.zoom;
   const a = (x - width / 2) / radius, b = -(y - height / 2) / radius;
   return unit(unrotate(unit([a, b, Math.sqrt(Math.max(0, 1 - a * a - b * b))]), camera));
 }

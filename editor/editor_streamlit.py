@@ -1122,7 +1122,7 @@ with st.sidebar.expander("Acciones de conexión", expanded=False, icon=":materia
 with st.sidebar:
     st.divider()
     st.subheader("Tema")
-    active_theme = render_theme_control(st)
+    active_theme = render_theme_control(st, study_mode=st.session_state.get(NAVIGATION_WIDGET) in {"🗺️ Grafo de conocimiento", "Habitación de estudio"})
 apply_mathmongo_theme(active_theme, st)
 st.sidebar.divider()
 

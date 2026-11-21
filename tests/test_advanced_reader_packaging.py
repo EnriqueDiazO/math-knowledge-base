@@ -162,6 +162,10 @@ def test_frontend_manifest_has_reproducible_pinned_runtime_and_build_commands() 
     assert package["type"] == "module"
     assert package["packageManager"] == "npm@11.12.1"
     assert package["dependencies"] == {
+        "@tiptap/core": "3.35.0",
+        "@tiptap/starter-kit": "3.35.0",
+        "dompurify": "3.4.18",
+        "mathlive": "0.111.4",
         "pdfjs-dist": "6.2.108",
         "react": "19.2.7",
         "react-dom": "19.2.7",
