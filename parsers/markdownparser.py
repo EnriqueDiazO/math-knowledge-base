@@ -26,6 +26,10 @@ class MarkdownParser:
     def parsear_md(self, md_path: str, guardar: bool = True) -> dict:
         with open(md_path, encoding="utf-8") as f:
             contenido = f.read()
+        # These two legacy fields require a terminating newline. Exclude an
+        # unterminated tail before matching so whitespace cannot be repartitioned
+        # quadratically while looking for a newline that does not exist.
+        contenido_terminado = contenido[:contenido.rfind("\n") + 1]
 
         obj = {
             "id": "",
@@ -51,7 +55,7 @@ class MarkdownParser:
             "contexto": ""
         }
 
-        titulo = re.search(r"#\s+(.*?)\n", contenido)
+        titulo = re.search(r"#\s+(.*?)\n", contenido_terminado)
 
         #id_match = re.search(r"\*\*ID\*\*:\s*(.*)", contenido)
         #if id_match:
@@ -110,7 +114,7 @@ class MarkdownParser:
         if explicacion_latex:
             obj["explicacion_latex"] = explicacion_latex[0].strip()
 
-        ref = re.search(r"\*\*Referencia\*\*:\s*(.*?)\n", contenido)
+        ref = re.search(r"\*\*Referencia\*\*:\s*(.*?)\n", contenido_terminado)
         if ref:
             partes = [x.strip() for x in ref.group(1).split(",")]
             if len(partes) >= 3:

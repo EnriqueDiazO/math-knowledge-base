@@ -37,7 +37,7 @@ ASSETS_DIRNAME = "cornell_assets"
 LINES_IMAGE_FILENAME = "lineas.png"
 LINES_IMAGE_INCLUDE_PATH = f"{ASSETS_DIRNAME}/{LINES_IMAGE_FILENAME}"
 SOURCE_MARKER_PATTERN = re.compile(r"% Cornell source page=(?P<page>\d+) region=(?P<region>\w+)")
-LATEX_FILE_LINE_PATTERN = re.compile(r"(?P<file>[^\s:]+\.tex):(?P<line>\d+):")
+LATEX_FILE_LINE_PATTERN = re.compile(r"(?<![^\s:])(?P<file>[^\s:]+\.tex):(?P<line>\d+):")
 LATEX_ERROR_PATTERN = re.compile(r"LaTeX Error:\s*(?P<message>.+)")
 HYBRID_REGION_CONTENT_WIDTHS = {
     "cue": "2.08in",

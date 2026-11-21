@@ -46,9 +46,21 @@ VISUAL_RECT_BOUNDARY_TOLERANCE = 1e-9
 VISUAL_ANNOTATION_COLORS = frozenset({"yellow", "green", "blue", "pink", "purple"})
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 HTML_MARKUP_RE = re.compile(
-    r"<!--[\s\S]*?-->|<!DOCTYPE\s+[^>]*>|</?[A-Za-z][A-Za-z0-9:-]*(?:\s+[^<>]*)?/?>",
+    r"</?[A-Za-z][A-Za-z0-9:-]*(?:\s+(?:[^<>\s][^<>]*)?)?/?>",
     flags=re.IGNORECASE,
 )
+DOCTYPE_PREFIX_RE = re.compile(r"<!DOCTYPE\s+", flags=re.IGNORECASE)
+
+
+def _contains_html_markup(value: str) -> bool:
+    """Detect complete markup without rescanning overlapping unterminated prefixes."""
+    comment = value.find("<!--")
+    if comment >= 0 and value.find("-->", comment + 4) >= 0:
+        return True
+    doctype = DOCTYPE_PREFIX_RE.search(value)
+    if doctype is not None and value.find(">", doctype.end()) >= 0:
+        return True
+    return HTML_MARKUP_RE.search(value) is not None
 
 
 def utc_now() -> datetime:
@@ -223,7 +235,7 @@ def normalize_visual_quote_text(value: Any) -> str:
         raise ValueError("visual quote_text must contain valid Unicode") from exc
     if "\x00" in value:
         raise ValueError("visual quote_text cannot contain NUL characters")
-    if HTML_MARKUP_RE.search(value):
+    if _contains_html_markup(value):
         raise ValueError("visual quote_text must be plain text without HTML markup")
     normalized = re.sub(r"\s+", " ", value, flags=re.UNICODE).strip()
     if not normalized:
