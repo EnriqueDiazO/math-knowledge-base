@@ -2078,7 +2078,8 @@ def apply_database_update(
                     )
                     continue
 
-                assert action.classification is DocumentClassification.CONFLICT
+                if action.classification is not DocumentClassification.CONFLICT:
+                    raise StaleUpdatePlanError("Unsupported document classification reached update apply")
                 if (
                     current is None
                     or action.existing is None
