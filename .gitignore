@@ -49,6 +49,8 @@ dist/
 *.csv
 *.tsv
 *.xlsx
+# Private authoritative migration corpus; never publish its contents.
+/mathkb_export_20260712_073927.zip
 # ───── Quarto build (generated) ─────
 quarto_book_build/
 quarto_book_build/_book/
