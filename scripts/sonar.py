@@ -15,6 +15,7 @@ import sys
 import time
 import zipfile
 from pathlib import Path
+from tempfile import NamedTemporaryFile
 from urllib.error import HTTPError
 from urllib.error import URLError
 from urllib.parse import urlencode
@@ -59,16 +60,28 @@ def local_url() -> str:
 
 
 def write_private(path: Path, content: str) -> None:
-    """Create secrets with mode 0600, including during the initial write."""
-    descriptor = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(descriptor, "w") as handle:
-        handle.write(content)
-    path.chmod(0o600)
+    """Publish mode-0600 secrets atomically, preserving recoverable state on failure."""
+    if path.is_symlink():
+        raise ValueError("Private configuration must not be a symlink")
+    temporary = None
+    try:
+        with NamedTemporaryFile(mode="w", dir=path.parent, delete=False) as handle:
+            temporary = Path(handle.name)
+            handle.write(content)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, path)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def credentials() -> dict:
     """Read local state without logging it."""
-    return json.loads(PRIVATE.read_text()) if PRIVATE.exists() else {}
+    state = json.loads(PRIVATE.read_text()) if PRIVATE.exists() else {}
+    if state and state.get("url") != local_url():
+        raise ValueError("Saved credentials belong to another instance URL")
+    return state
 
 
 def api(path: str, *, data: dict | None = None, auth: str | None = None) -> dict:
@@ -202,6 +215,10 @@ def snapshot(label: str) -> None:
     ce = api("/api/ce/task?" + urlencode({"id": task["ceTaskId"]}), auth=auth)
     if ce["task"]["status"] != "SUCCESS":
         raise ValueError("Server has not successfully processed this analysis")
+    analyses = api("/api/project_analyses/search?" + urlencode({"project": PROJECT, "ps": 1}), auth=auth)
+    latest = analyses["analyses"][0]
+    if latest["key"] != ce["task"]["analysisId"]:
+        raise ValueError("Task is not the latest analysis; current metrics cannot be attached")
     available = api("/api/metrics/search?ps=500", auth=auth)["metrics"]
     wanted = {"ncloc", "files", "coverage", "line_coverage", "lines_to_cover", "uncovered_lines",
               "duplicated_lines_density", "duplicated_blocks", "complexity", "cognitive_complexity",
@@ -219,7 +236,8 @@ def snapshot(label: str) -> None:
         if len(issues) >= result["paging"]["total"]:
             break
         page += 1
-    report = {"revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
+    report = {"revision": latest.get("revision"),
+              "worktree_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], cwd=ROOT, text=True).strip(),
               "ce": ce, "gate": gate, "measures": measures, "issues": issues,
               "profiles": api("/api/qualityprofiles/search?project=" + PROJECT, auth=auth),
               "hotspots": api("/api/hotspots/search?project=" + PROJECT + "&ps=100", auth=auth),

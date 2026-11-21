@@ -47,6 +47,7 @@ def main() -> int:
         )
         result = subprocess.run(
             [sys.executable, "-m", "pytest", "--cov", "--cov-report=xml",
+             "--basetemp", str(Path(directory) / "pytest"),
              "--cov-report=term:skip-covered", "--junitxml=evidence/sonar/pytest.xml", *arguments],
             cwd=ROOT, env=environment, check=False,
         )

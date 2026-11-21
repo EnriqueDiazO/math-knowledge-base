@@ -37,8 +37,9 @@ def main() -> int:
              "--port", str(port), "--nounixsocket", "--logpath", str(root / "mongod.log")],
             stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
         )
-        client = MongoClient(uri, serverSelectionTimeoutMS=200, connectTimeoutMS=200)
+        client = None
         try:
+            client = MongoClient(uri, serverSelectionTimeoutMS=200, connectTimeoutMS=200)
             deadline = time.monotonic() + 20
             while True:
                 if process.poll() is not None:
@@ -50,7 +51,10 @@ def main() -> int:
                     if time.monotonic() >= deadline:
                         raise RuntimeError("Owned mongod did not become ready") from None
                     time.sleep(0.1)
-            assert set(client.list_database_names()) <= {"admin", "config", "local"}
+            if client.admin.command("serverStatus").get("pid") != process.pid:
+                raise RuntimeError("MongoDB process identity does not match the owned process")
+            if set(client.list_database_names()) - {"admin", "config", "local"}:
+                raise RuntimeError("Owned MongoDB is not a fresh database")
             print(f"Owned standalone MongoDB: {uri}; dbpath={database_path}", flush=True)
             environment = dict(os.environ)
             for name in ("MONGO_URI", "MONGO_DB", "DB_NAME"):
@@ -64,7 +68,8 @@ def main() -> int:
             arguments = sys.argv[1:]
             command = ([sys.executable, "tests/run_advanced_reader_e2e.py"]
                        if arguments == ["--reader-browser"] else
-                       [sys.executable, "-m", "pytest", "-q", "-s", *(arguments or DEFAULT_TESTS)])
+                       [sys.executable, "-m", "pytest", "-q", "-s", "--basetemp", str(root / "pytest"),
+                        *(arguments or DEFAULT_TESTS)])
             result = subprocess.run(command, cwd=ROOT,
                                     env=environment, check=False)
             remaining = set(client.list_database_names()) - {"admin", "config", "local"}
@@ -72,13 +77,16 @@ def main() -> int:
                 raise RuntimeError(f"Test databases were not removed: {sorted(remaining)}")
             return result.returncode
         finally:
-            client.close()
-            process.terminate()
             try:
-                process.wait(timeout=20)
-            except subprocess.TimeoutExpired:
-                process.kill()
-                process.wait(timeout=5)
+                if client is not None:
+                    client.close()
+            finally:
+                process.terminate()
+                try:
+                    process.wait(timeout=20)
+                except subprocess.TimeoutExpired:
+                    process.kill()
+                    process.wait(timeout=5)
 
 
 if __name__ == "__main__":
