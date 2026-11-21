@@ -168,6 +168,21 @@ async function validateReader(context) {
   await textLayer.waitFor({ state: "attached", timeout: 20_000 });
   const text = (await textLayer.textContent())?.replace(/\s+/gu, " ").trim() ?? "";
   const screenshot = await page.screenshot({ type: "png" });
+  const scrollContainer = page.locator("#viewerContainer");
+  await scrollContainer.evaluate((element) => { element.scrollTop = 0; });
+  await scrollContainer.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.waitForFunction(() => document.getElementById("viewerContainer").scrollTop > 0,
+    undefined, { timeout: 3000 });
+  const keyboardScroll = await scrollContainer.evaluate((element) => ({
+    focused: document.activeElement === element,
+    delta: element.scrollTop,
+    name: element.getAttribute("aria-label"),
+  }));
+  if (!keyboardScroll.focused || keyboardScroll.delta <= 0 || !keyboardScroll.name) {
+    throw new Error("reader_keyboard_scroll_region_not_accessible");
+  }
+
   if (
     canvas === null ||
     !text.includes("Advanced Reader page 1") ||
@@ -190,6 +205,7 @@ async function validateReader(context) {
     remote_request_count: remoteOrigins.size,
     page_error_count: pageErrors.length,
     screenshot_bytes: screenshot.byteLength,
+    keyboard_scroll: keyboardScroll,
     canvas,
   };
 }

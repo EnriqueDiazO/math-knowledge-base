@@ -1056,7 +1056,7 @@ export function AdvancedReaderApp({
             onChoose={beginVisualAnnotation}
             onCancel={() => controllerRef.current?.clearSelection("user")}
           />
-          <div ref={containerRef} id="viewerContainer" tabIndex={0}>
+          <div ref={containerRef} id="viewerContainer" tabIndex={0} role="region" aria-label="Páginas del documento">
             <div ref={viewerRef} id="viewer" className="pdfViewer" />
           </div>
         </main>
