@@ -1311,7 +1311,11 @@ class BootstrapEngine:
                 self._checkpoint("manifest_prepared")
             else:
                 resumed = True
-            assert manifest is not None and expected is not None
+            if manifest is None or expected is None:
+                raise BootstrapBlockedError(
+                    "missing_prepared_state",
+                    "The prepared manifest and expected catalog are required before reconciliation.",
+                )
 
             reconciliation = self._reconcile(manifest, expected)
             if manifest.state == ManifestState.APPLIED:
