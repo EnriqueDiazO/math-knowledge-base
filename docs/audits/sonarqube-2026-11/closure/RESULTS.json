@@ -1,0 +1,301 @@
+{
+  "analysis_id": "35032b37-475f-4c41-a9d5-6ca23bfb3506",
+  "revision": "3d6e0021b806a10fefc8c98c07d51ed2567ee377",
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "97.9"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "metrics": {
+    "coverage": "67.5",
+    "complexity": "16130",
+    "duplicated_lines_density": "1.9",
+    "code_smells": "32",
+    "security_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "maintainability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":32,\"HIGH\":0,\"BLOCKER\":0,\"total\":32}",
+    "security_hotspots": "0",
+    "sqale_index": "160",
+    "bugs": "0",
+    "lines_to_cover": "46294",
+    "uncovered_lines": "14950",
+    "cognitive_complexity": "17852",
+    "duplicated_blocks": "86",
+    "ncloc": "90102",
+    "files": "283",
+    "vulnerabilities": "0",
+    "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":32,\"BLOCKER\":0,\"total\":32}",
+    "line_coverage": "67.7"
+  },
+  "python_coverage": {
+    "lines-valid": "44454",
+    "lines-covered": "29929",
+    "line-rate": "0.6733"
+  },
+  "new_coverage_files": [
+    {
+      "file": "frontend/advanced-reader/src/app/App.tsx",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 2,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "mathmongo/source_catalog_migration/bootstrap.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/utils/cleanup_exports.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/db/concept_repository.py",
+      "covered_lines": 6,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/database_import_page.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/utils/db_update.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "scripts/export_knowledge_graph.py",
+      "covered_lines": 28,
+      "uncovered_lines": 1,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "exporters_latex/exportar_qmd_desde_mongo.py",
+      "covered_lines": 43,
+      "uncovered_lines": 1,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "visualizations/grafoconocimiento.py",
+      "covered_lines": 5,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/interactive_graph.py",
+      "covered_lines": 11,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "parsers/markdownparser.py",
+      "covered_lines": 26,
+      "uncovered_lines": 2,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/utils/media_assets.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "mathmongo/source_catalog_migration/models.py",
+      "covered_lines": 1,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "mathmongo/reading_annotations/models.py",
+      "covered_lines": 10,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/note_branding.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/pdf_export.py",
+      "covered_lines": 11,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "frontend/advanced-reader/src/pdf/PdfJsController.ts",
+      "covered_lines": 1,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "mathmongo/source_catalog_migration/planner.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "frontend/advanced-reader/scripts/prepare-pdf-worker.mjs",
+      "covered_lines": 0,
+      "uncovered_lines": 1,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "frontend/advanced-reader/scripts/publish-build.mjs",
+      "covered_lines": 0,
+      "uncovered_lines": 1,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "scripts/quality.py",
+      "covered_lines": 43,
+      "uncovered_lines": 1,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "scripts/quality_mongo.py",
+      "covered_lines": 69,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/cornell/renderer.py",
+      "covered_lines": 1,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/cpi/renderer.py",
+      "covered_lines": 1,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "editor/source_catalog/shared.py",
+      "covered_lines": 1,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "scripts/sonar.py",
+      "covered_lines": 249,
+      "uncovered_lines": 4,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "frontend/advanced-reader/scripts/text-normalization.mjs",
+      "covered_lines": 15,
+      "uncovered_lines": 0,
+      "covered_conditions": 10,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "frontend/advanced-reader/vite.config.ts",
+      "covered_lines": 0,
+      "uncovered_lines": 1,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    },
+    {
+      "file": "parsers/yaml_latex_parser.py",
+      "covered_lines": 2,
+      "uncovered_lines": 0,
+      "covered_conditions": 0,
+      "uncovered_conditions": 0
+    }
+  ],
+  "unit_suite": {
+    "passed": 1925,
+    "skipped_opt_in": 9,
+    "failed": 0,
+    "source_revision": "d2ff0bbd"
+  },
+  "subsequent_focused_checks": {
+    "markdown_with_fresh_file_coverage": 46,
+    "new_nullable_contracts": 15,
+    "compatibility": 75,
+    "regex": 120
+  },
+  "unique_python_passed": 1949,
+  "remaining_unexecuted": 0,
+  "mongo_e2e_passed": 9,
+  "frontend_passed": 110,
+  "python_packages": {
+    "records": 160,
+    "public_audited": 159,
+    "skipped_own_package": [
+      "mathmongo"
+    ],
+    "vulnerable_packages": 0
+  },
+  "artifacts_sha256": {
+    "checkpoint-sonar.json": "761f06531bb19fc63104da1a0a5a64f1f57ffee3e096a6d04a5a4b45f8781d7b",
+    "checkpoint-coverage.xml": "0c6de9c64c06e87d20d6861da628f8798bba59e2f97bd6983324b5c43a261ccd",
+    "checkpoint-lcov.info": "8aaccdc441f5813a314e3c0cec52ec41ede12cb152f2ed018de2ee0d4b775da6",
+    "complete-suite-pytest.xml": "ccaa76fdcef710d07db28cd686579263ee5c0243bf1bb7617dcd536f34619048",
+    "pip-audit.json": "647c82816bb42aa95bb5f10deb49aeb3b73dcf9f836cad3b7f9296abdd12bb20",
+    "issue-dispositions.json": "8859ed34d0822925a90a1a972582a0591e9738c39244af0467db5830e3540e55",
+    "npm-audit.json": "50f11ac715294dd1eb6254c585bf4b9003eafccca74f738bfc6db852e7d280b7"
+  }
+}

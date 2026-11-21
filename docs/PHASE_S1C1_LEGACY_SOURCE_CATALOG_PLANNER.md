@@ -1,5 +1,9 @@
 # Fase S1C1 — Planificador del catálogo Source legacy
 
+> Documento histórico v1. La canonicalización actual es s1c1-v2; nombres/mtime
+> locales no forman parte de la identidad semántica. No reutilizar aprobaciones v1
+> como v2. Cambio, pruebas y nuevo hash: [cierre de auditoría](audits/sonarqube-2026-11/closure/CHECKPOINT.md).
+
 ## Objetivo y alcance
 
 S1C1 incorpora una frontera de sólo lectura para inspeccionar el export legacy de

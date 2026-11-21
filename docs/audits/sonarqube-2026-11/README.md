@@ -1,5 +1,10 @@
 # Auditoría MathMongo / SonarQube — 2026-11-21
 
+**Checkpoint estricto vigente:** [closure/CHECKPOINT.md](closure/CHECKPOINT.md).
+Código 3d6e0021, análisis 35032b37, Gate OK, cobertura nueva 97,9%, Python 67,33%,
+general Sonar 67,5%. Corpus histórico verificado y dependencias corregidas en .venv.
+El historial siguiente conserva las entregas anteriores.
+
 **Cierre vigente:** [followup/FINAL.md](followup/FINAL.md). Gate OK; cobertura nueva
 96,1%, general Sonar 66,4%, Python 65,94%; análisis f62b032f sobre 8723ab2b.
 Las fases siguientes conservan el registro histórico, incluidas las cifras previas.

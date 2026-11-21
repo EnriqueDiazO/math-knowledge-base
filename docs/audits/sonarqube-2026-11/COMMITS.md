@@ -83,3 +83,10 @@ El commit documental posterior añade el cierre, CSV de los 16 bugs, los 64 avis
 Python únicos, cobertura por archivo y guía de repetición. La revisión analizada es
 8723ab2b; ese commit documental no cambia fuentes, pruebas ni configuración.
 Las regresiones y evidencia de cada lote están en followup/REGRESSIONS.md.
+
+## Cierre estricto previo a la esfera
+
+La continuación desde `41c25714`, sus quince commits de código/infraestructura y
+sus regresiones se detallan en [closure/COMMITS.md](closure/COMMITS.md).
+El checkpoint vigente está en [closure/CHECKPOINT.md](closure/CHECKPOINT.md);
+los apartados anteriores conservan las revisiones y resultados históricos.

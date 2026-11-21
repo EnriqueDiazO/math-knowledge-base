@@ -1,5 +1,9 @@
 # Fase S1C2A — Motor de bootstrap del catálogo legacy
 
+> Documento histórico v1. La canonicalización actual es s1c1-v2; nombres/mtime
+> locales no forman parte de la identidad semántica. No reutilizar aprobaciones v1
+> como v2. Cambio, pruebas y nuevo hash: [cierre de auditoría](audits/sonarqube-2026-11/closure/CHECKPOINT.md).
+
 ## Objetivo
 
 S1C2A implementa el motor que podrá materializar el Source Catalog de S1A a

@@ -1,5 +1,9 @@
 # Fase S1C2P — bootstrap operativo del Source Catalog en MathV0
 
+> Documento histórico v1. La canonicalización actual es s1c1-v2; nombres/mtime
+> locales no forman parte de la identidad semántica. No reutilizar aprobaciones v1
+> como v2. Cambio, pruebas y nuevo hash: [cierre de auditoría](audits/sonarqube-2026-11/closure/CHECKPOINT.md).
+
 Fecha de operación: 2026-07-12 (UTC)
 
 Resultado: satisfactorio

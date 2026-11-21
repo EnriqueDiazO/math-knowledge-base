@@ -1,4 +1,8 @@
-# Continuación: cierre estricto antes de la esfera
+# Continuación de auditoría — cierre verificado
+
+**Estado actual:** [CHECKPOINT.md](CHECKPOINT.md). Gate OK, cero bugs/vulnerabilidades,
+siete paquetes corregidos y corpus histórico ejecutado. El registro siguiente se
+conserva cronológicamente; sus bloqueos iniciales ya no son el estado vigente.
 
 Inicio 2026-11-21: rama audit/sonarqube-2026-11, HEAD
 41c2571459c803e4ed42803c305f8865c3da88c1, árbol limpio y sin avances posteriores.
@@ -68,3 +72,21 @@ historical-corpus-after.log, plan-identity-before.log y guards-identity-final.lo
 
 La búsqueda inicial omitió el directorio XDG efectivo de respaldos; se corrige
 el registro con la ruta indicada, sin mantener el recurso como bloqueo ausente.
+
+## Verificación final y criterio de inicio de la esfera
+
+Ver CHECKPOINT.md y RESULTS.json. 1949 casos Python únicos aprobados (1925 de la
+integral, 9 E2E antes opt-in y 15 contratos nullable nuevos); ninguno obligatorio
+sin ejecutar. La correspondencia de los 50 casos antes omitidos está verificada
+contra ambos JUnit, no inferida por diferencia de totales. Los 53 iniciales eran
+50 de ZIP +3 E2E; los 59 posteriores, 50 de ZIP +9 E2E. Con el corpus disponible,
+la integral sólo omitió los nueve E2E y después se ejecutaron en el job propio.
+
+Se recuperaron/corrigieron todas las alertas de rendimiento pendientes: cinco
+patrones Python, tres de build JS/TS, y se justificaron los falsos positivos con
+entradas/consumidores reales. Se conserva el estilo UTC naive compatible del perfil
+actual; no se modificaron miles de líneas ni se redujeron umbrales.
+
+La rama de funcionalidad se creará desde el commit documental de checkpoint.
+La instalación Community usa el mismo proyecto/referencia, conservando snapshots
+para comparar auditoría y esfera sin fingir capacidad de análisis multirrama.
