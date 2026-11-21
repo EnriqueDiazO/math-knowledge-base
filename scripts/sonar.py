@@ -270,6 +270,19 @@ def snapshot(label: str) -> None:
     print("Quality Gate: " + gate["projectStatus"]["status"])
 
 
+def check_generated_reports(python_report: Path, javascript_report: Path) -> None:
+    """Reject malformed or empty coverage before any project upload."""
+    try:
+        root = ElementTree.parse(python_report).getroot()
+    except ElementTree.ParseError:
+        raise ValueError("Python coverage XML is malformed") from None
+    if root.tag != "coverage" or int(root.get("lines-valid", "0")) <= 0:
+        raise ValueError("Python coverage contains no executable lines")
+    lcov = javascript_report.read_text()
+    if not (lcov.startswith("SF:") or "\nSF:" in lcov) or "\nDA:" not in lcov or not lcov.rstrip().endswith("end_of_record"):
+        raise ValueError("LCOV contains no valid source/line records")
+
+
 def scan(label: str) -> int:
     """Generate coverage first, scan locally, then capture the processed result."""
     evidence_label(label)
@@ -284,9 +297,7 @@ def scan(label: str) -> int:
         report.unlink(missing_ok=True)
     subprocess.run([sys.executable, str(ROOT / "scripts/quality.py"), "--with-mongo"], cwd=ROOT, check=True)
     subprocess.run(["npm", "run", "test:coverage"], cwd=ROOT / "frontend/advanced-reader", check=True)
-    if (ElementTree.parse(python_report).getroot().tag != "coverage"
-            or "end_of_record" not in javascript_report.read_text()):
-        raise ValueError("Coverage reports were not generated correctly")
+    check_generated_reports(python_report, javascript_report)
     install_scanner()
     environment = dict(os.environ, SONAR_HOST_URL=local_url(), SONAR_TOKEN=token_auth().removeprefix("Bearer "))
     report_task = ROOT / ".scannerwork/report-task.txt"

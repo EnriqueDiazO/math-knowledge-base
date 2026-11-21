@@ -4,14 +4,18 @@ import os
 import shutil
 
 import pytest
+import test_source_catalog_migration_bootstrap as corpus_fixtures
 
 from mathmongo.source_catalog_migration.canonical import sha256_digest
 from mathmongo.source_catalog_migration.planner import AUTHORITATIVE_EXPECTATIONS
 from mathmongo.source_catalog_migration.planner import build_plan
 from mathmongo.source_catalog_migration.planner import semantic_plan_payload
 from mathmongo.source_catalog_migration.zip_reader import read_legacy_export
-from test_source_catalog_migration_bootstrap import authoritative_export as authoritative_export
-from test_source_catalog_migration_bootstrap import complete_decisions as complete_decisions
+
+# Reuse the real corpus fixture chain, including its approved hash checks.
+authoritative_export = corpus_fixtures.authoritative_export
+authoritative_plan = corpus_fixtures.authoritative_plan
+complete_decisions = corpus_fixtures.complete_decisions
 
 
 def test_same_corpus_has_the_same_plan_after_copy_rename_and_touch(authoritative_export, tmp_path):

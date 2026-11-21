@@ -8,9 +8,9 @@ import stat
 from urllib.error import HTTPError
 
 import pytest
+from sonar_http_support import SonarHttpServer
 
 from scripts import sonar
-from sonar_http_support import SonarHttpServer
 
 
 @pytest.fixture

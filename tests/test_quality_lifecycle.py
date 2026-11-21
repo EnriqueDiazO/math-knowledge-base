@@ -223,3 +223,16 @@ def test_quality_runner_propagates_failures_and_combines_only_success(tmp_path, 
         assert calls[2][0][-2:] == ["combine", "--append"]
         assert calls[3][0][-1] == "xml"
         assert (tmp_path / "evidence/sonar/coverage-unit.xml").read_text() == "unit report"
+
+
+def test_remaining_test_database_is_an_error_and_still_releases_only_owned_resources(owned_mongo, monkeypatch):
+    """A child leaving a database behind cannot produce success or bypass process cleanup."""
+    def child(_command, **_kwargs):
+        owned_mongo.client.databases.append("mathmongo_test_leak")
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(quality_mongo.subprocess, "run", child)
+    with pytest.raises(RuntimeError, match="not removed"):
+        quality_mongo.main()
+    assert owned_mongo.client.closed
+    assert owned_mongo.process.actions == ["terminate", ("wait", 20)]
+    assert all(not path.exists() for path in owned_mongo.created)

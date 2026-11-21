@@ -217,3 +217,86 @@ def test_up_waits_through_unavailability_and_never_removes_volumes(isolated, mon
     assert actions[0] == ["docker", "info"]
     assert actions[1][-2:] == ["up", "-d"]
     assert actions[2:] == [3, 3]
+
+
+def test_token_precedence_and_missing_credentials_are_explicit(isolated, monkeypatch):
+    """Explicit tokens override saved tokens; missing access never sends an empty header."""
+    sonar.write_private(sonar.PRIVATE, json.dumps({"url": sonar.local_url(), "token": "saved-test-token"}))
+    assert sonar.token_auth() == "Bearer saved-test-token"
+    monkeypatch.setenv("SONAR_TOKEN", "explicit-test-token")
+    assert sonar.token_auth() == "Bearer explicit-test-token"
+    monkeypatch.delenv("SONAR_TOKEN")
+    sonar.PRIVATE.unlink()
+    with pytest.raises(ValueError, match="No token"):
+        sonar.token_auth()
+
+
+@pytest.mark.parametrize("xml,lcov", [("<broken", "SF:src/a.ts\nDA:1,1\nend_of_record\n"), ('<coverage lines-valid="0"/>', "SF:src/a.ts\nDA:1,1\nend_of_record\n"), ('<coverage lines-valid="1"/>', "end_of_record\n")])
+def test_invalid_coverage_is_a_controlled_error(xml, lcov, isolated, monkeypatch):
+    """Malformed/empty reports must stop the scanner with a controlled error."""
+    monkeypatch.setattr(sonar, "credentials", lambda: {"admin_password": "test-account"})
+    monkeypatch.setattr(sonar, "token_auth", lambda: "Bearer test-token")
+    monkeypatch.setattr(sonar, "api", lambda path, **_kwargs: {"status": "UP"} if path.endswith("status") else {"projectStatus": {"period": isolated}})
+    monkeypatch.setattr(sonar, "install_scanner", lambda: None)
+    calls = []
+    def run(command, **_kwargs):
+        calls.append(command)
+        if "--with-mongo" in command:
+            report = sonar.ROOT / "evidence/sonar/coverage.xml"
+            report.parent.mkdir(parents=True)
+            report.write_text(xml)
+        elif command == ["npm", "run", "test:coverage"]:
+            report = sonar.ROOT / "frontend/advanced-reader/coverage/lcov.info"
+            report.parent.mkdir(parents=True)
+            report.write_text(lcov)
+        else:
+            raise AssertionError("Scanner must not upload invalid coverage")
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(sonar.subprocess, "run", run)
+    with pytest.raises(ValueError, match="coverage|Coverage|LCOV"):
+        sonar.scan("invalid-report")
+    assert len(calls) == 2
+
+
+def test_occupied_port_never_starts_or_stops_any_service(isolated, monkeypatch):
+    """A listening foreign service is preserved instead of being replaced by Compose."""
+    import socket
+    with socket.socket() as listener:
+        listener.bind(("127.0.0.1", 0))
+        listener.listen()
+        monkeypatch.setenv("SONAR_HOST_URL", f"http://127.0.0.1:{listener.getsockname()[1]}")
+        original = Path.read_text
+        monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: "524288" if str(self) == "/proc/sys/vm/max_map_count" else original(self, *a, **k))
+        calls = []
+        monkeypatch.setattr(sonar.subprocess, "run", lambda command, **kwargs: calls.append(command))
+        with pytest.raises(ValueError, match="Port occupied"):
+            sonar.up()
+        assert calls == [["docker", "info"]]
+        assert listener.getsockname()[1] > 0
+
+
+def test_startup_deadline_is_an_error_without_resetting_owned_volumes(isolated, monkeypatch):
+    """A failed readiness deadline cannot trigger a reset or report successful startup."""
+    original = Path.read_text
+    monkeypatch.setattr(Path, "read_text", lambda self, *a, **k: "524288" if str(self) == "/proc/sys/vm/max_map_count" else original(self, *a, **k))
+    class FreePort:
+        """Supply only the connection probe needed by this failure scenario."""
+        def __enter__(self):
+            """Enter the disposable probe."""
+            return self
+        def __exit__(self, *_args):
+            """Release the disposable probe."""
+            return None
+        def connect_ex(self, _address):
+            """Indicate that the requested port has no existing listener."""
+            return 111
+    monkeypatch.setattr(sonar.socket, "socket", FreePort)
+    clock = iter([0, 601])
+    monkeypatch.setattr(sonar.time, "monotonic", lambda: next(clock))
+    calls = []
+    monkeypatch.setattr(sonar.subprocess, "run", lambda command, **kwargs: calls.append(command))
+    with pytest.raises(ValueError, match="600 seconds"):
+        sonar.up()
+    assert calls[0] == ["docker", "info"]
+    assert calls[1][-2:] == ["up", "-d"]
+    assert len(calls) == 2 and all("down" not in command and "-v" not in command for command in calls)

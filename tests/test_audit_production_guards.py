@@ -5,23 +5,24 @@ from dataclasses import replace
 from types import SimpleNamespace
 
 import pytest
+import test_source_catalog_migration_bootstrap as corpus_fixtures
+from test_database_update import _fixture_archive
+from test_database_update import _fixture_database
+from test_database_update import _Mongo
 
 from editor import database_import_page
 from editor.utils import cleanup_exports
 from editor.utils import db_update
 from mathmongo.source_documents.storage import SourceDocumentBlobStore
-from test_database_update import _fixture_archive
-from test_database_update import _fixture_database
-from test_database_update import _Mongo
-from test_source_catalog_migration_bootstrap import _apply
-from test_source_catalog_migration_bootstrap import _database
-from test_source_catalog_migration_bootstrap import _harness
-from test_source_catalog_migration_bootstrap import _manifest
 
-# Reuse the actual corpus fixtures; absence stays a skip, never a synthetic approval.
-from test_source_catalog_migration_bootstrap import authoritative_export
-from test_source_catalog_migration_bootstrap import authoritative_plan
-from test_source_catalog_migration_bootstrap import complete_decisions
+# Corpus absence remains a skip; these fixtures are not synthetic replacements.
+authoritative_export = corpus_fixtures.authoritative_export
+authoritative_plan = corpus_fixtures.authoritative_plan
+complete_decisions = corpus_fixtures.complete_decisions
+_apply = corpus_fixtures._apply
+_database = corpus_fixtures._database
+_harness = corpus_fixtures._harness
+_manifest = corpus_fixtures._manifest
 
 
 def test_cleanup_missing_backup_directory_preserves_the_source(tmp_path, monkeypatch):

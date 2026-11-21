@@ -43,11 +43,11 @@ def test_failed_scanner_does_not_publish_the_previous_analysis(tmp_path, monkeyp
         if "--with-mongo" in command:
             report = tmp_path / "evidence/sonar/coverage.xml"
             report.parent.mkdir(parents=True)
-            report.write_text("<coverage />")
+            report.write_text('<coverage lines-valid="1"/>')
         elif command[:2] == ["npm", "run"]:
             report = tmp_path / "frontend/advanced-reader/coverage/lcov.info"
             report.parent.mkdir(parents=True)
-            report.write_text("end_of_record")
+            report.write_text("SF:src/a.ts\nDA:1,1\nend_of_record\n")
         return SimpleNamespace(returncode=7 if command == [str(sonar.SCANNER)] else 0)
     monkeypatch.setattr(sonar.subprocess, "run", run)
     published = []
