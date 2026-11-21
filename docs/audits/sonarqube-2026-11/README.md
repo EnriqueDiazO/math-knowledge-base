@@ -1,11 +1,13 @@
 # Auditoría MathMongo / SonarQube — 2026-11-21
 
-**Checkpoint estricto vigente:** [closure/CHECKPOINT.md](closure/CHECKPOINT.md).
+**Entrega vigente:** [esfera editable y cierre final](sphere/FINAL.md). Rama `feature/knowledge-sphere-2026-11`, código `f5ddb587`, análisis `b4e0c8a8`, Gate OK: 95,2% nueva / 69,6% general; Python 69,15%. 1979 pruebas Python únicas, 132 Vitest y dos ejecuciones Chrome aprobadas. [Capturas](sphere/images/) y [commits](sphere/COMMITS.md).
+
+**Checkpoint previo a la esfera:** [closure/CHECKPOINT.md](closure/CHECKPOINT.md).
 Código 3d6e0021, análisis 35032b37, Gate OK, cobertura nueva 97,9%, Python 67,33%,
 general Sonar 67,5%. Corpus histórico verificado y dependencias corregidas en .venv.
 El historial siguiente conserva las entregas anteriores.
 
-**Cierre vigente:** [followup/FINAL.md](followup/FINAL.md). Gate OK; cobertura nueva
+**Cierre histórico anterior:** [followup/FINAL.md](followup/FINAL.md). Gate OK; cobertura nueva
 96,1%, general Sonar 66,4%, Python 65,94%; análisis f62b032f sobre 8723ab2b.
 Las fases siguientes conservan el registro histórico, incluidas las cifras previas.
 

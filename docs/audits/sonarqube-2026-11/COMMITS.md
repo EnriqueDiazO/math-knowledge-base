@@ -90,3 +90,9 @@ La continuación desde `41c25714`, sus quince commits de código/infraestructura
 sus regresiones se detallan en [closure/COMMITS.md](closure/COMMITS.md).
 El checkpoint vigente está en [closure/CHECKPOINT.md](closure/CHECKPOINT.md);
 los apartados anteriores conservan las revisiones y resultados históricos.
+
+## Esfera desde el checkpoint verificado
+
+La rama `feature/knowledge-sphere-2026-11` parte de `de166650`; los commits de
+funcionalidad/regresión están en [sphere/COMMITS.md](sphere/COMMITS.md), con
+resultados y comparación en [sphere/FINAL.md](sphere/FINAL.md). Todo sigue local.

@@ -18,6 +18,11 @@ The managed Source workflow is documented in the
 [v0.13.0 release notes](docs/RELEASE_NOTES_v0.13.0_MANAGED_SOURCE_WORKFLOW.md)
 for compatibility, upgrade guidance, and known limitations.
 
+The editable knowledge sphere is available under **Grafo de conocimiento →
+Esfera editable**, with a planar view of the same data. See the
+[local implementation guide and verified results](docs/audits/sonarqube-2026-11/sphere/FINAL.md)
+for contextual creation/editing, recovery, screenshots, and reproducible checks.
+
 ---
 
 ## 🎨 Visual Styling of Mathematical Concepts

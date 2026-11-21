@@ -42,7 +42,8 @@ ese commit después de comprobar los cinco criterios. No se tocó main ni se hiz
   parcial y permite recuperar el mismo intento. Ninguna compensación elimina
   conceptos o modificaciones ajenas. Se reutiliza el insert auditado; su único
   parámetro opcional nuevo marca la propiedad del contenido para recuperar una
-  confirmación perdida, sin cambiar el comportamiento de los llamadores anteriores.
+  confirmación perdida, conservando el comportamiento de los llamadores anteriores; en el modo recuperable
+  del mapa retiene la metadata ante fallo, para no borrar cambios/referencias ajenos.
 - Edición compara un hash BSON de metadata/contenido y CAS atómico de documento
   completo con `$expr/$$ROOT`, incluyendo campos desconocidos. Sólo `$set` de
   campos editables y marcadores/fecha. Sin transacciones ni replica set. Si la
@@ -53,13 +54,14 @@ ese commit después de comprobar los cinco criterios. No se tocó main ni se hiz
   avanzada y los renderizadores matemáticos existentes se abren mediante la
   navegación real del proyecto. No se incorporó un segundo editor enriquecido.
 
-## Evidencia en curso
+## Evidencia de cierre
 
 `evidence/sonar/sphere-2026-11/` es privado/ignorado. El harness real
 `tests/run_knowledge_map_e2e.py` posee su mongod/dbpath, base, puertos, XDG y
 Streamlit; verifica persistencia consultando MongoDB después del navegador y
-retira únicamente esos recursos. Los errores iniciales de harness/estilos se
-conservaron en logs de desarrollo y se están corrigiendo antes del cierre.
+retira únicamente esos recursos. El cierre, sus regresiones y los errores iniciales de harness/estilos ya corregidos
+se documentan en [FINAL.md](FINAL.md), [RESULTS.json](RESULTS.json) y los logs privados.
+Gate final OK; no queda una verificación obligatoria omitida por falta del ZIP.
 
 Fuentes primarias consultadas: [CCv2 1.67](https://docs.streamlit.io/develop/api-reference/custom-components/st.components.v2.component),
 [template oficial](https://github.com/streamlit/component-template/tree/main/cookiecutter/v2),

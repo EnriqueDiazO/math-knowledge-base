@@ -1,0 +1,23 @@
+path,role,verification,sha256
+editor/db/concept_repository.py,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",d88d2d0250b0bfbfe31496d75c3a700d682598c40429895c8bca6d02a7d1ada8
+editor/editor_streamlit.py,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",e041f1d538c6271d7394c5a6c7196398cb207a24a46d71f55c4479883e013fa4
+editor/knowledge_map.py,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",02f14515f1fbf18e9edeeb5a1ef7059a8dcb6d9d9b6363c1bd3d6b470f9e06a5
+frontend/advanced-reader/package.json,Configuración/build,"Poetry/npm, build, wheel y runtime real",7c8a82ac7ef5e506a87856277ee1f51238616218acb0225922b6b64efc4b6b78
+frontend/advanced-reader/src/knowledge-map/canvas.ts,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",c248790944540d1563fa3ec18e69b0f916b8c0e9bb6609b5a67eeb8450368f50
+frontend/advanced-reader/src/knowledge-map/component.ts,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",41c6c0915c47df1147e7f5759b80204ea87f3ccadd9206d2234f0c99487392e0
+frontend/advanced-reader/src/knowledge-map/geometry.ts,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",9a758d76c3d8351f97d8ff75d506136bd0dcad213e10411ef3f17c2e74d4f151
+frontend/advanced-reader/src/knowledge-map/model.ts,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",10d1eff8b01f3a7ca634a06f557e81127a75a6ee99613cbebee24b5545a2485e
+frontend/advanced-reader/src/knowledge-map/style.css,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",5d3a2ef13feffed6fda55a19afae65248cf360ce0309354cf0f3a2a635cfaa94
+frontend/advanced-reader/tests/knowledge-map-browser.mjs,Regresión/harness,"Ejecución aislada, assertions de resultados, limpieza de recursos",fe37b118fde1cf9f0b873cdbf8fb8dbcc06b2d3f964d637c60e43de2ed10a139
+frontend/advanced-reader/tests/knowledge-map-playwright.config.mjs,Regresión/harness,"Ejecución aislada, assertions de resultados, limpieza de recursos",434c50b583c438706322eadd5946877c900323bf3deef2578330b81995d5ef9b
+frontend/advanced-reader/tests/knowledge-map.test.ts,Regresión/harness,"Ejecución aislada, assertions de resultados, limpieza de recursos",4cf839310e16ed6ed0cb73f411d37f8dac064ef6998e2ea12de091d569ea77e8
+frontend/advanced-reader/vite.map.config.ts,Configuración/build,"Poetry/npm, build, wheel y runtime real",fecaca6deef53fc5e78fedd9e37159901284b4c81516c2b690ab96400113014a
+mathmongo/advanced_reader/static/knowledge_map/index-_hash_.css,Recurso propio generado,"Build, wheel, globs únicos, Chrome real",c539cf72788685fd15a324ea4a2f05984557110d24e4010486b9c7770197a369
+mathmongo/advanced_reader/static/knowledge_map/index-_xAnUiw1.js,Recurso propio generado,"Build, wheel, globs únicos, Chrome real",8fabd24c5ca3b2d6c918ed8c27adae8115d812631de3d9a4b610cd89f82c76e4
+mathmongo/knowledge_map/__init__.py,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",ab8d93a1206b84452c1c1d1e1d7c4bf2bf16917c9a8a3f60a485a016418c07bf
+mathmongo/knowledge_map/service.py,Producción,"Regresiones Python/Vitest, Chrome cuando aplica, Sonar final",287f484912b628fb2dc203c307ccdf85d04680dbbc81c18ca536796d1a251015
+mathmongo/pyproject.toml,Configuración/build,"Poetry/npm, build, wheel y runtime real",7420d84ecff3d6a20bf5c722b2302b17c6221be3e46dbdc02fe455872e803c49
+pyproject.toml,Configuración/build,"Poetry/npm, build, wheel y runtime real",e161701c18d862bf64dddac738428d066d899a17b37b9d924641d072e046a7cc
+tests/run_knowledge_map_e2e.py,Regresión/harness,"Ejecución aislada, assertions de resultados, limpieza de recursos",a41f1b8f99cfd5ff077c535507d89fbbefd0553298b467ebe2c91ab6baaaf47e
+tests/test_knowledge_map_bridge.py,Regresión/harness,"Ejecución aislada, assertions de resultados, limpieza de recursos",da26437a2a2c6191a17ee72557af0eeed88e4ad85b1a8d6993dd180d9ace6c8e
+tests/test_knowledge_map_service.py,Regresión/harness,"Ejecución aislada, assertions de resultados, limpieza de recursos",449caf43c2bdb4566c0586e1509c0c034102bc943e758d1c5c9431f8986e547c

@@ -1,0 +1,137 @@
+{
+  "checkpoint": "de1666507030d8fa194d632ecfd2e183b11d886e",
+  "branch": "feature/knowledge-sphere-2026-11",
+  "analysis_id": "b4e0c8a8-bc12-42c9-bbbb-16cd239f059a",
+  "revision": "f5ddb5875de80533c8aeeb675bc5d167486ac4f6",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "95.2"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.0"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-21T16:46:16+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "metrics": {
+    "coverage": "69.6",
+    "complexity": "16541",
+    "duplicated_lines_density": "1.9",
+    "code_smells": "32",
+    "security_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "maintainability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":32,\"HIGH\":0,\"BLOCKER\":0,\"total\":32}",
+    "security_hotspots": "0",
+    "sqale_index": "160",
+    "bugs": "0",
+    "lines_to_cover": "46891",
+    "uncovered_lines": "14225",
+    "cognitive_complexity": "18142",
+    "duplicated_blocks": "86",
+    "ncloc": "90878",
+    "files": "292",
+    "vulnerabilities": "0",
+    "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":32,\"BLOCKER\":0,\"total\":32}",
+    "line_coverage": "69.7"
+  },
+  "python_coverage": {
+    "lines-valid": "44712",
+    "lines-covered": "30919",
+    "line-rate": "0.6915"
+  },
+  "new_coverage_totals": {
+    "new_lines": 1151,
+    "covered_lines": 1119,
+    "uncovered_lines": 32,
+    "new_conditions": 332,
+    "covered_conditions": 293,
+    "uncovered_conditions": 39
+  },
+  "tests": {
+    "integral_unit_passed": 1967,
+    "integral_skipped_opt_in": 9,
+    "integral_failed": 0,
+    "mongo_e2e_passed": 9,
+    "subsequent_persistence_subset_passed": 40,
+    "new_cases_in_subset": 1,
+    "subsequent_new_offline_legacy_cases_passed": 2,
+    "unique_unit_passed": 1970,
+    "unique_python_passed": 1979,
+    "remaining_mandatory_unexecuted": 0,
+    "vitest_passed": 132,
+    "playwright_executions_passed": 2,
+    "playwright_scenarios": [
+      "flow",
+      "performance"
+    ]
+  },
+  "performance": {
+    "graph_nodes": 1003,
+    "graph_edges": 1999,
+    "measured_frames": 20,
+    "mean_render_ms": 7.869999999552965,
+    "max_render_ms": 12.5,
+    "min_render_ms": 5.800000000745058,
+    "device_pixel_ratio": 1,
+    "page_errors": [],
+    "console_errors": [
+      "Failed to load resource: net::ERR_FAILED"
+    ],
+    "blocked_host_icon_requests": [
+      "https://fonts.gstatic.com/s/i/short-term/release/materialsymbolsrounded/functions/default/24px.svg"
+    ],
+    "browser": "158.0.8127.36",
+    "viewport": "1440x1100",
+    "reduced_motion": true
+  },
+  "ruff": {
+    "checkpoint": 2156,
+    "final": 2155,
+    "delta": "one I001 in touched concept_repository; zero warnings in new map Python modules/tests"
+  },
+  "artifact_sha256": {
+    "delivery-sonar.json": "4d61096ceee67b936be61f5db1a79c8fe039c6bb2a81adeafcc0e3b688d45377",
+    "delivery-coverage.xml": "d8de938d878da75d6aaeedb9cdc4c23490e9a9738db4335cad459311377df280",
+    "delivery-lcov.info": "debb2de0f79520fafc9084ba5c47e260c2e8ec2cc57c7d83cacb014c4b250c97",
+    "full-suite.log": "f9e770155178f133ac09c00d0d7451dad735ac243352a3946e983dd80f4bd5ed",
+    "final-persistence-tests.log": "fd2798d076b6379fea55cc8929c2a5f71ca717139f31c9abcdf34a18cca6cf5f",
+    "offline-legacy-tests.log": "c423904c2e54729bff8aa3ccd4a326c72f191511b74e314487464ecb53dbc660",
+    "legacy-rollback-e2e.log": "0b4045469016026db132c0fa7d814a9b88ed67fd55766a6d3aa685156e7184f3",
+    "browser.json": "d64bad46fe12ec682910ab8420c6e89b4c6b8dca9452db93cc393ebb8615cb3b",
+    "performance.json": "e89a355b5bfcf7d87dc3315d415572646f9fc64ba558d803415b2b05a859c569",
+    "persistence.json": "f91ff74167d6892c28f212ebf6a5ad408f8079f49c6d518d2d8850d87563943a",
+    "ruff-final.json": "aa30b0b781f14526c13beb46eb4acb5b428dbdc2a0e5ad800f46bf042294e971",
+    "delivery-scanner.log": "8551c85def14ca228ee1d5e322bd8caa4029b3898dc9c40cce756b408f8ee031",
+    "collection-final.log": "3424915963afbfd861a3b60d2033bbe380f66db8ebc832e30cfc273d6b0695a8"
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "collection_count": 1979,
+  "wheel": {
+    "members": 530,
+    "map_assets": 2,
+    "current_manifest_and_asset_bytes_verified": true,
+    "private_zip_excluded": true
+  }
+}
