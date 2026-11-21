@@ -23,6 +23,34 @@ class InteractiveGraphManager:
     Manages interactive graph visualization for the Manage Relations section
     """
     
+    FULL_OPTIONS_JSON = """
+{
+  "configure": {
+    "enabled": false
+  },
+
+  "physics": {
+    "enabled": false,
+    "stabilization": {
+      "enabled": false
+    }
+  },
+
+  "interaction": {
+    "hover": true,
+    "navigationButtons": false,
+    "keyboard": true
+  },
+
+  "edges": {
+    "smooth": {
+      "enabled": true,
+      "type": "dynamic"
+    }
+  }
+}
+"""
+
     def __init__(self, db):
         self.db = db
         self.temp_dir = validate_mutable_path(get_graph_runtime_dir())
@@ -72,10 +100,8 @@ class InteractiveGraphManager:
         )
     
     def _apply_style(self, net, profile: str = "full"):
-        if profile == "full":
-            net.set_options(self.FULL_OPTIONS_JSON)
-        else:
-            net.set_options(self.FULL_OPTIONS_JSON)  # mismo estilo, solo cambia height si quieres
+        """Apply the existing shared style; retain the legacy profile argument."""
+        net.set_options(self.FULL_OPTIONS_JSON)
 
     def get_graph_data(self, selected_concept_id: Optional[str] = None,
                       selected_concept_source: Optional[str] = None,
@@ -364,33 +390,7 @@ class InteractiveGraphManager:
                 #st.write(f"   Valid nodes: {valid_node_ids}")
         
         # Configure network options for better interactivity
-        net.set_options("""
-{
-  "configure": {
-    "enabled": false
-  },
-
-  "physics": {
-    "enabled": false,
-    "stabilization": {
-      "enabled": false
-    }
-  },
-
-  "interaction": {
-    "hover": true,
-    "navigationButtons": false,
-    "keyboard": true
-  },
-
-  "edges": {
-    "smooth": {
-      "enabled": true,
-      "type": "dynamic"
-    }
-  }
-}
-""")
+        self._apply_style(net)
 
 
 
