@@ -128,10 +128,12 @@ def install_scanner() -> None:
         raise ValueError("Scanner checksum mismatch; archive retained for inspection")
     with zipfile.ZipFile(download) as archive:
         archive.extractall(ROOT / ".tools")
-    # zipfile does not preserve executable mode bits.
-    SCANNER.chmod(0o755)
-    for executable in (ROOT / ".tools" / SCANNER_NAME / "jre/bin").iterdir():
-        executable.chmod(0o755)
+        # zipfile does not preserve Unix modes, including jre/lib/jspawnhelper.
+        # The pinned checksum above authenticates this exact local artifact.
+        for entry in archive.infolist():
+            mode = (entry.external_attr >> 16) & 0o777
+            if mode:
+                (ROOT / ".tools" / entry.filename).chmod(mode)
     subprocess.run([str(SCANNER), "--version"], check=True)
 
 
@@ -235,7 +237,12 @@ def scan(label: str) -> int:
     install_scanner()
     environment = dict(os.environ, SONAR_HOST_URL=local_url(), SONAR_TOKEN=token_auth().removeprefix("Bearer "))
     api("/api/system/status")  # Verify connectivity from the actual native scanner host.
+    report_task = ROOT / ".scannerwork/report-task.txt"
+    report_task.unlink(missing_ok=True)
     result = subprocess.run([str(SCANNER)], cwd=ROOT, env=environment, check=False)
+    if not report_task.exists():
+        print("Scanner produced no analysis task; no snapshot was published.", file=sys.stderr)
+        return result.returncode or 1
     snapshot(label)
     return result.returncode
 

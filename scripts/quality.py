@@ -29,7 +29,7 @@ def main() -> int:
         )
         result = subprocess.run(
             [sys.executable, "-m", "pytest", "--cov", "--cov-report=xml",
-             "--cov-report=term:skip-covered", *sys.argv[1:]],
+             "--cov-report=term:skip-covered", "--junitxml=evidence/sonar/pytest.xml", *sys.argv[1:]],
             cwd=ROOT, env=environment, check=False,
         )
     return result.returncode

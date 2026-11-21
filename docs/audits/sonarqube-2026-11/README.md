@@ -227,3 +227,53 @@ runtime-e2e-obsolete-selectors.log. Se añadió espera explícita a la URL desti
 la nueva pestaña, evitando leer su URL antes de la navegación efectiva.
 Los 8 E2E Mongo (5 nuevos + 3 existentes) ya pasan con el nuevo PyMongo en standalone,
 portabilidad/edición y comprobación de restauración incluidas (final-mongo-e2e.log).
+
+Comprobación persistencia host: el usuario ejecutó sonar_persist_host.sh tras
+inspección de todos los directorios sysctl. Se leyó el archivo creado y se comprobó
+vm.max_map_count=524288; no se tocaron otros valores. Reversión exacta en SONARQUBE.md.
+La herramienta scanner recibió una regresión adicional: un fallo de upload podía
+reutilizar un report-task.txt anterior al capturar métricas. Ahora elimina sólo ese
+artefacto generado antes de cada scanner y se niega a publicar snapshot si no hay
+una tarea nueva. Test antes: 1 failed / 5 passed; después 6 passed.
+
+En el Makefile se confirmaron dos rutas inexistentes: export/... y grafo_interactivo/...
+`make export` ahora usa el módulo QMD real con la base DATABASE explícita y une
+concepts/latex_documents por id/source; antes ni siquiera arrancaba. `make grafo`
+usa un CLI pequeño sobre GrafoConocimiento existente, con lecturas Mongo y destino
+XDG validado. Una prueba sobre Mongo real comprueba contenido matemático, HTML y
+que no cambie ninguna colección ni documento. 6 regresiones reales aprobadas.
+No cambia `make run` ni el formato de los datos. Los dos comandos cierran sus clientes.
+
+El harness runtime también exigía crear MathV0 aunque el bootstrap actual selecciona
+sólo la base explícita. Se sustituyó esa expectativa obsoleta por una comprobación
+más estricta: la instancia temporal sólo puede contener admin/config/local y las
+dos bases UUID del escenario, y debe existir la base esperada. No se omite ninguna
+prueba ni se permite usar una conexión externa. Se conserva el fallo del harness en
+runtime-e2e-obsolete-default-database.log. Las aserciones de pintura real de canvas,
+PDF/text layer, worker local, URL exacta y liberación de puertos permanecen activas.
+
+Runtime completo final: OK en Chrome real; arranque integrado, salud, PDF range,
+canvas pintado y text layer, navegación Streamlit → lector, worker local, cero
+peticiones remotas/errores de página. Reutilización de lector existente conservó
+su proceso; selección de base incompatible bloqueó Streamlit sin matar el lector.
+Limpieza de bases, dbpath, XDG y todos los puertos temporales comprobada. Puertos
+predeterminados del usuario intactos. Evidencia JSON: final-runtime-e2e.log.
+
+Instalación del scanner desde extracción nueva verificada (SHA256, --version y
+permiso ejecutable de jre/lib/jspawnhelper). El instalador ahora conserva modos Unix
+de todos los miembros del ZIP fijado; antes zipfile no garantizaba ese ejecutable.
+
+E2E ampliado del lector, con el runner aislado --reader-browser: OK tanto en origen
+como tras exportar/importar a otra base temporal. Probó búsqueda, selección,
+miniaturas, zoom/rotación, guardado de página, highlight/underline, edición,
+archivo/reactivación y vínculos de conceptos; luego rehidratación de geometría y
+reimportación idempotente. Tolerancias geométricas originales se conservaron.
+Sin errores de consola/página ni solicitudes remotas fallidas. Los abortos de fetch
+al cambiar de página/documento se registran aparte y son cancelaciones esperadas.
+Evidencia: final-reader-browser-e2e.log. El reporte local no se agrega artificialmente
+al XML de cobertura unitario para mejorar sus porcentajes.
+
+Estado antes de verificación global: todos los lotes funcionales probados y
+commiteados; controles del tooling aprobados (15 tests incluyendo Makefile y pins),
+instalación editable actualizada y pip check aprobado. Se inicia ahora suite con
+cobertura + análisis final con exactamente el mismo sonar-project.properties.

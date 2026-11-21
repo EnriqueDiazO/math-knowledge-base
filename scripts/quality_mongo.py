@@ -56,12 +56,16 @@ def main() -> int:
             for name in ("MONGO_URI", "MONGO_DB", "DB_NAME"):
                 environment.pop(name, None)
             environment.update(MONGODB_URI=uri, MONGODB_DB="mathmongo_audit_unused",
+                               MATHMONGO_E2E_MONGO_URI=uri,
                                MATHMONGO_RUN_MONGO_E2E="1", MATHMONGO_RUN_FRESH_DB_E2E="1",
                                MATHMONGO_RUN_LEGACY_LINK_E2E="1")
             for kind in ("CONFIG", "DATA", "STATE", "CACHE"):
                 environment[f"XDG_{kind}_HOME"] = str(root / kind.lower())
-            result = subprocess.run([sys.executable, "-m", "pytest", "-q", "-s",
-                                     *(sys.argv[1:] or DEFAULT_TESTS)], cwd=ROOT,
+            arguments = sys.argv[1:]
+            command = ([sys.executable, "tests/run_advanced_reader_e2e.py"]
+                       if arguments == ["--reader-browser"] else
+                       [sys.executable, "-m", "pytest", "-q", "-s", *(arguments or DEFAULT_TESTS)])
+            result = subprocess.run(command, cwd=ROOT,
                                     env=environment, check=False)
             remaining = set(client.list_database_names()) - {"admin", "config", "local"}
             if remaining:

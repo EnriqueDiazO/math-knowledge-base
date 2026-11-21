@@ -55,7 +55,8 @@ revisar posibles ajustes existentes. No bajar un valor que ya sea suficiente.
 Para revertir exclusivamente el ajuste de esta auditoría: detener primero nuestros
 servicios y ejecutar `sudo sysctl -w vm.max_map_count=65530`. Si se creó el archivo
 opcional, retirar sólo esa entrada. No detener Docker si otros proyectos lo usan.
-La auditoría no creó ningún archivo sysctl persistente ni modificó otros límites.
+La persistencia aplicada después por el usuario se documenta al final de esta guía;
+no se modificaron los demás límites.
 
 El puerto 9000 está ocupado por MinIO de otro proyecto; se eligió 19000 libre.
 Para otra instalación cambiar `SONAR_PORT` en el `.env` privado antes de `up`.
@@ -140,3 +141,49 @@ make sonar-status
 `down` sólo elimina contenedores/red de `mathmongo-sonar`. Conserva los cuatro
 volúmenes `mathmongo-sonar_postgres_data`, `_sonar_data`, `_sonar_extensions` y
 `_sonar_logs`, además de los archivos privados. No usar `down -v` ni comandos prune.
+
+## Verificación MongoDB independiente
+
+```bash
+make test-mongo-e2e
+```
+
+Requiere `mongod` instalado. El runner crea un standalone propio con dbpath temporal,
+puerto loopback libre y bases con nombres explícitos. Rechaza usar un servicio
+alternativo si mongod no existe; detiene sólo el proceso que creó. Ejecuta también
+los tres E2E previamente omitidos. Las pruebas de rollback registran el estado de
+metadatos/LaTeX antes y después, y las de imágenes prueban referencias concepto y nota.
+Las pruebas de exportación comprueban que no se escriba en ninguna colección.
+
+## Persistencia del ajuste Linux, aplicada en esta auditoría
+
+Se revisaron `/etc/sysctl.conf`, `/etc/sysctl.d/`, `/usr/lib/sysctl.d/` y
+`/run/sysctl.d/`; no había otra declaración vm.max_map_count. El usuario ejecutó:
+
+```bash
+sudo bash scripts/sonar_persist_host.sh
+```
+
+Se comprobó el resultado: `/etc/sysctl.d/90-mathmongo-sonar.conf` contiene
+`vm.max_map_count=524288`; el valor vivo coincide. El script no sobrescribe archivos
+existentes ni baja límites suficientes. Para revertir esta configuración específica,
+después de detener SonarQube y comprobar que no la requieren otros servicios:
+
+```bash
+sudo rm -i /etc/sysctl.d/90-mathmongo-sonar.conf
+sudo sysctl -w vm.max_map_count=65530
+```
+
+65530 era el valor **original**, anterior al primer ajuste manual; el comentario del
+archivo refleja 524288 porque el ajuste temporal ya estaba aplicado al crearlo.
+
+La comprobación de navegador ampliada del lector también puede ejecutarse con el
+mismo aislamiento Mongo/XDG:
+
+```bash
+mathdbmongo/bin/python scripts/quality_mongo.py --reader-browser
+mathdbmongo/bin/python tests/run_local_runtime_e2e.py
+```
+
+Requieren Node, las dependencias frontend instaladas, Chrome y mongod. El segundo
+harness administra su propia instancia MongoDB, puertos y procesos del runtime.
