@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { fireEvent, getByLabelText, getByRole, queryByRole, getAllByRole } from '@testing-library/dom';
 import render from '../src/knowledge-map/component';
-import { arc, focus, positions, project, rotate, surface, unit, unrotate } from '../src/knowledge-map/geometry';
+import { arc, compareKeys, focus, positions, project, rotate, surface, unit, unrotate } from '../src/knowledge-map/geometry';
 import { acceptResult, draftFor, freshView, intention, neighbors, visibleEdges, visibleNodes } from '../src/knowledge-map/model';
 import type { Data, Node, Intent } from '../src/knowledge-map/model';
 import type { Vec } from '../src/knowledge-map/geometry';
@@ -43,7 +43,8 @@ describe('spherical geometry and semantic parity', () => {
     expect(next.a).toEqual(first.a); expect(next.b).toEqual(first.b);
     Object.values(next).forEach(v => expect(Math.hypot(...v)).toBeCloseTo(1));
     expect(next.c).not.toEqual(first.a);
-    expect(positions(['single'], {}).single).toEqual([1, 0, 0]);
+    expect(positions(['single'], {}).single).toEqual([0, 0, 1]);
+    expect(compareKeys('á', 'z')).toBe(1); expect(compareKeys('a', 'b')).toBe(-1); expect(compareKeys('a', 'a')).toBe(0);
   });
   it.each([[0, 0, 1], [1, 0, 0], [0, 1, 0], unit([-1, 2, -3])].map(v => [v as Vec]))('focuses rear/polar nodes and reverses camera transforms for %j', vector => {
     const camera = { yaw: .9, pitch: -.4, zoom: 1.3 };

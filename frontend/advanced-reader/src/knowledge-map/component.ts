@@ -91,8 +91,8 @@ export default function render(bridge: Bridge): () => void {
   function renderFilters(): void {
     filters.replaceChildren();
     const all = { value: '', text: 'Todos' };
-    selector(filters, 'Fuente visible', [all, ...[...new Set(data.nodes.map(n => n.source))].sort().map(s => ({ value: s, text: s }))], view.source, value => { view.source = value; refresh(); });
-    selector(filters, 'Tipo visible', [all, ...[...new Set(data.nodes.map(n => n.tipo))].sort().map(s => ({ value: s, text: s }))], view.type, value => { view.type = value; refresh(); });
+    selector(filters, 'Fuente visible', [all, ...[...new Set(data.nodes.map(n => n.source))].sort((a, b) => a.localeCompare(b, 'es')).map(s => ({ value: s, text: s }))], view.source, value => { view.source = value; refresh(); });
+    selector(filters, 'Tipo visible', [all, ...[...new Set(data.nodes.map(n => n.tipo))].sort((a, b) => a.localeCompare(b, 'es')).map(s => ({ value: s, text: s }))], view.type, value => { view.type = value; refresh(); });
     selector(filters, 'Relación visible', [all, ...data.relation_types.map(s => ({ value: s, text: s }))], view.relation, value => { view.relation = value; refresh(); });
   }
   function renderAside(): void {

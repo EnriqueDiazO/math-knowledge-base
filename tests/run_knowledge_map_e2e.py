@@ -70,7 +70,9 @@ def main() -> None:
                             break
                     except OSError:
                         time.sleep(.1)
-                result = subprocess.run(['node', str(ROOT / 'frontend/advanced-reader/tests/knowledge-map-browser.mjs'), url, str(evidence)], cwd=ROOT, env=env, text=True, capture_output=True, timeout=180)
+                browser_env = dict(env, MATHMONGO_MAP_TEST_URL=url, MATHMONGO_MAP_TEST_EVIDENCE=str(evidence))
+                browser_command = ['node', 'node_modules/@playwright/test/cli.js', 'test', '--config=tests/knowledge-map-playwright.config.mjs']
+                result = subprocess.run(browser_command, cwd=ROOT / 'frontend/advanced-reader', env=browser_env, text=True, capture_output=True, timeout=180)
                 (evidence / 'browser.log').write_text(result.stdout + result.stderr)
                 if result.returncode:
                     raise RuntimeError('Browser verification failed; see private browser.log')
@@ -89,7 +91,7 @@ def main() -> None:
                 database.latex_documents.insert_many([{'id': d['id'], 'source': source.name, 'contenido_latex': '$x$'} for d in concepts])
                 edges = [{'desde': f"nota:perf_{i}@{source.name}", 'hasta': f"nota:perf_{i + step}@{source.name}", 'tipo': 'implica'} for step in (1, 2) for i in range(1000 - step)]
                 database.relations.insert_many(edges)
-                performance = subprocess.run(['node', str(ROOT / 'frontend/advanced-reader/tests/knowledge-map-browser.mjs'), url, str(evidence), 'performance'], cwd=ROOT, env=env, text=True, capture_output=True, timeout=120)
+                performance = subprocess.run(browser_command, cwd=ROOT / 'frontend/advanced-reader', env=dict(browser_env, MATHMONGO_MAP_TEST_MODE='performance'), text=True, capture_output=True, timeout=180)
                 (evidence / 'performance.log').write_text(performance.stdout + performance.stderr)
                 if performance.returncode:
                     raise RuntimeError('Real-browser performance verification failed; see private performance.log')

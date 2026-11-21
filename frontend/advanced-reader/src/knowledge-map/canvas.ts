@@ -1,4 +1,4 @@
-import { arc, focus, project, surface } from './geometry';
+import { arc, compareKeys, focus, project, surface } from './geometry';
 import type { Vec, Point } from './geometry';
 import { visibleEdges, visibleNodes } from './model';
 import type { Data, View, Node } from './model';
@@ -16,6 +16,7 @@ export class MapCanvas {
   private nodes: Node[] = [];
   private paths: { from: string; to: string; points: Vec[] }[] = [];
   private projected = new Map<string, Point>();
+  private labelBoxes: { x: number; y: number; width: number }[] = [];
   private controller = new AbortController();
   private resize: ResizeObserver;
   private intersection: IntersectionObserver;
@@ -52,7 +53,7 @@ export class MapCanvas {
     this.nodes = visibleNodes(data, this.view);
     const lanes = new Map<string, number>();
     this.paths = visibleEdges(data, this.nodes, this.view).map(edge => {
-      const pair = [edge.from, edge.to].sort().join('\u0000');
+      const pair = [edge.from, edge.to].sort(compareKeys).join('\u0000');
       const lane = lanes.get(pair) ?? 0; lanes.set(pair, lane + 1);
       return { from: edge.from, to: edge.to, points: arc(this.view.points[edge.from], this.view.points[edge.to], lane, edge.from === edge.to) };
     });
@@ -112,6 +113,9 @@ export class MapCanvas {
     this.drawEdges(ctx);
     this.projected.clear();
     const projected = this.nodes.map(node => ({ node, point: project(this.view.points[node.key], camera, this.width, this.height, this.view.flat) })).sort((a, b) => a.point.z - b.point.z);
+    this.labelBoxes = [];
+    const selected = projected.find(({ node }) => node.key === this.view.selected);
+    if (selected) this.labelBoxes.push(this.labelBox(ctx, selected.node, selected.point));
     projected.forEach(({ node, point }) => this.drawNode(ctx, node, point));
     this.drawProposal(ctx);
     if (this.view.draft && this.view.draft.action.startsWith('create')) {
@@ -158,6 +162,12 @@ export class MapCanvas {
       ctx.stroke();
     }
   }
+  private labelBox(ctx: CanvasRenderingContext2D, node: Node, point: Point): { x: number; y: number; width: number } {
+    const title = node.titulo.length > 37 ? node.titulo.slice(0, 35) + '…' : node.titulo;
+    ctx.font = 'bold 13px system-ui';
+    const width = ctx.measureText(title).width;
+    return { x: Math.max(4, Math.min(point.x + 13, this.width - width - 4)), y: point.y - 9, width };
+  }
   private drawNode(ctx: CanvasRenderingContext2D, node: Node, p: Point): void {
     this.projected.set(node.key, p);
     const selected = node.key === this.view.selected, active = selected || node.key === this.hover;
@@ -166,9 +176,12 @@ export class MapCanvas {
     ctx.beginPath(); ctx.arc(p.x, p.y, active ? 7 : 3 + (p.z + 1), 0, Math.PI * 2); ctx.fill();
     if (selected) { ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(p.x, p.y, 11, 0, Math.PI * 2); ctx.stroke(); }
     if (active || (this.nodes.length < 35 && p.z > .1)) {
+      const box = this.labelBox(ctx, node, p);
+      if (!active && this.labelBoxes.some(other => Math.abs(other.y - box.y) < 17 && box.x < other.x + other.width + 5 && box.x + box.width + 5 > other.x)) return;
+      this.labelBoxes.push(box);
       ctx.fillStyle = '#edf9ff'; ctx.font = active ? 'bold 13px system-ui' : '12px system-ui';
       const title = node.titulo.length > 37 ? node.titulo.slice(0, 35) + '…' : node.titulo;
-      ctx.fillText(title, Math.max(4, Math.min(p.x + 13, this.width - ctx.measureText(title).width - 4)), p.y - 9);
+      ctx.fillText(title, box.x, box.y);
     }
   }
   destroy(): void {

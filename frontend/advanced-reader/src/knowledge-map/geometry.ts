@@ -2,6 +2,8 @@ export type Vec = [number, number, number];
 export type Camera = { yaw: number; pitch: number; zoom: number };
 export type Point = { x: number; y: number; z: number };
 const TAU = Math.PI * 2;
+/** Identity order must stay independent of browser locale. */
+export function compareKeys(a: string, b: string): number { return a < b ? -1 : a > b ? 1 : 0; }
 export function unit(v: Vec): Vec {
   const size = Math.hypot(...v);
   return size < 1e-10 ? [0, 0, 1] : v.map(x => x / size) as Vec;
@@ -35,13 +37,13 @@ export function surface(x: number, y: number, camera: Camera, width: number, hei
 }
 export function positions(keys: string[], previous: Record<string, Vec>, insertion?: { key: string; point: Vec }): Record<string, Vec> {
   const next = { ...previous };
-  const sorted = [...keys].sort();
+  const sorted = [...keys].sort(compareKeys);
   const incremental = Object.keys(previous).length > 0;
   sorted.forEach((key, i) => {
     if (next[key]) return;
     const y = 1 - 2 * (i + .5) / sorted.length;
     const phi = i * Math.PI * (3 - Math.sqrt(5));
-    let candidate = unit([Math.cos(phi) * Math.sqrt(1 - y * y), y, Math.sin(phi) * Math.sqrt(1 - y * y)]);
+    let candidate = sorted.length === 1 ? [0, 0, 1] as Vec : unit([Math.cos(phi) * Math.sqrt(1 - y * y), y, Math.sin(phi) * Math.sqrt(1 - y * y)]);
     if (insertion?.key === key) candidate = unit(insertion.point);
     // Only a new node checks collisions, never all pairs in a frame. Retain
     // established positions, with a bounded deterministic local search.
