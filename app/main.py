@@ -17,4 +17,4 @@ from editor.editor_streamlit import *
 if __name__ == "__main__":
     # This file serves as the entry point for the Streamlit app
     # The actual GUI is implemented in editor_streamlit.py
-    pass 
+    pass

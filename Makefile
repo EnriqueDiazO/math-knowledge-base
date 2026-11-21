@@ -87,14 +87,14 @@ lint:
 # -----------------------
 
 export:
-	$(PY) export/exportar_qmd_desde_mongo.py
+	$(PY) -m exporters_latex.exportar_qmd_desde_mongo --db "$(DATABASE)"
 
 # -----------------------
 # 🔗 Grafo interactivo desde Mongo
 # -----------------------
 
 grafo:
-	$(PY) grafo_interactivo/generador/generar_grafo.py
+	$(PY) -m scripts.export_knowledge_graph --database "$(DATABASE)"
 
 # -----------------------
 # 📚 Documentación Quarto
@@ -165,10 +165,13 @@ clean-notes:
 	@echo "✅ exported_notes cleaned (directories preserved)"
 
 # Dedicated local Community Build. down preserves all named volumes.
-.PHONY: test-coverage sonar-init sonar-install-scanner sonar-up sonar-bootstrap sonar-status sonar-scan sonar-down
+.PHONY: test-coverage test-mongo-e2e sonar-init sonar-install-scanner sonar-up sonar-bootstrap sonar-status sonar-scan sonar-down
 SONAR_LABEL ?= latest
 test-coverage:
 	@$(PY) scripts/quality.py
+
+test-mongo-e2e:
+	@$(PY) scripts/quality_mongo.py
 
 sonar-init:
 	@$(PY) scripts/sonar.py init

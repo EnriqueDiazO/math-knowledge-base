@@ -75,14 +75,20 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Exporta conceptos MongoDB a QMD.")
     parser.add_argument("--mongo-uri", default=settings.mongo_uri)
     parser.add_argument("--db", default=settings.mongo_database)
-    parser.add_argument("--collection", default="collection")
+    parser.add_argument("--collection", default="concepts")
     parser.add_argument("--output", help="Destino; relativo a HOME si no es absoluto.")
     args = parser.parse_args(argv)
 
     client = MongoClient(args.mongo_uri)
     try:
-        collection = client[args.db][args.collection]
+        database = client[args.db]
+        collection = database[args.collection]
         for concepto in collection.find():
+            if args.collection == "concepts" and not concepto.get("contenido_latex"):
+                latex = database["latex_documents"].find_one(
+                    {"id": concepto.get("id"), "source": concepto.get("source")}
+                )
+                concepto = {**concepto, "contenido_latex": (latex or {}).get("contenido_latex", "")}
             if concepto.get("contenido_latex"):
                 print(f"✅ Generado: {crear_qmd(concepto, args.output)}")
     finally:

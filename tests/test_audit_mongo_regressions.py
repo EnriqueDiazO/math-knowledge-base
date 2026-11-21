@@ -13,6 +13,8 @@ from pymongo.errors import DuplicateKeyError
 
 from editor.db.concept_repository import insert_concept_with_latex_atomic
 from editor.utils import media_assets
+from exporters_latex.exportar_qmd_desde_mongo import main as export_qmd
+from scripts.export_knowledge_graph import main as export_graph
 
 pytestmark = pytest.mark.skipif(os.environ.get("MATHMONGO_RUN_MONGO_E2E") != "1",
                                 reason="requires the owned mongod in scripts/quality_mongo.py")
@@ -102,3 +104,21 @@ def test_real_shared_image_survives_until_its_last_reference(database, tmp_path,
     assert deleted
     assert not image.exists()
     assert database.media_assets.find_one({"asset_id": "asset"}) is None
+
+
+def test_real_export_commands_read_the_selected_database_without_writing(database, tmp_path):
+    """Restore broken make targets using the actual split metadata/content format."""
+    database.concepts.insert_one({"id": "def:one", "source": "Book", "tipo": ["definicion"], "titulo": "Only mine"})
+    database.latex_documents.insert_one({"id": "def:one", "source": "Book", "contenido_latex": r"\frac{1}{2}"})
+    collections_before = set(database.list_collection_names())
+    before = {name: list(database[name].find()) for name in collections_before}
+    uri = os.environ["MONGODB_URI"]
+    assert export_qmd(["--mongo-uri", uri, "--db", database.name, "--output", str(tmp_path / "qmd")]) == 0
+    qmds = list((tmp_path / "qmd").rglob("*.qmd"))
+    assert len(qmds) == 1
+    assert r"\frac{1}{2}" in qmds[0].read_text()
+    output = tmp_path / "graph.html"
+    assert export_graph(["--mongo-uri", uri, "--database", database.name, "--output", str(output)]) == 0
+    assert "Only mine" in output.read_text()
+    assert set(database.list_collection_names()) == collections_before
+    assert {name: list(database[name].find()) for name in collections_before} == before
