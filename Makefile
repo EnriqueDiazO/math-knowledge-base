@@ -163,3 +163,30 @@ clean-notes:
 		rm -rf "$(EXPORTED_NOTES_BUILD_DIR)"/* ; \
 	fi
 	@echo "✅ exported_notes cleaned (directories preserved)"
+
+# Dedicated local Community Build. down preserves all named volumes.
+.PHONY: test-coverage sonar-init sonar-install-scanner sonar-up sonar-bootstrap sonar-status sonar-scan sonar-down
+SONAR_LABEL ?= latest
+test-coverage:
+	@$(PY) scripts/quality.py
+
+sonar-init:
+	@$(PY) scripts/sonar.py init
+
+sonar-install-scanner:
+	@$(PY) scripts/sonar.py install-scanner
+
+sonar-up:
+	@$(PY) scripts/sonar.py up
+
+sonar-bootstrap:
+	@$(PY) scripts/sonar.py bootstrap
+
+sonar-status:
+	@$(PY) scripts/sonar.py status
+
+sonar-scan:
+	@$(PY) scripts/sonar.py scan --label $(SONAR_LABEL)
+
+sonar-down:
+	@$(PY) scripts/sonar.py down
