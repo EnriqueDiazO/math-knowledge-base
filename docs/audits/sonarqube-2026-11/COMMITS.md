@@ -67,3 +67,19 @@ No usar `down -v` ni prune. Si se revierte la infraestructura, detener estos ser
 antes de retirar sus archivos y revisar los commits posteriores que dependen de ella.
 No detener Docker si lo usan otros proyectos. El ajuste de host y su reversión exacta
 están en `docs/SONARQUBE.md`; Git no modifica `/etc/sysctl.d/`.
+
+## Commits de la fase de pendientes
+
+| Commit | Responsabilidad |
+|---|---|
+| d797505b | Diagnóstico antes de nuevas pruebas; análisis/periodo/desglose inicial |
+| 392e8569 | Instrumentación hijos/E2E, LCOV V8, alcance de cobertura conservado |
+| 45300f68 | Credenciales atómicas/vinculadas, revisión del servidor, limpieza y PID Mongo |
+| fe093394 | Redacción de entradas Pydantic y decodificadores permitidos de branding |
+| 0c455575 | Tests instalador/orquestación/CLI y referencia de comparación comprobada |
+| 8723ab2b | Helper PyVis roto, JSON existente compartido y regresión de opciones |
+
+El commit documental posterior añade el cierre, CSV de los 16 bugs, los 64 avisos
+Python únicos, cobertura por archivo y guía de repetición. La revisión analizada es
+8723ab2b; ese commit documental no cambia fuentes, pruebas ni configuración.
+Las regresiones y evidencia de cada lote están en followup/REGRESSIONS.md.

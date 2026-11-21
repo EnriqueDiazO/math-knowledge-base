@@ -1,5 +1,8 @@
 # Verificación final
 
+> Registro de la fase anterior. El cierre vigente y sus cifras están en
+> [followup/FINAL.md](followup/FINAL.md). Se conserva este informe como evidencia histórica.
+
 Fecha de trabajo: 2026-11-21 (America/Mexico_City). Rama
 `audit/sonarqube-2026-11`; origen limpio `main@1bc8026f`.
 

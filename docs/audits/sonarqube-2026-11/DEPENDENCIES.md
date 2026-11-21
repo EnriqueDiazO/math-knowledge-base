@@ -1,5 +1,8 @@
 # Dependencias revisadas
 
+> Registro de la fase anterior. El cierre vigente y sus cifras están en
+> [followup/FINAL.md](followup/FINAL.md). Se conserva este informe como evidencia histórica.
+
 Entorno original: Python 3.10.12; pip/Poetry con pyproject, poetry.lock y constraints;
 Node 24.15.0 / npm 11.12.1 con package-lock.json. pip check inicial y posterior:
 sin incompatibilidades. Se conserva soporte Python >=3.10,<3.14 y React 19.

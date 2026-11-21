@@ -1,5 +1,9 @@
 # Auditoría MathMongo / SonarQube — 2026-11-21
 
+**Cierre vigente:** [followup/FINAL.md](followup/FINAL.md). Gate OK; cobertura nueva
+96,1%, general Sonar 66,4%, Python 65,94%; análisis f62b032f sobre 8723ab2b.
+Las fases siguientes conservan el registro histórico, incluidas las cifras previas.
+
 Registro acumulativo. Rama `audit/sonarqube-2026-11`; origen `main`,
 `1bc8026f01c8f6470c7ce6a887df89fa6cd9ab2f`. Árbol inicialmente limpio.
 No hay AGENTS.md aplicable en el repositorio ni sus directorios superiores.
@@ -355,3 +359,27 @@ consulta del análisis f7d5bcc2, referencia PREVIOUS_VERSION inalterada, 15 arch
 Se confirma XML Python correctamente importado, cobertura de hijos no instrumentada
 y LCOV no generado. Se preparará una calibración de medición antes de nuevas pruebas
 para distinguir hits recuperados de la cobertura obtenida por verificaciones nuevas.
+
+## Cierre de la fase de pendientes
+
+La rama y los once commits previos se conservaron. Se cerró el diagnóstico antes
+de añadir pruebas (d797505b); la calibración instrumental sin tests nuevos quedó
+en 51,7% (392e8569). Los fixes y sus regresiones: 45300f68 credenciales/procesos,
+fe093394 redacción/decodificación, 0c455575 orquestación/referencia/instalador,
+8723ab2b helper de grafos. El análisis final f62b032f-c663-4c1c-97a2-c57a555387c0
+confirma esa revisión y Gate OK, con el periodo/umbrales/reglas conservados.
+
+El comando integrado real aprobó 1832 tests Python (59 opt-in/corpus omitidos),
+9 E2E propios y 107 Vitest. Quedan 50 casos únicos del ZIP privado sin ejecutar.
+La cobertura final medida desde cero es Python 29246/44350=65,94% y Sonar 66,4%;
+la nueva es (420+2)/(437+2)=96,1%. El candidato previo se preserva pero se descarta
+como cierre porque mezclaba datos del archivo de grafos antes/después del movimiento
+de líneas. Se regeneró sólo la verificación invalidada y el comando completo final;
+no se repitieron build/Chrome/instalaciones aún válidas.
+
+La clasificación de 16 bugs (dos corregidos, 14 abiertos) y de siete paquetes
+(64 avisos únicos, 76 entradas) está en los CSV de followup. El desglose de líneas,
+los informes de antes/después y todas las aclaraciones de cifras están enlazados
+desde followup/FINAL.md. Ruff queda en 2157, sin cambiar sus reglas. No hubo push,
+merge, borrados de datos ni nuevas intervenciones sudo; la persistencia del host
+sigue comprobada. Los inventarios anteriores permanecen disponibles.

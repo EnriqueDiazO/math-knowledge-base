@@ -1,5 +1,8 @@
 # Comparación de línea base y revisión final
 
+> Registro de la fase anterior. El cierre vigente y sus cifras están en
+> [followup/FINAL.md](followup/FINAL.md). Se conserva este informe como evidencia histórica.
+
 Revisión inicial de aplicación: `1bc8026f`; configuración añadida antes de baseline, posteriormente commit `8c60d64e`. Revisión final analizada y confirmada por la API: `4b8cb48c5c0b21cf09c2f7f02f7fc7b8f248e391`. Los commits posteriores de entrega sólo documentan resultados.
 
 CE inicial: SUCCESS, analysisId `9fd1bdae-7827-4b7c-839e-7791f9f4c72d`. CE final: SUCCESS, analysisId `f7d5bcc2-691b-4a6e-ae2b-91d8f759911e`.

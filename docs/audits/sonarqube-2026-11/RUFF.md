@@ -41,3 +41,12 @@ Los avisos indican ubicaciones; no equivalen a defectos funcionales confirmados.
 
 Las supresiones y exclusiones de ruff.toml ya existían (E501/C901/E722). No se ampliaron.
 Los fallos de rollback, compartición de medios, Markdown, rutas y HTML se confirman mediante pruebas de comportamiento aunque Ruff no los señalaba.
+
+## Fase de pendientes
+
+El recuento con Ruff 0.4.10 y los mismos ruff.toml/alcance es **2157**.
+Respecto a 2156, únicamente I001 pasa de 12 a 13 por el orden de imports de
+un test nuevo (test_sonar_http_contracts.py:3). Es deuda cosmética P3 y no altera
+comportamiento. Las demás reglas mantienen exactamente el recuento de la tabla;
+no se amplían ignores/exclusiones ni se ejecuta make lint (que hace --fix).
+Resultado bruto local: evidence/sonar/followup-2026-11/ruff.json.

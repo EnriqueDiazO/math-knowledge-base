@@ -187,3 +187,38 @@ mathdbmongo/bin/python tests/run_local_runtime_e2e.py
 
 Requieren Node, las dependencias frontend instaladas, Chrome y mongod. El segundo
 harness administra su propia instancia MongoDB, puertos y procesos del runtime.
+
+## Repetir el cierre con la misma referencia de código nuevo
+
+Desde esta rama y la instancia local ya inicializada:
+
+```bash
+make sonar-scan SONAR_LABEL=followup-final
+```
+
+El comando comprueba el periodo efectivo contra `infra/sonarqube/reference.json`:
+PREVIOUS_VERSION, 2026-11-21T16:46:16+0000. No lo establece ni modifica. Aborta si
+la referencia cambió, antes de generar/subir un análisis o publicar una comparación.
+Este archivo fija la referencia de **esta auditoría**; una instalación nueva sin
+ese historial necesita establecer/documentar su propia línea base, no reutilizar
+sus porcentajes como comparables. No cambiarlo para eludir el Gate de esta instancia.
+
+SONAR_LABEL sólo nombra el JSON (evidence/sonar/followup-final-sonar.json); no pasa
+sonar.projectVersion, que permanece `not provided`. Se admiten etiquetas cortas de
+letras/números/guiones, sin rutas. Elegir otra etiqueta segura para conservar otra
+instantánea; las versiones/historial del proyecto Sonar permanecen iguales.
+
+El comando genera desde cero XML Python con pytest-cov y patch=subprocess, ejecuta
+los nueve E2E en el mongod temporal propio, combina los datos y genera LCOV V8 con
+los 107 tests Vitest. Requiere mongod y dependencias npm ya instaladas. Las mismas
+fuentes/omit se anclan al ROOT para los hijos que cambian cwd; no se amplían
+exclusiones. Falla si falla la generación, falta un reporte o el scanner no produce
+una tarea nueva. Conserva el estado no cero del scanner/Gate y espera CE antes de
+capturar evidencia. El snapshot identifica la revisión analizada por el servidor,
+separa HEAD local y rechaza mezclar métricas actuales con una tarea antigua.
+
+Los runners fijan --basetemp y XDG bajo directorios privados temporales. MongoDB
+comprueba PID del servidor y ausencia de bases de usuario antes de permitir pytest;
+el cierre del proceso ocurre incluso si falla el cliente. No usar la URI habitual
+para estos tests. Las 50 pruebas del corpus privado siguen omitidas sin el ZIP que
+se detalla en docs/audits/sonarqube-2026-11/followup/CLARIFICATIONS.md.

@@ -1,0 +1,267 @@
+{
+  "analysis_id": "f62b032f-c663-4c1c-97a2-c57a555387c0",
+  "revision": "8723ab2ba555f414e9d840e5e4701254062cf89f",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "96.1"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "metrics": {
+    "coverage": "66.4",
+    "complexity": "16095",
+    "duplicated_lines_density": "1.9",
+    "code_smells": "61",
+    "security_issues": "{\"INFO\":0,\"LOW\":2,\"MEDIUM\":1,\"HIGH\":0,\"BLOCKER\":0,\"total\":3}",
+    "maintainability_issues": "{\"INFO\":0,\"LOW\":1,\"MEDIUM\":32,\"HIGH\":17,\"BLOCKER\":0,\"total\":50}",
+    "security_hotspots": "0",
+    "sqale_index": "480",
+    "bugs": "14",
+    "lines_to_cover": "46175",
+    "uncovered_lines": "15529",
+    "cognitive_complexity": "17806",
+    "duplicated_blocks": "86",
+    "ncloc": "89993",
+    "files": "281",
+    "vulnerabilities": "3",
+    "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":12,\"HIGH\":63,\"BLOCKER\":0,\"total\":75}",
+    "line_coverage": "66.4"
+  },
+  "coverage_python": {
+    "lines-valid": "44350",
+    "lines-covered": "29246",
+    "line-rate": "0.6594"
+  },
+  "coverage_python_unit": {
+    "lines-valid": "44350",
+    "lines-covered": "29188",
+    "line-rate": "0.6581"
+  },
+  "coverage_calibration": {
+    "lines-valid": "44302",
+    "lines-covered": "29024",
+    "line-rate": "0.6551"
+  },
+  "new_coverage_before": {
+    "lines": 359,
+    "uncovered": 247,
+    "conditions": 0
+  },
+  "new_coverage_calibration": {
+    "lines": 383,
+    "uncovered": 186,
+    "conditions": 2,
+    "uncovered_conditions": 0
+  },
+  "new_coverage_final": {
+    "lines": 437,
+    "uncovered": 17,
+    "conditions": 2,
+    "uncovered_conditions": 0
+  },
+  "tests": {
+    "python_passed": 1832,
+    "python_skipped": 59,
+    "python_failed": 0,
+    "python_errors": 0,
+    "mongo_e2e_passed": 9,
+    "mongo_e2e_failed": 0,
+    "unique_python_passed_including_e2e": 1841,
+    "unique_skipped_private_zip": 50,
+    "vitest_passed": 107
+  },
+  "profiles_and_active_rule_counts_unchanged": true,
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "new_coverage_files": [
+    {
+      "file": "editor/db/concept_repository.py",
+      "covered_new_lines": 6,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "75,76,77,78,82,86"
+    },
+    {
+      "file": "editor/interactive_graph.py",
+      "covered_new_lines": 11,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "8,26,282,283,284,393,411,445,505,506,507"
+    },
+    {
+      "file": "editor/note_branding.py",
+      "covered_new_lines": 2,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "161,165"
+    },
+    {
+      "file": "editor/source_catalog/shared.py",
+      "covered_new_lines": 1,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "33"
+    },
+    {
+      "file": "editor/utils/media_assets.py",
+      "covered_new_lines": 2,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "329,349"
+    },
+    {
+      "file": "exporters_latex/exportar_qmd_desde_mongo.py",
+      "covered_new_lines": 13,
+      "uncovered_new_lines": 1,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "33",
+      "covered_line_numbers": "6,32,35,36,37,38,46,78,84,85,87,88,91"
+    },
+    {
+      "file": "frontend/advanced-reader/scripts/prepare-pdf-worker.mjs",
+      "covered_new_lines": 0,
+      "uncovered_new_lines": 1,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "14",
+      "covered_line_numbers": ""
+    },
+    {
+      "file": "frontend/advanced-reader/scripts/publish-build.mjs",
+      "covered_new_lines": 0,
+      "uncovered_new_lines": 1,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "8",
+      "covered_line_numbers": ""
+    },
+    {
+      "file": "frontend/advanced-reader/src/app/App.tsx",
+      "covered_new_lines": 2,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 2,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "368,369"
+    },
+    {
+      "file": "frontend/advanced-reader/src/pdf/PdfJsController.ts",
+      "covered_new_lines": 1,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "51"
+    },
+    {
+      "file": "parsers/markdownparser.py",
+      "covered_new_lines": 3,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "117,118,119"
+    },
+    {
+      "file": "parsers/yaml_latex_parser.py",
+      "covered_new_lines": 2,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "28,29"
+    },
+    {
+      "file": "scripts/export_knowledge_graph.py",
+      "covered_new_lines": 28,
+      "uncovered_new_lines": 1,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "43",
+      "covered_line_numbers": "3,5,6,8,9,10,11,14,16,17,18,19,20,21,22,24,26,28,30,31,32,33,34,35,37,38,39,42"
+    },
+    {
+      "file": "scripts/quality.py",
+      "covered_new_lines": 43,
+      "uncovered_new_lines": 1,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "70",
+      "covered_line_numbers": "3,5,6,7,8,9,10,11,13,16,18,21,22,23,24,25,26,27,28,29,30,31,32,33,34,35,36,37,38,39,40,41,48,54,55,56,57,61,62,63,64,66,69"
+    },
+    {
+      "file": "scripts/quality_mongo.py",
+      "covered_new_lines": 68,
+      "uncovered_new_lines": 1,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "77",
+      "covered_line_numbers": "3,5,6,7,8,9,10,11,12,14,15,17,18,22,24,25,26,27,28,29,30,31,32,33,34,35,40,41,42,43,44,45,46,47,48,49,50,51,52,53,54,55,56,57,58,59,60,61,62,66,67,68,69,73,75,76,78,80,81,82,84,85,86,87,88,89,92,93"
+    },
+    {
+      "file": "scripts/sonar.py",
+      "covered_new_lines": 233,
+      "uncovered_new_lines": 11,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "107,108,109,110,166,177,279,289,311,313,331",
+      "covered_line_numbers": "3,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19,20,21,22,23,24,25,26,27,28,29,31,32,33,34,35,36,37,38,41,44,46,49,51,52,53,54,55,56,57,58,60,61,64,66,67,68,69,70,71,72,73,74,75,77,78,81,83,84,85,86,89,91,92,94,95,96,97,100,102,105,113,115,119,121,122,123,125,128,130,131,132,133,134,135,136,137,138,139,141,142,143,144,145,148,149,150,151,152,155,157,158,160,161,162,164,165,167,168,169,170,171,172,173,174,175,176,180,182,183,184,185,187,188,189,190,191,192,193,195,196,197,198,199,200,201,202,204,205,206,209,211,212,213,214,215,216,219,221,222,223,226,228,231,232,233,234,235,236,237,238,239,240,241,242,243,247,248,250,251,252,253,254,255,256,257,258,259,260,266,267,268,269,270,273,275,276,277,278,280,281,282,283,284,285,286,287,290,291,292,293,294,295,296,297,298,299,302,304,305,306,307,308,309,310,312,314,315,316,317,319,321,323,324,325,326,327,330"
+    },
+    {
+      "file": "visualizations/grafoconocimiento.py",
+      "covered_new_lines": 5,
+      "uncovered_new_lines": 0,
+      "covered_new_conditions": 0,
+      "uncovered_new_conditions": 0,
+      "uncovered_line_numbers": "",
+      "covered_line_numbers": "19,21,869,870,1051"
+    }
+  ],
+  "artifacts_sha256": {
+    "final-coverage.xml": "0e89bdbcd7e714223684d082f631e3dcb876b8ecb393f64384f755b743b761fd",
+    "final-unit-coverage.xml": "d5c459d93163b37fa814ff51330e8e98302223155bbdec4243ca2e5aac255fe4",
+    "final-lcov.info": "6d46128ce3d56e229d7684b99330e70251936eb5821f6c4d150c6bc5fe932aaf",
+    "final-pytest.xml": "fd8403aaf0aeefcdc2bac265fafe354451c5317e03ce42d6a54188efb0a1bc10",
+    "final-sonar.json": "941df3a2bbe403b2875005e133003414bb4bf8300e674e817feb630995c4321f",
+    "reproducible-final.log": "302c8d1e51be1c4e441a233db45979c0fb6c5ddcccd70d38aeabdbf0f987c94f"
+  }
+}
