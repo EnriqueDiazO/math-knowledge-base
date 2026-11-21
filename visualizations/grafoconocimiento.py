@@ -3,7 +3,6 @@ import json
 import math
 import os
 import urllib.parse
-from datetime import datetime
 from pathlib import Path
 
 import networkx as nx
@@ -11,7 +10,7 @@ from pyvis.network import Network
 
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
-
+from mathmongo.time import naive_utc_now
 
 DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
 
@@ -838,7 +837,7 @@ class GrafoConocimiento:
 
         return {
             "version": previous_state.get("version", 1),
-            "exportedAt": datetime.utcnow().isoformat() + "Z",
+            "exportedAt": naive_utc_now().isoformat() + "Z",
             "nodes": nodes,
             "edges": edges,
             "fullNodes": nodes,

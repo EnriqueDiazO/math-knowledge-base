@@ -164,6 +164,7 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_latex_runtime_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.time import naive_utc_now
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
 
@@ -4323,7 +4324,7 @@ elif page == "🗺️ Grafo de conocimiento":
                         st.error("Se detectaron inconsistencias antes de guardar el mapa.")
                         st.warning("\n".join(f"- {issue}" for issue in integrity_issues[:8]))
                         st.stop()
-                    now = datetime.utcnow()
+                    now = naive_utc_now()
                     inferred_sources = infer_sources_from_graph_state(graph_state)
                     inferred_types = infer_concept_types_from_graph_state(graph_state)
                     map_sources = merge_ordered_values(selected_sources, inferred_sources)
@@ -4430,7 +4431,7 @@ elif page == "🗺️ Grafo de conocimiento":
                 with action_col3:
                     if st.button("Duplicar", key="kg_duplicate_map"):
                         try:
-                            now = datetime.utcnow()
+                            now = naive_utc_now()
                             duplicate = {k: v for k, v in selected_doc.items() if k != "_id"}
                             duplicate["name"] = f"Copia de {selected_doc.get('name', 'Mapa sin nombre')}"
                             duplicate["map_uid"] = str(uuid4())
@@ -4571,7 +4572,7 @@ elif page == "🗺️ Grafo de conocimiento":
                         {
                             "$set": {
                                 "graph_state": repaired_graph_state,
-                                "updated_at": datetime.utcnow(),
+                                "updated_at": naive_utc_now(),
                             }
                         },
                     )
@@ -4762,7 +4763,7 @@ elif page == "🗺️ Grafo de conocimiento":
                                 {
                                     "$set": {
                                         "graph_state": repaired_graph_state,
-                                        "updated_at": datetime.utcnow(),
+                                        "updated_at": naive_utc_now(),
                                     }
                                 },
                             )
@@ -4867,7 +4868,7 @@ elif page == "🗺️ Grafo de conocimiento":
                                 {
                                     "$set": {
                                         "sync_settings": updated_sync_settings,
-                                        "updated_at": datetime.utcnow(),
+                                        "updated_at": naive_utc_now(),
                                     }
                                 },
                             )
@@ -5288,7 +5289,7 @@ elif page == "🗺️ Grafo de conocimiento":
                                             )
                                         ),
                                         "map_uid": edit_doc.get("map_uid") or str(uuid4()),
-                                        "updated_at": datetime.utcnow(),
+                                        "updated_at": naive_utc_now(),
                                     }
                                 },
                             )
@@ -5410,7 +5411,7 @@ elif page == "🗺️ Grafo de conocimiento":
                     inferred_sources = infer_sources_from_graph_state(graph_state)
                     inferred_types = infer_concept_types_from_graph_state(graph_state)
                     primary_map_source = inferred_sources[0] if inferred_sources else ""
-                    now = datetime.utcnow()
+                    now = naive_utc_now()
                     result = maps_col.insert_one(
                         {
                             "name": import_name.strip(),

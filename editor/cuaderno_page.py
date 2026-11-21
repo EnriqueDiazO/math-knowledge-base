@@ -45,8 +45,8 @@ from editor.diary_note_editor_export import diary_editor_export_marker
 from editor.diary_note_editor_export import prepare_diary_editor_pdf_download
 from editor.diary_note_editor_export import prepare_diary_editor_zip_download
 from editor.diary_note_models import note_with_settings
-from editor.diary_note_models import settings_from_note
 from editor.diary_note_models import settings_document_fields
+from editor.diary_note_models import settings_from_note
 from editor.diary_note_models import settings_warnings
 from editor.diary_note_persistence import persist_diary_note_update
 from editor.diary_note_ui import clear_note_settings_state
@@ -83,6 +83,7 @@ from editor.validators.concept_validator import validate_semantic_duplicate
 from mathmongo.paths import get_pdf_preview_dir
 from mathmongo.paths import validate_mutable_path
 from mathmongo.source_catalog.repository import SourceRepository
+from mathmongo.time import naive_utc_now
 from schemas.schemas import ConceptoBase
 from schemas.schemas import GradoFormalidad
 from schemas.schemas import NivelContexto
@@ -786,7 +787,7 @@ def _build_notes_query(
         rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
         and_terms.append({"$or": [{"title": rx}, {"latex_body": rx}]})
     if updated_recently:
-        cutoff = datetime.utcnow() - timedelta(days=7)
+        cutoff = naive_utc_now() - timedelta(days=7)
         q["updated_at"] = {"$gte": cutoff}
     if and_terms:
         q["$and"] = and_terms
@@ -1103,7 +1104,7 @@ def _render_note_editor(notes_col, note_id: str, key_prefix: str = "diary_editor
                     "context": e_context,
                     "tags": _normalize_tags(e_tags_raw),
                     "latex_body": e_latex,
-                    "updated_at": datetime.utcnow(),
+                    "updated_at": naive_utc_now(),
                 }
                 result = persist_diary_note_update(
                     notes_col,
@@ -1363,8 +1364,8 @@ def _render_diary_new_note(notes_col) -> None:
                 "tags": tags,
                 "latex_body": n_latex,
                 "image_ids": [],
-                "created_at": datetime.utcnow(),
-                "updated_at": datetime.utcnow(),
+                "created_at": naive_utc_now(),
+                "updated_at": naive_utc_now(),
             }
             doc.update(settings_document_fields(note_settings))
             try:
@@ -1847,7 +1848,7 @@ def _render_diary_promote_note(notes_col) -> None:
                 "Year",
                 min_value=1800,
                 max_value=3000,
-                value=datetime.utcnow().year,
+                value=naive_utc_now().year,
                 key=f"diary_promote_ref_anio_{safe_note_key}",
             )
         with ref_cols[1]:
@@ -2324,7 +2325,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 iso_week = int(getattr(iso, "week", iso[1]))
 
                 tags = [t.strip() for t in w_tags_csv.split(",") if t.strip()]
-                now = datetime.utcnow()
+                now = naive_utc_now()
 
                 doc = {
                     "date": date_str,
@@ -2474,7 +2475,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             with cdl2:
                 if len(selected_df) > 0:
                     csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
-                    fname = f"worklog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    fname = f"worklog_{naive_utc_now().strftime('%Y%m%d_%H%M%S')}.csv"
                     st.download_button(
                         "Descargar CSV",
                         data=csv_bytes,
@@ -2554,7 +2555,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     else:
                         date_str = ew_date.strftime("%Y-%m-%d")
                         iso_vals = _iso_from_date_str(date_str)
-                        now = datetime.utcnow()
+                        now = naive_utc_now()
 
                         upd = {
                             "date": date_str,
@@ -2657,7 +2658,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     else:
                         date_str = wfb_date.strftime("%Y-%m-%d")
                         iso_vals = _iso_from_date_str(date_str)
-                        now = datetime.utcnow()
+                        now = naive_utc_now()
 
                         doc = {
                             "date": date_str,
@@ -2822,7 +2823,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 if not b_project_s or not b_task_s or not b_owner_s:
                     st.error("❌ Campos requeridos: Project, Task, Owner.")
                 else:
-                    now = datetime.utcnow()
+                    now = naive_utc_now()
                     doc = {
                         "project": b_project_s,
                         "module": (b_module or "").strip() or None,
@@ -3001,7 +3002,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 with cdl2:
                     if len(selected_df) > 0:
                         csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
-                        fname = f"backlog_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                        fname = f"backlog_{naive_utc_now().strftime('%Y%m%d_%H%M%S')}.csv"
                         st.download_button(
                             "Descargar CSV",
                             data=csv_bytes,
@@ -3075,7 +3076,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                 save_update = st.button("Guardar cambios", key="backlog_save_changes")
                 if save_update:
                     try:
-                        now = datetime.utcnow()
+                        now = naive_utc_now()
                         set_doc = {
                             "status": new_status,
                             "priority": new_priority,
@@ -3500,7 +3501,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
         st.divider()
 
         if st.button("Guardar Weekly Review", key="weekly_save_btn"):
-            now = datetime.utcnow()
+            now = naive_utc_now()
             doc = {
                 "iso_year": int(iso_year),
                 "iso_week": int(iso_week),
@@ -3660,7 +3661,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             with cdl2:
                 if len(selected_df) > 0:
                     csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
-                    fname = f"weekly_reviews_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    fname = f"weekly_reviews_{naive_utc_now().strftime('%Y%m%d_%H%M%S')}.csv"
                     st.download_button(
                         "Descargar CSV",
                         data=csv_bytes,
@@ -3702,7 +3703,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             if not d_project.strip() or not d_deliverable.strip() or not d_path.strip():
                 st.error("❌ Campos requeridos: Proyecto, Deliverable y Ruta / URL.")
             else:
-                now = datetime.utcnow()
+                now = naive_utc_now()
                 doc = {
                     "date": d_date.strftime("%Y-%m-%d"),
                     "project": d_project.strip(),
@@ -3865,7 +3866,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
             with cdl2:
                 if len(selected_df) > 0:
                     csv_bytes = selected_df.to_csv(index=False).encode("utf-8")
-                    fname = f"deliverables_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+                    fname = f"deliverables_{naive_utc_now().strftime('%Y%m%d_%H%M%S')}.csv"
                     st.download_button(
                         "Descargar CSV",
                         data=csv_bytes,
@@ -3967,7 +3968,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                     if not (e_project or "").strip() or not (e_deliv or "").strip() or not (e_path or "").strip():
                         st.error("❌ Campos requeridos: Proyecto, Deliverable y Ruta / URL.")
                     else:
-                        now = datetime.utcnow()
+                        now = naive_utc_now()
                         upd = {
                             "date": e_date.strftime("%Y-%m-%d"),
                             "project": (e_project or "").strip(),
@@ -4097,7 +4098,7 @@ def render_cuaderno(db, _cuaderno_is_installed: Callable[[], bool]) -> None:
                         )
 
                         if apply_btn and new_status != s:
-                            now = datetime.utcnow()
+                            now = naive_utc_now()
                             set_doc = {"status": new_status, "updated_at": now}
                             if (s != "Done") and (new_status == "Done"):
                                 set_doc["done_at"] = now
