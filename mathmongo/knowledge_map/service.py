@@ -31,6 +31,8 @@ from editor.helpers.concept_builders import build_concept_metadata
 from editor.helpers.managed_source_selection import load_active_sources
 from editor.helpers.managed_source_selection import resolve_active_source
 from editor.validators.concept_validator import validate_semantic_duplicate
+from mathmongo.knowledge_map.views import StudyRoom
+from mathmongo.knowledge_map.views import StudyView
 from mathmongo.source_catalog.repository import SourceRepository
 from schemas.schemas import ConceptoBase
 from schemas.schemas import Relation
@@ -43,7 +45,7 @@ class Intent(BaseModel):
     """Bounded allowlist of client intentions; arbitrary database updates are forbidden."""
     model_config = ConfigDict(extra='forbid', strict=True)
     operation_id: str
-    action: Literal['create', 'create_connected', 'connect', 'edit']
+    action: Literal['create', 'create_connected', 'connect', 'edit', 'save_view', 'save_room', 'save_note', 'publish_note']
     key: str = Field(default='', max_length=1000)
     target: str = Field(default='', max_length=1000)
     source_id: str = Field(default='', max_length=100)
@@ -55,6 +57,15 @@ class Intent(BaseModel):
     relation_type: TipoRelacion = Field(default=TipoRelacion.requiere_concepto, strict=False)
     reverse: bool = False
     revision: str = Field(default='', max_length=64)
+    map_uid: str = Field(default='', max_length=100)
+    map_name: str = Field(default='Mi esfera de estudio', min_length=1, max_length=200)
+    view_state: StudyView | None = None
+    room_uid: str = Field(default='', max_length=100)
+    room_state: StudyRoom | None = None
+    note_id: str = Field(default='', max_length=100)
+    note_revision: str = Field(default='', max_length=64)
+    document_id: str = Field(default='', max_length=100)
+    annotation_id: str = Field(default='', max_length=100)
 
 
 def identity(doc: dict) -> str:
@@ -100,7 +111,7 @@ class KnowledgeMapService:
         """Bind an edit to both records observed by its author."""
         return digest([doc, self.latex(doc)])
 
-    def graph(self) -> dict:
+    def graph(self, *, include_study: bool = False) -> dict:
         """Load the same graph for both projections, with two bulk concept reads."""
         nodes = []
         latex_by_key = {identity(d): d for d in self.mongo.latex_documents.find({})
@@ -113,6 +124,7 @@ class KnowledgeMapService:
                           'titulo': doc.get('titulo') or str(doc['id']), 'tipo': doc.get('tipo', 'otro'),
                           'comentario': doc.get('comentario') or '', 'categorias': doc.get('categorias') or [],
                           'contenido_latex': (latex or {}).get('contenido_latex', doc.get('contenido_latex', '')),
+                          'referencia': {k: str(v) for k, v in (doc.get('referencia') or {}).items() if v is not None},
                           'revision': digest([doc, latex])})
         keys = {node['key'] for node in nodes}
         edges = [{'key': str(r['_id']), 'from': r['desde'], 'to': r['hasta'],
@@ -120,9 +132,15 @@ class KnowledgeMapService:
                  for r in self.mongo.relations.find({})
                  if r.get('desde') in keys and r.get('hasta') in keys]
         sources = [{'id': s.source_id, 'name': s.name} for s in load_active_sources(self.sources)]
-        return {'nodes': sorted(nodes, key=lambda n: n['key']), 'edges': edges,
+        views = [{'uid': str(v['map_uid']), 'name': v.get('name', 'Esfera de estudio'), 'revision': digest(v), 'state': v['study_view']}
+                 for v in self.db['knowledge_graph_maps'].find({'study_view.version': 1}).limit(100)]
+        result = {'views': views, 'nodes': sorted(nodes, key=lambda n: n['key']), 'edges': edges,
                 'sources': sources, 'concept_types': list(CONCEPT_TYPES),
                 'relation_types': [t.value for t in TipoRelacion]}
+        if include_study:
+            from mathmongo.knowledge_map.study_resources import StudyResources
+            result.update(StudyResources(self).snapshot())
+        return result
 
     def execute(self, payload: dict) -> dict:
         """Acknowledge only persisted results. Infrastructure errors are uncertain."""
@@ -142,7 +160,7 @@ class KnowledgeMapService:
             return self._failed_write(intent)
 
     def _failed_write(self, intent: Intent) -> dict:
-        if intent.action in ('create', 'create_connected'):
+        if intent.action in ('create', 'create_connected', 'publish_note'):
             try:
                 owned = self.mongo.concepts.find_one({'_map_operation': intent.operation_id})
                 if owned is not None:
@@ -191,6 +209,14 @@ class KnowledgeMapService:
         return {'operation_id': intent.operation_id, 'status': status, 'message': message, **values}
 
     def _apply(self, intent: Intent, record: dict) -> dict:
+        if intent.action in ('save_room', 'save_note', 'publish_note'):
+            from mathmongo.knowledge_map.study_resources import StudyResources
+            resources = StudyResources(self)
+            handler = {'save_room': resources.save_room, 'save_note': resources.save_note,
+                       'publish_note': resources.publish_note}[intent.action]
+            return handler(intent, record)
+        if intent.action == 'save_view':
+            return self._save_view(intent, record)
         if intent.action == 'edit':
             return self._edit(intent, record)
         if intent.action == 'connect':
@@ -299,3 +325,48 @@ class KnowledgeMapService:
         except (MapConflictError, PyMongoError):
             return self.result(intent, 'partial', 'Ficha guardada; contenido sin confirmar o en conflicto. Conserva el borrador y reconcilia; no se sobrescriben cambios ajenos.', key=intent.key)
         return self.result(intent, 'saved', 'Edición confirmada.', key=intent.key)
+
+    def _save_view(self, intent: Intent, record: dict) -> dict:
+        """Save one presentation snapshot with CAS, retaining unrelated map fields."""
+        try:
+            UUID(intent.map_uid)
+        except ValueError:
+            raise MapConflictError('Identidad de vista no válida.') from None
+        if intent.view_state is None:
+            raise MapConflictError('Falta la disposición de la vista.')
+        from visualizations.grafoconocimiento import GrafoConocimiento
+        members = intent.view_state.members
+        concepts = [doc for doc in self.mongo.concepts.find({}) if members is None or identity(doc) in members]
+        keys = {identity(doc) for doc in concepts}
+        relations = [doc for doc in self.mongo.relations.find({}) if doc.get('desde') in keys and doc.get('hasta') in keys]
+        graph = GrafoConocimiento(concepts, relations)
+        graph.construir_grafo()
+        return self.save_presentation(
+            intent, record, identifier='sphere:' + intent.map_uid,
+            patch={'name': intent.map_name.strip(), 'study_view': intent.view_state.model_dump(),
+                   'graph_state': graph.to_graph_state(), 'map_uid': intent.map_uid},
+            response={'map_uid': intent.map_uid}, message='Disposición guardada.',
+        )
+
+    def save_presentation(self, intent: Intent, record: dict, *, identifier: str,
+                          patch: dict, response: dict, message: str) -> dict:
+        """Share recoverable snapshot CAS for views and rooms, never semantic CRUD."""
+        maps = self.db['knowledge_graph_maps']
+        query = {'_id': identifier}
+        current = maps.find_one(query)
+        if current is not None and current.get('_study_operation') == intent.operation_id:
+            if digest(current) != record.get('view_expected_hash'):
+                raise MapConflictError('La vista cambió después del guardado; conserva tu disposición y revisa la versión actual.')
+            return self.result(intent, 'saved', message, **response, view_revision=digest(current))
+        if current is not None and digest(current) != intent.revision:
+            raise MapConflictError('Conflicto de vista: no se sobrescribió el otro mapa. Conserva la disposición local.')
+        if current is None and intent.revision:
+            raise MapConflictError('La vista guardada ya no existe; conserva la disposición local.')
+        patch = {**patch, 'updated_at': record['created_at'], '_study_operation': intent.operation_id}
+        after = {**(current or {**query, 'created_at': record['created_at'], 'filters': {}, 'tags': []}), **patch}
+        self.operations.update_one({'_id': intent.operation_id}, {'$set': {'view_expected_hash': digest(after)}})
+        if current is None:
+            maps.insert_one(after)
+        elif not maps.replace_one(exact_document(current), after).matched_count:
+            raise MapConflictError('La vista cambió durante el guardado. No se sobrescribió.')
+        return self.result(intent, 'saved', message, **response, view_revision=digest(after))

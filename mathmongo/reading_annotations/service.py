@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Any
 from typing import Generic
@@ -1241,6 +1242,7 @@ class ReadingAnnotationService:
         page_end: int | None = None,
         tags: tuple[str, ...] | list[str] = (),
         user_scope: str = "local",
+        expected_updated_at: datetime | None = None,
     ) -> ReadingAnnotationServiceResult[ReadingNote]:
         gate = self._write_gate()
         if gate is not None:
@@ -1273,7 +1275,10 @@ class ReadingAnnotationService:
                 page_end=page_end,
                 reference_id=reference_id,
                 tags=tags,
+                expected_updated_at=expected_updated_at,
             )
+            if value is None:
+                return self._result(ReadingAnnotationOperationStatus.CONFLICT, message="Reading Note changed; keep the local draft and review the current version.")
         except (ValidationError, ValueError) as exc:
             return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
         except ReadingAnnotationConflictError as exc:

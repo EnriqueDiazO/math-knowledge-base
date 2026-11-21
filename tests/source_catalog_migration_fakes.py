@@ -147,7 +147,15 @@ def _condition_matches(values: list[Any], condition: Any) -> bool:
 def matches_query(document: Mapping[str, Any], query: Mapping[str, Any]) -> bool:
     """Evaluate the bounded query subset used by repositories and the engine."""
     for key, condition in query.items():
-        if key == "$or":
+        if key == "$expr":
+            # Whole-document CAS used by recoverable study-note writes. Reject
+            # other expressions so the fake cannot silently accept a bad query.
+            operands = condition.get("$eq", [])
+            if len(operands) != 2 or operands[0] != "$$ROOT" or not isinstance(operands[1], Mapping) or set(operands[1]) != {"$literal"}:
+                raise AssertionError("Unsupported fake Mongo expression")
+            if document != operands[1]["$literal"]:
+                return False
+        elif key == "$or":
             if not any(matches_query(document, alternative) for alternative in condition):
                 return False
         elif key == "$and":
