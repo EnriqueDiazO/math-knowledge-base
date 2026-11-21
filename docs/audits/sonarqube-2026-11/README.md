@@ -145,3 +145,34 @@ completas después: 5 passed (antes 4 failed / 1 passed). Pruebas unitarias y de
 integración pertinentes: 55 passed, 6 warnings previos de serialización Pydantic.
 Logs: rollback-real-after.log, mongo-regressions-{before,after}.log y
 data-fixes-tests.log. No se modificaron pruebas preexistentes para aprobar el lote.
+
+## Parser y exportación legados
+
+Entrada mínima Markdown que fallaba antes:
+
+    # Note
+
+    **Referencia**: Author, 2026, Book
+
+    $$x=1$$
+
+Antes: IndexError al acceder a partes[3] tras aceptar len(partes)>=3; no devolvía
+ningún concepto. Esperado/ahora: referencia {autor: Author, año: 2026, obra: Book},
+contenido_latex='x=1'. Capítulo, página y bibkey se conservan cuando se suministran
+(4, 5 o 6 campos). Se mantienen nombres históricos, año entero, IDs, tipo, fórmulas,
+BibTeX y comportamiento de referencias inválidas; no se rediseña el parser.
+Se añadieron casos matemáticos fracción/alpha y entorno aligned multilínea.
+
+Otros defectos delimitados: YAML vacío/lista/escalar pasaba como metadata y fallaba
+más tarde al desestructurar el mapping; ahora ValueError en el límite del parser.
+El exportador QMD podía escapar del destino mediante tipo absoluto/../ o seguir
+symlinks de carpeta/fichero. Valida categoría y todas las rutas descendientes con
+la misma guarda mutable del proyecto. Tipos legítimos conservan directorio y nombre
+(ejemplo teoremas/teorema-title.qmd). No se alteró la política de refrescar archivos
+exportados con el mismo título: colisiones entre conceptos distintos se registran
+como deuda que requiere definir una identidad de archivo compatible.
+
+Evidencia antes (unitarias nuevas): 16 failed / 5 passed. Después: 23 passed en
+regresiones de parser/paths y tests XDG preexistentes. Logs en regressions-before.log
+y parsers-after.log. Ruff en el módulo QMD conserva 4 docstrings faltantes de la
+clase stub preexistente ExportadorQuarto: no se ocultan ni se elimina esa API pública.

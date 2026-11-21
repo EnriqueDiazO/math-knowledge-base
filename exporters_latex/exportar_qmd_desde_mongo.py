@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import re
 from collections.abc import Sequence
 from pathlib import Path
 
@@ -28,8 +29,13 @@ def _output_root(base_dir: str | Path | None = None) -> Path:
 def crear_qmd(concepto: dict, base_dir: str | Path | None = None) -> Path:
     """Create one QMD file under a controlled export directory."""
     tipo_raw = concepto.get("tipo", "otros")
+    if isinstance(tipo_raw, list) and not tipo_raw:
+        raise ValueError("tipo must contain a category")
     tipo = str(tipo_raw[0] if isinstance(tipo_raw, list) else tipo_raw).lower().replace(" ", "_")
-    directory = _output_root(base_dir) / f"{tipo}s"
+    if re.fullmatch(r"[\w-]+", tipo) is None:
+        raise ValueError("tipo must be a plain category without path separators")
+    root = _output_root(base_dir)
+    directory = validate_mutable_path(root / f"{tipo}s", allowed_root=root)
     directory.mkdir(parents=True, exist_ok=True, mode=0o700)
 
     titulo = concepto.get("titulo", "sin_titulo")
@@ -37,7 +43,10 @@ def crear_qmd(concepto: dict, base_dir: str | Path | None = None) -> Path:
     referencia = concepto.get("referencia", "N/A")
     comentario = concepto.get("comentario", "")
     concepto_id = concepto.get("id", "")
-    filename = directory / f"{slugify(f'{tipo}_{titulo}')[:60]}.qmd"
+    filename = validate_mutable_path(
+        directory / f"{slugify(f'{tipo}_{titulo}')[:60]}.qmd",
+        allowed_root=directory,
+    )
 
     sections = [
         f"# {titulo}",

@@ -25,6 +25,8 @@ class YamlLatexParser:
 
         partes = texto.split("---", 2)
         datos_yaml = yaml.safe_load(partes[1].strip())
+        if not isinstance(datos_yaml, dict):
+            raise ValueError("YAML metadata must be a mapping.")
         contenido_latex = partes[2].strip()
 
         return datos_yaml, contenido_latex
