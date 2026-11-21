@@ -344,3 +344,14 @@ del tooling, cobertura instrumentada de E2E/frontend, conservando una comparaci�
 explícita. Para seguridad de dependencias, cualificar Python 3.11+ y Pillow 13 en
 entorno separado antes de cambiar la instalación docente. Los 50 tests del corpus
 privado sólo pueden cerrarse con el ZIP autoritativo aprobado original.
+
+## Segunda fase — diagnóstico previo (2026-11-21)
+
+Se retoma ecc3df0b en la misma rama, sin cambios locales existentes. El informe
+[followup/DIAGNOSIS.md](followup/DIAGNOSIS.md) se escribió antes de añadir pruebas:
+consulta del análisis f7d5bcc2, referencia PREVIOUS_VERSION inalterada, 15 archivos,
+112/359 líneas cubiertas, 0 condiciones; 214 de 247 huecos son tooling de calidad
+(sonar.py/quality.py/quality_mongo.py). SONAR_LABEL sólo nombra evidencia.
+Se confirma XML Python correctamente importado, cobertura de hijos no instrumentada
+y LCOV no generado. Se preparará una calibración de medición antes de nuevas pruebas
+para distinguir hits recuperados de la cobertura obtenida por verificaciones nuevas.
