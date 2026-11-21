@@ -305,3 +305,42 @@ def test_creation_failure_never_deletes_a_concept_changed_and_referenced_elsewhe
     assert service.mongo.concepts.count_documents({}) == 2
     assert service.find(result['key'])['other_writer'] == 'keep'
     assert service.latex(service.find(result['key']))['contenido_latex'] == payload['contenido_latex']
+
+
+def test_unavailable_driver_keeps_result_uncertain_then_reconciles_once(service, monkeypatch):
+    """A failed ledger write and failed read must not invent success or duplicate retry."""
+    payload = create(service)
+    update = service.operations.update_one
+    find = service.mongo.concepts.find_one
+    def unavailable(*args, **kwargs):
+        raise AutoReconnect('mongodb://private:secret@offline')
+    monkeypatch.setattr(service.operations, 'update_one', unavailable)
+    monkeypatch.setattr(service.mongo.concepts, 'find_one', unavailable)
+    uncertain = service.execute(payload)
+    assert uncertain['status'] == 'uncertain'
+    assert 'private' not in str(uncertain) and 'secret' not in str(uncertain)
+    assert service.mongo.concepts.count_documents({}) == 0
+    monkeypatch.setattr(service.operations, 'update_one', update)
+    monkeypatch.setattr(service.mongo.concepts, 'find_one', find)
+    confirmed = service.execute(payload)
+    assert confirmed['status'] == 'saved'
+    assert service.execute(payload) == confirmed
+    assert service.mongo.concepts.count_documents({}) == 1
+
+
+def test_edit_legacy_inline_content_creates_content_record_without_losing_metadata(service):
+    """Editing an inline legacy note must preserve its identity and unrelated fields."""
+    legacy = {'id': 'nota:legacy', 'source': 'Legacy source', 'tipo': 'nota',
+              'titulo': 'Legado', 'categorias': [], 'contenido_latex': '$x$',
+              'image_ids': ['keep'], 'unknown': {'preserve': True}}
+    service.mongo.concepts.insert_one(legacy)
+    key = 'nota:legacy@Legacy source'
+    node = service.graph()['nodes'][0]
+    assert node['contenido_latex'] == '$x$'
+    result = service.execute(edit(service, key, contenido_latex='$y$', titulo='Legado revisado'))
+    assert result['status'] == 'saved'
+    doc = service.find(key)
+    assert doc['image_ids'] == ['keep'] and doc['unknown'] == {'preserve': True}
+    assert doc['_id'] == legacy['_id'] and doc['contenido_latex'] == '$x$'
+    assert service.latex(doc)['contenido_latex'] == '$y$'
+    assert service.graph()['nodes'][0]['contenido_latex'] == '$y$'

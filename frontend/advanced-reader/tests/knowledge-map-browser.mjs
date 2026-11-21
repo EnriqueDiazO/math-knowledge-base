@@ -85,7 +85,13 @@ try {
   await page.setViewportSize({ width: 420, height: 1000 });
   await expect(page.getByRole('button',{name:'Expand sidebar',exact:true})).toBeVisible();
   await expect.poll(async () => { const bounds = await page.getByTestId('stSidebar').boundingBox(); return bounds ? bounds.x + bounds.width : 0; }).toBeLessThanOrEqual(1);
-  await progress('narrow'); await screenshot('06-narrow');
+  await progress('narrow');
+  await page.screenshot({path:`${evidence}/06-narrow.png`});
+  await map.getByRole('button', {name:'Editar ficha',exact:true}).click();
+  await map.getByLabel('Nombre',{exact:true}).fill('Borrador móvil sin enviar');
+  await map.locator('aside').screenshot({path:`${evidence}/06-narrow-editor.png`});
+  await map.getByRole('button',{name:'Cancelar borrador',exact:true}).click();
+  await expect(map.getByRole('heading',{name:'Subgrupo conectado',exact:true})).toBeVisible();
   // Existing note routing and return preserve exact selection and view context.
   await progress('open-note'); await map.getByRole('button', { name: 'Abrir nota / edición avanzada', exact: true }).click();
   await expect(page.getByRole('heading', { name: '✏️ Edit Mathematical Concept', exact: true })).toBeVisible();
@@ -93,7 +99,7 @@ try {
   await navigate('🗺️ Grafo de conocimiento');
   await expect(map.getByRole('heading', { name: 'Subgrupo conectado', exact: true })).toBeVisible();
   if (errors.length) throw new Error(`Browser page errors: ${errors.join('; ')}`);
-  const summary = { ok: true, flow: ['create', 'connect-existing', 'edit', 'reload', 'neighbor', 'create-connected', 'flat', 'keyboard', 'mouse', 'touch', 'narrow', 'open-existing-editor', 'return'], page_errors: errors, console_errors: consoleErrors, blocked_host_icon_requests: remote, graph_nodes: 3, graph_edges: 2, last_canvas_render_ms: renderMs, browser: await browser.version(), viewport: '1440x1100 / 420x1000', reduced_motion: true };
+  const summary = { ok: true, flow: ['create', 'connect-existing', 'edit', 'reload', 'neighbor', 'create-connected', 'flat', 'keyboard', 'mouse', 'touch', 'narrow', 'narrow-editor-cancel', 'open-existing-editor', 'return'], page_errors: errors, console_errors: consoleErrors, blocked_host_icon_requests: remote, graph_nodes: 3, graph_edges: 2, last_canvas_render_ms: renderMs, browser: await browser.version(), viewport: '1440x1100 / 420x1000', reduced_motion: true };
   await writeFile(`${evidence}/browser.json`, JSON.stringify(summary, null, 2) + '\n'); console.log(JSON.stringify(summary));
   }
 } catch (error) { await page.screenshot({ path: `${evidence}/failure.png`, fullPage: true }); console.error(await page.locator('select').evaluateAll(nodes => nodes.map(n => ({label:n.parentElement?.textContent,options:[...n.options].map(o=>({value:o.value,text:o.textContent}))})))); throw error; } finally { await browser.close(); }
