@@ -10,6 +10,7 @@ import {
 } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { normalizeRedistributedLicense } from "./text-normalization.mjs";
 
 const PDFJS_VERSION = "6.2.108";
 const PDFJS_ASSET_DIRECTORY = `pdfjs-${PDFJS_VERSION}`;
@@ -109,10 +110,6 @@ function sanitizeRuntimeText(source, label) {
   return sanitized;
 }
 
-function normalizeRedistributedLicense(source) {
-  const normalized = source.replaceAll("\r\n", "\n").replace(/[\t ]+$/gmu, "");
-  return `${normalized.replace(/\n+$/u, "")}\n`;
-}
 
 async function prepareAssetDirectory(directoryName, destinationRoot) {
   const sourceDirectory = resolve(packageRoot, directoryName);
