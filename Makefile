@@ -2,7 +2,8 @@
 # Paths (relative, no hardcode)
 # -----------------------------
 SHELL := /bin/bash
-VENV := . mathdbmongo/bin/activate &&
+VENV_DIR ?= .venv
+VENV := . $(VENV_DIR)/bin/activate &&
 PY := $(VENV) python
 PY3 := $(VENV) python3
 BOOK_TEMPLATE := quarto_book
@@ -32,7 +33,7 @@ RUNTIME_ARGS := --database "$(DATABASE)" \
 	--advanced-reader-host "$(ADVANCED_READER_HOST)" \
 	--advanced-reader-port "$(ADVANCED_READER_PORT)" \
 	--log-level "$(LOG_LEVEL)"
-RUNTIME_CLI := mathdbmongo/bin/python -m mathmongo runtime
+RUNTIME_CLI := $(VENV_DIR)/bin/python -m mathmongo runtime
 MONGO_ENSURE_ARGS := --mongo-auth-mode "$(MONGO_AUTH_MODE)" \
 	$(if $(filter 0,$(MONGO_AUTO_START)),--no-mongo-auto-start,)
 
@@ -61,19 +62,19 @@ run:
 run-streamlit:
 	MONGODB_DB="$(DATABASE)" \
 	MATHMONGO_ADVANCED_READER_URL="http://$(ADVANCED_READER_URL_HOST):$(ADVANCED_READER_PORT)" \
-	mathdbmongo/bin/python -m streamlit run editor/editor_streamlit.py \
+	$(VENV_DIR)/bin/python -m streamlit run editor/editor_streamlit.py \
 		--server.address "$(STREAMLIT_HOST)" \
 		--server.port "$(STREAMLIT_PORT)"
 
 advanced-reader:
-	mathdbmongo/bin/python -m mathmongo.advanced_reader \
+	$(VENV_DIR)/bin/python -m mathmongo.advanced_reader \
 		--host "$(ADVANCED_READER_HOST)" \
 		--port "$(ADVANCED_READER_PORT)" \
 		--database "$(DATABASE)" \
 		--log-level "$(LOG_LEVEL)"
 
 gui:
-	. mathdbmongo/bin/activate && python run_gui.py
+	. $(VENV_DIR)/bin/activate && python run_gui.py
 
 # -----------------------
 # 🧹 Lint y correcciones automáticas

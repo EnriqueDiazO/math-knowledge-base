@@ -42,7 +42,7 @@ from mathmongo.source_documents.service import DocumentOperationStatus  # noqa: 
 from mathmongo.source_documents.service import SourceDocumentService  # noqa: E402
 from mathmongo.source_documents.storage import SourceDocumentBlobStore  # noqa: E402
 
-PYTHON = REPOSITORY_ROOT / "mathdbmongo" / "bin" / "python"
+PYTHON = Path(sys.executable)
 MONGOD = shutil.which("mongod")
 NODE = shutil.which("node")
 CHROME = shutil.which("google-chrome")
