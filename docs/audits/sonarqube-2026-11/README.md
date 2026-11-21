@@ -306,3 +306,41 @@ como intermediate-*. No se usa para la comparación. El Gate de ese ensayo falla
 únicamente por new_coverage=28.3% frente al 80% predeterminado, sin nuevas violaciones.
 No se cambiarán reglas, umbrales ni exclusiones para ocultar la cobertura del tooling.
 Se repite la suite/análisis tras este lote para analizar la revisión definitiva.
+
+## Cierre y siguiente paso concreto
+
+Código final analizado: `4b8cb48c5c0b21cf09c2f7f02f7fc7b8f248e391`, confirmado mediante
+SCM revision ID y la API project_analyses después del procesamiento. CE SUCCESS.
+Se conservó el XML de la suite completa; el ajuste final strict=False equivale al
+valor predeterminado y pasó además 15 regresiones del parser. Se repitió sólo el
+scanner sobre HEAD estable para fijar correctamente la revisión analizada.
+
+Resultado final: 1783 pruebas Python aprobadas; 59 omitidas en la suite general
+(50 requieren ZIP privado, 9 son E2E opt-in). Los 9 E2E pasan aparte en Mongo
+standalone temporal. Frontend 107 tests, typecheck/ESLint/build/npm ci aprobados.
+Runtime integrado, lector ampliado, geometría de round-trip y grafo HTML en Chrome
+aprobados. Grafo: seis scripts inline comprobados sintácticamente, dos nodos y canvas
+pintado sin errores de página, con solicitudes externas bloqueadas en el smoke.
+
+Gate final ERROR: cobertura nueva 31.2% frente a 80%, sin nuevas violaciones ni
+duplicación nueva. Cobertura local 64.12% -> 65.07%; Sonar 62.0% -> 62.9%.
+Ruff 2165 -> 2156; bugs Sonar 17 -> 16. Otras métricas, incluido el aumento de
+complejidad por runners/guardas nuevas, se registran sin seleccionar sólo mejoras.
+No se modificaron umbrales, perfiles, reglas ni exclusiones para obtener un aprobado.
+Se verificó down/up con volúmenes persistentes: mismo análisis y credenciales;
+el servidor queda UP y el panel disponible en 127.0.0.1:19000.
+
+Entrega revisable:
+- [Comparación exacta y Gate](COMPARISON.md), [resumen JSON](analysis-summary.json).
+- [Hallazgos y arquitectura](FINDINGS.md), [inventario por archivo](INVENTORY.csv).
+- [Avisos Ruff por regla](RUFF.md), [issues Sonar individuales](SONAR_ISSUES.csv).
+- [Dependencias y límites](DEPENDENCIES.md), [eliminaciones/reemplazos](DELETIONS.md).
+- [Verificaciones](FINAL_CHECKS.md), [commits/reversión](COMMITS.md).
+- [Uso reproducible y host persistente](../../SONARQUBE.md).
+
+Checkpoint: fases solicitadas ejecutadas; no hay bloqueo de permisos/credenciales
+pendiente. Para continuar calidad, trabajar P10: contratos HTTP/lifecycle y fallos
+del tooling, cobertura instrumentada de E2E/frontend, conservando una comparación
+explícita. Para seguridad de dependencias, cualificar Python 3.11+ y Pillow 13 en
+entorno separado antes de cambiar la instalación docente. Los 50 tests del corpus
+privado sólo pueden cerrarse con el ZIP autoritativo aprobado original.
