@@ -32,13 +32,13 @@ de MathMongo; no introduce una segunda capa de persistencia.
 | --- | ---: | --- | --- | --- |
 | React | 19.2.7 | MIT | composición y lifecycle de la aplicación local | [npm](https://www.npmjs.com/package/react/v/19.2.7) |
 | React DOM | 19.2.7 | MIT | montaje del árbol React en el documento local | [npm](https://www.npmjs.com/package/react-dom/v/19.2.7) |
-| pdfjs-dist | 6.1.200 | Apache-2.0 | render PDF, worker, text/annotation layers, thumbnails, navegación y búsqueda | [npm](https://www.npmjs.com/package/pdfjs-dist/v/6.1.200) |
+| pdfjs-dist | 6.2.108 | Apache-2.0 | render PDF, worker, text/annotation layers, thumbnails, navegación y búsqueda | [npm](https://www.npmjs.com/package/pdfjs-dist/v/6.2.108) |
 
 `pdfjs-dist` se consume mediante sus APIs públicas. No se copia sin revisión el
 viewer demo completo. El worker se empaqueta en el mismo origen; no se usa el
 worker de un CDN ni se habilita ejecución de JavaScript embebido en el PDF.
 
-El paquete también distribuye los recursos oficiales de `pdfjs-dist 6.1.200`
+El paquete también distribuye los recursos oficiales de `pdfjs-dist 6.2.108`
 necesarios por el renderer: CMaps empaquetados, fuentes estándar, el perfil ICC
 y los decodificadores JBIG2/OpenJPEG/QCMS. Los archivos de licencia específicos
 permanecen junto a esos recursos. La configuración S5A usa los fallbacks

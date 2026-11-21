@@ -9,7 +9,7 @@ producto y `MathV0` puede seguir siendo el nombre físico de la base activa.
 | Ubuntu | verified | 22.04.5 LTS |
 | Python | verified | 3.10.12; declarado `>=3.10,<3.14` |
 | Streamlit | verified / recommended | 1.59.2; declarado `>=1.59,<1.60` |
-| PyMongo | verified | 4.17.0; declarado `>=4.17,<4.18` |
+| PyMongo | verified | 4.18.3; declarado `>=4.18.3,<4.19` (corrección de seguridad, noviembre 2026) |
 | MongoDB Server | verified | 7.0.35 |
 | MongoDB FCV | verified | 7.0 |
 | Pydantic | verified | 2.13.4; declarado `>=2.13,<3` |

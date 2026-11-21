@@ -396,14 +396,14 @@ describe("PdfJsController", () => {
 
     await mountReady(instance, options);
 
-    expect(PDFJS_VERSION).toBe("6.1.200");
+    expect(PDFJS_VERSION).toBe("6.2.108");
     expect(pdfJsMocks.globalWorkerOptions.workerSrc).toBe("/assets/pdf.worker.min.mjs");
     expect(pdfJsMocks.globalWorkerOptions.workerSrc).not.toMatch(/^https?:/u);
     expect(PDFJS_RESOURCE_URLS).toEqual({
-      cMapUrl: "/assets/pdfjs-6.1.200/cmaps/",
-      iccUrl: "/assets/pdfjs-6.1.200/iccs/",
-      standardFontDataUrl: "/assets/pdfjs-6.1.200/standard_fonts/",
-      wasmUrl: "/assets/pdfjs-6.1.200/wasm/",
+      cMapUrl: "/assets/pdfjs-6.2.108/cmaps/",
+      iccUrl: "/assets/pdfjs-6.2.108/iccs/",
+      standardFontDataUrl: "/assets/pdfjs-6.2.108/standard_fonts/",
+      wasmUrl: "/assets/pdfjs-6.2.108/wasm/",
     });
     expect(pdfJsMocks.getDocument).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -412,7 +412,7 @@ describe("PdfJsController", () => {
       }),
     );
     for (const resourceUrl of Object.values(PDFJS_RESOURCE_URLS)) {
-      expect(resourceUrl).toMatch(/^\/assets\/pdfjs-6\.1\.200\//u);
+      expect(resourceUrl).toMatch(/^\/assets\/pdfjs-6\.2\.108\//u);
       expect(resourceUrl).not.toMatch(/^https?:/u);
     }
   });

@@ -11,7 +11,7 @@ import {
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
-const PDFJS_VERSION = "6.1.200";
+const PDFJS_VERSION = "6.2.108";
 const PDFJS_ASSET_DIRECTORY = `pdfjs-${PDFJS_VERSION}`;
 const VIRTUAL_HOME = "/home/web_user";
 const SANITIZED_VIRTUAL_HOME = "/virtual/web_user";

@@ -196,3 +196,13 @@ Transcripción del fallo observado antes: events.test.tsx:283 esperaba
 aria-hidden="true" en "Miniaturas PDF" y recibió "false". El test aislado pasaba,
 pero falló dos veces en la suite completa, por lo que no se aceptó como ruido.
 El log frontend-security-checks.log conserva el resultado final del mismo control.
+
+## Dependencias y empaquetado
+
+Se cerró el fallo previo Poetry y se actualizaron dependencias con advisories dentro
+de versiones compatibles (sin saltos mayores). Alcance, versiones, evidencia y
+pendientes están en DEPENDENCIES.md. pip check aprobado; poetry check --lock ya no
+falla (conserva warnings de deprecación). TypeScript/ESLint, 107 tests y build/publish
+frontend aprobados; 12 tests Python de empaquetado/constraints aprobados. No se
+eliminó código de app para reducir advertencias. Los reemplazos de recursos generados
+se documentan en DELETIONS.md y se verifican con las pruebas de manifiesto.

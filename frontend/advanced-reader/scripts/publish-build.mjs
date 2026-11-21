@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(projectRoot, "../..");
-const PDFJS_VERSION = "6.1.200";
+const PDFJS_VERSION = "6.2.108";
 const PDFJS_ASSET_DIRECTORY = `pdfjs-${PDFJS_VERSION}`;
 const source = resolve(projectRoot, "dist");
 const destination = resolve(
@@ -39,13 +39,13 @@ await writeFile(
   [
     "MathMongo Advanced Reader runtime dependencies",
     "",
-    "pdfjs-dist 6.1.200 — Apache-2.0 — https://github.com/mozilla/pdf.js",
+    "pdfjs-dist 6.2.108 — Apache-2.0 — https://github.com/mozilla/pdf.js",
     "React 19.2.7 — MIT — https://github.com/facebook/react",
     "React DOM 19.2.7 — MIT — https://github.com/facebook/react",
     "",
     "The corresponding license texts are distributed in this directory.",
     "PDF.js runtime resources and their applicable upstream license files are",
-    "distributed under /assets/pdfjs-6.1.200/.",
+    "distributed under /assets/pdfjs-6.2.108/.",
     "MathMongo replaces an embedded upstream virtual HOME marker with",
     "/virtual/web_user during packaging; decoder behavior is unchanged.",
   ].join("\n"),

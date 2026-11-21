@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - Python 3.10 in the project environment
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_ROOT = REPOSITORY_ROOT / "frontend" / "advanced-reader"
 STATIC_ROOT = REPOSITORY_ROOT / "mathmongo" / "advanced_reader" / "static" / "advanced_reader"
-PDFJS_VERSION = "6.1.200"
+PDFJS_VERSION = "6.2.108"
 PDFJS_ASSET_INVENTORIES = {
     "cmaps": (169, "95e459bcb13faa8998861ebf9954a86ac2ec362342318cef04ad67d38bfcc4d7"),
     "standard_fonts": (
@@ -162,7 +162,7 @@ def test_frontend_manifest_has_reproducible_pinned_runtime_and_build_commands() 
     assert package["type"] == "module"
     assert package["packageManager"] == "npm@11.12.1"
     assert package["dependencies"] == {
-        "pdfjs-dist": "6.1.200",
+        "pdfjs-dist": "6.2.108",
         "react": "19.2.7",
         "react-dom": "19.2.7",
     }
@@ -330,7 +330,7 @@ def test_third_party_document_records_runtime_versions_licenses_and_offline_poli
         "React DOM",
         "pdfjs-dist",
         "19.2.7",
-        "6.1.200",
+        "6.2.108",
         "Apache-2.0",
         "BSD-3-Clause",
         "MIT",

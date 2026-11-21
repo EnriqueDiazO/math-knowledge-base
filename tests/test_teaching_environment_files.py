@@ -13,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def test_teaching_constraints_pin_the_verified_runtime() -> None:
     constraints = (ROOT / "constraints/teaching-2026.txt").read_text(encoding="utf-8")
     assert "streamlit==1.59.2" in constraints
-    assert "pymongo==4.17.0" in constraints
+    assert "pymongo==4.18.3" in constraints
     assert "pydantic==2.13.4" in constraints
     assert "Pillow==12.3.0" in constraints
 
