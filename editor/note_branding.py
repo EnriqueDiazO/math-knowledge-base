@@ -158,11 +158,11 @@ def normalize_watermark_upload(
     if suffix not in WATERMARK_UPLOAD_TYPES:
         raise ValueError("La marca de agua debe ser PNG o WebP.")
     try:
-        with Image.open(io.BytesIO(raw)) as image:
+        with Image.open(io.BytesIO(raw), formats=("PNG", "WEBP")) as image:
             detected = str(image.format or "").upper()
-            image.load()
             if detected not in {"PNG", "WEBP"}:
                 raise ValueError("Los bytes no corresponden a una imagen PNG o WebP.")
+            image.load()
             if detected == "WEBP":
                 normalized = io.BytesIO()
                 image.convert("RGBA").save(normalized, format="PNG", optimize=True)
