@@ -20,6 +20,7 @@ from mathmongo.source_catalog.models import Source
 
 @pytest.fixture(scope='module')
 def owned_client(tmp_path_factory):
+    """Start an owned standalone process and reject leaked databases."""
     path = tmp_path_factory.mktemp('knowledge-map-mongod')
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
@@ -48,6 +49,7 @@ def owned_client(tmp_path_factory):
 
 @pytest.fixture
 def service(owned_client):
+    """Give every case an isolated indexed database and an active Source."""
     name = 'mathmongo_map_test_' + uuid4().hex
     db = owned_client[name]
     db.concepts.create_index([('id', 1), ('source', 1)], unique=True)
@@ -63,17 +65,20 @@ def service(owned_client):
 
 
 def create(api, **changes):
+    """Build a creation intention using the managed Source fixture."""
     return {'operation_id': str(uuid4()), 'action': 'create', 'source_id': api.test_source_id,
             'titulo': 'Grupo $G$', 'tipo': 'definicion', 'contenido_latex': r'$G \times G \to G$', **changes}
 
 
 def edit(api, key, **changes):
+    """Capture the actual revision for an optimistic edit intention."""
     return {'operation_id': str(uuid4()), 'action': 'edit', 'key': key,
             'revision': api.revision(api.find(key)), 'titulo': 'Nombre editado',
             'contenido_latex': r'$\forall x\in G$', **changes}
 
 
 def test_create_replay_and_reload_use_existing_collections(service):
+    """Create replay and reload use existing collections."""
     payload = create(service)
     first = service.execute(payload)
     assert first['status'] == 'saved'
@@ -89,6 +94,7 @@ def test_create_replay_and_reload_use_existing_collections(service):
 
 
 def test_duplicate_preserves_every_field_and_can_be_connected(service):
+    """Duplicate preserves every field and can be connected."""
     original = service.execute(create(service))['key']
     service.mongo.concepts.update_one({'id': service.find(original)['id']}, {'$set': {'referencia': {'url': 'https://example.invalid'}, 'image_ids': ['shared'], 'unknown': [1, 2]}})
     before = service.find(original)
@@ -106,6 +112,7 @@ def test_duplicate_preserves_every_field_and_can_be_connected(service):
 
 @pytest.mark.parametrize('reverse', [False, True])
 def test_connected_direction_type_and_parallel_self_links(service, reverse):
+    """Connected direction type and parallel self links."""
     origin = service.execute(create(service))['key']
     payload = create(service, action='create_connected', key=origin, titulo='Anillo', reverse=reverse, relation_type='deriva_de')
     result = service.execute(payload)
@@ -120,6 +127,7 @@ def test_connected_direction_type_and_parallel_self_links(service, reverse):
 
 
 def test_edit_preserves_identity_extra_metadata_references_and_images(service):
+    """Edit preserves identity extra metadata references and images."""
     key = service.execute(create(service))['key']
     doc = service.find(key)
     service.mongo.concepts.update_one({'_id': doc['_id']}, {'$set': {'referencia': {'citation': 'private'}, 'image_ids': ['shared'], 'other': {'raw': '$G$'}}})
@@ -136,6 +144,7 @@ def test_edit_preserves_identity_extra_metadata_references_and_images(service):
 
 
 def test_stale_edit_and_atomic_cas_never_overwrite_other_writer(service, monkeypatch):
+    """Stale edit and atomic cas never overwrite other writer."""
     key = service.execute(create(service))['key']
     old = edit(service, key)
     service.mongo.concepts.update_one({'id': service.find(key)['id']}, {'$set': {'titulo': 'Otro escritor'}})
@@ -153,6 +162,7 @@ def test_stale_edit_and_atomic_cas_never_overwrite_other_writer(service, monkeyp
 
 
 def test_partial_connection_retries_owned_concept_without_deleting_it(service, monkeypatch):
+    """Partial connection retries owned concept without deleting it."""
     origin = service.execute(create(service))['key']
     payload = create(service, action='create_connected', titulo='Conservado', key=origin)
     original = service._connect
@@ -170,6 +180,7 @@ def test_partial_connection_retries_owned_concept_without_deleting_it(service, m
 
 
 def test_partial_edit_recovers_content_without_rolling_back_metadata(service, monkeypatch):
+    """Partial edit recovers content without rolling back metadata."""
     key = service.execute(create(service))['key']
     payload = edit(service, key)
     real = service.mongo.latex_documents.update_one
@@ -183,6 +194,7 @@ def test_partial_edit_recovers_content_without_rolling_back_metadata(service, mo
 
 
 def test_partial_edit_conflicting_content_is_not_overwritten(service, monkeypatch):
+    """Partial edit conflicting content is not overwritten."""
     key = service.execute(create(service))['key']
     payload = edit(service, key)
     doc = service.find(key)
@@ -197,6 +209,7 @@ def test_partial_edit_conflicting_content_is_not_overwritten(service, monkeypatc
 
 @pytest.mark.parametrize('changes', [{'action': 'delete'}, {'unknown': True}, {'tipo': 'invalid'}, {'titulo': ''}, {'contenido_latex': ''}, {'operation_id': 'bad'}, {'source_id': 'missing'}, {'categorias': [2]}, {'relation_type': 'inventada'}])
 def test_invalid_intentions_never_write_knowledge(service, changes):
+    """Invalid intentions never write knowledge."""
     result = service.execute(create(service, **changes))
     assert result['status'] in ('invalid', 'conflict')
     assert service.mongo.concepts.count_documents({}) == 0
@@ -204,6 +217,7 @@ def test_invalid_intentions_never_write_knowledge(service, changes):
 
 
 def test_read_navigation_does_not_create_ledger_and_missing_endpoint_blocks(service):
+    """Read navigation does not create ledger and missing endpoint blocks."""
     assert service.graph()['nodes'] == []
     assert '_knowledge_map_operations' not in service.db.list_collection_names()
     result = service.execute({'operation_id': str(uuid4()), 'action': 'connect', 'key': 'bad', 'target': 'bad'})
@@ -211,6 +225,7 @@ def test_read_navigation_does_not_create_ledger_and_missing_endpoint_blocks(serv
 
 
 def test_uncertain_response_reconciles_and_id_cannot_change_payload(service, monkeypatch):
+    """Uncertain response reconciles and id cannot change payload."""
     payload = create(service)
     original = service.operations.update_one
     def lost_ack(query, update, **kwargs):
@@ -227,6 +242,7 @@ def test_uncertain_response_reconciles_and_id_cannot_change_payload(service, mon
 
 
 def test_busy_operation_does_not_repeat_write(service):
+    """Busy operation does not repeat write."""
     from mathmongo.knowledge_map.service import digest
     payload = create(service)
     service.operations.insert_one({'_id': payload['operation_id'], 'payload_hash': digest(Intent.model_validate(payload).model_dump(mode='json')), 'lease_until': datetime.now(timezone.utc).replace(year=2030)})
@@ -235,6 +251,7 @@ def test_busy_operation_does_not_repeat_write(service):
 
 
 def test_lost_content_insert_ack_recovers_owned_orphan(service, monkeypatch):
+    """Lost content insert ack recovers owned orphan."""
     payload = create(service)
     real = service.mongo.latex_documents.insert_one
     def lost_ack(document):
@@ -252,6 +269,7 @@ def test_lost_content_insert_ack_recovers_owned_orphan(service, monkeypatch):
 
 
 def test_unowned_orphan_is_preserved_and_not_adopted(service):
+    """Unowned orphan is preserved and not adopted."""
     from uuid import NAMESPACE_URL
     from uuid import uuid5
     payload = create(service)
@@ -265,6 +283,7 @@ def test_unowned_orphan_is_preserved_and_not_adopted(service):
 
 
 def test_creation_failure_never_deletes_a_concept_changed_and_referenced_elsewhere(service, monkeypatch):
+    """Creation failure never deletes a concept changed and referenced elsewhere."""
     origin = service.execute(create(service, titulo='Origen'))['key']
     payload = create(service, titulo='Progreso válido')
     real = service.mongo.latex_documents.insert_one

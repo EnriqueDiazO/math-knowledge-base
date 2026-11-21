@@ -14,6 +14,7 @@ from mathmongo.knowledge_map.service import MapConflictError
 
 @pytest.fixture
 def bridge(monkeypatch):
+    """Replace only the UI transport while retaining the real routing contract."""
     with monkeypatch.context() as context:
         context.setattr(streamlit.components.v2, 'component', lambda *a, **k: lambda **kw: None)
         sys.modules.pop('editor.knowledge_map', None)
@@ -29,6 +30,7 @@ def bridge(monkeypatch):
 
 
 def test_mount_reads_and_scopes_without_dispatching_writes(bridge):
+    """Mount reads and scopes without dispatching writes."""
     module, state, api, calls = bridge
     module.render_knowledge_map(object(), 'private connection/database')
     mount = calls[0]
@@ -38,6 +40,7 @@ def test_mount_reads_and_scopes_without_dispatching_writes(bridge):
 
 
 def test_callback_stores_acknowledged_result_for_next_hydration(bridge):
+    """Callback stores acknowledged result for next hydration."""
     module, state, api, calls = bridge
     module.render_knowledge_map(object(), 'scope')
     mount = calls[0]
@@ -51,6 +54,7 @@ def test_callback_stores_acknowledged_result_for_next_hydration(bridge):
 
 
 def test_open_uses_existing_exact_note_route_and_handles_invalid_keys(bridge):
+    """Open uses existing exact note route and handles invalid keys."""
     module, state, api, calls = bridge
     module.render_knowledge_map(object(), 'scope')
     mount = calls[0]
@@ -69,6 +73,7 @@ def test_open_uses_existing_exact_note_route_and_handles_invalid_keys(bridge):
 
 
 def test_read_failure_is_safe_and_does_not_mount_or_dispatch(bridge, monkeypatch):
+    """Read failure is safe and does not mount or dispatch."""
     module, state, api, calls = bridge
     def fail():
         raise AutoReconnect('mongodb://private:user@host secret')

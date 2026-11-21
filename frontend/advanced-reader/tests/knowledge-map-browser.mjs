@@ -84,6 +84,7 @@ try {
   await progress('mouse-touch'); const collapse = page.getByRole('button', {name:'Collapse sidebar',exact:true}); if(await collapse.isVisible()) await collapse.click();
   await page.setViewportSize({ width: 420, height: 1000 });
   await expect(page.getByRole('button',{name:'Expand sidebar',exact:true})).toBeVisible();
+  await expect.poll(async () => { const bounds = await page.getByTestId('stSidebar').boundingBox(); return bounds ? bounds.x + bounds.width : 0; }).toBeLessThanOrEqual(1);
   await progress('narrow'); await screenshot('06-narrow');
   // Existing note routing and return preserve exact selection and view context.
   await progress('open-note'); await map.getByRole('button', { name: 'Abrir nota / edición avanzada', exact: true }).click();

@@ -22,17 +22,20 @@ ROOT = Path(__file__).resolve().parents[1]
 
 
 def free_port() -> int:
+    """Reserve an ephemeral loopback port for the owned browser application."""
     with socket.socket() as sock:
         sock.bind(('127.0.0.1', 0))
         return sock.getsockname()[1]
 
 
 def main() -> None:
+    """Verify the real application and remove only the resources owned here."""
     evidence = ROOT / 'evidence/sonar/sphere-2026-11'
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix='mathmongo-map-browser-') as directory:
         work = Path(directory)
-        dbpath = work / 'mongo'; dbpath.mkdir()
+        dbpath = work / 'mongo'
+        dbpath.mkdir()
         mongo_port, web_port = free_port(), free_port()
         env = dict(os.environ)
         for k in ('MONGO_URI', 'MONGO_DB', 'DB_NAME'):
@@ -50,7 +53,8 @@ def main() -> None:
                 if mongod.poll() is not None:
                     raise RuntimeError('Owned MongoDB exited')
                 try:
-                    client.admin.command('ping'); break
+                    client.admin.command('ping')
+                    break
                 except ConnectionFailure:
                     time.sleep(.1)
             assert client.admin.command('serverStatus')['pid'] == mongod.pid
@@ -85,7 +89,8 @@ def main() -> None:
                 assert seed['image_ids'] == ['shared-test'] and seed['custom'] == {'preserve': True}
                 summary = {'ok': True, 'concepts': database.concepts.count_documents({}), 'relations': database.relations.count_documents({}), 'persisted_content': True, 'extra_metadata_preserved': True, 'database_was_owned': True}
                 (evidence / 'persistence.json').write_text(json.dumps(summary, indent=2) + '\n')
-                print(result.stdout.strip()); print(json.dumps(summary))
+                print(result.stdout.strip())
+                print(json.dumps(summary))
                 concepts = [{'id': f'nota:perf_{i}', 'source': source.name, 'tipo': 'nota', 'titulo': f'Concepto temporal {i}', 'categorias': []} for i in range(1000)]
                 database.concepts.insert_many(concepts)
                 database.latex_documents.insert_many([{'id': d['id'], 'source': source.name, 'contenido_latex': '$x$'} for d in concepts])
@@ -102,7 +107,8 @@ def main() -> None:
                 try:
                     app.wait(timeout=15)
                 except subprocess.TimeoutExpired:
-                    app.kill(); app.wait(timeout=5)
+                    app.kill()
+                    app.wait(timeout=5)
             try:
                 client.drop_database(name)
                 assert not (set(client.list_database_names()) - {'admin', 'local', 'config'})
@@ -112,7 +118,8 @@ def main() -> None:
                 try:
                     mongod.wait(timeout=20)
                 except subprocess.TimeoutExpired:
-                    mongod.kill(); mongod.wait(timeout=5)
+                    mongod.kill()
+                    mongod.wait(timeout=5)
 
 
 if __name__ == '__main__':
