@@ -326,15 +326,7 @@ def detach_media_asset_from_concept(
         {"asset_id": asset_id},
         {"$pull": {"concept_ids": concept_key}, "$set": {"updated_at": datetime.utcnow()}},
     )
-    asset = media_collection(db).find_one({"asset_id": asset_id})
-    if not asset:
-        return False
-    still_referenced = bool(asset.get("concept_ids") or asset.get("note_ids"))
-    if delete_if_unreferenced and not still_referenced:
-        _delete_local_asset_file(asset)
-        media_collection(db).delete_one({"asset_id": asset_id})
-        return True
-    return False
+    return delete_if_unreferenced and delete_media_asset_if_unreferenced(db, asset_id)
 
 
 def detach_media_asset_from_note(
@@ -354,15 +346,7 @@ def detach_media_asset_from_note(
         {"asset_id": asset_id},
         {"$pull": {"note_ids": note_key}, "$set": {"updated_at": datetime.utcnow()}},
     )
-    asset = media_collection(db).find_one({"asset_id": asset_id})
-    if not asset:
-        return False
-    still_referenced = bool(asset.get("concept_ids") or asset.get("note_ids"))
-    if delete_if_unreferenced and not still_referenced:
-        _delete_local_asset_file(asset)
-        media_collection(db).delete_one({"asset_id": asset_id})
-        return True
-    return False
+    return delete_if_unreferenced and delete_media_asset_if_unreferenced(db, asset_id)
 
 
 def media_path_exists(asset: dict) -> bool:

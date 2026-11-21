@@ -70,11 +70,20 @@ def insert_concept_with_latex_atomic(
     if source_id is not None:
         latex_doc["source_id"] = source_id
 
+    # A rejected first insert belongs to no compensation: deleting by identity
+    # here would erase the pre-existing concept that caused a duplicate error.
+    inserted = db.concepts.insert_one(doc)
+    rollback_filter = {"id": concept_id, "source": source}
+    inserted_id = getattr(inserted, "inserted_id", doc.get("_id"))
+    if inserted_id is not None:
+        # Standalone MongoDB has no multi-document transactions. Bound the
+        # compensation to this acknowledged insert, even if another writer
+        # subsequently replaces a concept with the same logical identity.
+        rollback_filter["_id"] = inserted_id
     try:
-        db.concepts.insert_one(doc)
         db.latex_documents.insert_one(latex_doc)
     except Exception:
-        db.concepts.delete_one({"id": concept_id, "source": source})
+        db.concepts.delete_one(rollback_filter)
         raise
 
 
