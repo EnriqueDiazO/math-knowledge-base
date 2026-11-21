@@ -78,6 +78,10 @@ jupyterlab = "4.6.4"
 jupyter-server = "2.21.0"
 notebook = "7.6.3"
 soupsieve = "4.1.3"
+# Direct imports used by the notebook/HTML compatibility verification.
+nbconvert = "7.17.1"
+nbformat = "5.10.4"
+beautifulsoup4 = "4.15.0"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
