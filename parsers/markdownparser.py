@@ -115,7 +115,7 @@ class MarkdownParser:
             partes = [x.strip() for x in ref.group(1).split(",")]
             if len(partes) >= 3:
                 campos_referencia = ("autor", "año", "obra", "capitulo", "pagina", "bibkey")
-                obj["referencia"] = dict(zip(campos_referencia, partes[:6]))
+                obj["referencia"] = dict(zip(campos_referencia, partes[:6], strict=False))
                 obj["referencia"]["año"] = int(partes[1])
             #if len(partes) >= 5:
             #    obj["referencia"].update({
