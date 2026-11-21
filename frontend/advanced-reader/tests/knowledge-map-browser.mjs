@@ -76,7 +76,10 @@ try {
   await cdp.send('Input.dispatchTouchEvent', {type:'touchMove',touchPoints:[{x:box.x+155,y:box.y+150}]});
   await cdp.send('Input.dispatchTouchEvent', {type:'touchEnd',touchPoints:[]}); await cdp.detach();
   const renderMs = Number(await map.locator('canvas').getAttribute('data-render-ms'));
-  await page.setViewportSize({ width: 420, height: 1000 }); await screenshot('06-narrow');
+  await page.setViewportSize({ width: 420, height: 1000 });
+  const collapse = page.getByRole('button', {name:'Collapse sidebar',exact:true}); if(await collapse.isVisible()) await collapse.click();
+  await expect(page.getByRole('button',{name:'Expand sidebar',exact:true})).toBeVisible();
+  await screenshot('06-narrow');
   // Existing note routing and return preserve exact selection and view context.
   await map.getByRole('button', { name: 'Abrir nota / edición avanzada', exact: true }).click();
   await expect(page.getByRole('heading', { name: '✏️ Edit Mathematical Concept', exact: true })).toBeVisible();

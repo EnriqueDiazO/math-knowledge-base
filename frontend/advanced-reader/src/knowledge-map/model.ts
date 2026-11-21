@@ -4,7 +4,7 @@ export type Edge = { key: string; from: string; to: string; tipo: string; descri
 export type Intent = { operation_id: string; action: 'create' | 'create_connected' | 'connect' | 'edit'; key?: string; target?: string; source_id?: string; titulo?: string; tipo?: string; contenido_latex?: string; comentario?: string; categorias?: string[]; revision?: string; relation_type?: string; reverse?: boolean };
 export type Result = { operation_id?: string; status: string; message: string; key?: string };
 export type Data = { nodes: Node[]; edges: Edge[]; sources: { id: string; name: string }[]; concept_types: string[]; relation_types: string[]; scope: string; result?: Result };
-export type Draft = { action: Intent['action']; title: string; content: string; comment: string; categories: string; source: string; type: string; origin: string; target: string; relation: string; reverse: boolean; revision: string; point: Vec };
+export type Draft = { submitted?: boolean; action: Intent['action']; title: string; content: string; comment: string; categories: string; source: string; type: string; origin: string; target: string; relation: string; reverse: boolean; revision: string; point: Vec };
 export type View = { camera: Camera; flat: boolean; selected: string; source: string; type: string; relation: string; points: Record<string, Vec>; draft?: Draft; pending?: Intent; status?: Result; auto: boolean; acknowledged?: string };
 export function freshView(): View {
   return { camera: { yaw: 0, pitch: 0, zoom: 1 }, flat: false, selected: '', source: '', type: '', relation: '', points: {}, auto: false };

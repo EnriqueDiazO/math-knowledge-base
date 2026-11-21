@@ -170,3 +170,15 @@ describe('editable map interaction', () => {
     mount(payload); expect(getByLabelText(parent, 'Nombre')).toHaveValue('Retenido'); expect(trigger).not.toHaveBeenCalled();
   });
 });
+
+it('recovers a conflicting partial edit by explicit review, without pretending cancellation reverted data', () => {
+  const payload = mount(); choose('Seleccionar concepto', payload.nodes[0].key); click('Editar ficha'); input('Nombre', 'Mi título'); submit();
+  const sent = trigger.mock.calls[0][1];
+  mount({ ...payload, nodes: [{ ...payload.nodes[0], titulo: 'Mi título', contenido_latex: 'Cambio externo', revision: 'review-partial' }, payload.nodes[1]], result: { operation_id: sent.operation_id, status: 'partial', message: 'Ficha guardada, contenido en conflicto' } });
+  click('Revisar edición parcial con mi borrador');
+  expect(getByLabelText(parent, 'Nombre')).toHaveValue('Mi título');
+  click('Revisar versión actual y conservar mi borrador'); expect(parent.textContent).toContain('Cambio externo');
+  click('He revisado: basar mi borrador en esta versión');
+  click('Cancelar borrador'); expect(parent.textContent).toContain('las escrituras ya confirmadas se conservan');
+  expect(trigger).toHaveBeenCalledTimes(1);
+});

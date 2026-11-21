@@ -67,7 +67,7 @@ export default function render(bridge: Bridge): () => void {
   const refresh = () => { renderAside(); renderStatus(); redraw(); };
   const send = () => {
     if (!view.draft || view.pending) return;
-    view.pending = intention(view.draft, crypto.randomUUID()); submitPending();
+    view.draft.submitted = true; view.pending = intention(view.draft, crypto.randomUUID()); submitPending();
   };
   const submitPending = () => {
     if (!view.pending) return;
@@ -85,6 +85,7 @@ export default function render(bridge: Bridge): () => void {
       status.append(element('p', 'El concepto está guardado y queda fuera de los filtros activos.'));
       button('Mostrar concepto guardado', () => { view.source = ''; view.type = ''; view.relation = ''; renderFilters(); refresh(); scene.bringFront(selected.key); }, status);
     }
+    if (view.pending?.action === 'edit' && view.status?.status === 'partial') button('Revisar edición parcial con mi borrador', () => { view.pending = undefined; view.status = { status: 'conflict', message: 'La ficha parcial permanece guardada. Revisa los datos actuales antes de reenviar el contenido.' }; save(); renderAside(); renderStatus(); }, status);
     if (view.pending && ['uncertain', 'partial', 'pending'].includes(view.status?.status ?? '')) button('Reconciliar el mismo intento', submitPending, status, true);
   }
   function renderFilters(): void {
@@ -141,7 +142,7 @@ export default function render(bridge: Bridge): () => void {
     }, form);
     const actions = element('div', '', 'actions'); form.append(actions);
     const submit = element('button', 'Guardar', 'primary'); submit.type = 'submit'; submit.disabled = !!view.pending || (draft.action.startsWith('create') && !data.sources.length); actions.append(submit);
-    const cancel = button('Cancelar borrador', () => { if (!view.pending) { view.draft = undefined; view.status = { status: 'ready', message: 'Borrador cancelado; no se envió ninguna escritura.' }; refresh(); } }, actions); cancel.disabled = !!view.pending;
+    const cancel = button('Cancelar borrador', () => { if (!view.pending) { const submitted = view.draft?.submitted; view.draft = undefined; view.status = { status: 'ready', message: submitted ? 'Borrador cerrado; las escrituras ya confirmadas se conservan.' : 'Borrador cancelado; no se envió ninguna escritura.' }; refresh(); } }, actions); cancel.disabled = !!view.pending;
     if (view.pending) Array.from(form.querySelectorAll('input,textarea,select')).forEach(node => { (node as HTMLInputElement).disabled = true; });
   }
   function relationFields(form: HTMLElement, draft: Draft, set: <K extends keyof Draft>(key: K, value: Draft[K]) => void): void {

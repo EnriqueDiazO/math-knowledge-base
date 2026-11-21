@@ -439,7 +439,7 @@ function T(e) {
 	}, R = () => {
 		U(), V(), F();
 	}, z = () => {
-		!a.draft || a.pending || (a.pending = m(a.draft, crypto.randomUUID()), B());
+		!a.draft || a.pending || (a.draft.submitted = !0, a.pending = m(a.draft, crypto.randomUUID()), B());
 	}, B = () => {
 		a.pending && (a.status = {
 			status: "saving",
@@ -456,7 +456,12 @@ function T(e) {
 		let e = n.nodes.find((e) => e.key === a.selected);
 		e && !u(n, a).some((t) => t.key === e.key) && (A.append(b("p", "El concepto está guardado y queda fuera de los filtros activos.")), x("Mostrar concepto guardado", () => {
 			a.source = "", a.type = "", a.relation = "", H(), R(), P.bringFront(e.key);
-		}, A)), a.pending && [
+		}, A)), a.pending?.action === "edit" && a.status?.status === "partial" && x("Revisar edición parcial con mi borrador", () => {
+			a.pending = void 0, a.status = {
+				status: "conflict",
+				message: "La ficha parcial permanece guardada. Revisa los datos actuales antes de reenviar el contenido."
+			}, c(), U(), V();
+		}, A), a.pending && [
 			"uncertain",
 			"partial",
 			"pending"
@@ -552,10 +557,13 @@ function T(e) {
 		let s = b("button", "Guardar", "primary");
 		s.type = "submit", s.disabled = !!a.pending || e.action.startsWith("create") && !n.sources.length, o.append(s);
 		let l = x("Cancelar borrador", () => {
-			a.pending || (a.draft = void 0, a.status = {
-				status: "ready",
-				message: "Borrador cancelado; no se envió ninguna escritura."
-			}, R());
+			if (!a.pending) {
+				let e = a.draft?.submitted;
+				a.draft = void 0, a.status = {
+					status: "ready",
+					message: e ? "Borrador cerrado; las escrituras ya confirmadas se conservan." : "Borrador cancelado; no se envió ninguna escritura."
+				}, R();
+			}
 		}, o);
 		l.disabled = !!a.pending, a.pending && Array.from(r.querySelectorAll("input,textarea,select")).forEach((e) => {
 			e.disabled = !0;
