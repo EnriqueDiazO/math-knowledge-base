@@ -1,5 +1,6 @@
 import re
 
+
 def upsert_concept_metadata(db, concept_id: str, source: str, concepto_dict: dict) -> None:
     """
     Persist concept metadata using the current upsert behavior.
@@ -87,7 +88,11 @@ def insert_concept_with_latex_atomic(
     try:
         db.latex_documents.insert_one(latex_doc)
     except Exception:
-        db.concepts.delete_one(rollback_filter)
+        if operation_id is None:
+            db.concepts.delete_one(rollback_filter)
+        # Map operations have a durable recovery identity. Another flow may
+        # already have changed/referenced the metadata: keep it, report partial
+        # progress and reconcile content, rather than deleting a live concept.
         raise
 
 

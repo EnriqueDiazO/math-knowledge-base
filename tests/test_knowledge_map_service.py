@@ -219,7 +219,7 @@ def test_uncertain_response_reconciles_and_id_cannot_change_payload(service, mon
             raise AutoReconnect('secret')
         return result
     monkeypatch.setattr(service.operations, 'update_one', lost_ack)
-    assert service.execute(payload)['status'] == 'uncertain'
+    assert service.execute(payload)['status'] == 'partial'
     monkeypatch.setattr(service.operations, 'update_one', original)
     assert service.execute(payload)['status'] == 'saved'
     assert service.mongo.concepts.count_documents({}) == 1
@@ -241,8 +241,8 @@ def test_lost_content_insert_ack_recovers_owned_orphan(service, monkeypatch):
         real(document)
         raise AutoReconnect('lost content insert acknowledgement')
     monkeypatch.setattr(service.mongo.latex_documents, 'insert_one', lost_ack)
-    assert service.execute(payload)['status'] == 'uncertain'
-    assert service.mongo.concepts.count_documents({}) == 0
+    assert service.execute(payload)['status'] == 'partial'
+    assert service.mongo.concepts.count_documents({}) == 1
     assert service.mongo.latex_documents.count_documents({}) == 1
     monkeypatch.setattr(service.mongo.latex_documents, 'insert_one', real)
     result = service.execute(payload)
@@ -262,3 +262,27 @@ def test_unowned_orphan_is_preserved_and_not_adopted(service):
     assert result['status'] == 'conflict'
     assert service.mongo.concepts.count_documents({}) == 0
     assert service.mongo.latex_documents.find_one({'id': concept_id}) == orphan
+
+
+def test_creation_failure_never_deletes_a_concept_changed_and_referenced_elsewhere(service, monkeypatch):
+    origin = service.execute(create(service, titulo='Origen'))['key']
+    payload = create(service, titulo='Progreso válido')
+    real = service.mongo.latex_documents.insert_one
+    def other_flow_and_failure(document):
+        doc = service.mongo.concepts.find_one({'_map_operation': payload['operation_id']})
+        service.mongo.concepts.update_one({'_id': doc['_id']}, {'$set': {'other_writer': 'keep'}})
+        service.mongo.relations.insert_one({'desde': origin, 'hasta': f"{doc['id']}@{doc['source']}", 'tipo': 'implica'})
+        raise AutoReconnect('content failed after another flow linked the concept')
+    monkeypatch.setattr(service.mongo.latex_documents, 'insert_one', other_flow_and_failure)
+    partial = service.execute(payload)
+    assert partial['status'] == 'partial'
+    assert service.find(partial['key'])['other_writer'] == 'keep'
+    assert service.mongo.relations.count_documents({}) == 1
+    # A Source rename must not redirect a retry into a second logical identity.
+    service.db.sources.update_one({'source_id': service.test_source_id}, {'$set': {'name': 'Nombre nuevo'}})
+    monkeypatch.setattr(service.mongo.latex_documents, 'insert_one', real)
+    result = service.execute(payload)
+    assert result['status'] == 'saved' and result['key'] == partial['key']
+    assert service.mongo.concepts.count_documents({}) == 2
+    assert service.find(result['key'])['other_writer'] == 'keep'
+    assert service.latex(service.find(result['key']))['contenido_latex'] == payload['contenido_latex']

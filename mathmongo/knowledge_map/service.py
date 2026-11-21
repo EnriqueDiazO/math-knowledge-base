@@ -139,7 +139,17 @@ class KnowledgeMapService:
         try:
             return self._execute(intent)
         except PyMongoError:
-            return {'operation_id': intent.operation_id, 'status': 'uncertain',
+            return self._failed_write(intent)
+
+    def _failed_write(self, intent: Intent) -> dict:
+        if intent.action in ('create', 'create_connected'):
+            try:
+                owned = self.mongo.concepts.find_one({'_map_operation': intent.operation_id})
+                if owned is not None:
+                    return self.result(intent, 'partial', 'Concepto creado; operación sin confirmar por completo. Conserva el borrador y recupera el mismo intento.', key=identity(owned))
+            except PyMongoError:
+                pass  # A disconnected server cannot confirm which writes committed.
+        return {'operation_id': intent.operation_id, 'status': 'uncertain',
                     'message': 'No se confirmó la operación. Conserva el borrador y reconcilia el mismo intento.'}
 
     def _execute(self, intent: Intent) -> dict:
@@ -198,20 +208,23 @@ class KnowledgeMapService:
         return self.result(intent, 'saved', 'Concepto guardado.', key=identity(node))
 
     def _create(self, intent: Intent) -> tuple[dict, bool]:
+        concept_id = f"{intent.tipo}:{uuid5(NAMESPACE_URL, intent.operation_id)}"
+        existing = self.mongo.concepts.find_one({'id': concept_id, '_map_operation': intent.operation_id})
+        if existing is not None:
+            query = {'id': existing['id'], 'source': existing['source']}
+            # Reconcile the original canonical identity even if the managed
+            # Source has since been renamed or archived. Do not relocate data.
+            self.mongo.latex_documents.update_one(query, {'$setOnInsert': {**query, 'contenido_latex': intent.contenido_latex, '_map_operation': intent.operation_id}}, upsert=True)
+            return existing, False
         source = resolve_active_source(self.sources, intent.source_id)
         if source is None or '@' in source.name:
             raise MapConflictError('Elige una Source administrada activa compatible con la identidad id@source.')
         if not intent.titulo.strip() or not intent.contenido_latex.strip() or intent.tipo not in CONCEPT_TYPES:
             raise MapConflictError('Nombre, tipo y contenido son obligatorios.')
-        concept_id = f"{intent.tipo}:{uuid5(NAMESPACE_URL, intent.operation_id)}"
         query = {'id': concept_id, 'source': source.name}
         existing = self.mongo.concepts.find_one(query)
         if existing is not None:
-            if existing.get('_map_operation') != intent.operation_id:
-                return existing, True
-            # Recover the acknowledged metadata after a lost insert response.
-            self.mongo.latex_documents.update_one(query, {'$setOnInsert': {**query, 'contenido_latex': intent.contenido_latex, '_map_operation': intent.operation_id}}, upsert=True)
-            return existing, False
+            return existing, True
         if validate_semantic_duplicate(self.mongo, intent.titulo, intent.tipo, source.name):
             duplicate = self.mongo.concepts.find_one({'source': source.name, 'tipo': intent.tipo,
                          'titulo': {'$regex': f'^{re.escape(intent.titulo.strip())}$', '$options': 'i'}})
@@ -223,17 +236,10 @@ class KnowledgeMapService:
                                contenido_latex=intent.contenido_latex, comentario=intent.comentario)
         metadata = build_concept_metadata(concept)
         metadata['_map_operation'] = intent.operation_id
-        orphan = self.mongo.latex_documents.find_one(query)
-        if orphan is not None:
-            if orphan.get('_map_operation') != intent.operation_id:
-                raise MapConflictError('Existe contenido cuya propiedad no se puede confirmar; se conserva.')
-            # The content insert committed but lost its acknowledgement; the
-            # audited compensation removed only metadata. Restore our metadata,
-            # retaining the already-persisted content and any subsequent edits.
-            self.mongo.concepts.insert_one(metadata)
-        else:
-            insert_concept_with_latex_atomic(self.mongo, concept_id, source.name, metadata,
-                                            intent.contenido_latex, datetime.now(), operation_id=intent.operation_id)
+        if self.mongo.latex_documents.find_one(query) is not None:
+            raise MapConflictError('Existe contenido sin concepto; se conserva para revisión, sin recrear una eliminación ajena.')
+        insert_concept_with_latex_atomic(self.mongo, concept_id, source.name, metadata,
+                                        intent.contenido_latex, datetime.now(), operation_id=intent.operation_id)
         return self.mongo.concepts.find_one(query), False
 
     def _connect(self, intent: Intent, origin: str, target: str) -> dict:
