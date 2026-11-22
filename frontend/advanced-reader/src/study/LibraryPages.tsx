@@ -48,7 +48,7 @@ export function LibraryPage({
             type="search"
           />
         </label>
-        <button>Buscar</button>
+        <button type="submit">Buscar</button>
       </form>
       {resource.error && (
         <p role="alert">
