@@ -230,6 +230,15 @@ test("study sphere real application", async () => {
       const choices = keyboard.locator('.MLK__layer:visible .MLK__toolbar .left > div');
       layoutNames.push(await choices.nth(index).getAttribute('data-tooltip'));
       await choices.nth(index).click();
+      await expect.poll(()=>editor.evaluate(el=>{
+        const host=el.querySelector('.math-keyboard-host');
+        const plate=window.mathVirtualKeyboard.boundingRect;
+        const close=host.querySelector('button').getBoundingClientRect();
+        return {spacing:host.getBoundingClientRect().height-plate.height, clear:plate.top>=close.bottom};
+      })).toMatchObject({clear:true});
+      const space=await editor.evaluate(el=>el.querySelector('.math-keyboard-host').getBoundingClientRect().height-window.mathVirtualKeyboard.boundingRect.height);
+      expect(space).toBeLessThan(70);
+
     }
     const seven = keyboard.locator('.MLK__layer:visible [data-keycap-value="7"]').first();
     await seven.hover(); await page.mouse.down();

@@ -55254,15 +55254,21 @@ function iB(e) {
 	let o = new Set(document.adoptedStyleSheets ?? []), s = () => {
 		o = new Set(document.adoptedStyleSheets ?? []);
 	}, c = () => {
+		let e = t.boundingRect?.height;
+		if (!t.visible || !e || !Number.isFinite(e)) return;
+		let n = i.getBoundingClientRect().height || 30;
+		r.style.height = Math.ceil(e + n + 12) + "px";
+	}, l = () => {
 		r.hidden = !t.visible, r.style.display = t.visible ? "grid" : "none";
 		let e = r.getRootNode();
-		if (!(!(e instanceof ShadowRoot) || !("adoptedStyleSheets" in e))) {
+		if (e instanceof ShadowRoot && "adoptedStyleSheets" in e) {
 			for (let e of document.adoptedStyleSheets ?? []) o.has(e) || rB.add(e);
 			e.adoptedStyleSheets = [.../* @__PURE__ */ new Set([...e.adoptedStyleSheets, ...rB])];
 		}
+		c();
 	};
-	return t.container = a, t.addEventListener?.("before-virtual-keyboard-toggle", s), t.addEventListener?.("virtual-keyboard-toggle", c), c(), () => {
-		t.hide(), t.removeEventListener?.("before-virtual-keyboard-toggle", s), t.removeEventListener?.("virtual-keyboard-toggle", c), t.container === a && (t.container = document.body), t.layouts = n, r.remove();
+	return t.container = a, t.addEventListener?.("before-virtual-keyboard-toggle", s), t.addEventListener?.("virtual-keyboard-toggle", l), t.addEventListener?.("geometrychange", c), l(), () => {
+		t.hide(), t.removeEventListener?.("before-virtual-keyboard-toggle", s), t.removeEventListener?.("virtual-keyboard-toggle", l), t.removeEventListener?.("geometrychange", c), t.container === a && (t.container = document.body), t.layouts = n, r.remove();
 	};
 }
 //#endregion

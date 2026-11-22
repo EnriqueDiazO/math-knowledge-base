@@ -27,26 +27,37 @@ export function mountMathKeyboard(container: HTMLElement): () => void {
   const prepare = () => {
     before = new Set(document.adoptedStyleSheets ?? []);
   };
+  const fit = () => {
+    const height = keyboard.boundingRect?.height;
+    if (!keyboard.visible || !height || !Number.isFinite(height)) return;
+    // boundingRect is the public geometry of the active layout, not the host.
+    // Reserve only our close control, its margins and the container border.
+    const controlHeight = close.getBoundingClientRect().height || 30;
+    host.style.height = Math.ceil(height + controlHeight + 12) + "px";
+  };
   const adopt = () => {
     host.hidden = !keyboard.visible;
     host.style.display = keyboard.visible ? "grid" : "none";
     const root = host.getRootNode();
-    if (!(root instanceof ShadowRoot) || !("adoptedStyleSheets" in root))
-      return;
-    for (const sheet of document.adoptedStyleSheets ?? [])
-      if (!before.has(sheet)) keyboardSheets.add(sheet);
-    root.adoptedStyleSheets = [
-      ...new Set([...root.adoptedStyleSheets, ...keyboardSheets]),
-    ];
+    if (root instanceof ShadowRoot && "adoptedStyleSheets" in root) {
+      for (const sheet of document.adoptedStyleSheets ?? [])
+        if (!before.has(sheet)) keyboardSheets.add(sheet);
+      root.adoptedStyleSheets = [
+        ...new Set([...root.adoptedStyleSheets, ...keyboardSheets]),
+      ];
+    }
+    fit();
   };
   keyboard.container = frame;
   keyboard.addEventListener?.("before-virtual-keyboard-toggle", prepare);
   keyboard.addEventListener?.("virtual-keyboard-toggle", adopt);
+  keyboard.addEventListener?.("geometrychange", fit);
   adopt();
   return () => {
     keyboard.hide();
     keyboard.removeEventListener?.("before-virtual-keyboard-toggle", prepare);
     keyboard.removeEventListener?.("virtual-keyboard-toggle", adopt);
+    keyboard.removeEventListener?.("geometrychange", fit);
     if (keyboard.container === frame) keyboard.container = document.body;
     keyboard.layouts = previousLayouts;
     host.remove();

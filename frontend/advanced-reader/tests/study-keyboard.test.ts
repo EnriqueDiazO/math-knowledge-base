@@ -53,3 +53,34 @@ it("keeps physical editing available when the optional virtual keyboard is unava
     mountMathKeyboard(document.createElement("div"))(),
   ).not.toThrow();
 });
+it("fits changing public keyboard geometry without reserving empty rows and releases its listeners", () => {
+  const keyboard = Object.assign(new EventTarget(), {
+    container: document.body as HTMLElement,
+    visible: true,
+    boundingRect: new DOMRect(0, 0, 800, 200),
+    hide: vi.fn(),
+    layouts: ["greek"],
+  });
+  Object.defineProperty(window, "mathVirtualKeyboard", {
+    configurable: true,
+    value: keyboard,
+  });
+  const dialog = document.createElement("div");
+  document.body.append(dialog);
+  const dispose = mountMathKeyboard(dialog);
+  const host = dialog.querySelector<HTMLElement>(".math-keyboard-host")!;
+  expect(Number.parseFloat(host.style.height)).toBeGreaterThan(200);
+  expect(Number.parseFloat(host.style.height)).toBeLessThan(270);
+  keyboard.boundingRect = new DOMRect(0, 0, 800, 270);
+  keyboard.dispatchEvent(new Event("geometrychange"));
+  expect(Number.parseFloat(host.style.height)).toBeGreaterThan(270);
+  expect(Number.parseFloat(host.style.height)).toBeLessThan(340);
+  const last = host.style.height;
+  dispose();
+  expect(keyboard.layouts).toEqual(["greek"]);
+  expect(keyboard.container).toBe(document.body);
+  expect(dialog.children).toHaveLength(0);
+  keyboard.boundingRect = new DOMRect(0, 0, 800, 400);
+  keyboard.dispatchEvent(new Event("geometrychange"));
+  expect(host.style.height).toBe(last);
+});
