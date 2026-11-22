@@ -43,7 +43,7 @@ from schemas.schemas import ConceptoBase
 from schemas.schemas import Relation
 from schemas.schemas import TipoRelacion
 
-CONCEPT_TYPES = ('definicion', 'teorema', 'proposicion', 'corolario', 'lema', 'ejemplo', 'nota')
+CONCEPT_TYPES = ('definicion', 'teorema', 'proposicion', 'corolario', 'lema', 'ejemplo', 'nota', 'observacion')
 
 
 class Intent(BaseModel):
