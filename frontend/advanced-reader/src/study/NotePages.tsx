@@ -10,11 +10,15 @@ import { NoteWorkspace } from "./NoteWorkspace";
 export function NotesPage({
   context,
   navigate,
+  search = "",
 }: {
   context: StudyContext;
   navigate: Navigate;
+  search?: string;
 }) {
-  const resource = useStudyResource<Page<NoteDetail>>(context, "/notes");
+  const params=new URLSearchParams(search),q=params.get("q")||"",page=Math.max(1,Number(params.get("page"))||1);
+  const resource = useStudyResource<Page<NoteDetail>>(context, "/notes?"+new URLSearchParams({q,page:String(page),source_id:params.get("source")||"",document_id:params.get("document")||""}));
+  const changePage=(next:number)=>{params.set("page",String(next));navigate("/study/notes?"+params);};
   const vault = useMemo(
     () => studyVault(context.library_id),
     [context.library_id],
@@ -25,10 +29,14 @@ export function NotesPage({
       <header>
         <p className="eyebrow">Escritura y recuperación</p>
         <h1>Notas</h1>
-        <StudyLink to="/study/library" navigate={navigate}>
-          Crear nota desde una fuente
+        <StudyLink to="/study/write" navigate={navigate} className="primary-button">
+          + Crear nota
         </StudyLink>
       </header>
+      <form onSubmit={event=>{event.preventDefault();params.set("q",String(new FormData(event.currentTarget).get("q")||""));params.delete("page");navigate("/study/notes?"+params);}}>
+        <label>Buscar notas por título<input type="search" name="q" key={q} defaultValue={q}/></label>
+        <button type="submit">Buscar notas</button>
+      </form>
       {drafts.length > 0 && (
         <section>
           <h2>Continuar escritura local</h2>
@@ -75,6 +83,7 @@ export function NotesPage({
       {resource.data && !resource.data.items.length && (
         <p>Tus notas aparecerán aquí después de guardarlas.</p>
       )}
+      {resource.data&&<nav aria-label="Páginas de notas"><button disabled={page===1} onClick={()=>changePage(page-1)}>Notas anteriores</button><span>Página {page}</span><button disabled={page*20>=resource.data.total} onClick={()=>changePage(page+1)}>Más notas</button></nav>}
     </section>
   );
 }
@@ -93,10 +102,15 @@ export function WritePage({
     const parameters = new URLSearchParams(search),
       vault = studyVault(context.library_id);
     const selected = parameters.get("draft");
-    if (selected) return vault.get(selected) as StudyDraft | undefined;
+    if (selected) {
+      const recovered=vault.get(selected) as StudyDraft | undefined;
+      if(recovered&&!recovered.noteId&&!recovered.pending&&parameters.get("source")){
+        recovered.source=parameters.get("source")!;vault.put(recovered);
+      }
+      return recovered;
+    }
     const source = parameters.get("source");
-    if (!source) return;
-    const created = newStudyDraft(source);
+    const created = newStudyDraft(source||"");
     vault.put(created);
     return created;
   }, [search, context.library_id]);
@@ -129,11 +143,13 @@ export function SavedNotePage({
   noteId,
   navigate,
   notify,
+  preferSaved = false,
 }: {
   context: StudyContext;
   noteId: string;
   navigate: Navigate;
   notify: (message: string) => void;
+  preferSaved?: boolean;
 }) {
   const resource = useStudyResource<NoteDetail>(
     context,
@@ -145,8 +161,8 @@ export function SavedNotePage({
     const existing = vault.all().find((item) => item.noteId === noteId) as
       | StudyDraft
       | undefined;
-    return existing ?? noteDraft(resource.data);
-  }, [resource.data, context.library_id, noteId]);
+    return (!preferSaved && existing) || noteDraft(resource.data);
+  }, [resource.data, context.library_id, noteId, preferSaved]);
   if (resource.error)
     return (
       <p role="alert">
@@ -156,7 +172,7 @@ export function SavedNotePage({
   if (!draft) return <p role="status">Recuperando la nota guardada…</p>;
   return (
     <NoteWorkspace
-      key={context.library_id + noteId}
+      key={context.library_id + noteId + preferSaved}
       context={context}
       initialDraft={draft}
       navigate={navigate}

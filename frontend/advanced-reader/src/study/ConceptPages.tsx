@@ -6,6 +6,7 @@ import { ConceptTypeBadge } from "./ConceptTypeBadge";
 import { executeStudy, getOverview } from "./api";
 import type { ConceptDetail, StudyContext, Page } from "./api";
 import { conceptTypes } from "../knowledge-map/concept-types";
+import { SourcePicker } from "./SourcePicker";
 import { ConceptRelations } from "./ConceptRelations";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
@@ -22,10 +23,6 @@ export function ConceptsPage({
   const [kind, setKind] = useState(""),
     [source, setSource] = useState(""),
     [page, setPage] = useState(1);
-  const choices = useStudyResource<{ sources: { id: string; name: string }[] }>(
-    context,
-    "/choices",
-  );
   const resource = useStudyResource<
     Page<{ key: string; titulo: string; tipo: string; source: string }>
   >(
@@ -83,23 +80,7 @@ export function ConceptsPage({
           ))}
         </select>
       </label>
-      <label>
-        Filtrar por fuente
-        <select
-          value={source}
-          onChange={(event) => {
-            setSource(event.target.value);
-            setPage(1);
-          }}
-        >
-          <option value="">Todas las fuentes</option>
-          {choices.data?.sources.map((item) => (
-            <option key={item.id} value={item.id}>
-              {item.name}
-            </option>
-          ))}
-        </select>
-      </label>
+      <SourcePicker context={context} value={source} allowAll choose={value=>{setSource(value);setPage(1);}}/>
       {resource.error && (
         <p role="alert">
           {resource.error} <button onClick={resource.retry}>Reintentar</button>

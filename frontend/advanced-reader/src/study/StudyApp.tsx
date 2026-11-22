@@ -142,14 +142,15 @@ export function StudyApp() {
   else if (section === "notes")
     content = identity ? (
       <SavedNotePage
-        key={identity}
+        key={identity + url.search}
         noteId={identity}
         context={context}
         navigate={navigate}
         notify={setNotice}
+        preferSaved={url.searchParams.get("version") === "server"}
       />
     ) : (
-      <NotesPage context={context} navigate={navigate} />
+      <NotesPage context={context} navigate={navigate} search={url.search} />
     );
   else if (section === "write")
     content = (

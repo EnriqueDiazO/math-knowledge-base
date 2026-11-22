@@ -13,12 +13,11 @@ import type {
   StudyContext,
   ConceptDetail,
   SourceDetail,
-  Page,
-  SourceSummary,
 } from "./api";
 import { useStudyResource } from "./navigation";
 import type { Navigate } from "./navigation";
 import { StudyLink } from "./StudyLink";
+import { SourcePicker } from "./SourcePicker";
 import { AuthoringPreparation } from "./AuthoringPreparation";
 
 type ConceptDraft = Draft & { pending?: Intent };
@@ -107,11 +106,6 @@ function ConceptWorkspace({
   const [message, setMessage] = useState(""),
     [sending, setSending] = useState(false),
     [existing, setExisting] = useState("");
-  const [sourceQuery, setSourceQuery] = useState("");
-  const sources = useStudyResource<Page<SourceSummary>>(
-    context,
-    "/library?" + new URLSearchParams({ q: sourceQuery }),
-  );
   const bibliography = useStudyResource<SourceDetail>(
     context,
     draft.source ? "/sources/" + encodeURIComponent(draft.source) : "/context",
@@ -235,43 +229,7 @@ function ConceptWorkspace({
           </p>
         ) : (
           <>
-            <label>
-              Buscar fuente
-              <input
-                type="search"
-                value={sourceQuery}
-                onChange={(event) => setSourceQuery(event.target.value)}
-              />
-            </label>
-            <label>
-              Fuente administrada
-              <select
-                value={draft.source}
-                onChange={(event) =>
-                  remember({
-                    ...value.current,
-                    source: event.target.value,
-                    referenceId: undefined,
-                    referenceLocator: undefined,
-                  })
-                }
-              >
-                <option value="">Selecciona una fuente</option>
-                {draft.source &&
-                  !sources.data?.items.some(
-                    (s) => s.source_id === draft.source,
-                  ) && (
-                    <option value={draft.source}>
-                      {bibliography.data?.name || "Fuente seleccionada"}
-                    </option>
-                  )}
-                {sources.data?.items.map((source) => (
-                  <option key={source.source_id} value={source.source_id}>
-                    {source.name}
-                  </option>
-                ))}
-              </select>
-            </label>
+            <SourcePicker context={context} value={draft.source} selectedName={bibliography.data?.name} choose={source => remember({...value.current,source,referenceId:undefined,referenceLocator:undefined})}/>
             <StudyLink
               to={"/study/sources/new?" + new URLSearchParams({ return: back })}
               navigate={navigate}

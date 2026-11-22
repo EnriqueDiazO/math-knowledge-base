@@ -22,6 +22,10 @@ import type { Intent } from "../src/knowledge-map/model";
 vi.mock("../src/pdf/PdfJsController", () => ({
   createPdfJsController: vi.fn(),
 }));
+// These tests exercise the save/revision boundary. The real catalog selectors
+// and citation reads are exercised in the browser against owned MongoDB.
+vi.mock("../src/study/SourcePicker", () => ({SourcePicker:()=> <p>Fuente del borrador</p>}));
+vi.mock("../src/study/NoteCitation", () => ({NoteCitation:()=> <p>Cita del borrador</p>}));
 
 // Isolate the transport/state boundary. Real mathematical editing and keyboard
 // behavior are exercised by the owned Chrome/Firefox traversal and editor tests.
@@ -108,6 +112,39 @@ beforeEach(() => {
 });
 
 describe("independent note persistence", () => {
+  it("keeps a rejected stale edit blocked across reload and offers the current version", async () => {
+    const draft={...newStudyDraft("source-a"),title:"Mi nota",content:body,noteId:note("", "").note_id,revision:"old"};
+    vi.stubGlobal("fetch",vi.fn(async()=>response({status:"conflict",message:"La nota cambió."})));
+    const view=render(<NoteWorkspace context={context} initialDraft={draft} navigate={vi.fn()} notify={vi.fn()}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Guardar nota"}));
+    await screen.findByRole("button",{name:"Abrir versión guardada; conservar mi borrador"});
+    const retained=studyVault(context.library_id).get(draft.id!)!;
+    expect(retained.content).toBe(body);expect(retained.revision).toBe("old");
+    view.unmount();
+    render(<NoteWorkspace context={context} initialDraft={retained} navigate={vi.fn()} notify={vi.fn()}/>);
+    expect(screen.getByRole("button",{name:"Guardar nota"})).toBeDisabled();
+    expect(screen.getByRole("button",{name:"Abrir versión guardada; conservar mi borrador"})).toBeVisible();
+  });
+  it("does not adopt a newer revision with a different body after the save acknowledgement", async () => {
+    const draft = {...newStudyDraft("source-a"), title:"Mi nota",content:body};
+    const navigate=vi.fn(),notify=vi.fn();
+    vi.stubGlobal("fetch",vi.fn(async (path:string)=>response(path.endsWith("/operations")
+      ? {status:"saved",message:"Nota guardada.",note_id:note("", "").note_id}
+      : note("Mi nota","Cambio de otra ventana"))));
+    render(<NoteWorkspace context={context} initialDraft={draft} navigate={navigate} notify={notify}/>);
+    fireEvent.click(screen.getByRole("button",{name:"Guardar nota"}));
+    await screen.findByText(/cambió después del envío/u);
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining("Nota guardada"));
+    expect(navigate).not.toHaveBeenCalled();
+    expect(screen.getByLabelText("Contenido visual")).toHaveValue(body);
+    const retained=studyVault(context.library_id).get(draft.id!)!;
+    expect(retained.content).toBe(body);
+    expect(retained.revision).toBe("");
+    expect(screen.getByRole("button",{name:"Guardar nota"})).toBeDisabled();
+    fireEvent.click(screen.getByRole("button",{name:"Abrir versión guardada; conservar mi borrador"}));
+    expect(navigate).toHaveBeenCalledWith("/study/notes/"+note("", "").note_id+"?version=server");
+    expect(studyVault(context.library_id).get(draft.id!)!.content).toBe(body);
+  });
   it("retains the full draft and the same operation across a lost response, unmount and retry", async () => {
     const payloads: Intent[] = [];
     vi.stubGlobal(
@@ -150,7 +187,7 @@ describe("independent note persistence", () => {
         screen.getByRole("button", { name: "Reintentar el mismo envío" }),
       ).not.toBeDisabled(),
     );
-    expect(notify).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining("Nota guardada"));
     expect(screen.getByLabelText("Contenido visual")).toHaveValue(body);
     view.unmount();
     const recovered = studyVault(context.library_id).get(draft.id!)!;
@@ -212,7 +249,7 @@ describe("independent note persistence", () => {
     expect(screen.getByRole("status")).toHaveTextContent(
       "esperando confirmación",
     );
-    expect(notify).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining("Nota guardada"));
     await act(async () =>
       finish!(
         response({
@@ -222,7 +259,7 @@ describe("independent note persistence", () => {
       ),
     );
     expect(screen.getByLabelText("Contenido visual")).toHaveValue(body);
-    expect(notify).not.toHaveBeenCalled();
+    expect(notify).not.toHaveBeenCalledWith(expect.stringContaining("Nota guardada"));
   });
 
   it("keeps incomplete mathematics recoverable without sending it to the server", () => {

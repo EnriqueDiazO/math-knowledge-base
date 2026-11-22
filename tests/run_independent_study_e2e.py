@@ -204,6 +204,17 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.sources.count_documents({"source_id": proof["webSourceId"]}) == 1
                 assert db.references.find_one({"source_ids": proof["webSourceId"]})["doi"] is None
                 print(json.dumps({"browser": browser, "authoring": "passed", "streamlit_started": False}))
+            if "--notes" in sys.argv:
+                assert "--authoring" in sys.argv, "Notes traversal requires the UI-created source"
+                subprocess.run(["node", "tests/notes-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
+                proof = json.loads((evidence / "notes-browser.json").read_text())
+                note = db.reading_notes.find_one({"note_id": proof["noteId"]})
+                assert note["source_id"] == proof["sourceId"]
+                assert note["body"] == "Cambio posterior de otra ventana."
+                assert note["reference_locator"]["printed_page"] == "23"
+                assert db.references.find_one({"reference_id": note["reference_id"]})["source_ids"] == [proof["sourceId"]]
+                assert db.reading_notes.count_documents({}) == 2
+                print(json.dumps({"browser": browser, "notes": "passed", "temporary_notes": 2}))
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.

@@ -197,6 +197,7 @@ export function SourcePage({
         >
           Escribir nota sobre esta fuente
         </StudyLink>
+        <StudyLink to={"/study/notes?source="+encodeURIComponent(sourceId)} navigate={navigate}>Notas de esta fuente</StudyLink>
       </div>
       {section === "add-reference" ? (
         <ReferenceForm
@@ -222,6 +223,7 @@ export function SourcePage({
             <article key={document.document_id}>
               <h2>{document.title}</h2>
               <p>{document.kind === "pdf" ? "Documento PDF" : "Página web"}</p>
+              <StudyLink to={"/study/notes?document="+encodeURIComponent(document.document_id)} navigate={navigate}>Notas del documento</StudyLink>
               {document.kind === "web" ? (
                 documentLink(document.web_url) ? (
                   <a

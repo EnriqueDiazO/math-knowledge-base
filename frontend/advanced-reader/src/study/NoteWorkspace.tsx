@@ -1,5 +1,5 @@
 /** Document editing is local; only an explicit, durable intention publishes a note. */
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { createAdvancedReaderApi } from "../api/client";
 import { intention } from "../knowledge-map/model";
 import type { DocumentEditor } from "../knowledge-map/document-editor";
@@ -9,6 +9,10 @@ import { DocumentSurface } from "./DocumentSurface";
 import type { StudyDraft } from "./drafts";
 import { studyVault } from "./drafts";
 import type { Navigate } from "./navigation";
+import { useOperationScope } from "./useOperationScope";
+import { SourcePicker } from "./SourcePicker";
+import { NoteCitation } from "./NoteCitation";
+import { StudyLink } from "./StudyLink";
 
 export function NoteWorkspace({
   context,
@@ -31,8 +35,10 @@ export function NoteWorkspace({
     () => createAdvancedReaderApi(context.library_id),
     [context.library_id],
   );
-  const composer = useRef<DocumentEditor | null>(null),
-    alive = useRef(true);
+  const composer = useRef<DocumentEditor | null>(null);
+  const scope = useOperationScope(context);
+  const [conflict, setConflict] = useState(initialDraft.conflictNoteId || "");
+  const [, refresh] = useState(0);
   const [title, setTitle] = useState(initialDraft.title),
     [status, setStatus] = useState("");
   const [pending, setPending] = useState(!!initialDraft.pending),
@@ -40,15 +46,9 @@ export function NoteWorkspace({
   const [stored, setStored] = useState(!!initialDraft.noteId);
   const [dirty, setDirty] = useState(false),
     [storageReady, setStorageReady] = useState(vault.available);
-  useEffect(() => {
-    alive.current = true;
-    return () => {
-      alive.current = false;
-    };
-  }, []);
   const keep = () => {
     vault.put(draft.current);
-    if (alive.current) setStorageReady(vault.available);
+    if (scope.active) setStorageReady(vault.available);
   };
   const capture = () => {
     if (composer.current) {
@@ -58,7 +58,7 @@ export function NoteWorkspace({
     keep();
   };
   const submit = async (publish = false) => {
-    if (sending) return;
+    if (sending || conflict) return;
     capture();
     if (!context.preparation.notes_ready) {
       setStatus(
@@ -67,8 +67,8 @@ export function NoteWorkspace({
       return;
     }
     if (!draft.current.pending) {
-      if (!draft.current.title.trim() || !draft.current.content.trim()) {
-        setStatus("Escribe un nombre y contenido para la nota.");
+      if (!draft.current.title.trim() || !draft.current.content.trim() || !draft.current.source) {
+        setStatus("Escribe un nombre y contenido y elige una fuente para la nota. El borrador se conserva.");
         return;
       }
       if (!composer.current?.valid()) {
@@ -102,6 +102,7 @@ export function NoteWorkspace({
     }
     setPending(true);
     setSending(true);
+    notify("");
     setStatus("Guardando… esperando confirmación de la biblioteca.");
     try {
       if (draft.current.passage && !stored)
@@ -110,11 +111,15 @@ export function NoteWorkspace({
           draft.current.passage,
         );
       const result = await executeStudy(context, draft.current.pending!);
-      if (!alive.current) return;
+      if (!scope.active) return;
       setStatus(result.message);
       if (["conflict", "invalid"].includes(result.status)) {
         draft.current.pending = undefined;
         setPending(false);
+        if (result.status === "conflict" && draft.current.noteId) {
+          draft.current.conflictNoteId = draft.current.noteId;
+          setConflict(draft.current.noteId);
+        }
         keep();
       }
       if (!["saved", "duplicate"].includes(result.status)) return;
@@ -123,7 +128,21 @@ export function NoteWorkspace({
           "/notes/" + encodeURIComponent(result.note_id),
           context,
         );
-        if (!alive.current) return;
+        if (!scope.active) return;
+        const sent = draft.current.pending!;
+        if (note.body !== sent.contenido_latex || note.title !== sent.titulo?.trim()
+          || note.source_id !== sent.source_id
+          || note.note_id !== result.note_id || (!!sent.note_id && note.note_id !== sent.note_id)) {
+          draft.current.noteId = note.note_id;
+          draft.current.conflictNoteId = note.note_id;
+          draft.current.pending = undefined;
+          setPending(false);
+          setConflict(note.note_id);
+          setDirty(true);
+          keep();
+          setStatus("La nota cambió después del envío. Tu borrador sigue intacto; abre la versión guardada antes de decidir qué conservar.");
+          return;
+        }
         draft.current.noteId = note.note_id;
         draft.current.revision = note.revision;
         draft.current.pending = undefined;
@@ -141,13 +160,13 @@ export function NoteWorkspace({
         navigate("/study/concepts/" + encodeURIComponent(result.key));
       }
     } catch (reason) {
-      if (alive.current)
+      if (scope.active)
         setStatus(
           (reason as Error).message +
             " El borrador y el mismo intento se conservan.",
         );
     } finally {
-      if (alive.current) setSending(false);
+      if (scope.active) setSending(false);
     }
   };
   return (
@@ -172,6 +191,13 @@ export function NoteWorkspace({
           <p>Pasaje de origen · página PDF {draft.current.passage.pdf_page}</p>
         </aside>
       )}
+      {!stored && !draft.current.documentId && <fieldset disabled={pending || !!conflict}>
+        <SourcePicker context={context} value={draft.current.source} choose={source=>{
+          draft.current={...draft.current,source,referenceId:undefined,referenceLocator:undefined};
+          keep();refresh(v=>v+1);
+        }}/>
+        <StudyLink to={"/study/sources/new?"+new URLSearchParams({return:"/study/write?draft="+encodeURIComponent(draft.current.id!)})} navigate={navigate}>+ Registrar fuente y volver al borrador</StudyLink>
+      </fieldset>}
       <label>
         Nombre de la nota
         <input
@@ -186,6 +212,9 @@ export function NoteWorkspace({
           }}
         />
       </label>
+      <NoteCitation context={context} draft={draft.current} disabled={pending || !!conflict} changed={patch=>{
+        draft.current={...draft.current,...patch};setDirty(true);keep();refresh(v=>v+1);
+      }}/>
       <div className={pending ? "study-locked" : ""} inert={pending}>
         <DocumentSurface
           initial={initial.content}
@@ -202,12 +231,16 @@ export function NoteWorkspace({
       <footer className="study-document-actions">
         <button
           className="primary-button"
-          disabled={sending}
+          disabled={sending || !!conflict}
           onClick={() => void submit()}
         >
           {pending ? "Reintentar el mismo envío" : "Guardar nota"}
         </button>
-        {stored && !pending && (
+        {conflict && <button onClick={() => {
+          capture();
+          if (vault.available) navigate("/study/notes/" + encodeURIComponent(conflict) + "?version=server");
+        }}>Abrir versión guardada; conservar mi borrador</button>}
+        {stored && !pending && !conflict && (
           <button disabled={dirty || sending} onClick={() => void submit(true)}>
             Incorporar como concepto
           </button>
@@ -247,7 +280,7 @@ export function NoteWorkspace({
         </button>
       </footer>
       <p role="status">
-        {status ||
+        {status || (conflict ? "Existe una versión posterior. El borrador se conserva; abre la versión guardada antes de continuar." : "") ||
           (stored
             ? "Nota recuperada de la biblioteca."
             : "Borrador conservado en este navegador. Aún no es una nota guardada.")}

@@ -6,6 +6,7 @@ import type { NoteDetail } from "./api";
 export type StudyDraft = Draft & {
   pending?: Intent;
   passage?: CreateVisualAnnotation;
+  conflictNoteId?: string;
 };
 export const studyVault = (library: string) =>
   new DraftVault(library, "study-documents");
