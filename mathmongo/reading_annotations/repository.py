@@ -633,6 +633,7 @@ class ReadingNoteRepository:
         reference_id: str | None,
         tags: list[str] | tuple[str, ...] | None = None,
         at: datetime | None = None,
+        reference_locator: dict | None = None,
         expected_updated_at: datetime | None = None,
     ) -> ReadingNote | None:
         validate_note_id(note_id)
@@ -655,6 +656,8 @@ class ReadingNoteRepository:
                 "updated_at": at or utc_now(),
             }
         )
+        if reference_locator is not None:
+            payload['reference_locator'] = reference_locator
         if tags is not None:
             payload["tags"] = list(tags)
         note = ReadingNote.model_validate(payload)

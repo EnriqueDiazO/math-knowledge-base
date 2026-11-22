@@ -23,6 +23,7 @@ from pydantic import field_validator
 from pydantic import model_validator
 
 from mathmongo.reading_space.models import LOCAL_USER_SCOPE
+from mathmongo.source_catalog.citations import CitationLocator
 from mathmongo.source_catalog.models import validate_reference_id
 from mathmongo.source_catalog.models import validate_source_id
 from mathmongo.source_documents.models import validate_document_id
@@ -484,6 +485,7 @@ class ReadingNote(ReadingAnnotationModel):
     document_id: str | None = Field(default=None, frozen=True)
     source_id: str = Field(frozen=True)
     reference_id: str | None = Field(default=None, frozen=True)
+    reference_locator: CitationLocator | None = Field(default=None, exclude_if=lambda value: value is None)
     user_scope: Literal[LOCAL_USER_SCOPE] = Field(default=LOCAL_USER_SCOPE, frozen=True)
     title: str
     body: str

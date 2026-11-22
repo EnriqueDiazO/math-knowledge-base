@@ -13,7 +13,7 @@ import {
 } from "../src/knowledge-map/theme";
 import {
   freshView,
-  useSavedView,
+  applySavedView,
   studyState,
   visibleNodes,
 } from "../src/knowledge-map/model";
@@ -139,7 +139,7 @@ describe("view-only geometry and real areas", () => {
       revision: "rev",
       state: studyState(view),
     };
-    useSavedView(view, saved);
+    applySavedView(view, saved);
     view.points["same@A"] = [0, 1, 0];
     expect(saved.state.points["same@A"]).toEqual([1, 0, 0]);
     expect(view.layoutDirty).toBe(false);

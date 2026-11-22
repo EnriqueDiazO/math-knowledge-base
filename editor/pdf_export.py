@@ -33,6 +33,7 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_latex_runtime_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_catalog.citations import extra_citation_latex
 
 # Valores constantes
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -1023,6 +1024,7 @@ def _generar_latex_content(concepto: Dict) -> str:
             latex_doc += f"DOI: {referencia['doi']}\\\\\n"
         if referencia.get("url"):
             latex_doc += r"\url{" + referencia["url"] + "}\\\\" "\n"
+        latex_doc += extra_citation_latex(referencia)
         latex_doc += "\n"
     
     # --- ID interno ---

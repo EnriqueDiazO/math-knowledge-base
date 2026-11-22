@@ -56,7 +56,7 @@ def main():
     if browser_name not in {'chrome', 'firefox'}:
         raise ValueError('Choose chrome or firefox')
     if phase != 'before':
-        evidence = evidence / browser_name
+        evidence = evidence / "bibliography" / browser_name
         evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix="mathmongo-study-") as directory:
         work = Path(directory)
@@ -112,6 +112,10 @@ def main():
             db = client[name]
             source = Source(name="Fuente de estudio temporal")
             db.sources.insert_one(source.model_dump(mode="python"))
+            from mathmongo.source_catalog.models import Reference
+            existing_reference = Reference(title='Ficha local corregida de Nyaga', year=1977,
+                doi='10.1007/BF01106749', source_ids=[source.source_id], bibtex={'key': 'NyagaClaveEstable'})
+            db.references.insert_one(existing_reference.model_dump(mode='python'))
             fixtures = [
                 (
                     "nota:slow",
@@ -178,6 +182,27 @@ def main():
                 content = copied["content"][0]
                 db.concepts.insert_one(metadata)
                 db.latex_documents.insert_one(content)
+            # Provider fixtures live only in this temporary app wrapper. Production
+            # never exposes a mock/network override or a test database selector.
+            wrapper = work / 'study_app.py'
+            wrapper.write_text("""import runpy
+import sys
+sys.path.insert(0, """ + repr(str(ROOT / "editor")) + """)
+from editor import knowledge_map
+from mathmongo.bibliography_lookup.service import MetadataLookup
+from tests.test_bibliography_lookup import CROSSREF, EDITION
+from mathmongo.bibliography_lookup.transport import MetadataLookupError
+class FixtureHTTP:
+    def get(self, url, *, deadline):
+        if '10.1007%2Fbf01106749' in url: return CROSSREF
+        if '/isbn/' in url: return EDITION
+        if '/authors/OL42A.json' in url: return {'name': 'Autora temporal'}
+        if 'outage' in url: raise MetadataLookupError('unavailable')
+        raise MetadataLookupError('not_found')
+lookup = MetadataLookup(http=FixtureHTTP())
+knowledge_map.metadata_lookup = lambda: lookup
+runpy.run_path(""" + repr(str(ROOT / 'editor/editor_streamlit.py')) + """, run_name='__main__')
+""")
             with (evidence / f"{phase}-application.log").open("w") as log:
                 app = subprocess.Popen(
                     [
@@ -185,7 +210,7 @@ def main():
                         "-m",
                         "streamlit",
                         "run",
-                        "editor/editor_streamlit.py",
+                        str(wrapper),
                         "--server.address=127.0.0.1",
                         f"--server.port={app_port}",
                         "--server.headless=true",
@@ -209,6 +234,7 @@ def main():
                     MATHMONGO_MAP_TEST_EVIDENCE=str(evidence),
                     MATHMONGO_STUDY_PHASE=phase,
                     MATHMONGO_STUDY_BROWSER=browser_name,
+                    MATHMONGO_STUDY_PRIVATE_KEY=(str(metadata["id"]) + "@" + metadata["source"]) if private.exists() else "",
                 )
                 command = [
                     "node",
@@ -234,6 +260,13 @@ def main():
                         {"id": created["id"], "source": created["source"]}
                     )["contenido_latex"]
                     assert "\\frac" in body and "pmatrix" in body
+                    assert created['reference_id'] == existing_reference.reference_id
+                    assert created['reference_locator']['printed_page'] == '229'
+                    assert created['reference_locator']['pdf_page'] == 3
+                    assert db.references.count_documents({}) == 1
+                    stored_reference = db.references.find_one({'reference_id': existing_reference.reference_id})
+                    assert stored_reference['title'] == existing_reference.title
+                    assert stored_reference['bibtex']['key'] == 'NyagaClaveEstable'
                     assert (
                         db.concepts.count_documents({"titulo": "Concepto visual confirmado"}) == 1
                     )

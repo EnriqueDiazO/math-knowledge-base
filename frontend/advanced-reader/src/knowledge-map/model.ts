@@ -1,3 +1,9 @@
+import type {
+  ReferenceData,
+  CitationLocator,
+  BibliographyDraft,
+  BibliographyResult,
+} from "./bibliography";
 import type { EditorSnapshot } from "./document-editor";
 import type { Camera, Vec } from "./geometry";
 export type Node = {
@@ -11,6 +17,8 @@ export type Node = {
   categorias: string[];
   revision: string;
   referencia?: Record<string, string>;
+  reference_id?: string;
+  reference_locator?: CitationLocator | null;
 };
 export type Edge = {
   key: string;
@@ -30,6 +38,8 @@ export type Intent = {
     | "save_room"
     | "save_note"
     | "publish_note";
+  reference_id?: string;
+  reference_locator?: CitationLocator;
   room_uid?: string;
   room_state?: RoomState;
   note_id?: string;
@@ -151,8 +161,13 @@ export type Data = {
   evidence?: Evidence[];
   rooms?: SavedRoom[];
   resource_limit?: string;
+  bibliography_result?: BibliographyResult;
 };
 export type Draft = {
+  reference?: ReferenceData;
+  referenceId?: string;
+  referenceLocator?: CitationLocator;
+  bibliography?: BibliographyDraft;
   id?: string;
   updated?: number;
   completed?: boolean;
@@ -271,7 +286,18 @@ export function draftFor(
     content: action === "edit" ? (node?.contenido_latex ?? "") : "",
     comment: action === "edit" ? (node?.comentario ?? "") : "",
     categories: action === "edit" ? (node?.categorias.join(", ") ?? "") : "",
-    source: data.sources[0]?.id ?? "",
+    source:
+      (action === "edit"
+        ? data.sources.find((s) => s.name === node?.source)?.id
+        : undefined) ??
+      data.sources[0]?.id ??
+      "",
+    ...(action === "edit" && node?.reference_id
+      ? {
+          referenceId: node.reference_id,
+          referenceLocator: node.reference_locator ?? undefined,
+        }
+      : {}),
     type: "nota",
     origin: node?.key ?? "",
     target: "",
@@ -288,6 +314,12 @@ export function intention(draft: Draft, operationId: string): Intent {
       action: "save_note",
       note_id: draft.noteId ?? "",
       source_id: draft.source,
+      ...(draft.referenceId
+        ? {
+            reference_id: draft.referenceId,
+            reference_locator: draft.referenceLocator,
+          }
+        : {}),
       document_id: draft.documentId ?? "",
       annotation_id: draft.annotationId ?? "",
       revision: draft.revision,
@@ -308,6 +340,12 @@ export function intention(draft: Draft, operationId: string): Intent {
     action: draft.action,
     key: draft.origin,
     source_id: draft.source,
+    ...(draft.referenceId
+      ? {
+          reference_id: draft.referenceId,
+          reference_locator: draft.referenceLocator,
+        }
+      : {}),
     titulo: draft.title,
     tipo: draft.type,
     contenido_latex: draft.content,
@@ -349,7 +387,7 @@ export function studyState(view: View): StudyState {
     members: view.members ?? null,
   };
 }
-export function useSavedView(view: View, saved: SavedView): void {
+export function applySavedView(view: View, saved: SavedView): void {
   view.mapUid = saved.uid;
   view.mapName = saved.name;
   view.viewRevision = saved.revision;

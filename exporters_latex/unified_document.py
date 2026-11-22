@@ -27,6 +27,7 @@ from mathmongo.paths import find_symlink_component
 from mathmongo.paths import get_exports_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_catalog.citations import extra_citation_latex
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DEFAULT_TEMPLATES_DIR = PROJECT_ROOT / "templates_latex"
@@ -182,6 +183,8 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
             lines.append(f"DOI: {ref['doi']}\\\\")
         if ref.get("url"):
             lines.append(r"\url{" + ref["url"] + r"}\\")
+        if extra := extra_citation_latex(ref):
+            lines.extend(extra.rstrip().splitlines())
         lines.append("")
 
     if concept_id or source:

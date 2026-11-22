@@ -21,6 +21,7 @@ from mathmongo.config import resolve_config
 from mathmongo.paths import get_exports_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_catalog.citations import extra_citation_latex
 
 
 class ExportadorLatex:
@@ -248,6 +249,7 @@ class ExportadorLatex:
                     f.write(f"DOI: {ref['doi']}\\\\\n")
                 if ref.get("url"):
                     f.write(r"\url{" + ref["url"] + "}\\\\" "\n")
+                f.write(extra_citation_latex(ref))
                 f.write("\n")
 
             # --- ID interno ---

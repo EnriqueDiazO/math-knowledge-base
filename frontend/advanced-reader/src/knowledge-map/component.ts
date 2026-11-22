@@ -11,13 +11,15 @@ import {
   neighbors,
   visibleNodes,
   studyState,
-  useSavedView,
+  applySavedView,
 } from "./model";
 import type { Data, Draft, View, Goal, SavedView, Result } from "./model";
 import { element, button, field, selector } from "./ui";
 import { DocumentEditor } from "./document-editor";
 import { openReader } from "./reader";
 import { DraftVault, persistedView, storeView } from "./drafts";
+import { consumeBibliography, emptyLocator } from "./bibliography";
+import { DocumentCitation } from "./document-citation";
 import { thematicLayout, relax } from "./layout";
 
 export type Bridge = {
@@ -57,7 +59,7 @@ export default function render({
   mounted.get(parentElement)?.();
   const view = readView(data.scope);
   if (initialView && view.mapUid !== initialView.uid)
-    useSavedView(view, initialView);
+    applySavedView(view, initialView);
   memory.set(data.scope, view);
   view.mapUid ??= crypto.randomUUID();
   view.mapName ??= "Mi esfera de estudio";
@@ -67,6 +69,7 @@ export default function render({
   view.flatPoints ??= {};
   let vault = new DraftVault(data.scope, view.mapUid);
   let composer: DocumentEditor | undefined;
+  let citationControls: DocumentCitation | undefined;
   let editorDialog: HTMLDialogElement | undefined;
   let readingDispose: (() => void) | undefined;
   let expansion: HTMLDialogElement | undefined;
@@ -120,7 +123,12 @@ export default function render({
       }
     }
   }
-  if (initialDraft && !view.pending && !view.draft) {
+  if (
+    initialDraft &&
+    !view.pending &&
+    !view.draft &&
+    !vault.get(initialDraft.id ?? "")?.completed
+  ) {
     const existing = initialDraft.id ? vault.get(initialDraft.id) : undefined;
     view.draft =
       existing && !existing.completed
@@ -135,6 +143,18 @@ export default function render({
     };
   if (view.draft) {
     view.draft.id ??= crypto.randomUUID();
+    vault.put(view.draft);
+  }
+  if (view.draft?.bibliography) {
+    const reference = consumeBibliography(
+      view.draft.bibliography,
+      data.bibliography_result,
+    );
+    if (reference) {
+      view.draft.reference = reference;
+      view.draft.referenceId = reference.reference_id;
+      view.draft.referenceLocator ??= emptyLocator();
+    }
     vault.put(view.draft);
   }
   const root = element("section", "", "knowledge-map");
@@ -265,6 +285,8 @@ export default function render({
     renderStatus();
   };
   function closeEditor(): void {
+    citationControls?.destroy();
+    citationControls = undefined;
     if (view.draft && composer) {
       view.draft.content = composer.value();
       view.draft.document = composer.snapshot();
@@ -291,6 +313,7 @@ export default function render({
   function showEditor(): void {
     if (!view.draft) return;
     const draft = view.draft;
+    citationControls?.destroy();
     editorDialog?.remove();
     composer?.destroy();
     const dialog = element("dialog", "", "document-dialog editor-dialog");
@@ -364,6 +387,15 @@ export default function render({
       },
       true,
     );
+    if (draft.action !== "connect")
+      citationControls = new DocumentCitation(
+        dialog,
+        form,
+        draft,
+        () => vault.put(draft),
+        (payload) => setTriggerValue("bibliography", payload),
+        () => composer?.editor.view.focus(),
+      );
     if (draft.action !== "connect") {
       const writing = element("div");
       form.append(writing);
@@ -500,6 +532,7 @@ export default function render({
     };
     root.append(dialog);
     dialog.showModal();
+    citationControls?.restore();
   }
   function relationFields(parent: HTMLElement, draft: Draft): void {
     const preview = element("p", "", "preview");
@@ -1126,7 +1159,7 @@ export default function render({
       if (!chosen) return;
       closeEditor();
       view.draft = undefined;
-      useSavedView(view, chosen);
+      applySavedView(view, chosen);
       vault = new DraftVault(data.scope, chosen.uid);
       renderThemes();
       refresh();

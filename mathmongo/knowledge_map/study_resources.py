@@ -130,6 +130,7 @@ class StudyResources:
         existing = self.reading.get_note(note_id)
         current = existing.value if existing.completed else None
         title, body = intent.titulo.strip(), intent.contenido_latex.strip()
+        citation = self.maps.citation_patch(intent, current.source_id if current else intent.source_id)
         if not title or not body:
             raise MapConflictError("Nombre y contenido de la nota son obligatorios.")
         if (
@@ -155,19 +156,19 @@ class StudyResources:
                 body=body,
                 note_type=current.note_type,
                 document_id=current.document_id,
-                reference_id=current.reference_id,
+                reference_id=intent.reference_id or current.reference_id,
+                reference_locator=citation.get("reference_locator"),
                 page_start=current.page_start,
                 page_end=current.page_end,
                 tags=current.tags,
                 expected_updated_at=current.updated_at,
             )
         else:
-            document = self.documents.get_by_id(intent.document_id)
-            if (
-                document is None
-                or document.source_id != intent.source_id
-                or document.status.value != "active"
-            ):
+            document = self.documents.get_by_id(intent.document_id) if intent.document_id else None
+            source = self.maps.sources.get_by_id(intent.source_id)
+            if source is None or source.status.value != 'active':
+                raise MapConflictError('Elige una Source activa para la nota.')
+            if intent.document_id and (document is None or document.source_id != intent.source_id or document.status.value != 'active'):
                 raise MapConflictError("Elige un documento activo de la Source indicada.")
             if current is not None:
                 raise MapConflictError("La identidad de nota pertenece a otro registro.")
@@ -176,7 +177,8 @@ class StudyResources:
             if intent.annotation_id:
                 mark = self.reading.get_annotation(intent.annotation_id)
                 if (
-                    not mark.completed
+                    document is None
+                    or not mark.completed
                     or mark.value is None
                     or mark.value.document_id != document.document_id
                     or mark.value.status.value != "active"
@@ -188,9 +190,10 @@ class StudyResources:
                 {"_id": intent.operation_id}, {"$set": {"note_prepared": True}}
             )
             result = self.reading.create_note(
-                source_id=document.source_id,
-                document_id=document.document_id,
-                reference_id=document.reference_id,
+                source_id=intent.source_id,
+                document_id=document.document_id if document else None,
+                reference_id=intent.reference_id or (document.reference_id if document else None),
+                reference_locator=citation.get("reference_locator"),
                 title=title,
                 body=body,
                 note_id=note_id,
@@ -223,6 +226,8 @@ class StudyResources:
             )
         if intent.source_id != note.source_id:
             raise MapConflictError("La Source debe coincidir con la nota de origen.")
+        if not intent.reference_id and note.reference_id:
+            intent = intent.model_copy(update={"reference_id": note.reference_id, "reference_locator": note.reference_locator})
         node, duplicate = self.maps._create(intent)
         if duplicate:
             return self.maps.result(

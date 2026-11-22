@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from collections.abc import Iterable
 from collections.abc import Mapping
+from contextlib import nullcontext
 from dataclasses import dataclass
 from datetime import date
 from datetime import datetime
@@ -215,6 +216,9 @@ def build_reference_from_form(
             }
         )
 
+    if "bibliographic_details" in values:
+        bibtex_data["extra"] = dict(values["bibliographic_details"])
+
     data.update(
         {
             "source_ids": requested_sources,
@@ -223,7 +227,7 @@ def build_reference_from_form(
                 current.reference_type if current is not None else ReferenceType.MISC.value,
             ),
             "bibtex": bibtex_data,
-            "authors": parse_authors_text(authors_value),
+            "authors": current.authors if current is not None and authors_value == authors_to_text(current.authors) else parse_authors_text(authors_value),
             "title": _optional_text(
                 form_value("title", current.title if current is not None else None)
             ),
@@ -328,6 +332,7 @@ def render_reference_form(
     initial: Reference | Mapping[str, Any] | None = None,
     source_ids: Iterable[str] = (),
     reference_id: str | None = None,
+    compact: bool = False,
 ) -> ReferenceFormDraft:
     """Render Reference fields and return a typed, non-persisted draft."""
     current: Reference | None = None
@@ -373,110 +378,124 @@ def render_reference_form(
         key=state_key(key_prefix, "year"),
         value=defaults["year"],
     )
-    year_raw = _text_input(
-        ui,
-        "Year (raw/historical)",
-        key=state_key(key_prefix, "year_raw"),
-        value=defaults["year_raw"],
-    )
-    journal = _text_input(
-        ui,
-        "Journal",
-        key=state_key(key_prefix, "journal"),
-        value=defaults["journal"],
-    )
-    publisher = _text_input(
-        ui,
-        "Publisher",
-        key=state_key(key_prefix, "publisher"),
-        value=defaults["publisher"],
-    )
-    volume = _text_input(
-        ui,
-        "Volume",
-        key=state_key(key_prefix, "volume"),
-        value=defaults["volume"],
-    )
-    number = _text_input(
-        ui,
-        "Number",
-        key=state_key(key_prefix, "number"),
-        value=defaults["number"],
-    )
-    edition = _text_input(
-        ui,
-        "Edition",
-        key=state_key(key_prefix, "edition"),
-        value=defaults["edition"],
-    )
-    isbn_text = ui.text_area(
-        "ISBN values",
-        value=defaults["isbn_text"],
-        key=state_key(key_prefix, "isbn"),
-        help="One ISBN per line, or separate values with commas or semicolons.",
-    )
-    doi = _text_input(
-        ui,
-        "DOI",
-        key=state_key(key_prefix, "doi"),
-        value=defaults["doi"],
-    )
-    url = _text_input(
-        ui,
-        "URL",
-        key=state_key(key_prefix, "url"),
-        value=defaults["url"],
-    )
-    accessed_at = _text_input(
-        ui,
-        "Accessed at (ISO date/datetime)",
-        key=state_key(key_prefix, "accessed_at"),
-        value=defaults["accessed_at"],
-    )
-    language = _text_input(
-        ui,
-        "Language",
-        key=state_key(key_prefix, "language"),
-        value=defaults["language"],
-    )
-    notes = ui.text_area(
-        "Notes",
-        value=defaults["notes"],
-        key=state_key(key_prefix, "notes"),
-    )
-    bibtex_key = _text_input(
-        ui,
-        "BibTeX key",
-        key=state_key(key_prefix, "bibtex_key"),
-        value=defaults["bibtex_key"],
-    )
-
-    replace_raw = False
-    bibtex_entry_type = defaults["bibtex_entry_type"]
-    bibtex_raw = defaults["bibtex_raw"]
-    if current is not None and current.bibtex.raw:
-        ui.caption(
-            f"Preserved BibTeX raw SHA-256: {current.bibtex.raw_sha256}. "
-            "It is retained unless replacement is explicitly enabled."
+    with ui.expander('Detalles bibliográficos y procedencia') if compact else nullcontext():
+        year_raw = _text_input(
+            ui,
+            "Year (raw/historical)",
+            key=state_key(key_prefix, "year_raw"),
+            value=defaults["year_raw"],
         )
-        replace_raw = ui.checkbox(
-            "Replace preserved BibTeX raw explicitly",
-            value=False,
-            key=state_key(key_prefix, "replace_bibtex_raw"),
+        journal = _text_input(
+            ui,
+            "Journal",
+            key=state_key(key_prefix, "journal"),
+            value=defaults["journal"],
         )
-        if replace_raw:
-            bibtex_entry_type = _text_input(
-                ui,
-                "Replacement ENTRYTYPE",
-                key=state_key(key_prefix, "bibtex_entry_type"),
-                value=defaults["bibtex_entry_type"],
-            )
-            bibtex_raw = ui.text_area(
-                "Replacement BibTeX raw",
-                value=defaults["bibtex_raw"],
-                key=state_key(key_prefix, "bibtex_raw"),
-            )
+        publisher = _text_input(
+            ui,
+            "Publisher",
+            key=state_key(key_prefix, "publisher"),
+            value=defaults["publisher"],
+        )
+        volume = _text_input(
+            ui,
+            "Volume",
+            key=state_key(key_prefix, "volume"),
+            value=defaults["volume"],
+        )
+        number = _text_input(
+            ui,
+            "Number",
+            key=state_key(key_prefix, "number"),
+            value=defaults["number"],
+        )
+        edition = _text_input(
+            ui,
+            "Edition",
+            key=state_key(key_prefix, "edition"),
+            value=defaults["edition"],
+        )
+        isbn_text = ui.text_area(
+            "ISBN values",
+            value=defaults["isbn_text"],
+            key=state_key(key_prefix, "isbn"),
+            help="One ISBN per line, or separate values with commas or semicolons.",
+        )
+        doi = _text_input(
+            ui,
+            "DOI",
+            key=state_key(key_prefix, "doi"),
+            value=defaults["doi"],
+        )
+        url = _text_input(
+            ui,
+            "URL",
+            key=state_key(key_prefix, "url"),
+            value=defaults["url"],
+        )
+        accessed_at = _text_input(
+            ui,
+            "Accessed at (ISO date/datetime)",
+            key=state_key(key_prefix, "accessed_at"),
+            value=defaults["accessed_at"],
+        )
+        language = _text_input(
+            ui,
+            "Language",
+            key=state_key(key_prefix, "language"),
+            value=defaults["language"],
+        )
+        notes = ui.text_area(
+            "Notes",
+            value=defaults["notes"],
+            key=state_key(key_prefix, "notes"),
+        )
+        bibtex_key = _text_input(
+            ui,
+            "BibTeX key",
+            key=state_key(key_prefix, "bibtex_key"),
+            value=defaults["bibtex_key"],
+        )
 
+        replace_raw = False
+        bibtex_entry_type = defaults["bibtex_entry_type"]
+        bibtex_raw = defaults["bibtex_raw"]
+        if current is not None and current.bibtex.raw:
+            ui.caption(
+                f"Preserved BibTeX raw SHA-256: {current.bibtex.raw_sha256}. "
+                "It is retained unless replacement is explicitly enabled."
+            )
+            replace_raw = ui.checkbox(
+                "Replace preserved BibTeX raw explicitly",
+                value=False,
+                key=state_key(key_prefix, "replace_bibtex_raw"),
+            )
+            if replace_raw:
+                bibtex_entry_type = _text_input(
+                    ui,
+                    "Replacement ENTRYTYPE",
+                    key=state_key(key_prefix, "bibtex_entry_type"),
+                    value=defaults["bibtex_entry_type"],
+                )
+                bibtex_raw = ui.text_area(
+                    "Replacement BibTeX raw",
+                    value=defaults["bibtex_raw"],
+                    key=state_key(key_prefix, "bibtex_raw"),
+                )
+
+    bibliographic_details = dict(current.bibtex.extra) if current is not None else {}
+    if compact:
+        with ui.expander('Contenedor, páginas y roles declarados'):
+            for name, label in (("booktitle", "Libro contenedor"), ("pages", "Páginas de la publicación"),
+                ("pagination", "Paginación de la edición"), ("editor", "Editores"),
+                ("translator", "Traductores"), ("contributions", "Otros roles declarados"),
+                ("date", "Fecha de publicación")):
+                value = _text_input(ui, label, value=bibliographic_details.get(name, ""),
+                    key=state_key(key_prefix, "extra", name))
+                if value:
+                    bibliographic_details[name] = value
+                else:
+                    bibliographic_details.pop(name, None)
     values = {
         "reference_type": reference_type,
         "authors_text": authors_text,
@@ -499,6 +518,8 @@ def render_reference_form(
         "bibtex_raw": bibtex_raw,
         "replace_bibtex_raw": replace_raw,
     }
+    if compact:
+        values["bibliographic_details"] = bibliographic_details
     if initial_error:
         return ReferenceFormDraft(values=values, reference=None, errors=initial_error)
     try:

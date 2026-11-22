@@ -161,7 +161,11 @@ function g(e, t, n, r) {
 		content: n === "edit" ? i?.contenido_latex ?? "" : "",
 		comment: n === "edit" ? i?.comentario ?? "" : "",
 		categories: n === "edit" ? i?.categorias.join(", ") ?? "" : "",
-		source: e.sources[0]?.id ?? "",
+		source: (n === "edit" ? e.sources.find((e) => e.name === i?.source)?.id : void 0) ?? e.sources[0]?.id ?? "",
+		...n === "edit" && i?.reference_id ? {
+			referenceId: i.reference_id,
+			referenceLocator: i.reference_locator ?? void 0
+		} : {},
 		type: "nota",
 		origin: i?.key ?? "",
 		target: "",
@@ -177,6 +181,10 @@ function _(e, t) {
 		action: "save_note",
 		note_id: e.noteId ?? "",
 		source_id: e.source,
+		...e.referenceId ? {
+			reference_id: e.referenceId,
+			reference_locator: e.referenceLocator
+		} : {},
 		document_id: e.documentId ?? "",
 		annotation_id: e.annotationId ?? "",
 		revision: e.revision,
@@ -194,6 +202,10 @@ function _(e, t) {
 		action: e.action,
 		key: e.origin,
 		source_id: e.source,
+		...e.referenceId ? {
+			reference_id: e.referenceId,
+			reference_locator: e.referenceLocator
+		} : {},
 		titulo: e.title,
 		tipo: e.type,
 		contenido_latex: e.content,
@@ -55190,7 +55202,7 @@ function $z() {
 function eB(e, t) {
 	$z();
 	let n = new qL();
-	return n.mathVirtualKeyboardPolicy = "manual", n.readOnly = !t, n.value = e, n.setAttribute("aria-label", t ? "Fórmula editable" : "Expresión matemática"), n;
+	return n.mathVirtualKeyboardPolicy = "manual", n.readOnly = !t, n.value = e, n.title = t ? "Escribe aquí o abre el teclado: números, símbolos, letras y griego" : "Expresión matemática", n.setAttribute("aria-label", t ? "Fórmula editable" : "Expresión matemática"), n;
 }
 function tB(e) {
 	try {
@@ -55223,24 +55235,31 @@ var nB = /* @__PURE__ */ new Set();
 function rB(e) {
 	let t = window.mathVirtualKeyboard;
 	if (!t) return () => {};
-	let n = document.createElement("div");
-	n.className = "math-keyboard-host", n.style.cssText = "position:sticky;bottom:0;height:min(36dvh,320px);width:100%;z-index:10;grid-template-rows:auto minmax(0,1fr);--keycap-height:min(5dvh,44px);--keycap-font-size:22px;display:none", n.hidden = !0;
-	let r = document.createElement("button");
-	r.type = "button", r.textContent = "Ocultar teclado matemático", r.onmousedown = (e) => e.preventDefault(), r.onclick = () => t.hide();
-	let i = document.createElement("div");
-	i.style.minHeight = "0", n.append(r, i), e.append(n);
-	let a = new Set(document.adoptedStyleSheets ?? []), o = () => {
-		a = new Set(document.adoptedStyleSheets ?? []);
-	}, s = () => {
-		n.hidden = !t.visible, n.style.display = t.visible ? "grid" : "none";
-		let e = n.getRootNode();
+	let n = t.layouts;
+	t.layouts = [
+		"numeric",
+		"symbols",
+		"alphabetic",
+		"greek"
+	];
+	let r = document.createElement("div");
+	r.className = "math-keyboard-host", r.style.cssText = "position:sticky;bottom:0;height:min(43dvh,380px);width:100%;z-index:10;grid-template-rows:auto minmax(0,1fr);--keycap-height:min(4dvh,36px);--keycap-font-size:22px;display:none", r.hidden = !0;
+	let i = document.createElement("button");
+	i.type = "button", i.textContent = "Ocultar teclado matemático", i.onmousedown = (e) => e.preventDefault(), i.onclick = () => t.hide();
+	let a = document.createElement("div");
+	a.style.minHeight = "0", r.append(i, a), e.append(r);
+	let o = new Set(document.adoptedStyleSheets ?? []), s = () => {
+		o = new Set(document.adoptedStyleSheets ?? []);
+	}, c = () => {
+		r.hidden = !t.visible, r.style.display = t.visible ? "grid" : "none";
+		let e = r.getRootNode();
 		if (!(!(e instanceof ShadowRoot) || !("adoptedStyleSheets" in e))) {
-			for (let e of document.adoptedStyleSheets ?? []) a.has(e) || nB.add(e);
+			for (let e of document.adoptedStyleSheets ?? []) o.has(e) || nB.add(e);
 			e.adoptedStyleSheets = [.../* @__PURE__ */ new Set([...e.adoptedStyleSheets, ...nB])];
 		}
 	};
-	return t.container = i, t.addEventListener?.("before-virtual-keyboard-toggle", o), t.addEventListener?.("virtual-keyboard-toggle", s), s(), () => {
-		t.hide(), t.removeEventListener?.("before-virtual-keyboard-toggle", o), t.removeEventListener?.("virtual-keyboard-toggle", s), t.container === i && (t.container = document.body), n.remove();
+	return t.container = a, t.addEventListener?.("before-virtual-keyboard-toggle", s), t.addEventListener?.("virtual-keyboard-toggle", c), c(), () => {
+		t.hide(), t.removeEventListener?.("before-virtual-keyboard-toggle", s), t.removeEventListener?.("virtual-keyboard-toggle", c), t.container === a && (t.container = document.body), t.layouts = n, r.remove();
 	};
 }
 //#endregion
@@ -55495,8 +55514,17 @@ var vB = (e, t = "") => {
 	return n.textContent = t, n;
 };
 function yB(e, t, n) {
-	let r = vB("button", t);
-	return r.type = "button", r.onmousedown = (e) => e.preventDefault(), r.onclick = n, e.append(r), r;
+	let r = {
+		Negrita: "B",
+		Énfasis: "I",
+		Encabezado: "H₂",
+		Lista: "• ≡",
+		"Lista numerada": "1. ≡",
+		Código: "</>",
+		"Deshacer texto": "↶",
+		"Rehacer texto": "↷"
+	}, i = vB("button", r[t] ?? t);
+	return r[t] && i.setAttribute("aria-label", t), i.title = t, i.type = "button", i.onmousedown = (e) => e.preventDefault(), i.onclick = n, e.append(i), i;
 }
 var bB = Ap.create({
 	name: "originalSource",
@@ -55911,10 +55939,205 @@ function jB(e, t) {
 	}
 }
 //#endregion
-//#region src/knowledge-map/component.ts
-var MB = /* @__PURE__ */ new Map(), NB = /* @__PURE__ */ new WeakMap();
-function PB(e) {
-	if (MB.has(e)) return MB.get(e);
+//#region src/knowledge-map/bibliography.ts
+var MB = () => ({
+	printed_page: "",
+	pdf_page: null,
+	chapter: "",
+	section: "",
+	theorem: "",
+	passage: ""
+}), NB = {
+	idle: "Busca en tu biblioteca, pega un identificador o prepara una ficha manual.",
+	searching: "Buscando referencia…",
+	found: "Ficha recuperada. Revisa los campos antes de guardar.",
+	partial: "Resultado parcial: puedes completar los datos ausentes.",
+	candidates: "Selecciona un candidato. Una obra necesita una edición para asignarle ISBN y fecha.",
+	duplicates: "Hay coincidencias locales. Puedes usar una ficha existente; no se fusionaron registros.",
+	not_found: "No se pudo recuperar la referencia. Puedes usar captura manual; esto no demuestra que el identificador no exista.",
+	invalid: "Revisa el identificador, el dígito de control del ISBN y los campos de la ficha.",
+	unavailable: "Proveedor o catálogo no disponible. La consulta, las correcciones y el documento se conservan.",
+	rate_limited: "El proveedor limita las consultas. Espera antes de reintentar.",
+	conflict: "La referencia cambió. Revisa la ficha existente; las correcciones locales se conservan.",
+	saved: "Ficha guardada y seleccionada para esta cita. Guarda el documento para confirmar el enlace."
+};
+function PB(e, t) {
+	if (!(!e.pending || t?.request_id !== e.pending) && (e.pending = void 0, e.status = t.status, t.candidates?.length && (e.candidates = structuredClone(t.candidates)), t.status === "saved" && t.reference_data)) return e.open = !1, structuredClone(t.reference_data);
+}
+function FB(e) {
+	return [
+		(e.authors ?? []).map((e) => e.literal || [e.given, e.family].filter(Boolean).join(" ")).join("; "),
+		e.title || "Sin título",
+		e.year
+	].filter((e) => e != null && e !== "").join(" · ");
+}
+function IB(e, t, n, r, i, a) {
+	let o = S("dialog", "", "document-dialog bibliography-dialog");
+	o.setAttribute("aria-label", "Referencias del documento");
+	let s = () => {
+		o.replaceChildren();
+		let e = S("header", "", "document-header");
+		e.append(S("h2", "Referencia bibliográfica")), C("Volver al documento", () => {
+			t.open = !1, i(), a();
+		}, e), o.append(e, S("p", "Se envía sólo el identificador o título/autor a los catálogos públicos. No se suben notas ni PDF. La ficha, el pasaje citado y el PDF son recursos distintos."));
+		let c = (e, r) => {
+			let a = crypto.randomUUID();
+			t.pending = a, t.status = "searching", i(), n({
+				request_id: a,
+				action: e,
+				...r
+			}), s();
+		};
+		oe(o, "Pegar DOI o ISBN", t.query, (e) => {
+			t.query = e, i();
+		});
+		let l = S("div", "", "bibliography-actions");
+		C("Buscar referencia", () => c("identifier", { query: t.query }), l, !0), C("Buscar en mi biblioteca", () => c("local", { query: t.query }), l), C("Ficha manual", () => {
+			t.selected = { reference_data: {
+				reference_id: "ref_" + crypto.randomUUID(),
+				reference_type: "book",
+				authors: [],
+				title: ""
+			} }, i(), s();
+		}, l), o.append(l);
+		let u = S("details");
+		u.append(S("summary", "Buscar libros por título y autor")), oe(u, "Título del libro", t.title, (e) => {
+			t.title = e, i();
+		}), oe(u, "Autor del libro", t.author, (e) => {
+			t.author = e, i();
+		}), C("Buscar libros", () => c("title", {
+			query: t.title,
+			author: t.author
+		}), u), o.append(u);
+		let d = S("p", NB[t.status] ?? t.status);
+		d.setAttribute("role", "status"), o.append(d), t.candidates.forEach((e) => {
+			let n = S("section", "", "reference-candidate");
+			n.append(S("p", FB(e.reference_data))), C(e.existing ? "Usar referencia existente" : "Revisar esta propuesta", () => {
+				t.selected = structuredClone(e), i(), s();
+			}, n), e.edition_ids?.forEach((e) => C("Consultar edición " + e, () => c("edition", { query: e }), n)), o.append(n);
+		});
+		let f = t.selected;
+		if (!f) return;
+		let p = f.reference_data, m = S("section", "", "reference-proposal");
+		if (m.append(S("h3", f.existing ? "Ficha local: se conserva sin sobrescribir" : "Propuesta editable")), f.existing) m.append(S("p", FB(p)), S("p", "Para corregir una ficha compartida usa Edit Source, donde puedes revisar las diferencias."));
+		else {
+			se(m, "Tipo de documento", [
+				"book",
+				"article",
+				"chapter",
+				"thesis",
+				"proceedings",
+				"report",
+				"web",
+				"misc",
+				"other"
+			].map((e) => ({
+				value: e,
+				text: e
+			})), p.reference_type ?? "book", (e) => {
+				p.reference_type = e, i();
+			}), oe(m, "Título de la referencia", p.title ?? "", (e) => {
+				p.title = e || null, i();
+			}), oe(m, "Autores (uno por línea; apellido | nombre o nombre literal)", (p.authors ?? []).map((e) => e.literal || `${e.family ?? ""} | ${e.given ?? ""}`).join("\n"), (e) => {
+				p.authors = e.split("\n").filter((e) => e.trim()).map((e) => e.includes("|") ? {
+					family: e.split("|")[0].trim(),
+					given: e.split("|").slice(1).join("|").trim()
+				} : { literal: e.trim() }), i();
+			}, !0), oe(m, "Año de la edición/publicación", p.year === null || p.year === void 0 ? "" : String(p.year), (e) => {
+				p.year = e.trim() ? Number(e) : null, i();
+			});
+			let e = S("details");
+			e.append(S("summary", "Contenedor, edición, roles e identificadores")), [
+				["year_raw", "Fecha declarada"],
+				["journal", "Revista"],
+				["publisher", "Editorial"],
+				["edition", "Edición"],
+				["volume", "Volumen"],
+				["number", "Número"],
+				["language", "Idioma"],
+				["doi", "DOI"],
+				["url", "URL"]
+			].forEach(([t, n]) => oe(e, n, String(p[t] ?? ""), (e) => {
+				Object.assign(p, { [t]: e || null }), i();
+			})), oe(e, "ISBN de esta edición", (p.isbn ?? []).join("\n"), (e) => {
+				p.isbn = e.split(/[\n;,]/u).map((e) => e.trim()).filter(Boolean), i();
+			}, !0);
+			let t = p.bibtex ??= {};
+			t.extra ??= {}, [
+				["booktitle", "Libro contenedor"],
+				["pages", "Páginas de la publicación"],
+				["pagination", "Paginación de la edición"],
+				["editor", "Editores"],
+				["translator", "Traductores"],
+				["contributions", "Otros roles declarados"]
+			].forEach(([n, r]) => oe(e, r, t.extra[n] ?? "", (e) => {
+				e ? t.extra[n] = e : delete t.extra[n], i();
+			})), m.append(e);
+		}
+		p.provenance?.warnings?.forEach((e) => m.append(S("p", e)));
+		let h = p.provenance?.external_lookup;
+		h && m.append(S("p", `${h.provider} · ${h.record_kind} · ${h.retrieved_at}`)), C("Guardar ficha y citar", () => c("save", {
+			source_id: r,
+			...f.existing ? { existing_reference_id: p.reference_id } : { reference_data: p }
+		}), m, !0).disabled = !!t.pending || !r, r || m.append(S("p", "Elige primero una Source administrada para este documento.")), o.append(m);
+	};
+	return o.addEventListener("cancel", (e) => {
+		e.preventDefault(), t.open = !1, i(), a();
+	}), s(), e.append(o), o.showModal(), () => {
+		o.close(), o.remove();
+	};
+}
+//#endregion
+//#region src/knowledge-map/document-citation.ts
+var LB = class {
+	dialog;
+	draft;
+	save;
+	send;
+	focusDocument;
+	disposePicker;
+	summary = S("section", "", "document-citation");
+	constructor(e, t, n, r, i, a) {
+		this.dialog = e, this.draft = n, this.save = r, this.send = i, this.focusDocument = a, C("Buscar o añadir referencia", () => this.open(), t), t.append(this.summary), this.renderSummary();
+	}
+	renderSummary() {
+		if (this.summary.replaceChildren(), !this.draft.referenceId) return;
+		let { draft: e } = this;
+		this.summary.append(S("p", e.reference ? FB(e.reference) : `Referencia: ${e.referenceId}`));
+		let t = e.referenceLocator ??= MB(), n = S("details");
+		n.append(S("summary", "Localizador de este pasaje")), [
+			["printed_page", "Página impresa"],
+			["chapter", "Capítulo"],
+			["section", "Sección"],
+			["theorem", "Teorema"],
+			["passage", "Pasaje citado"]
+		].forEach(([e, r]) => oe(n, r, t[e], (n) => {
+			t[e] = n, this.save();
+		}, e === "passage")), oe(n, "Página física del PDF (sin deducir página impresa)", t.pdf_page === null ? "" : String(t.pdf_page), (e) => {
+			t.pdf_page = e ? Number(e) : null, this.save();
+		}), n.append(S("p", "Un índice indicado manualmente no vincula un archivo. Los PDF se asocian y abren desde el lector.")), this.summary.append(n);
+	}
+	open() {
+		this.draft.bibliography ??= {
+			open: !0,
+			query: "",
+			title: "",
+			author: "",
+			status: "idle",
+			candidates: []
+		}, this.draft.bibliography.open = !0, this.save(), this.disposePicker?.(), this.disposePicker = IB(this.dialog, this.draft.bibliography, this.send, this.draft.source, this.save, () => {
+			this.disposePicker?.(), this.disposePicker = void 0, this.renderSummary(), this.focusDocument();
+		});
+	}
+	restore() {
+		this.draft.bibliography?.open && this.open();
+	}
+	destroy() {
+		this.disposePicker?.(), this.disposePicker = void 0;
+	}
+}, RB = /* @__PURE__ */ new Map(), zB = /* @__PURE__ */ new WeakMap();
+function BB(e) {
+	if (RB.has(e)) return RB.get(e);
 	let t = AB(e);
 	if (t?.camera && t.points) return t;
 	try {
@@ -55923,77 +56146,80 @@ function PB(e) {
 	} catch {}
 	return f();
 }
-function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, initialDraft: o, onExit: c, onSaved: l }) {
-	NB.get(e)?.();
-	let d = PB(t.scope);
-	i && d.mapUid !== i.uid && y(d, i), MB.set(t.scope, d), d.mapUid ??= crypto.randomUUID(), d.mapName ??= "Mi esfera de estudio", d.pinned ??= [], d.areas ??= [], d.goals ??= [], d.flatPoints ??= {};
-	let f = new kB(t.scope, d.mapUid), m, b, ne, re, ce, le = d.draft, ue = d.pending?.operation_id;
+function VB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, initialDraft: o, onExit: c, onSaved: l }) {
+	zB.get(e)?.();
+	let d = BB(t.scope);
+	i && d.mapUid !== i.uid && y(d, i), RB.set(t.scope, d), d.mapUid ??= crypto.randomUUID(), d.mapName ??= "Mi esfera de estudio", d.pinned ??= [], d.areas ??= [], d.goals ??= [], d.flatPoints ??= {};
+	let f = new kB(t.scope, d.mapUid), m, b, ne, re, ce, le, ue = d.draft, de = d.pending?.operation_id;
 	if (t.result && t.result.operation_id === d.pending?.operation_id && d.pending?.action === "save_view") d.points = u(t.nodes.map((e) => e.key), d.points), d.status = t.result, t.result.status === "saved" ? (d.viewRevision = t.result.view_revision, d.layoutDirty = !1, d.pending = void 0) : ["invalid", "conflict"].includes(t.result.status) && (d.pending = void 0);
 	else {
 		let e = d.pending && t.result?.key && d.draft ? {
 			key: t.result.key,
 			point: d.draft.point
 		} : void 0;
-		if (d.points = u(t.nodes.map((e) => e.key), d.points, e), ee(t, d), le && ue && t.result && t.result.operation_id === ue && d.acknowledged === ue && (t.result.status === "saved" && f.complete(le), t.result.status === "saved" && l && queueMicrotask(() => l(t.result, le)), le.goalId && t.result.key)) {
-			let e = d.goals.find((e) => e.id === le.goalId);
+		if (d.points = u(t.nodes.map((e) => e.key), d.points, e), ee(t, d), ue && de && t.result && t.result.operation_id === de && d.acknowledged === de && (t.result.status === "saved" && f.complete(ue), t.result.status === "saved" && l && queueMicrotask(() => l(t.result, ue)), ue.goalId && t.result.key)) {
+			let e = d.goals.find((e) => e.id === ue.goalId);
 			e && (e.conceptKey = t.result.key, d.points[t.result.key] = e.point, d.layoutDirty = !0);
 		}
 	}
-	if (o && !d.pending && !d.draft) {
+	if (o && !d.pending && !d.draft && !f.get(o.id ?? "")?.completed) {
 		let e = o.id ? f.get(o.id) : void 0;
 		d.draft = e && !e.completed ? e : structuredClone(o);
 	}
-	d.pending && t.result?.operation_id !== d.pending.operation_id && (d.status = {
+	if (d.pending && t.result?.operation_id !== d.pending.operation_id && (d.status = {
 		status: "uncertain",
 		message: "Existe un envío sin confirmar. Reconcilia el mismo intento antes de continuar."
-	}), d.draft && (d.draft.id ??= crypto.randomUUID(), f.put(d.draft));
-	let de = S("section", "", "knowledge-map");
-	n(de), de.setAttribute("aria-label", "Mapa de conocimiento editable");
-	let fe = S("div", "", "toolbar"), pe = S("details", "", "map-options");
-	pe.append(S("summary", "Filtros y áreas"));
-	let me = S("div", "", "filters"), w = S("div", "", "thematic-controls");
-	pe.append(me, w);
-	let he = S("div", "", "status");
-	he.setAttribute("role", "status"), he.setAttribute("aria-live", "polite");
-	let ge = S("div", "", "layout"), _e = S("div", "", "stage"), T = S("aside");
-	T.setAttribute("aria-label", "Ficha del concepto");
-	let ve = S("canvas");
-	ve.tabIndex = 0, ve.setAttribute("role", "img"), ve.setAttribute("aria-label", "Mapa. Arrastra el fondo para girar y un nodo para reubicarlo. Flechas para girar."), de.append(fe, pe, he, ge), ge.append(_e, T), _e.append(ve);
-	let E = S("details", "", "legend-details");
-	E.append(S("summary", "Leyenda y ayuda"));
-	let ye = S("div", "", "legend");
+	}), d.draft && (d.draft.id ??= crypto.randomUUID(), f.put(d.draft)), d.draft?.bibliography) {
+		let e = PB(d.draft.bibliography, t.bibliography_result);
+		e && (d.draft.reference = e, d.draft.referenceId = e.reference_id, d.draft.referenceLocator ??= MB()), f.put(d.draft);
+	}
+	let fe = S("section", "", "knowledge-map");
+	n(fe), fe.setAttribute("aria-label", "Mapa de conocimiento editable");
+	let pe = S("div", "", "toolbar"), me = S("details", "", "map-options");
+	me.append(S("summary", "Filtros y áreas"));
+	let w = S("div", "", "filters"), he = S("div", "", "thematic-controls");
+	me.append(w, he);
+	let ge = S("div", "", "status");
+	ge.setAttribute("role", "status"), ge.setAttribute("aria-live", "polite");
+	let _e = S("div", "", "layout"), T = S("div", "", "stage"), ve = S("aside");
+	ve.setAttribute("aria-label", "Ficha del concepto");
+	let E = S("canvas");
+	E.tabIndex = 0, E.setAttribute("role", "img"), E.setAttribute("aria-label", "Mapa. Arrastra el fondo para girar y un nodo para reubicarlo. Flechas para girar."), fe.append(pe, me, ge, _e), _e.append(T, ve), T.append(E);
+	let ye = S("details", "", "legend-details");
+	ye.append(S("summary", "Leyenda y ayuda"));
+	let be = S("div", "", "legend");
 	Object.entries(ie).forEach(([e, t]) => {
 		let n = S("span", e);
-		n.style.setProperty("--node-color", t), ye.append(n);
-	}), E.append(ye, S("p", "Puntos: conceptos. Arcos con flecha: relaciones guardadas. Rombo discontinuo: pendiente explícito. Manchas y pétalos: presentación de áreas, sin relaciones nuevas.", "hint")), _e.append(E);
-	let be = e.querySelector(".knowledge-map-root") ?? e;
-	be.replaceChildren(de);
-	let xe = () => {
+		n.style.setProperty("--node-color", t), be.append(n);
+	}), ye.append(be, S("p", "Puntos: conceptos. Arcos con flecha: relaciones guardadas. Rombo discontinuo: pendiente explícito. Manchas y pétalos: presentación de áreas, sin relaciones nuevas.", "hint")), T.append(ye);
+	let xe = e.querySelector(".knowledge-map-root") ?? e;
+	xe.replaceChildren(fe);
+	let Se = () => {
 		d.draft && f.put(d.draft), jB(t.scope, d);
-	}, Se = new ae(ve, t, d, (e) => Te(e), (e) => D("create", e), () => {
-		xe(), je();
+	}, Ce = new ae(E, t, d, (e) => D(e), (e) => Ee("create", e), () => {
+		Se(), Me();
 	}, (e) => {
-		d.focusedEdge = e, Me(), Ce();
-	}), Ce = () => {
-		Se.update(t), xe();
-	}, we = () => {
-		Me(), je(), Ce();
-	}, Te = (e) => {
+		d.focusedEdge = e, Ne(), we();
+	}), we = () => {
+		Ce.update(t), Se();
+	}, Te = () => {
+		Ne(), Me(), we();
+	}, D = (e) => {
 		if (e.startsWith("goal:")) {
-			Pe(e.slice(5));
+			Fe(e.slice(5));
 			return;
 		}
-		d.selected = e, d.auto = !1, Re.value = e, Se.bringFront(e), Me(), je(), Ce();
-	}, D = (e, n = s([
+		d.selected = e, d.auto = !1, ze.value = e, Ce.bringFront(e), Ne(), Me(), we();
+	}, Ee = (e, n = s([
 		0,
 		0,
 		1
 	], d.camera), r) => {
 		if (d.pending) {
-			je();
+			Me();
 			return;
 		}
-		d.draft && (f.put(d.draft), Ee());
+		d.draft && (f.put(d.draft), De());
 		let i = r?.point ?? u([...t.nodes.map((e) => e.key), "__draft__"], d.points, {
 			key: "__draft__",
 			point: n
@@ -56001,68 +56227,68 @@ function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, ini
 		d.draft = g(t, d, e, i), d.draft.id = crypto.randomUUID(), r && (d.draft.goalId = r.id, d.draft.title = r.label, r.draftId = d.draft.id, r.state = "working", d.layoutDirty = !0), d.auto = !1, d.status = {
 			status: "draft",
 			message: "Borrador recuperable en este navegador; aún no es un concepto guardado."
-		}, f.put(d.draft), Oe(), Ce(), je();
+		}, f.put(d.draft), ke(), we(), Me();
 	};
-	function Ee() {
-		d.draft && m && (d.draft.content = m.value(), d.draft.document = m.snapshot(), f.put(d.draft)), m?.destroy(), m = void 0, b?.remove(), b = void 0, xe();
-	}
 	function De() {
-		Ee(), d.draft = void 0, d.status = {
-			status: "draft",
-			message: "Borrador local conservado. Puedes recuperarlo; no se publicó contenido nuevo."
-		}, we(), ve.focus(), c?.();
+		b?.destroy(), b = void 0, d.draft && m && (d.draft.content = m.value(), d.draft.document = m.snapshot(), f.put(d.draft)), m?.destroy(), m = void 0, ne?.remove(), ne = void 0, Se();
 	}
 	function Oe() {
+		De(), d.draft = void 0, d.status = {
+			status: "draft",
+			message: "Borrador local conservado. Puedes recuperarlo; no se publicó contenido nuevo."
+		}, Te(), E.focus(), c?.();
+	}
+	function ke() {
 		if (!d.draft) return;
 		let e = d.draft;
-		b?.remove(), m?.destroy();
+		b?.destroy(), ne?.remove(), m?.destroy();
 		let n = S("dialog", "", "document-dialog editor-dialog");
-		b = n;
-		let r = S("header");
-		r.append(S("h2", e.action === "save_note" ? "Escribir nota de trabajo" : e.action === "edit" ? "Editar concepto" : e.action === "connect" ? "Conectar conceptos" : "Escribir concepto"));
-		let i = C("Conservar borrador y volver", De, r);
-		i.disabled = !!d.pending, n.append(r);
-		let a = S("form");
-		n.append(a);
-		let o = S("details");
-		o.open = e.action === "connect", o.append(S("summary", "Metadatos, fuente y referencia")), a.append(o);
-		let s = oe(a, "Nombre", e.title, (t) => {
+		ne = n;
+		let i = S("header");
+		i.append(S("h2", e.action === "save_note" ? "Escribir nota de trabajo" : e.action === "edit" ? "Editar concepto" : e.action === "connect" ? "Conectar conceptos" : "Escribir concepto"));
+		let a = C("Conservar borrador y volver", Oe, i);
+		a.disabled = !!d.pending, n.append(i);
+		let o = S("form");
+		n.append(o);
+		let s = S("details");
+		s.open = e.action === "connect", s.append(S("summary", "Metadatos, fuente y referencia")), o.append(s);
+		let c = oe(o, "Nombre", e.title, (t) => {
 			e.title = t, f.put(e);
 		});
-		if (s.required = e.action !== "connect", s.maxLength = 500, e.action !== "edit" && e.action !== "connect" && e.action !== "save_note" && (e.action !== "publish_note" && se(o, "Source administrada", t.sources.map((e) => ({
+		if (c.required = e.action !== "connect", c.maxLength = 500, e.action !== "edit" && e.action !== "connect" && e.action !== "save_note" && (e.action !== "publish_note" && se(s, "Source administrada", t.sources.map((e) => ({
 			value: e.id,
 			text: e.name
 		})), e.source, (t) => {
-			e.source = t, xe();
-		}), se(o, "Tipo de concepto", t.concept_types.map((e) => ({
+			e.source = t, Se();
+		}), se(s, "Tipo de concepto", t.concept_types.map((e) => ({
 			value: e,
 			text: e
 		})), e.type, (t) => {
-			e.type = t, xe();
-		})), oe(o, "Categorías separadas por comas", e.categories, (t) => {
-			e.categories = t, xe();
-		}), oe(o, "Comentario", e.comment, (t) => {
-			e.comment = t, xe();
-		}, !0), e.action !== "connect") {
+			e.type = t, Se();
+		})), oe(s, "Categorías separadas por comas", e.categories, (t) => {
+			e.categories = t, Se();
+		}), oe(s, "Comentario", e.comment, (t) => {
+			e.comment = t, Se();
+		}, !0), e.action !== "connect" && (b = new LB(n, o, e, () => f.put(e), (e) => r("bibliography", e), () => m?.editor.view.focus())), e.action !== "connect") {
 			let t = S("div");
-			a.append(t), m = new EB(t, e.content, (t, n) => {
+			o.append(t), m = new EB(t, e.content, (t, n) => {
 				e.content = t, e.document = n, f.put(e);
 			}, e.document);
 		}
-		["connect", "create_connected"].includes(e.action) && ke(a, e);
-		let c = S("div", "", "editor-actions");
-		a.append(c);
-		let l = S("button", e.action === "save_note" ? "Guardar nota" : "Guardar concepto", "primary");
-		l.type = "submit", l.disabled = !!d.pending || e.action.startsWith("create") && !t.sources.length, c.append(l), C("Descargar borrador", () => {
+		["connect", "create_connected"].includes(e.action) && Ae(o, e);
+		let l = S("div", "", "editor-actions");
+		o.append(l);
+		let u = S("button", e.action === "save_note" ? "Guardar nota" : "Guardar concepto", "primary");
+		u.type = "submit", u.disabled = !!d.pending || e.action.startsWith("create") && !t.sources.length, l.append(u), C("Descargar borrador", () => {
 			let t = URL.createObjectURL(new Blob([JSON.stringify(e, null, 2)], { type: "application/json" })), n = S("a");
 			n.href = t, n.download = "mathmongo-borrador.json", n.click(), URL.revokeObjectURL(t);
-		}, c), d.pending || C("Descartar borrador…", () => {
+		}, l), d.pending || C("Descartar borrador…", () => {
 			let t = S("div", "", "discard-confirm");
 			t.append(S("p", "¿Descartar este borrador local? Los conceptos ya guardados permanecerán.")), C("Sí, descartar este borrador", () => {
 				let t = e.id;
-				m?.destroy(), m = void 0, d.draft = void 0, f.discard(t), n.remove(), b = void 0, we();
-			}, t), C("Seguir escribiendo", () => t.remove(), t), c.append(t);
-		}, c), d.status?.status === "conflict" && e.action === "edit" && C("Revisar versión actual", () => {
+				m?.destroy(), m = void 0, d.draft = void 0, f.discard(t), n.remove(), ne = void 0, Te();
+			}, t), C("Seguir escribiendo", () => t.remove(), t), l.append(t);
+		}, l), d.status?.status === "conflict" && e.action === "edit" && C("Revisar versión actual", () => {
 			let n = t.nodes.find((t) => t.key === e.origin);
 			if (!n) return;
 			let r = S("section");
@@ -56070,27 +56296,27 @@ function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, ini
 				e.revision = n.revision, d.status = {
 					status: "draft",
 					message: "Revisión actual adoptada explícitamente; borrador conservado."
-				}, f.put(e), r.remove(), je();
-			}, r), c.append(r);
-		}, c), a.onsubmit = (t) => {
+				}, f.put(e), r.remove(), Me();
+			}, r), l.append(r);
+		}, l), o.onsubmit = (t) => {
 			if (t.preventDefault(), !d.pending) {
 				if (m && !m.valid()) {
 					d.status = {
 						status: "draft",
 						message: "Hay una fórmula en elaboración. El borrador está conservado; corrígela antes de confirmar."
-					}, je();
+					}, Me();
 					return;
 				}
-				e.content = m?.value() ?? e.content, e.submitted = !0, f.put(e), d.pending = _(e, crypto.randomUUID()), Ae();
+				e.content = m?.value() ?? e.content, e.submitted = !0, f.put(e), d.pending = _(e, crypto.randomUUID()), je();
 			}
-		}, d.pending && a.querySelectorAll("input,select,textarea,button").forEach((e) => e.disabled = !0), n.oncancel = (e) => {
-			e.preventDefault(), d.pending || De();
-		}, de.append(n), n.showModal();
+		}, d.pending && o.querySelectorAll("input,select,textarea,button").forEach((e) => e.disabled = !0), n.oncancel = (e) => {
+			e.preventDefault(), d.pending || Oe();
+		}, fe.append(n), n.showModal(), b?.restore();
 	}
-	function ke(e, n) {
+	function Ae(e, n) {
 		let r = S("p", "", "preview"), i = () => {
 			let e = t.nodes.find((e) => e.key === n.origin)?.titulo ?? n.origin, i = n.action === "connect" ? t.nodes.find((e) => e.key === n.target)?.titulo ?? "Destino" : n.title;
-			r.textContent = `${n.reverse ? i : e} → [${n.relation}] → ${n.reverse ? e : i}`, xe(), Se.request();
+			r.textContent = `${n.reverse ? i : e} → [${n.relation}] → ${n.reverse ? e : i}`, Se(), Ce.request();
 		};
 		n.action === "connect" && se(e, "Destino", [{
 			value: "",
@@ -56111,199 +56337,199 @@ function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, ini
 			n.reverse = o.checked, i();
 		}, a.append(o), e.append(a, r), i();
 	}
-	function Ae() {
+	function je() {
 		d.pending && (d.status = {
 			status: "saving",
 			message: "Guardando… espera la confirmación del servidor."
-		}, Ee(), xe(), je(), r("intent", d.pending), ce = setTimeout(() => {
+		}, De(), Se(), Me(), r("intent", d.pending), le = setTimeout(() => {
 			d.status = {
 				status: "uncertain",
 				message: "No llegó la confirmación. Reconcilia el mismo intento; el borrador se conserva."
-			}, xe(), je();
+			}, Se(), Me();
 		}, 15e3));
 	}
-	function je() {
-		he.replaceChildren(), he.dataset.state = d.status?.status ?? "ready", he.append(S("span", d.status?.message ?? `${t.nodes.length} conceptos · ${t.edges.length} relaciones`)), f.available || he.append(S("strong", " El almacenamiento local no está disponible: descarga el borrador antes de cerrar."));
+	function Me() {
+		ge.replaceChildren(), ge.dataset.state = d.status?.status ?? "ready", ge.append(S("span", d.status?.message ?? `${t.nodes.length} conceptos · ${t.edges.length} relaciones`)), f.available || ge.append(S("strong", " El almacenamiento local no está disponible: descarga el borrador antes de cerrar."));
 		let e = t.nodes.find((e) => e.key === d.selected);
-		e && !p(t, d).some((t) => t.key === e.key) && (he.append(S("span", " · Guardado fuera de los filtros activos.")), C("Mostrar concepto guardado", () => {
-			d.source = "", d.type = "", d.relation = "", d.neighborhood = !1, Fe(), we();
-		}, he)), d.pending && [
+		e && !p(t, d).some((t) => t.key === e.key) && (ge.append(S("span", " · Guardado fuera de los filtros activos.")), C("Mostrar concepto guardado", () => {
+			d.source = "", d.type = "", d.relation = "", d.neighborhood = !1, Ie(), Te();
+		}, ge)), d.pending && [
 			"pending",
 			"uncertain",
 			"partial"
-		].includes(d.status?.status ?? "") && C("Reconciliar el mismo intento", Ae, he, !0), d.pending?.action === "edit" && d.status?.status === "partial" && C("Revisar edición parcial con mi borrador", () => {
+		].includes(d.status?.status ?? "") && C("Reconciliar el mismo intento", je, ge, !0), d.pending?.action === "edit" && d.status?.status === "partial" && C("Revisar edición parcial con mi borrador", () => {
 			d.pending = void 0, d.status = {
 				status: "conflict",
 				message: "Conserva la ficha parcial y revisa el contenido actual."
-			}, Oe(), je();
-		}, he), he.append(S("span", d.layoutDirty ? " · Disposición sin guardar" : "", "layout-state"));
+			}, ke(), Me();
+		}, ge), ge.append(S("span", d.layoutDirty ? " · Disposición sin guardar" : "", "layout-state"));
 	}
-	function Me() {
-		T.replaceChildren();
+	function Ne() {
+		ve.replaceChildren();
 		let e = t.nodes.find((e) => e.key === d.selected);
 		if (!e) {
-			T.append(S("h3", "Explorar y construir"), S("p", "Selecciona un concepto para leerlo o crear una conexión.")), Ne();
+			ve.append(S("h3", "Explorar y construir"), S("p", "Selecciona un concepto para leerlo o crear una conexión.")), Pe();
 			return;
 		}
-		T.append(S("h3", e.titulo, "selected-title"), S("p", `${e.tipo} · ${e.source}`, "hint"));
+		ve.append(S("h3", e.titulo, "selected-title"), S("p", `${e.tipo} · ${e.source}`, "hint"));
 		let n = (d.areas ?? []).filter((t) => e.categorias.includes(t));
-		T.append(S("p", n.length ? n.join(" · ") : "Sin clasificar en las áreas elegidas", "area-membership"));
+		ve.append(S("p", n.length ? n.join(" · ") : "Sin clasificar en las áreas elegidas", "area-membership"));
 		let i = S("div", "", "actions");
-		T.append(i), C("Leer concepto", () => {
-			d.auto = !1, ne?.(), d.reader = e.key, xe(), ne = OB(de, e, d.textSize ?? 19, () => {
-				d.reader = void 0, ne = void 0, xe(), ve.focus();
+		ve.append(i), C("Leer concepto", () => {
+			d.auto = !1, re?.(), d.reader = e.key, Se(), re = OB(fe, e, d.textSize ?? 19, () => {
+				d.reader = void 0, re = void 0, Se(), E.focus();
 			});
-		}, i, !0), C("Editar ficha", () => D("edit"), i), C("Crear conectado", () => D("create_connected", d.points[e.key]), i), C("Conectar con…", () => D("connect"), i), C("Abrir nota / edición avanzada", () => {
-			xe(), r("open_note", {
+		}, i, !0), C("Editar ficha", () => Ee("edit"), i), C("Crear conectado", () => Ee("create_connected", d.points[e.key]), i), C("Conectar con…", () => Ee("connect"), i), C("Abrir nota / edición avanzada", () => {
+			Se(), r("open_note", {
 				key: e.key,
 				nonce: crypto.randomUUID()
 			});
 		}, i), C(d.neighborhood ? "Mostrar todo el mapa" : "Sólo conexiones directas", () => {
-			d.neighborhood = !d.neighborhood, we();
+			d.neighborhood = !d.neighborhood, Te();
 		}, i);
 		let a = S("details");
 		a.append(S("summary", "Reubicar y fijar nodo")), C(d.pinned.includes(e.key) ? "Desfijar posición" : "Fijar posición", () => {
-			d.pinned = d.pinned.includes(e.key) ? d.pinned.filter((t) => t !== e.key) : [...d.pinned, e.key], d.layoutDirty = !0, we();
+			d.pinned = d.pinned.includes(e.key) ? d.pinned.filter((t) => t !== e.key) : [...d.pinned, e.key], d.layoutDirty = !0, Te();
 		}, a);
 		let o = (e, t) => {
-			Se.relocateSelected(e, t), we();
+			Ce.relocateSelected(e, t), Te();
 		};
-		C("Mover nodo a la izquierda", () => o(-.08, 0), a), C("Mover nodo a la derecha", () => o(.08, 0), a), C("Mover nodo arriba", () => o(0, .08), a), C("Mover nodo abajo", () => o(0, -.08), a), T.append(a);
+		C("Mover nodo a la izquierda", () => o(-.08, 0), a), C("Mover nodo a la derecha", () => o(.08, 0), a), C("Mover nodo arriba", () => o(0, .08), a), C("Mover nodo abajo", () => o(0, -.08), a), ve.append(a);
 		let s = S("details");
-		s.append(S("summary", "Datos e identidad"), S("p", e.key), S("p", e.comentario)), T.append(s), T.append(S("h3", "Relaciones")), t.edges.filter((t) => t.from === e.key || t.to === e.key).forEach((n) => {
+		s.append(S("summary", "Datos e identidad"), S("p", e.key), S("p", e.comentario)), ve.append(s), ve.append(S("h3", "Relaciones")), t.edges.filter((t) => t.from === e.key || t.to === e.key).forEach((n) => {
 			let r = t.nodes.find((e) => e.key === n.from)?.titulo ?? n.from, i = t.nodes.find((e) => e.key === n.to)?.titulo ?? n.to, a = C(`${n.from === e.key ? "Saliente" : "Entrante"}: ${r} → ${n.tipo.replaceAll("_", " ")} → ${i}`, () => {
-				d.focusedEdge = n.key, d.auto = !1, d.neighborhood = !1, Se.bringFront(n.from), Me(), Ce();
-			}, T);
+				d.focusedEdge = n.key, d.auto = !1, d.neighborhood = !1, Ce.bringFront(n.from), Ne(), we();
+			}, ve);
 			if (a.className = "relation-item", a.setAttribute("aria-pressed", String(d.focusedEdge === n.key)), d.focusedEdge === n.key) {
 				let t = S("p", `Origen: ${r}. Relación: ${n.tipo.replaceAll("_", " ")}. Destino: ${i}. Dirección: origen → destino.`, "edge-summary");
-				T.append(t), C("Ir al otro extremo", () => Te(n.from === e.key ? n.to : n.from), T), C("Quitar enfoque de relación", () => {
-					d.focusedEdge = void 0, we();
-				}, T);
+				ve.append(t), C("Ir al otro extremo", () => D(n.from === e.key ? n.to : n.from), ve), C("Quitar enfoque de relación", () => {
+					d.focusedEdge = void 0, Te();
+				}, ve);
 			}
 		});
 		let c = h(t, e.key);
-		c.length && T.append(S("h3", "Vecinos reales")), c.forEach((e) => C(e.titulo, () => Te(e.key), T).className = "neighbor"), Ne();
+		c.length && ve.append(S("h3", "Vecinos reales")), c.forEach((e) => C(e.titulo, () => D(e.key), ve).className = "neighbor"), Pe();
 	}
-	function Ne() {
-		d.goals?.length && (T.append(S("h3", "Objetivos explícitos")), d.goals.forEach((e) => {
+	function Pe() {
+		d.goals?.length && (ve.append(S("h3", "Objetivos explícitos")), d.goals.forEach((e) => {
 			let t = {
 				pending: "Pendiente",
 				working: "En elaboración",
 				reviewed: "Revisado por mí"
 			}[e.state];
-			C(`${t}: ${e.label}`, () => Pe(e.id), T).className = "goal-item", e.conceptKey && C(e.state === "reviewed" ? "Volver a En elaboración" : "Marcar Revisado por mí", () => {
-				e.state = e.state === "reviewed" ? "working" : "reviewed", d.layoutDirty = !0, we();
-			}, T);
-		}), T.append(S("p", `${d.goals.filter((e) => e.state === "reviewed").length} de ${d.goals.length} objetivos marcados por ti. No mide dominio ni valida la matemática.`, "hint")));
+			C(`${t}: ${e.label}`, () => Fe(e.id), ve).className = "goal-item", e.conceptKey && C(e.state === "reviewed" ? "Volver a En elaboración" : "Marcar Revisado por mí", () => {
+				e.state = e.state === "reviewed" ? "working" : "reviewed", d.layoutDirty = !0, Te();
+			}, ve);
+		}), ve.append(S("p", `${d.goals.filter((e) => e.state === "reviewed").length} de ${d.goals.length} objetivos marcados por ti. No mide dominio ni valida la matemática.`, "hint")));
 	}
-	function Pe(e) {
+	function Fe(e) {
 		let t = d.goals.find((t) => t.id === e);
 		if (!t) return;
 		if (t.conceptKey) {
-			Te(t.conceptKey);
+			D(t.conceptKey);
 			return;
 		}
 		let n = t.draftId ? f.get(t.draftId) : void 0;
-		n ? (d.draft = n, Oe()) : D("create", t.point, t);
+		n ? (d.draft = n, ke()) : Ee("create", t.point, t);
 	}
-	function Fe() {
-		me.replaceChildren();
+	function Ie() {
+		w.replaceChildren();
 		let e = {
 			value: "",
 			text: "Todos"
 		}, n = (e, t) => e.localeCompare(t, "es");
-		se(me, "Fuente visible", [e, ...[...new Set(t.nodes.map((e) => e.source))].sort(n).map((e) => ({
+		se(w, "Fuente visible", [e, ...[...new Set(t.nodes.map((e) => e.source))].sort(n).map((e) => ({
 			value: e,
 			text: e
 		}))], d.source, (e) => {
-			d.source = e, we();
-		}), se(me, "Tipo visible", [e, ...[...new Set(t.nodes.map((e) => e.tipo))].sort(n).map((e) => ({
+			d.source = e, Te();
+		}), se(w, "Tipo visible", [e, ...[...new Set(t.nodes.map((e) => e.tipo))].sort(n).map((e) => ({
 			value: e,
 			text: e
 		}))], d.type, (e) => {
-			d.type = e, we();
-		}), se(me, "Relación visible", [e, ...t.relation_types.map((e) => ({
+			d.type = e, Te();
+		}), se(w, "Relación visible", [e, ...t.relation_types.map((e) => ({
 			value: e,
 			text: e
 		}))], d.relation, (e) => {
-			d.relation = e, we();
+			d.relation = e, Te();
 		}), C(d.frontOnly ? "Mostrar hemisferio posterior" : "Sólo hemisferio frontal", () => {
-			d.frontOnly = !d.frontOnly, we();
-		}, me);
+			d.frontOnly = !d.frontOnly, Te();
+		}, w);
 	}
-	function Ie() {
-		w.replaceChildren(), w.append(S("p", "Áreas: elige categorías temáticas explícitamente. Fuente, tipo y área son dimensiones distintas.", "hint")), [...new Set(t.nodes.flatMap((e) => e.categorias))].sort((e, t) => e.localeCompare(t, "es")).forEach((e) => {
+	function Le() {
+		he.replaceChildren(), he.append(S("p", "Áreas: elige categorías temáticas explícitamente. Fuente, tipo y área son dimensiones distintas.", "hint")), [...new Set(t.nodes.flatMap((e) => e.categorias))].sort((e, t) => e.localeCompare(t, "es")).forEach((e) => {
 			let t = S("label", e), n = S("input");
 			n.type = "checkbox", n.checked = d.areas.includes(e), n.onchange = () => {
 				if (n.checked && d.areas.length >= 6) {
 					n.checked = !1;
 					return;
 				}
-				d.areas = n.checked ? [...d.areas, e] : d.areas.filter((t) => t !== e), d.layoutDirty = !0, Ie(), we();
-			}, t.prepend(n), w.append(t);
+				d.areas = n.checked ? [...d.areas, e] : d.areas.filter((t) => t !== e), d.layoutDirty = !0, Le(), Te();
+			}, t.prepend(n), he.append(t);
 		}), C(d.mandala ? "Desactivar estilo mandala" : "Activar estilo mandala", () => {
-			d.mandala = !d.mandala, d.layoutDirty = !0, Ie(), we();
-		}, w), C("Organizar por áreas", () => {
-			d.areas?.length && (Se.rememberLayout(), d.points = te(t, d), d.layoutDirty = !0, we());
-		}, w), C("Disposición orgánica: ensayo breve", () => {
-			Se.rememberLayout(), d.points = x(d.points, d.pinned ?? []), d.layoutDirty = !0, we();
-		}, w);
+			d.mandala = !d.mandala, d.layoutDirty = !0, Le(), Te();
+		}, he), C("Organizar por áreas", () => {
+			d.areas?.length && (Ce.rememberLayout(), d.points = te(t, d), d.layoutDirty = !0, Te());
+		}, he), C("Disposición orgánica: ensayo breve", () => {
+			Ce.rememberLayout(), d.points = x(d.points, d.pinned ?? []), d.layoutDirty = !0, Te();
+		}, he);
 	}
-	function Le() {
-		if (re) {
-			re.close();
+	function Re() {
+		if (ce) {
+			ce.close();
 			return;
 		}
 		let e = S("dialog", "", "expanded-map");
-		re = e, be.append(e), e.append(de), d.expanded = !0, e.onclose = () => {
-			be.append(de), d.expanded = !1, e.remove(), re = void 0, Be.textContent = "Expandir mapa", Se.request(), xe();
-		}, e.showModal(), Be.textContent = "Volver a vista normal", Se.request(), xe();
+		ce = e, xe.append(e), e.append(fe), d.expanded = !0, e.onclose = () => {
+			xe.append(fe), d.expanded = !1, e.remove(), ce = void 0, Ve.textContent = "Expandir mapa", Ce.request(), Se();
+		}, e.showModal(), Ve.textContent = "Volver a vista normal", Ce.request(), Se();
 	}
-	C("Crear concepto aquí", () => D("create"), fe, !0);
-	let Re = se(fe, "Seleccionar concepto", [{
+	C("Crear concepto aquí", () => Ee("create"), pe, !0);
+	let ze = se(pe, "Seleccionar concepto", [{
 		value: "",
 		text: "Buscar o seleccionar concepto"
 	}, ...t.nodes.map((e) => ({
 		value: e.key,
 		text: `${e.titulo} · ${e.source}`
 	}))], d.selected, (e) => {
-		e && Te(e);
+		e && D(e);
 	});
-	oe(fe, "Buscar nombre o ID", "", (e) => {
-		d.auto = !1, Re.replaceChildren(), [{
+	oe(pe, "Buscar nombre o ID", "", (e) => {
+		d.auto = !1, ze.replaceChildren(), [{
 			key: "",
 			titulo: "Buscar o seleccionar concepto"
-		}, ...t.nodes].filter((t) => !t.key || (t.key + t.titulo).toLocaleLowerCase().includes(e.toLocaleLowerCase())).forEach((e) => Re.append(new Option(e.titulo, e.key)));
+		}, ...t.nodes].filter((t) => !t.key || (t.key + t.titulo).toLocaleLowerCase().includes(e.toLocaleLowerCase())).forEach((e) => ze.append(new Option(e.titulo, e.key)));
 	});
-	let ze = C(d.flat ? "Esfera S²" : "Plano", () => {
-		d.flat = !d.flat, ze.textContent = d.flat ? "Esfera S²" : "Plano", we();
-	}, fe);
+	let Be = C(d.flat ? "Esfera S²" : "Plano", () => {
+		d.flat = !d.flat, Be.textContent = d.flat ? "Esfera S²" : "Plano", Te();
+	}, pe);
 	C("Ajustar vista", () => {
 		d.camera = {
 			yaw: 0,
 			pitch: 0,
 			zoom: 1
-		}, d.auto = !1, Ce();
-	}, fe);
-	let Be = C("Expandir mapa", Le, fe);
+		}, d.auto = !1, we();
+	}, pe);
+	let Ve = C("Expandir mapa", Re, pe);
 	C("Plegar ficha", () => {
-		de.classList.toggle("card-hidden"), Se.request();
-	}, fe);
-	let Ve = S("details", "", "extra-actions");
-	Ve.append(S("summary", "Más acciones")), fe.append(Ve), C("− Zoom", () => {
-		d.camera.zoom = Math.max(.5, d.camera.zoom - .15), Ce();
-	}, Ve), C("+ Zoom", () => {
-		d.camera.zoom = Math.min(2.5, d.camera.zoom + .15), Ce();
-	}, Ve);
-	let He = C("Giro suave", () => {
-		d.selected = "", d.auto = !d.auto, He.textContent = d.auto ? "Pausar giro" : "Giro suave", Ce();
-	}, Ve);
+		fe.classList.toggle("card-hidden"), Ce.request();
+	}, pe);
+	let He = S("details", "", "extra-actions");
+	He.append(S("summary", "Más acciones")), pe.append(He), C("− Zoom", () => {
+		d.camera.zoom = Math.max(.5, d.camera.zoom - .15), we();
+	}, He), C("+ Zoom", () => {
+		d.camera.zoom = Math.min(2.5, d.camera.zoom + .15), we();
+	}, He);
+	let Ue = C("Giro suave", () => {
+		d.selected = "", d.auto = !d.auto, Ue.textContent = d.auto ? "Pausar giro" : "Giro suave", we();
+	}, He);
 	C("Deshacer reubicación", () => {
-		Se.undoLayout(), we();
-	}, Ve), C("Restablecer disposición", () => {
-		Se.rememberLayout(), d.points = u(t.nodes.map((e) => e.key), {}), d.flatPoints = {}, d.layoutDirty = !0, we();
-	}, Ve), oe(Ve, "Nombre de la vista", d.mapName, (e) => {
-		d.mapName = e, xe();
+		Ce.undoLayout(), Te();
+	}, He), C("Restablecer disposición", () => {
+		Ce.rememberLayout(), d.points = u(t.nodes.map((e) => e.key), {}), d.flatPoints = {}, d.layoutDirty = !0, Te();
+	}, He), oe(He, "Nombre de la vista", d.mapName, (e) => {
+		d.mapName = e, Se();
 	}), C("Guardar disposición", () => {
 		d.pending || (d.pending = {
 			operation_id: crypto.randomUUID(),
@@ -56312,8 +56538,8 @@ function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, ini
 			map_name: d.mapName,
 			revision: d.viewRevision ?? "",
 			view_state: v(d)
-		}, Ae());
-	}, Ve), se(Ve, "Abrir vista guardada", [{
+		}, je());
+	}, He), se(He, "Abrir vista guardada", [{
 		value: "",
 		text: "Elegir vista guardada"
 	}, ...(t.views ?? []).map((e) => ({
@@ -56321,18 +56547,18 @@ function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, ini
 		text: e.name
 	}))], d.mapUid, (e) => {
 		let n = t.views?.find((t) => t.uid === e);
-		n && (Ee(), d.draft = void 0, y(d, n), f = new kB(t.scope, n.uid), Ie(), we());
+		n && (De(), d.draft = void 0, y(d, n), f = new kB(t.scope, n.uid), Le(), Te());
 	}), C("Recuperar borradores", () => {
 		let e = S("dialog", "", "document-dialog drafts-dialog");
 		e.append(S("h2", "Borradores locales recuperables"));
 		let t = f.all();
 		t.length || e.append(S("p", "No hay borradores pendientes en esta vista.")), t.forEach((t) => C(`${t.title || "Sin nombre"} · ${t.action}`, () => {
-			e.close(), d.draft = t, Oe();
-		}, e)), C("Cerrar borradores", () => e.close(), e), e.onclose = () => e.remove(), de.append(e), e.showModal();
-	}, Ve);
-	let Ue = oe(Ve, "Pregunta o concepto pendiente", "", () => {});
+			e.close(), d.draft = t, ke();
+		}, e)), C("Cerrar borradores", () => e.close(), e), e.onclose = () => e.remove(), fe.append(e), e.showModal();
+	}, He);
+	let We = oe(He, "Pregunta o concepto pendiente", "", () => {});
 	C("Reservar pendiente aquí", () => {
-		let e = Ue.value.trim();
+		let e = We.value.trim();
 		e && (d.goals.push({
 			id: crypto.randomUUID(),
 			label: e,
@@ -56344,12 +56570,12 @@ function FB({ parentElement: e, data: t, setTriggerValue: r, initialView: i, ini
 			state: "pending",
 			draftId: "",
 			conceptKey: ""
-		}), d.layoutDirty = !0, Ue.value = "", we());
-	}, Ve), Fe(), Ie(), Me(), je(), xe(), d.expanded && (d.expanded = !1, Le()), d.draft && Oe();
-	let We = () => {
-		Ee(), ne?.(), Se.destroy(), ce && clearTimeout(ce), re?.remove(), xe();
+		}), d.layoutDirty = !0, We.value = "", Te());
+	}, He), Ie(), Le(), Ne(), Me(), Se(), d.expanded && (d.expanded = !1, Re()), d.draft && ke();
+	let Ge = () => {
+		De(), re?.(), Ce.destroy(), le && clearTimeout(le), ce?.remove(), Se();
 	};
-	return NB.set(e, We), We;
+	return zB.set(e, Ge), Ge;
 }
 //#endregion
-export { FB as default };
+export { VB as default };

@@ -22,6 +22,7 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
 from pydantic import ValidationError
+from pydantic import field_validator
 from pymongo import ReturnDocument
 from pymongo.errors import DuplicateKeyError
 from pymongo.errors import PyMongoError
@@ -33,6 +34,10 @@ from editor.helpers.managed_source_selection import resolve_active_source
 from editor.validators.concept_validator import validate_semantic_duplicate
 from mathmongo.knowledge_map.views import StudyRoom
 from mathmongo.knowledge_map.views import StudyView
+from mathmongo.source_catalog.citations import CitationLocator
+from mathmongo.source_catalog.citations import legacy_citation
+from mathmongo.source_catalog.models import validate_reference_id
+from mathmongo.source_catalog.repository import ReferenceRepository
 from mathmongo.source_catalog.repository import SourceRepository
 from schemas.schemas import ConceptoBase
 from schemas.schemas import Relation
@@ -66,6 +71,14 @@ class Intent(BaseModel):
     note_revision: str = Field(default='', max_length=64)
     document_id: str = Field(default='', max_length=100)
     annotation_id: str = Field(default='', max_length=100)
+    reference_id: str = Field(default='', max_length=100)
+    reference_locator: CitationLocator | None = None
+
+    @field_validator('reference_id')
+    @classmethod
+    def canonical_reference_id(cls, value: str) -> str:
+        """Reject malformed link IDs before creating an operation ledger entry."""
+        return validate_reference_id(value) if value else value
 
 
 def identity(doc: dict) -> str:
@@ -125,6 +138,8 @@ class KnowledgeMapService:
                           'comentario': doc.get('comentario') or '', 'categorias': doc.get('categorias') or [],
                           'contenido_latex': (latex or {}).get('contenido_latex', doc.get('contenido_latex', '')),
                           'referencia': {k: str(v) for k, v in (doc.get('referencia') or {}).items() if v is not None},
+                          'reference_id': doc.get('reference_id', ''),
+                          'reference_locator': doc.get('reference_locator'),
                           'revision': digest([doc, latex])})
         keys = {node['key'] for node in nodes}
         edges = [{'key': str(r['_id']), 'from': r['desde'], 'to': r['hasta'],
@@ -233,6 +248,17 @@ class KnowledgeMapService:
                 return self.result(intent, 'partial', 'Concepto guardado; vínculo sin confirmar. Reintenta el mismo intento para recuperarlo.', key=identity(node))
         return self.result(intent, 'saved', 'Concepto guardado.', key=identity(node))
 
+    def citation_patch(self, intent: Intent, source_id: str) -> dict:
+        """Validate a canonical citation before any concept write; old citations stay intact."""
+        if not intent.reference_id:
+            return {}
+        reference = ReferenceRepository(self.db).get_by_id(intent.reference_id)
+        if reference is None or reference.status.value == 'archived' or source_id not in reference.source_ids:
+            raise MapConflictError('La referencia no pertenece a esta Source activa. Revisa la cita.')
+        locator = intent.reference_locator or CitationLocator()
+        return {'reference_id': reference.reference_id, 'reference_locator': locator.model_dump(),
+                'referencia': legacy_citation(reference, locator)}
+
     def _create(self, intent: Intent) -> tuple[dict, bool]:
         concept_id = f"{intent.tipo}:{uuid5(NAMESPACE_URL, intent.operation_id)}"
         existing = self.mongo.concepts.find_one({'id': concept_id, '_map_operation': intent.operation_id})
@@ -247,6 +273,7 @@ class KnowledgeMapService:
             raise MapConflictError('Elige una Source administrada activa compatible con la identidad id@source.')
         if not intent.titulo.strip() or not intent.contenido_latex.strip() or intent.tipo not in CONCEPT_TYPES:
             raise MapConflictError('Nombre, tipo y contenido son obligatorios.')
+        citation = self.citation_patch(intent, source.source_id)
         query = {'id': concept_id, 'source': source.name}
         existing = self.mongo.concepts.find_one(query)
         if existing is not None:
@@ -261,6 +288,7 @@ class KnowledgeMapService:
                                titulo=intent.titulo.strip(), tipo_titulo='canonico', categorias=intent.categorias,
                                contenido_latex=intent.contenido_latex, comentario=intent.comentario)
         metadata = build_concept_metadata(concept)
+        metadata.update(citation)
         metadata['_map_operation'] = intent.operation_id
         if self.mongo.latex_documents.find_one(query) is not None:
             raise MapConflictError('Existe contenido sin concepto; se conserva para revisión, sin recrear una eliminación ajena.')
@@ -296,7 +324,8 @@ class KnowledgeMapService:
             record = {**record, 'before_meta': current, 'before_latex': self.latex(current)}
             self.operations.update_one({'_id': intent.operation_id}, {'$set': {
                 'before_meta': record['before_meta'], 'before_latex': record['before_latex']}})
-        patch = {'titulo': intent.titulo.strip(), 'comentario': intent.comentario,
+        citation = self.citation_patch(intent, current.get('source_id', ''))
+        patch = {**citation, 'titulo': intent.titulo.strip(), 'comentario': intent.comentario,
                  'categorias': intent.categorias, '_map_edit_operation': intent.operation_id,
                  'ultima_actualizacion': record['created_at']}
         if current.get('_map_edit_operation') == intent.operation_id:
