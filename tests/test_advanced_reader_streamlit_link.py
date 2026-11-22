@@ -588,3 +588,12 @@ def test_editor_integration_is_pdf_only_retains_fallback_and_starts_no_processes
     assert not imported_roots.intersection({"asyncio", "multiprocessing", "subprocess"})
     assert not called_names.intersection({"Popen", "create_subprocess_exec", "spawn", "system"})
     assert fallback_buttons == 1
+
+
+def test_study_link_carries_only_logical_identity_and_opt_in_theme():
+    from urllib.parse import parse_qs
+    from urllib.parse import urlsplit
+    ordinary = build_advanced_reader_url(DOCUMENT_ID)
+    study = build_advanced_reader_url(DOCUMENT_ID, study_mode=True)
+    assert parse_qs(urlsplit(ordinary).query) == {'document_id': [DOCUMENT_ID]}
+    assert parse_qs(urlsplit(study).query) == {'document_id': [DOCUMENT_ID], 'theme': ['study']}

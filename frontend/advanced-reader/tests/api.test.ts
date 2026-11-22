@@ -35,8 +35,27 @@ describe("same-origin API boundary", () => {
   });
 
   it("accepts exactly one canonical document_id query parameter", () => {
-    expect(documentIdFromSearch(`?document_id=${DOCUMENT_ID}`)).toBe(DOCUMENT_ID);
-    expect(documentIdFromSearch(`?document_id=${DOCUMENT_ID}&url=https://example.test`)).toBeNull();
+    expect(documentIdFromSearch(`?document_id=${DOCUMENT_ID}`)).toBe(
+      DOCUMENT_ID,
+    );
+    expect(
+      documentIdFromSearch(`?document_id=${DOCUMENT_ID}&theme=study`),
+    ).toBe(DOCUMENT_ID);
+    expect(
+      documentIdFromSearch(
+        `?document_id=${DOCUMENT_ID}&theme=study&theme=study`,
+      ),
+    ).toBeNull();
+    expect(
+      documentIdFromSearch(
+        `?document_id=${DOCUMENT_ID}&theme=https://example.test`,
+      ),
+    ).toBeNull();
+    expect(
+      documentIdFromSearch(
+        `?document_id=${DOCUMENT_ID}&url=https://example.test`,
+      ),
+    ).toBeNull();
     expect(documentIdFromSearch("?document_id=../private.pdf")).toBeNull();
   });
 });
