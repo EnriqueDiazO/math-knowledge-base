@@ -1335,7 +1335,7 @@ class ReadingAnnotationService:
     def _concept_exists(self, concept_id: str, concept_source: str) -> bool:
         """Read the immutable legacy composite identity with an exact query."""
         cursor = self.database["concepts"].find(
-            {"id": concept_id, "source": concept_source},
+            {"id": concept_id, "source": concept_source, '_delete_operation': {'$exists': False}},
             {"_id": 1},
         )
         if hasattr(cursor, "limit"):
@@ -1529,6 +1529,13 @@ class ReadingAnnotationService:
                     message="An exact concept evidence link already exists.",
                 )
             value = self.evidence.insert(candidate)
+            if not self._concept_exists(candidate.concept_legacy_id, candidate.concept_legacy_source):
+                removed = self.evidence.discard_owned_insert(candidate)
+                return self._result(
+                    ReadingAnnotationOperationStatus.BLOCKED if removed else ReadingAnnotationOperationStatus.ERROR,
+                    message=('El concepto dejó de estar disponible. Se revirtió exclusivamente este vínculo nuevo.'
+                             if removed else 'El vínculo cambió durante la operación y requiere revisión. No se borraron cambios ajenos.'),
+                )
             return self._result(
                 ReadingAnnotationOperationStatus.SUCCESS, value, "Concept evidence linked."
             )

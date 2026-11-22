@@ -5,6 +5,8 @@ from __future__ import annotations
 from datetime import datetime
 
 import streamlit as st
+
+from editor.ui.concept_deletion import render_concept_deletion
 from streamlit_ace import st_ace
 
 from editor.database_scope import database_scope_token
@@ -833,41 +835,6 @@ def render(context):
                 st.rerun()
 
         with col3:
-            # Persistent delete confirmation (Streamlit buttons are one-shot per rerun)
-            if "delete_armed_edit" not in st.session_state:
-                st.session_state["delete_armed_edit"] = False
-
-            if st.button("🗑️ Delete Concept", key="delete_edit"):
-                st.session_state["delete_armed_edit"] = True
-
-            if st.session_state["delete_armed_edit"]:
-                st.warning("⚠️ This will permanently delete the concept and related data.")
-                col_del_1, col_del_2 = st.columns(2)
-
-                with col_del_1:
-                    if st.button("⚠️ Confirm Delete", key="confirm_delete_edit"):
-                        try:
-                            # Delete concept and LaTeX content
-                            db.concepts.delete_one({"id": selected_concept['id'], "source": selected_concept['source']})
-                            db.latex_documents.delete_one({"id": selected_concept['id'], "source": selected_concept['source']})
-
-                            # Delete related relations
-                            db.relations.delete_many({
-                                "$or": [
-                                    {"desde": f"{selected_concept['id']}@{selected_concept['source']}"},
-                                    {"hasta": f"{selected_concept['id']}@{selected_concept['source']}"}
-                                ]
-                            })
-
-                            st.session_state["delete_armed_edit"] = False
-                            st.success("✅ Concept deleted successfully!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error deleting concept: {e}")
-
-                with col_del_2:
-                    if st.button("Cancel", key="cancel_delete_edit"):
-                        st.session_state["delete_armed_edit"] = False
-                        st.info("Deletion cancelled.")
+            render_concept_deletion(st, db.db, selected_concept, scope='edit')
 
 # Browse Concepts page

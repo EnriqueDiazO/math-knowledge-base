@@ -18,6 +18,7 @@ from editor.source_catalog.state import add_source_catalog_navigation
 from editor.source_catalog.state import apply_pending_navigation
 from editor.study_navigation import STUDY_ROOM_NAV_LABEL
 from editor.study_navigation import add_study_room_navigation
+from editor.ui.concept_deletion import render_deletion_feedback
 
 PAGES = {
     '🏠 Inicio': 'home', '📄 Documentos': 'documents',
@@ -57,5 +58,6 @@ def select_page(context):
 
 def render_page(label, context):
     """Import only the active page and pass a complete context explicitly."""
+    render_deletion_feedback(st, getattr(context.db, 'db', None))
     module = import_module('editor.app_pages.' + PAGES[label])
     module.render(replace(context, page='CPI' if label == '🟥 CPI' else label))

@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import streamlit as st
 
+from editor.ui.concept_deletion import render_concept_deletion
+
 from editor.ui.concept_media import _render_media_asset_preview
 from editor.utils.media_assets import get_concept_media_assets
 from exporters_latex.exportadorlatex import ExportadorLatex
@@ -289,12 +291,7 @@ def render(context):
                         else:
                             st.write("No relations found.")
 
-                    if st.button("🗑️ Delete", key=f"delete_{concept['id']}"):
-                        if st.button("⚠️ Confirm Delete", key=f"confirm_{concept['id']}"):
-                            db.concepts.delete_one({"id": concept['id'], "source": concept['source']})
-                            db.latex_documents.delete_one({"id": concept['id'], "source": concept['source']})
-                            st.success("Concept deleted!")
-                            st.rerun()
+                    render_concept_deletion(st, db.db, concept, scope='browse')
     else:
         st.info("No concepts found matching the criteria.")
 

@@ -6,7 +6,6 @@ compensate someone else's work. The map is not a second semantic graph.
 """
 from __future__ import annotations
 
-import hashlib
 import re
 from datetime import datetime
 from datetime import timedelta
@@ -17,7 +16,6 @@ from uuid import UUID
 from uuid import uuid4
 from uuid import uuid5
 
-from bson import json_util
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
@@ -32,6 +30,8 @@ from editor.helpers.concept_builders import build_concept_metadata
 from editor.helpers.managed_source_selection import load_active_sources
 from editor.helpers.managed_source_selection import resolve_active_source
 from editor.validators.concept_validator import validate_semantic_duplicate
+from mathmongo.concurrency import digest
+from mathmongo.concurrency import exact_document
 from mathmongo.knowledge_map.views import StudyRoom
 from mathmongo.knowledge_map.views import StudyView
 from mathmongo.source_catalog.citations import CitationLocator
@@ -86,16 +86,6 @@ def identity(doc: dict) -> str:
     return f"{doc['id']}@{doc['source']}"
 
 
-def digest(value) -> str:
-    """Hash BSON-aware snapshots, including unknown metadata."""
-    return hashlib.sha256(json_util.dumps(value, sort_keys=True).encode()).hexdigest()
-
-
-def exact_document(doc: dict) -> dict:
-    """CAS includes unknown fields, absent fields and the original BSON types."""
-    return {'_id': doc['_id'], '$expr': {'$eq': ['$$ROOT', {'$literal': doc}]}}
-
-
 class MapConflictError(ValueError):
     """A stale edit, unavailable source or invalid semantic intention."""
 
@@ -114,7 +104,10 @@ class KnowledgeMapService:
         concept_id, separator, source = key.rpartition('@')
         if not separator or not concept_id or not source:
             raise MapConflictError('Identidad no válida.')
-        return self.mongo.concepts.find_one({'id': concept_id, 'source': source})
+        found = self.mongo.concepts.find_one({'id': concept_id, 'source': source})
+        if found is not None and found.get('_delete_operation'):
+            raise MapConflictError('El concepto tiene una eliminación pendiente. Recupera ese intento antes de editarlo o vincularlo.')
+        return found
 
     def latex(self, doc: dict) -> dict | None:
         """Read the authoritative content document for one concept."""
@@ -309,7 +302,15 @@ class KnowledgeMapService:
         query = {'desde': origin, 'hasta': target, 'tipo': relation.tipo}
         # The audited unique index matches this identity; keep existing description
         # and all unknown relation metadata instead of replacing them on replay.
-        self.mongo.relations.update_one(query, {'$setOnInsert': {**query, 'descripcion': ''}}, upsert=True)
+        written = self.mongo.relations.update_one(query, {'$setOnInsert': {
+            **query, 'descripcion': '', '_map_operation': intent.operation_id}}, upsert=True)
+        try:
+            if self.find(origin) is None or self.find(target) is None:
+                raise MapConflictError('Uno de los conceptos dejó de estar disponible; no se confirmó el vínculo.')
+        except MapConflictError:
+            if written.upserted_id is not None:
+                self.mongo.relations.delete_one({'_id': written.upserted_id, '_map_operation': intent.operation_id})
+            raise
         stored = self.mongo.relations.find_one(query)
         return self.result(intent, 'saved', 'Concepto y vínculo confirmados.', key=target if not intent.reverse else origin,
                            edge={'key': str(stored['_id']), 'from': origin, 'to': target, 'tipo': stored['tipo']})

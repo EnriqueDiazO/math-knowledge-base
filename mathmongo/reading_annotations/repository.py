@@ -16,6 +16,7 @@ from typing import TypeVar
 from pydantic import BaseModel
 from pymongo.errors import DuplicateKeyError
 
+from mathmongo.concurrency import exact_document
 from mathmongo.reading_annotations.errors import ReadingAnnotationConflictError
 from mathmongo.reading_annotations.errors import ReadingAnnotationRepositoryError
 from mathmongo.reading_annotations.indexes import CONCEPT_EVIDENCE_LINKS_COLLECTION
@@ -751,6 +752,14 @@ class ConceptEvidenceRepository:
         except Exception as exc:
             raise ReadingAnnotationRepositoryError("Concept evidence insert failed") from exc
         return candidate
+
+    def discard_owned_insert(self, candidate: ConceptEvidenceLink) -> bool:
+        """Compensate only the unchanged record inserted by this failed operation."""
+        stored = self._collection.find_one({'evidence_link_id': candidate.evidence_link_id}, {'_id': 1})
+        if stored is None:
+            return True
+        expected = {'_id': stored['_id'], **candidate.model_dump(mode='python')}
+        return self._collection.delete_one(exact_document(expected)).deleted_count == 1
 
     def get_by_id(self, evidence_link_id: str) -> ConceptEvidenceLink | None:
         validate_evidence_link_id(evidence_link_id)
