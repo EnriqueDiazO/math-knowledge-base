@@ -137,6 +137,9 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, _error: RequestValidationError) -> JSONResponse:
+        if request.url.path.startswith('/api/study/v1/'):
+            return _error_response(request, code='invalid_study_request',
+                message='Revisa los campos y el tamaño del documento. El borrador se conserva.', status_code=422)
         concept_request = (
             "/concept-evidence" in request.url.path
             or "/concepts/" in request.url.path
@@ -173,7 +176,8 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
         return _error_response(
             request,
             code="internal_error",
-            message="The Advanced Reader could not complete the request.",
+            message=('No se pudo completar la operación en la biblioteca. Conserva el borrador y reintenta.'
+                     if request.url.path.startswith('/api/study/v1/') else 'The Advanced Reader could not complete the request.'),
             status_code=500,
         )
 
