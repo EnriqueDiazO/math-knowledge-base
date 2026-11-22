@@ -164,3 +164,92 @@ SONAR_LABEL sólo nombra evidencias. No cambia sonar.projectVersion ni el perío
 El comando recompone cobertura en entornos propios y espera CE/Quality Gate.
 Para este lote se reutilizaron las cohortes válidas y se ejecutó el scanner sobre
 los XML/LCOV actualizados y archivados, sin repetir toda la integral sin necesidad.
+
+
+## Habitación integrada y lote de mantenibilidad fuera de interfaz
+
+[Guía, regresiones y límites](STUDY_ROOM.md). La rama continúa siendo
+feature/knowledge-sphere-2026-11; no hay push ni merge. El anexo de DOI/ISBN no
+reinicia el trabajo. Se conserva la referencia Sonar y la instalación persistente.
+
+Verificación integral posterior a la integración: **2050 aprobadas / 9 omitidas /
+0 fallidas**, 2059 recogidas. El runner Mongo propio ejecuta esas mismas nueve:
+**9 aprobadas / 0 fallidas**. Resultado conjunto: 2059 IDs Python verificados,
+sin sumar repeticiones de módulos como casos distintos. El primer intento tenía
+un fallo de huella histórica por la extracción autorizada en bootstrap; el
+segundo integral ya pasa tras revisar y actualizar esa huella. Las otras
+protecciones históricas permanecen. Frontend: **209 pruebas aprobadas**, build,
+TypeScript y ESLint verificados. Las pruebas privadas del ZIP siguen pasando.
+
+Commits de alcance: 6fd10d39 corrige el argumento obligatorio de caja al exportar;
+3a6ad16e lleva azul compartido al lector PDF; 8bb810e7 consolida comprobaciones
+de completitud manteniendo las cuatro barreras; df3a22f2 integra la habitación y
+separa el diálogo/controles; 6f711d2e y bcf09619 verifican recursos propios,
+respuesta perdida y movimiento; 7d08c699 publica el runtime reconstruido.
+Las salidas generadas se cuentan aparte y no son eliminaciones de producto.
+
+El inventario se actualiza a 328 módulos mantenidos / 200 archivos de pruebas.
+Hay veinte propios actuales de más de mil líneas, todos con decisión registrada;
+component.ts pasa a 927 contando además las extracciones de 398 y 132. Continúa
+el inventario del resto del repositorio: cero incidencias automáticas no equivale
+a revisión manual terminada.
+
+
+### Análisis final procesado y alcance de las verificaciones
+
+[FINAL_STUDY_RESULTS.json](FINAL_STUDY_RESULTS.json): análisis
+ce5ea5f2-3ad3-49a8-8da5-9b9c5cadade9, fuente be6d6c9d, CE SUCCESS, Gate **OK**.
+General **70,9 %**, nueva **82,3 %**, duplicación nueva **0,0 %**, incidencias
+nuevas **0**; cero bugs/vulnerabilidades/code smells abiertos. El lote
+bibliográfico anterior tenía 70,6 % general y 85,5 % nueva con un alcance de
+código nuevo menor. La referencia, perfiles, umbrales y exclusiones se conservan.
+La nueva cobertura se desglosa por archivo en FINAL_STUDY_COVERAGE.csv.
+
+El primer análisis de habitación tenía Gate ERROR únicamente por el comparador
+de IDs; se corrigió con compareKeys, sin supresión. Se encontró además una
+diferencia demostrada de instrumentación: el XML fresco de pytest no recogía
+la entrada Streamlit ejecutada por el navegador. La integración de cobertura
+subprocess aporta 790 líneas medidas antes ausentes (540 de la entrada), sin
+retocar alcance. El diagnóstico y las cifras intermedias están en STUDY_ROOM.md.
+Cobertura local final Python 70,16 %, V8 líneas 79,00 %: no se equiparan a Sonar.
+
+Tras la integral y el runner Mongo se añaden tres regresiones del tooling; pasan
+las 45 del grupo afectado y 14 contratos HTTP. Total reconciliado **2062 IDs
+Python distintos**; la última integral completa era 2050 aprobadas/9 omitidas/0
+fallidas y esas nueve pasan aparte. Frontend: 209 aprobadas. Los recorridos
+Chrome/Firefox verifican además editar el concepto en una esfera y leer el
+cambio desde la otra, con un único registro. Ruff queda en 2155 avisos, agrupados
+en RUFF_CURRENT.csv. El Gate aprobado no cierra esa deuda ni el inventario manual.
+
+La repetición del benchmark después de las verificaciones da 8,515 ms de media,
+máximo 12 ms, frente a 7,87/12,5 anteriores. La primera medida concurrente
+10,56/28,9 también se conserva. No se afirma mejora ni FPS sostenidos.
+
+Se conserva el resto de pendientes de LARGE_FILES.md y STUDY_ROOM.md, incluyendo
+paginación del snapshot y composición de módulos heredados. No quedan bloqueos
+por el ZIP privado. Los commits 02693cfd y bc2a26d5 completan el comparador y la
+instrumentación reproducible; los demás commits de este lote están arriba.
+
+
+El ajuste visual final be6d6c9d retira espacio vacío del teclado mediante
+geometrychange/boundingRect públicos. Pasa la regresión nueva y las cuatro
+distribuciones en ambos navegadores. Se conserva el análisis previo de habitación
+en ROOM_RESULTS.json; FINAL_STUDY_RESULTS.json corresponde al último Mathfield.
+No se reutiliza el Gate anterior como si hubiese analizado ese cambio.
+
+
+| Corte comparable | General Sonar | Nueva Sonar | Gate | Incidencias nuevas |
+|---|---:|---:|---|---:|
+| Bibliografía, bbf8eba4 | 70,6 % | 85,5 % | OK | 0 |
+| Habitación inicial, bcf09619 | 69,4 % | 81,8 % | ERROR | 1 |
+| Final Mathfield, be6d6c9d | 70,9 % | 82,3 % | OK | 0 |
+
+La comparación conserva referencia y configuración, pero el código nuevo crece:
+5121 elementos medidos en bibliografía frente a 6439 al final. El porcentaje
+nuevo no compara el mismo conjunto de líneas sin esa salvedad. La cobertura
+local V8 pasa de 2982/3727 a 3473/4396 líneas, al incorporar la habitación.
+
+En el grupo del coordinador, 1236 líneas previas pasan a **1457** al contar
+927 + 398 + 132: hay 221 líneas netas añadidas en ese grupo. El beneficio es
+separar ciclo de documento y controles de visibilidad; no una reducción cosmética
+ni una eliminación de 309 líneas de producto.

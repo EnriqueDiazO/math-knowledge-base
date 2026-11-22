@@ -129,3 +129,35 @@ para separar repositorios comunes y caracterizar carreras de tags/archivo en
 los otros métodos. El CAS de edición no demuestra por sí solo concurrencia
 segura de cada operación de ciclo de vida. No se eliminan entidades, validadores,
 joins ni pruebas para reducir tamaño.
+
+
+## Corte de habitación: inventario actual y decisiones posteriores
+
+328 archivos de código mantenido y 200 de pruebas, separados de 276 generados.
+[TOP20_CURRENT.csv](TOP20_CURRENT.csv) contiene los veinte mayores actuales;
+[BATCH4_INVENTORY.json](BATCH4_INVENTORY.json) enumera los veinte propios que
+superan mil líneas. Las decisiones anteriores se conservan como historial.
+
+- **component.ts:** refactorización implementada, 927 líneas. Se extraen
+  DocumentDialog (398) y map-filters (132); la cuenta conjunta se conserva. La
+  reducción del coordinador no se presenta como eliminación neta. Las regresiones
+  de borrador, recibo, selección/scroll y pregunta enlazada pasan.
+- **bootstrap.py:** predicado de completitud compartido; conserva las cuatro
+  reconciliaciones, códigos y checkpoints. 1635 líneas, sin objetivo cosmético de
+  reducción. 67 casos caracterizados pasan antes/después; los otros límites de
+  autorización/reanudación siguen activos.
+- **reader_page.py / reader.css / App.tsx:** se integra el tema mediante un módulo
+  CSS acotado y tokens existentes, sin agrandar la hoja principal ni invertir PDF.
+  El parser acepta sólo document_id y la opción theme=study; otros parámetros
+  arbitrarios siguen rechazados. Lector real y pruebas de URL/verificación pasan.
+- **editor_streamlit.py:** incorpora entrada y retorno de habitación; conserva los
+  demás consumidores. Su separación por página sigue pendiente con razón concreta:
+  falta paridad de medios, metadatos avanzados y exportaciones en el editor nuevo.
+- Los restantes módulos grandes conservan las decisiones individuales previas;
+  no se cambian a «cerrados» por cobertura o por el Gate.
+
+
+La huella de los fuentes del corte final corresponde a be6d6c9d. Los CSV se
+generan antes de integrar su propia documentación y no constituyen una huella
+autorreferente de sí mismos. El adaptador keyboard.ts permanece pequeño y usa
+geometría pública; sus pruebas, layouts y cleanup se contabilizan en el lote.

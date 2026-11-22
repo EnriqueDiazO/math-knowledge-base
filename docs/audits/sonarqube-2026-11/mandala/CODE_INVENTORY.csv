@@ -1,6 +1,6 @@
 path,lines,kind,bytes,sha256,classification_reason
-mathmongo/advanced_reader/static/knowledge_map/index-C-wr06sE.js,56581,generated,1961142,0a21a370d20dcf7a3955dc76bbdb021372f5096828141fbeb2f431911bb7f1fd,review build inputs; do not refactor generated output
-editor/editor_streamlit.py,5714,maintained,270412,a63a4cdc8dad4ea2988da7820dc7541242bbebd05ca8d9d6c5418ec6939a1420,hand-maintained source; review independently of coverage
+mathmongo/advanced_reader/static/knowledge_map/index-BQfoBSNJ.js,57226,generated,1989164,91b4b9de9c0feac4d803d23d589b8edbd515b01a671d27686cd3770d17306704,review build inputs; do not refactor generated output
+editor/editor_streamlit.py,5736,maintained,271836,d3fa3faecdcd6ba373d565d10aa0f61c1d39bad8be6f4daa860dd7e508fa7ec5,hand-maintained source; review independently of coverage
 frontend/advanced-reader/package-lock.json,5109,resource,180092,acce1a570fe14323f0e3aed152fe9c2b010cc7f63329815c1b6c445d29aedf3c,data/template/asset; inspect its consumers and provenance
 poetry.lock,4648,resource,396801,02b3bf69335f1103e7309d3f75e266b7bf41a2657dd88e3e80a29b687cea9338,data/template/asset; inspect its consumers and provenance
 editor/cuaderno_page.py,4122,maintained,173421,98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554,hand-maintained source; review independently of coverage
@@ -9,20 +9,19 @@ editor/utils/db_import.py,2904,maintained,115496,725bdf213ba1343cafe15d4f55597cd
 editor/utils/db_update.py,2242,maintained,88446,6142141731bde41f988b2a03194a39dd5f6221d64efcbc0e544299daf4d52ac6,hand-maintained source; review independently of coverage
 quarto_book_build/_book/site_libs/bootstrap/bootstrap-icons.css,2106,generated,99464,01253947f506e030589e4f33fc7ec7ccdfb9505e2e596dedf16445f12e243c0a,review build inputs; do not refactor generated output
 mathmongo/reading_annotations/service.py,1686,maintained,70602,f688f5df1149b8a0b6fe493e2c30b89a40cbc05faa9b5bf52fdaef89056eb4b4,hand-maintained source; review independently of coverage
-mathmongo/source_catalog_migration/bootstrap.py,1635,maintained,71893,fe5bdbee0f73f8c56f6c43e3820d1beee5db44fa2e0e1c512619721741e13bff,hand-maintained source; review independently of coverage
+mathmongo/source_catalog_migration/bootstrap.py,1635,maintained,71796,ed986959d72ac9baa7d0b8f7d7ca08b6062e123786784b6de9c33f1dd421efb0,hand-maintained source; review independently of coverage
 editor/cornell/streamlit_page.py,1634,maintained,59460,85b96d262000879c7ec8223bad49c5326c7a996632c4c4d141587bf709467774,hand-maintained source; review independently of coverage
 docs/PHASE_S0_SOURCE_DOCUMENT_READER_AUDIT.md,1610,documentation,73435,92f71ff3e5441c983dbbd209a350288dcb5a7c655c718a5f2cd24b11d01fab9b,documentation or license; not executable source
 mathmongo/advanced_reader/static/knowledge_map/THIRD_PARTY_LICENSES.txt,1504,generated,75911,5db79b41e742c3fb4e5f261691c895f1c65f44f09f1bbaf8bab1a867797ba807,review build inputs; do not refactor generated output
 editor/cpi/streamlit_page.py,1485,maintained,54570,7c133a29a37ddb185ea0f73c33b3fbbfeae77c20beef245ffdad5cf42c7a2028,hand-maintained source; review independently of coverage
 tests/test_source_catalog_backup.py,1422,test,54369,c80ed15016a6f71ca69a3d25f4839e0cea1784e1804e77139e8c4bf0f789e705,behavior verification; retained in test scope
-tests/test_concept_linking_ui.py,1385,test,51061,6ab992b2b0b07f005caca6f3d71fffb4d766d4369445697f69faeb62ba5529cd,behavior verification; retained in test scope
+tests/test_concept_linking_ui.py,1388,test,51307,07867601851afa882335a8c63f3d97affa0c4aca95036e6f32fbd81bb2cc6b14,behavior verification; retained in test scope
 tests/test_source_catalog_migration_bootstrap.py,1325,test,51044,0e93f13943baa9b0daace1501ba5179f2eb33e3e25c2d6d4accbb10e228962d6,behavior verification; retained in test scope
 frontend/advanced-reader/tests/e2e-runner.mjs,1302,test,54306,67c82d1b41b0fc63e88025c5e2c4600dd80662e9a23eda51225f380f80f12b77,behavior verification; retained in test scope
 quarto_book_build/_book/site_libs/quarto-search/quarto-search.js,1290,generated,37174,b685d6ad9b22c04e3f55bcf54e56db7fed463bc881bc92007406e9879a0ec6be,review build inputs; do not refactor generated output
 editor/concept_linking/linking_wizard.py,1264,maintained,43966,bb409353b248fa2ba8873832b78d8de5cb813a9150e7d6946f59b134a1cdeaf4,hand-maintained source; review independently of coverage
-editor/reading_space/reader_page.py,1241,maintained,46589,e5e0f30442bf991a40c81f94fdd3b411c94516911f648f2d7ae7289df956709c,hand-maintained source; review independently of coverage
+editor/reading_space/reader_page.py,1242,maintained,46681,d05d5a35ecff0d130810604a347e47594ce8af0b6a3f2a0b12b715368a9aef60,hand-maintained source; review independently of coverage
 tests/test_reading_annotations_ui.py,1240,test,44052,d494633a57964131c37bb9f4751c8fbdf8c2503c2da65817a2432a69f4ada360,behavior verification; retained in test scope
-frontend/advanced-reader/src/knowledge-map/component.ts,1236,maintained,34999,985ee44bc48586fb4d54663e99d275f12d216e8923a54c12d0edfde298ae47e3,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/app/App.tsx,1227,maintained,46600,a8ff6556e2ef4cbc13252dd9499532c7571b93e01dfc91be2dd7423e961f9a00,hand-maintained source; review independently of coverage
 editor/source_catalog/edit_source_page.py,1192,maintained,45507,6bfa69ee5268dae84a0404d602869f2f641320e404cc69a662546e0c246d4829,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/apply_safety.py,1186,maintained,49763,05fc313b7634c8c0fb67eabbc7692688ea059b94450de67b5c999afe2a203948,hand-maintained source; review independently of coverage
@@ -34,28 +33,33 @@ tests/test_database_update.py,1087,test,37710,ec5533199d5b0b4c3e58580b6a92d54722
 tests/test_source_catalog_migration_cli_live.py,1077,test,35453,3b2918854d4ea076838ea6bc8fab008867384149e7fc871d23569dd02dbb5c4f,behavior verification; retained in test scope
 editor/utils/knowledge_graph_sync.py,1076,maintained,38742,c3090f41a136d1b439796acabca101795e9ce5babd4fd1e5a391d90ffb37ddd9,hand-maintained source; review independently of coverage
 tests/test_reading_space_ui.py,1058,test,38665,6515afdeee6e8aa89cbf15e4e159113bca8879b0589484d7e28ae2d15f696e4a,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/CODE_INVENTORY.csv,1049,resource,198153,0a8112d0b8a5e92b777019e7f138c5d465374df9e4134f548a7fcbf51b3daccc,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/REVIEW_REGISTER.csv,1049,resource,169919,b2b454506234dc981027af5966c38eb1ff4d70d8ab78b6a05d6fe04de3a6e560,data/template/asset; inspect its consumers and provenance
 exporters_latex/latex_validation.py,1046,maintained,34649,60b9cb9b421f04dc900a93ffc080986c34a6ff213cfbee617d4359cf964f59b0,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/replaced-assets.json,1024,resource,45072,99a8281ac1dd02d128d00c3f246586c49ded504711f82e2665e5439ef7ef9775,data/template/asset; inspect its consumers and provenance
 mathmongo/reading_annotations/repository.py,1010,maintained,36147,0510ff8dd4d4097c1224e9eb9038c3779c0f8e9e4c2053571c774d882c5864b6,hand-maintained source; review independently of coverage
 tests/test_reading_annotations_portability.py,1010,test,38368,7bf059ec5795af184e1a387dded851dda512bf12899f9879770bd3b71f30cd14,behavior verification; retained in test scope
 frontend/advanced-reader/src/styles/reader.css,1008,maintained,18672,9c21a4858acd3305414ef597372637ecd98d79492c44838b6926a4e3ff875727,hand-maintained source; review independently of coverage
+docs/audits/sonarqube-2026-11/mandala/CODE_INVENTORY_BEFORE.csv,995,resource,188006,0069fe8aede73522b95c7f0c951d2ffbfe64751de96352b0b039fe0ed3dbdad9,data/template/asset; inspect its consumers and provenance
 mathmongo/source_catalog_migration/reference_planner.py,976,maintained,39707,a655d6b20c07311f888c620511073097a80b665537923f3d72b78b80f688ca19,hand-maintained source; review independently of coverage
 tests/test_source_catalog_edit_analysis.py,971,test,32209,3752c36a222ff90867b3900a667b5dc1081005f7d1051a4b68babca86c24ccd3,behavior verification; retained in test scope
+frontend/advanced-reader/tests/knowledge-map.test.ts,970,test,32995,4d661ee3a393e8647ddcb2cadc3d149bb6fa9bc979cdf021a107eab6f41389fc,behavior verification; retained in test scope
 editor/utils/db_export.py,965,maintained,41544,adf82698082d005655251771cd43d6665a49613b4d4bb09562cdf8a138d678e6,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/knowledge-map/component.ts,927,maintained,26396,1e9d0dad2e8d2105de2e06e25f923c05ca030213b9e51e24591d204e78ca2920,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/INVENTORY.csv,903,resource,237295,6240269aa144b4d5fec1829cd0f26f4d2333ce1aaaa8ee45064de3108c13ca07,data/template/asset; inspect its consumers and provenance
 tests/run_local_runtime_e2e.py,896,test,33172,2e1103ee21c76ae23b9c6757b9cbe551042e5a115edae68b7ef6ef9d73cf95f6,behavior verification; retained in test scope
+frontend/advanced-reader/src/knowledge-map/room.ts,891,maintained,27278,1044a2c407841f30c3fa1381e1a14f4cd3e85f60336552ae1d7af217f1cbb466,hand-maintained source; review independently of coverage
 mathmongo/source_catalog/repository.py,868,maintained,32787,d48e84db3e8e360e6fd1f8b6bb1c391f0c65fc20e4be1926c2b3e7a318e43606,hand-maintained source; review independently of coverage
 editor/cornell/renderer.py,865,maintained,29124,0ec55f1f189ee1cf5fb73132331534549050916172a518a07d4e6944e929a8b9,hand-maintained source; review independently of coverage
 tests/test_reading_annotations_core.py,862,test,32840,a9d48e24c59e26cb89386b78e48f5e12baa883986e54cc3233998d898c3cac2d,behavior verification; retained in test scope
-frontend/advanced-reader/tests/knowledge-map.test.ts,847,test,28916,f466a2363797b1d126e75d1820dd9f09924693dceb613c947648c2e6156b9b22,behavior verification; retained in test scope
 quarto_book_build/_book/site_libs/quarto-html/quarto.js,847,generated,26885,14589dacd0cf625c4e6891269681a0a8e20aaa5390864ca6a69f2fff1514719a,review build inputs; do not refactor generated output
+frontend/advanced-reader/src/knowledge-map/style.css,832,maintained,19504,9435ecbe9ff3c03e2e62cef53b95c93fd311c74fa3204d4ffe4d5eb604e435fd,hand-maintained source; review independently of coverage
 mathmongo/source_catalog/service.py,831,maintained,32758,393a138cd5315c15355c803509dd8249a5258538a3af9bdb21fe993d0c7aedbe,hand-maintained source; review independently of coverage
 editor/reading_annotations/annotation_panel.py,828,maintained,29622,d2e282d7c87f9cdb7c9bd1936f81cc61d85f8ed1a9d3335dc4a0121914833624,hand-maintained source; review independently of coverage
 editor/interactive_graph.py,820,maintained,31165,431035d98a1d005635765b4029cfd8c3d40a5e5aab9bcd1e45e7c6f90783b13d,hand-maintained source; review independently of coverage
 tests/test_cornell_renderer.py,816,test,27931,5f52f350b4c9feaed708aa7094fdb88d89708a9d2abb90821bbd69c20470c748,behavior verification; retained in test scope
 tests/test_reading_space_core.py,816,test,30306,adaaa5a4e2d8ea540283d49d826ac74619c73d0c68269f5034a9a9ab77928b50,behavior verification; retained in test scope
 editor/source_catalog/document_ui.py,797,maintained,27041,e792c6d80999fc5684f3b0a75400fdcc68c071b5c63f2cab56d6f9194d6de0a7,hand-maintained source; review independently of coverage
-frontend/advanced-reader/src/knowledge-map/style.css,789,maintained,16011,417f1977cb472a329da9df00bbdfdd4843daf43501c172798b11faaf20ce809f,hand-maintained source; review independently of coverage
 tests/test_source_catalog_migration_planner.py,787,test,27977,d02aef1b0d0192c2069c66186774904264e03f4d188de36645d91b4ecca443a4,behavior verification; retained in test scope
 editor/cpi/renderer.py,779,maintained,25869,11acabc20d2eeeb88c813fb55f4b51c450b17298276445104f4ba164b852459e,hand-maintained source; review independently of coverage
 mathmongo/source_catalog/bibtex.py,775,maintained,25089,65f25352a6a22f9dc1d66a7e2a94f2448c198905f186f9e23d9660da6a671fa0,hand-maintained source; review independently of coverage
@@ -80,11 +84,11 @@ tests/run_advanced_reader_e2e.py,616,test,29212,7cf0d73f28985b290013c11fbc982e16
 editor/diary_note_models.py,612,maintained,20885,c6e0d7261d03f992413db9a429244ea07cb995c82d8febe5e223222b10c0f2f9,hand-maintained source; review independently of coverage
 tests/test_concept_linking_wizard.py,608,test,20690,e6f56819bd2e4cc53948c73197f0c01b270f504ad49912091f766f6a8ad3ca0b,behavior verification; retained in test scope
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-runtime-NA7SF2lh.js,604,generated,592347,4fdabcfd6c55ca8f6eb093d910c272e1984f2b9b134f5eb8be7b4b4c6d51a58e,review build inputs; do not refactor generated output
+tests/test_advanced_reader_streamlit_link.py,599,test,19367,c418ce1934d20901006cc08e526e27a96f871502f3ab30051770c2386187792d,behavior verification; retained in test scope
 tests/test_source_catalog_migration_apply_safety.py,596,test,21369,17ad06354abbb638c125f1e8f2de96f88bfa122b2dc3229257f8888f7cc2956d,behavior verification; retained in test scope
 mathmongo/source_catalog_migration/backup_safety.py,595,maintained,23759,2f77149354ea426e23ecff98f5833d90a37b049706655de33418b02debe6f8d9,hand-maintained source; review independently of coverage
 tests/test_source_catalog_migration_cli_apply.py,595,test,20227,66ebf6db7a82c1b7038f685f7f2b62b9316a4622aa5d88f9b37aa5e6294d61d9,behavior verification; retained in test scope
 tests/test_source_catalog_migration_zip.py,593,test,20387,fe65ca4a469e94d81697e1a0c47365539142993e3829423e8b396ce34cd2cef2,behavior verification; retained in test scope
-tests/test_advanced_reader_streamlit_link.py,590,test,18920,6c5e64cad9d13e8dd1723adff258f6449fdd713569a6364c4b1d6f01c7a64f14,behavior verification; retained in test scope
 frontend/advanced-reader/src/pdf/PdfJsController.ts,589,maintained,20085,35a9507244049ae7c7f4e410c1212900e413488ecfb6b92ea4aa54069420e138,hand-maintained source; review independently of coverage
 tests/test_cornell_project_export.py,588,test,21327,7695122d90d73b781771c99f7b826a43aac442bc804253f44a4dda3e295ce780,behavior verification; retained in test scope
 tests/test_concept_linking_apptest.py,587,test,22968,49e01230f30bc2f73780b90cd7d278f3ad935680c1cd679d98ade1ae80505348,behavior verification; retained in test scope
@@ -97,6 +101,7 @@ mathdatabase/mathmongo.py,573,maintained,21956,ac7e1b0c09a5d0f9b32c9d5924e47a6a3
 tests/test_source_documents_portability.py,573,test,21948,76d78c8c45f69eb9a37e2ac2a6e18278332ae2e11044582c39a7bc6a5d771568,behavior verification; retained in test scope
 editor/latex_tools.py,571,maintained,18979,356ea9173ff7e32b7e7df23da0d3ac0994bb7fb2bcdaef4e83faa50ee48fec57,hand-maintained source; review independently of coverage
 editor/cornell/layout.py,570,maintained,19094,90396a54bc7d89df649f0599de0eeb77bcd82655c284aebadfcfc14669201218,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/knowledge-map/document-editor.ts,568,maintained,18075,ca62432fed4f41763154ea6399523101fe6e7670cf5433bc3009e62d6fe16423,hand-maintained source; review independently of coverage
 docs/ADVANCED_READER_S5A.md,565,documentation,24669,de6b0e78a7bacf2bb560e91848ebf9b777da925f07bcb6ad0c521fba54ba5818,documentation or license; not executable source
 tests/test_add_concept_reference_import_ui.py,563,test,16922,adf448a6b3b53021326ee997cd8abe26d9ce7309094aa4d1d6dea31001cd563b,behavior verification; retained in test scope
 editor/document_builder.py,561,maintained,22057,15345c9beb11fd5438526213d3f47252a7c91fd4fb8f815f855100caa029aa15,hand-maintained source; review independently of coverage
@@ -114,7 +119,6 @@ editor/reading_annotations/forms.py,529,maintained,18172,090b308ba3a4fb5f1b2a404
 tests/test_advanced_reader_visual_annotations.py,529,test,20172,03a5965446ecb041f844b8c4b1767e702c2d109b5b22f980440a47e0a8eeb3c1,behavior verification; retained in test scope
 editor/utils/cleanup_exports.py,524,maintained,17666,ee61556bc2b83ed74f5461cc8032ec3cb4d88bd7700b00ba8d7d8abef24d5f7e,hand-maintained source; review independently of coverage
 tests/test_source_catalog_reference_ui.py,505,test,18285,df9a73e46d7d66dd673caa104652b84f434b2c66b8e5da365ec9be88428abcb7,behavior verification; retained in test scope
-frontend/advanced-reader/src/knowledge-map/document-editor.ts,503,maintained,15626,79428f7a83b3088e5830232322fee385638a5e7e54a94dd7527b6725a90eaae0,hand-maintained source; review independently of coverage
 editor/db/concept_edit_service.py,501,maintained,15951,40374b3258161d0fceb8eeb93993e7b1b032a00e270f726255b718a4ced1a71a,hand-maintained source; review independently of coverage
 tests/test_document_page_maps_core.py,498,test,19293,434f5d53e6cbbf3884e0600fbbe385ca9f882e5c71161112299474aed216d3dd,behavior verification; retained in test scope
 editor/cpi/layout.py,495,maintained,16548,f167939c8615c1483f4f9033396d2a8287651033abf5beb12375006fbdb57f82,hand-maintained source; review independently of coverage
@@ -141,12 +145,14 @@ mathmongo/local_runtime/state.py,449,maintained,15825,41c4e4ab48650cd15744c30654
 tests/test_reading_space_portability.py,448,test,16443,34c6d14a600f99ef45b44f6611f30c868d979b8ff1554d75a5395531fcd5b45a,behavior verification; retained in test scope
 editor/latex_bundle.py,445,maintained,19150,cd69d5f2fb5c5c758ca61da19d836f22b9eac944f92830b05ef35898fce40eba,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/decisions.py,445,maintained,16957,7a8b5555c63c15d350a21fe9689c173ec635b1484fda48ebf5e3f255072a6dc3,hand-maintained source; review independently of coverage
+frontend/advanced-reader/tests/study-sphere-browser.mjs,436,test,17736,db73e2fea08431719507dbc2f1531887d53f9b9e5cf3a7f9503464f01884a886,behavior verification; retained in test scope
+tests/run_study_sphere_e2e.py,436,test,22419,0693d4d58dc708908a5e257c0f1a65f2a14354054df1ccbb58775f455d767eb9,behavior verification; retained in test scope
 editor/reading_space/state.py,432,maintained,14972,0710fea13437924b668dec66195e0b3e67fbf69a43489b90d325d94709ef49c8,hand-maintained source; review independently of coverage
 tests/test_advanced_reader_concept_linking.py,430,test,17049,005907944de99db71633dde61fbe7e8b02ee5130dc65f676b51a5bf6688b75f5,behavior verification; retained in test scope
-frontend/advanced-reader/tests/study-sphere-browser.mjs,427,test,17143,2bd87ea8ea4ef630b4afe49db434f7427e63c62dcaa2b0b3f49e9efae75d2ea0,behavior verification; retained in test scope
 editor/note_branding.py,426,maintained,16518,9c012f1d20ba36d3c9982a3e3a6f03792f76ddaa826da43275a09c422cc0906f,hand-maintained source; review independently of coverage
+mathmongo/advanced_reader/streamlit_link.py,426,maintained,15234,0bfc8eaef36149e84e9715efcfa0a4086eb868ac26b8d23fa30cba9e9315de2b,hand-maintained source; review independently of coverage
 docs/PHASE_S1C1_LEGACY_SOURCE_CATALOG_PLANNER.md,425,documentation,21224,20394ed638c24dd0e371367ae98b84b999abc0f71847f6cc921ec77ccbb38746,documentation or license; not executable source
-mathmongo/advanced_reader/streamlit_link.py,422,maintained,15109,48f3731037ec4737333b6baab87656d7906abc7d86a7d8b0d23b1cd44f01579d,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/api/client.ts,425,maintained,12688,1bd9be09e8f3ba688ea7dc86e3de7532393aafacd6939aaf32b20117f40532bb,hand-maintained source; review independently of coverage
 docs/PHASE_MANAGED_SOURCE_WORKFLOW_COMPATIBILITY_AUDIT.md,421,documentation,51913,7bfc8860c55008ec4214ea4f5ee5c5f4e0258b8c9f5577635d716091ea6ca1ea,documentation or license; not executable source
 docs/ADVANCED_READER_SECURITY.md,418,documentation,18742,5a9fa43618de98aa6ba84a5ea7d05f48844e58f0539c8001f55435b4cffdcba1,documentation or license; not executable source
 exporters_quarto/quarto_exporter.py,418,maintained,13661,cd8bc6835cecd519d7e2efd9462373079c0fd362d2b536366ba5df4f6f4a73ff,hand-maintained source; review independently of coverage
@@ -156,18 +162,19 @@ editor/source_catalog/shared.py,410,maintained,16476,75e26d0f278c35140283d0666c8
 tests/test_source_catalog_models.py,406,test,16680,8007a3e029ba24fa0b9d2ac6e2b6255b59fc830a21ff855867fcf104b7e35f5c,behavior verification; retained in test scope
 mathmongo/source_catalog_migration/models.py,405,maintained,12236,d392582c9c714ceae5b6909a1afa699b838b7f0b9147eaabc17ea0df71f27f04,hand-maintained source; review independently of coverage
 editor/cornell/content_blocks.py,403,maintained,12970,6cbe9ca73df73715b2c34066ea55517cf0a343eb8bf50f8ee2190a78b11ac274,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/knowledge-map/model.ts,401,maintained,10119,7cd2abcfea97cd39602cb1e9fe598e3ec1705a5901b88de99f03e0dd121259d1,hand-maintained source; review independently of coverage
 mathmongo/knowledge_map/service.py,401,maintained,24119,2cab021bedb01256902e25346204685471f45c264459b34b157bacc8b637c3bf,hand-maintained source; review independently of coverage
 tests/test_pdf_preview.py,399,test,11700,f4c90a03409d44678f70f47e8b3bd6503dd07d14e7eaa0d7c90c6e7155c99a2b,behavior verification; retained in test scope
+frontend/advanced-reader/src/knowledge-map/document-dialog.ts,398,maintained,11738,086b0a4a410d16a68f8da7d667e1c43eeedcb7d80eaf5d4333ccdeec63f04777,hand-maintained source; review independently of coverage
 editor/note_export.py,397,maintained,15085,6975ee84bd0625aebfa4061e5f7747516770695724338c66328d17377a650ccf,hand-maintained source; review independently of coverage
 editor/reading_annotations/evidence_panel.py,397,maintained,13777,e21cc162848f59de3d6b233db48c70dd43cb64d2b24b8a0c08a28306ef5582c7,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/report.py,397,maintained,16044,6e4d6e5ff4bbc0004aeed0abe49a60cbbfee9643af09974f969101167a73b74e,hand-maintained source; review independently of coverage
-frontend/advanced-reader/src/knowledge-map/model.ts,396,maintained,9885,d0f948e0a6f2d0f72f7b6ee403b397f422bb1c6ed9dfa8e5f5bce4f072d8f0f3,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/live_compare.py,396,maintained,16595,d1c33c873f2cf3f962ee25453ac1678dc839db37d60feb2b388434e77408157a,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/knowledge-map/document.ts,395,maintained,11561,d78d32fa803eb780c22afa4481335f9c60b2ae70a0d033223cee9f7dd19d1e17,hand-maintained source; review independently of coverage
 mathmongo/academic_cli/catalog.py,395,maintained,16766,233cc9ec9a1bff338867abfe02072ab8eb65fd71e5100a7b28270f6761bed9fc,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/visualAnnotationsApp.test.tsx,393,test,16301,615af3bb41db735d824ffd96f02d0b78198799f8cdbce70c49b66c1aef9d7549,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/README.md,392,documentation,25903,59a422c67f9b82509dbc28b8c136143aedd957ef067473d418b3d78dcab7060e,documentation or license; not executable source
 tests/test_edit_concept_update_feedback.py,392,test,11799,4a37732b66a526e38d423c4068a3dba5a9ea80398bb3eb1558e377411c75a854,behavior verification; retained in test scope
-frontend/advanced-reader/src/knowledge-map/document.ts,391,maintained,11307,e927a6578f26fecea6b1ce2ada140562664ddfbedb4f443016e70e0795288fb0,hand-maintained source; review independently of coverage
 mathmongo/source_catalog/legacy.py,390,maintained,12992,1eac13c34e80aca4708f785e8b78c9d3287a5ced2de40975eb2d5da91efb55f8,hand-maintained source; review independently of coverage
 tests/test_cpi_project_export.py,386,test,13661,b8dc5d876abe5724986793b518462a23bc87e022d1ac199f8fd377433eabda92,behavior verification; retained in test scope
 mathmongo/mongodb_service.py,385,maintained,13110,4b4198888b3f6df3966dd690d254c04cbf94331863ec55c07dbd883810da140c,hand-maintained source; review independently of coverage
@@ -181,7 +188,6 @@ tests/test_source_catalog_ui_scope.py,373,test,14150,90129f7dec40545acee34e52ef1
 tests/test_fresh_database_lifecycle_e2e.py,371,test,16763,30592d9112a5b8d798ec7bed38ef635fb60e6844151a2266598a530a5be19659,behavior verification; retained in test scope
 tests/test_bibliography_lookup.py,369,test,14168,9a60b86a45b7c1d090f0cf445533d97f5e43f557e2b3decc635eaa98c6dc3dab,behavior verification; retained in test scope
 mathmongo/cli.py,364,maintained,15116,97407be3a95de4a5f88e8539ee99b12301679579f2b4cfcf722f2f28054a8660,hand-maintained source; review independently of coverage
-frontend/advanced-reader/src/api/client.ts,361,maintained,12194,69fdfe669e0b488dac57d8b65377b245eea197940f393738f0e2781a90603439,hand-maintained source; review independently of coverage
 tests/test_source_catalog_legacy_repository.py,361,test,12851,f3c8b38b84a180bd957515eb25cb77162789e5d7983751b51eb165087a99f232,behavior verification; retained in test scope
 tests/test_note_export.py,359,test,12420,82e440a8b6b0e8ab40d89a3e9469dd236b92ee557f4db93e6cfaa12cb4a794b8,behavior verification; retained in test scope
 mathmongo/reading_annotations/indexes.py,356,maintained,11976,d0b35d1f5c80dad5d26dd4c5cbdd19ad892ebff13d6edcb7e58e067ab8122233,hand-maintained source; review independently of coverage
@@ -194,7 +200,7 @@ docs/COCID_DRIVE_DOCS_TUTORIAL_IMPLEMENTATION.md,346,documentation,22684,4530dff
 frontend/advanced-reader/tests/ThumbnailManager.test.ts,346,test,13078,04951ac517799a9f2f1bc4d7ab7ae996b335e295e71d12e9eff378481008faba,behavior verification; retained in test scope
 tests/test_knowledge_map_service.py,346,test,18406,449caf43c2bdb4566c0586e1509c0c034102bc943e758d1c5c9431f8986e547c,behavior verification; retained in test scope
 tests/test_advanced_reader_packaging.py,345,test,12479,26735cb014cb6ac64b6b48ba1702978ba8e92cd11b70415c9d4e44bd95f37412,behavior verification; retained in test scope
-scripts/sonar.py,342,maintained,16347,d5f289756099a54d10e308d73f24afbd8206b40db3948606d982bbd50e448ffe,hand-maintained source; review independently of coverage
+scripts/sonar.py,342,maintained,16371,a3bb25f7f05d52c4d97140c4e52c4d52bb4140d1f8fa494e33f7eb9ad949c20a,hand-maintained source; review independently of coverage
 mathmongo/migrate_xdg.py,340,maintained,12075,b672667ccc65a8b1635bcde8982a63b234f2b0018ce9b72a5e0b79ba415bf8dc,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/app.py,337,maintained,13422,0f58e9833cafa6ce85270576c2acea6b1125e6a3b9a3cf99fcc338768ead5ca2,hand-maintained source; review independently of coverage
 docs/CONCEPT_LINKING_UX_S4_3.md,335,documentation,14490,df75bd1434c9c17b72979b07f5ab28cc8a122d45de715d7db2de8ea955047bfe,documentation or license; not executable source
@@ -211,7 +217,6 @@ editor/cpi/project_export.py,324,maintained,10598,282c47fc40aa6cb6c7aca3ce2a0930
 tests/test_note_branding.py,317,test,11262,02fd826414696c966f3027ca96332a1244f04e4e7827ce04440db7b1300c5252,behavior verification; retained in test scope
 tests/test_cornell_service.py,316,test,11137,b9e62404636aa17e3b2e4c99e5f0bd1ab1c02301c66c52ff647c76e44b02b9bb,behavior verification; retained in test scope
 docs/VERSION_CLOSURE_MANAGED_SOURCE_WORKFLOW.md,315,documentation,13414,b975767be7565a08df44ca59f7e0b4ddf979759d2d9aa19ee43ec7da78b62b17,documentation or license; not executable source
-tests/run_study_sphere_e2e.py,315,test,13355,3e089326f4999a16742f670d0f3f206f6d040b83a7930a515269f09097e05592,behavior verification; retained in test scope
 tests/test_local_runtime_models.py,315,test,9739,ba07dc189a7c08af0d0d0ef363a054a4249003ac8964f8e0efe57d9c6618c943,behavior verification; retained in test scope
 editor/concept_linking/panel.py,314,maintained,9595,ca294c0ce6ae4bb493b12195c6c680468be7379c3271c01b4caba6cef2a23cf8,hand-maintained source; review independently of coverage
 editor/ui/editable_text.py,314,maintained,10276,006f8969ae58524bbd655c2cd290f65dcf9f18570402a587252b1d69e7fa07ee,hand-maintained source; review independently of coverage
@@ -239,12 +244,12 @@ mathmongo/bibliography_lookup/adapters.py,290,maintained,10215,7da261bc6daf86803
 frontend/advanced-reader/tests/conceptLinkingApp.test.tsx,287,test,12134,122f5b4909913df9141f76c9f5fb4cb30b7852c1c8c37566595870d2bc1794d1,behavior verification; retained in test scope
 mathmongo/bibliography_lookup/service.py,287,maintained,12641,b4fbdb6d9a2e1a7517012f59f85344736e3f60b610d68f6dcad30a93562b5c91,hand-maintained source; review independently of coverage
 scripts/build_cocid_drive_docs_tutorial_assets.py,287,maintained,12294,766ab792f863a346523cc7545bb85ffc9667397c6a0a9470cf8f36d737b778e3,hand-maintained source; review independently of coverage
+mathmongo/knowledge_map/study_resources.py,286,maintained,13082,2326c35c84126008b1afca07a26a1232c02eb97499a4609a7ea2c43384bcd0e2,hand-maintained source; review independently of coverage
 scripts/generate_diary_note_acceptance.py,286,maintained,11697,25ebfa35c98aa7df34c692f0cd32455026779b99202b3b36ff2b725b8cf2264d,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/inventory.py,285,maintained,10043,e691b54ca1ec5fc719a08ad3850c7d1ded1cc2abab419bcd2773532e4d3aa0a1,hand-maintained source; review independently of coverage
 tests/test_document_page_map_ui.py,285,test,9347,811c790a4959d72b3ebc07ac31a3aad4ea66fb8a57ffc9666abc9e00daa11571,behavior verification; retained in test scope
 tests/test_add_concept_managed_source_selection.py,284,test,9676,fb0b033d97db5351215dc42d5a3747c3475923b9f7e6d80bd9b0ea33fb146ddd,behavior verification; retained in test scope
 editor/cornell/service.py,282,maintained,9824,d83b8e4ed145995a6f4c3a7391df095696a8ba096505858fcfdea381c07f5015,hand-maintained source; review independently of coverage
-mathmongo/knowledge_map/study_resources.py,279,maintained,12440,58787359b074b7ace55c593b91d3d019c24221b826c0442b314f9150146d46b3,hand-maintained source; review independently of coverage
 frontend/advanced-reader/scripts/publish-build.mjs,277,maintained,10770,1f729b34980e55cf8bc917d48a4eb7a9d702129b2da49588d7eb6ab00da33200,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/annotations/VisualAnnotationLayer.ts,277,maintained,9319,8db56fe7913c563344df29370171eba4208fca86f55591e9acc3bbd0d5946cdd,hand-maintained source; review independently of coverage
 editor/cornell/media.py,276,maintained,11409,18f10c2c5510f9b84d508c187e131969e4e1851378588f2ec7c348fee0235397,hand-maintained source; review independently of coverage
@@ -256,6 +261,7 @@ docs/audits/sonarqube-2026-11/followup/RESULTS.json,267,resource,9465,d41435d1ed
 tests/test_local_runtime_control.py,267,test,10131,977654921d060055ae02cc2360971b46fdab20d21b0f8eb5cc41c8591250f4ee,behavior verification; retained in test scope
 mathmongo/desktop.py,266,maintained,10439,a03744a3232af4f79fd7b909a6635ec1a85d35601596266561050f2ced0a3f31,hand-maintained source; review independently of coverage
 tests/test_legacy_curve_migration.py,266,test,9019,19ca53359c85c0b850398bd9b8867c3fd11b3a1ade1fd83f67dbd301d21ddaf8,behavior verification; retained in test scope
+tests/test_quality_lifecycle.py,266,test,12161,8610d707861e7a20de74966c2fde6a6776ed34b76c7f09ec23711090da3185d4,behavior verification; retained in test scope
 editor/reading_annotations/concept_picker.py,265,maintained,8411,7106b7b8a6d7b56c15e552ff81d559e24a9ac049da31146ecc027c9c7bc5abc9,hand-maintained source; review independently of coverage
 tests/test_cpi_streamlit_helpers.py,265,test,8884,4ca073e1fccd88938e0da575cacc5b75ffea1ac8ab5cf843b341ac187dcb9186,behavior verification; retained in test scope
 editor/cpi/models.py,264,maintained,10255,0e573c3a2cba92b1b60bc1b412dfaccb94d5677f98e90a835e67b193cc04a540,hand-maintained source; review independently of coverage
@@ -281,11 +287,13 @@ frontend/advanced-reader/src/components/Toolbar.tsx,246,maintained,8230,1509d817
 tests/test_source_catalog_add_ui.py,245,test,8307,25cb5e563b5fa408fceec9dc0281f255c986f268f998080d4415c5b05fba159e,behavior verification; retained in test scope
 tests/test_latex_tools.py,244,test,8411,3241f9e396ed3942caa5bf8d4d6b3d1419a4b4f96d97a93edcab9ab9c5c342f4,behavior verification; retained in test scope
 tests/test_mathmongo_migrate_xdg.py,244,test,8868,3ab0697f0cbcb0659363e804bb861b5af3f9c7ad5e66b1497c47e18ef6b46188,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/STUDY_ROOM.md,243,documentation,15587,651cdfc4947b4928528a9075e7061e8d7789cfe20536bffe679c23d9f8d022a6,documentation or license; not executable source
 tests/test_cpi_service.py,243,test,8406,02f63f5cc682b09988c9adcd8259bc30761bc7052970d6a9c4c7c0bee53851e4,behavior verification; retained in test scope
 editor/source_catalog/lookup_ui.py,240,maintained,10722,febe742dcebda8032b82e2fd5d5bd855b120d34c4e1e81310ae58ff8b9ae72b7,hand-maintained source; review independently of coverage
+tests/test_study_resources.py,240,test,10161,fa963514d5ece36bfb696507d4ce9890076b431cb599ea3daa9e34ec2dfc0172,behavior verification; retained in test scope
 docs/VISUAL_ANNOTATIONS_S5B.md,238,documentation,11334,aa6eee5de12ed46f3c69e66e74a1e49e4395c263e5b44d8aab0d9e21988c591a,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/README.md,238,documentation,14588,e8fd872ec336fe8ba53f94758730cf1523e3a7a71d9fbb09707e0237e3bc17c9,documentation or license; not executable source
 frontend/advanced-reader/src/annotations/geometry.ts,238,maintained,8119,86eec843d10e456bbcbd1720c751f465e4f49e3197d2ee1443b5b95ac26ff003,hand-maintained source; review independently of coverage
-tests/test_quality_lifecycle.py,238,test,10453,f745c28b2f0843a66036f2ec00499713c2d48e76a65a5399ac01190475bd1a67,behavior verification; retained in test scope
 templates_latex/miestilo.sty,237,resource,7964,30e2b2d493561b13ea586387485c63c1009a1cd62c981c2572873a6527ec2a04,data/template/asset; inspect its consumers and provenance
 tests/test_latex_bundle.py,237,test,10591,8fe7a4ec02a25ab268b071d474781016072f02c88ebfa998a5d986fa39e29b66,behavior verification; retained in test scope
 quarto_book_build/_book/site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css,236,generated,3678,4eb3371f2eee25041e3b30ee7632147f488587077e494173ae917c7bd0502717,review build inputs; do not refactor generated output
@@ -300,12 +308,13 @@ tests/test_cocid_tutorial_seed.py,225,test,8368,6ac19f2bb9b9c76dab566932d7baaf35
 docs/SONARQUBE.md,224,documentation,10752,799fb9f98888af5ac4d22c9c8fe1c9e8208a71eb23cbbe4f2746fb35bb3eeab0,documentation or license; not executable source
 tests/test_database_update_e2e.py,224,test,9073,bf00a85e002a53994a0da733cd4ad351017c26ca6ac975dfaf61d48284b6e7f8,behavior verification; retained in test scope
 tests/test_xdg_write_safety.py,224,test,8232,bb5440e38312b6bd40678e8159f544a06d2359fa290e7eb8486daa3c83bf0670,behavior verification; retained in test scope
-tests/test_study_resources.py,223,test,9044,f45aeefc9b656a04ccfa43ce4c878f772ce16d18fbe1970af53e0c22c3166a6b,behavior verification; retained in test scope
 frontend/advanced-reader/tests/visualAnnotationGeometry.test.ts,221,test,7278,a5988b22bc68b73dd75a5b49a10286e769492595ca256aee79a8acd9643ddb1d,behavior verification; retained in test scope
 editor/concept_linking/concept_search.py,219,maintained,7082,7fcabd2f0f1ed91b545d6eb7045ad004a8b2008b602214e259277e31ac76864f,hand-maintained source; review independently of coverage
 tests/test_generated_pdf_preview_flows.py,219,test,6676,fe2251023eaeeddc8fcabcbb49ee7cacee370870c6aecd5580230cde08189c11,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/sphere/FINAL.md,217,documentation,13564,1ba1972bc6706b587b82bc18055d6f56779c6d6c459201c23f1473246f7a88ad,documentation or license; not executable source
 editor/cornell/latex_compat.py,217,maintained,8688,eb1c7b70d69cbaaf872dd6c717df7f54db20a9ad8be8930342581140839b3a7c,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/knowledge-map/room-state.ts,217,maintained,6468,4d5b41978bf1d4ba520458a8346dcd307f2d25029ccd15857842dd5172c232cd,hand-maintained source; review independently of coverage
+frontend/advanced-reader/tests/study-room-state.test.ts,216,test,6512,7859a00c03138854b29b3562781ae01abd2b0ddeefd5aa782011fedf1509067d,behavior verification; retained in test scope
 frontend/advanced-reader/tests/VisualAnnotationLayer.test.ts,215,test,8397,12ebfd7172f5ee3222b8d16b4ca3afe054ad36ab199a7b247da73dde7295c408,behavior verification; retained in test scope
 tests/test_diary_note_edit_persistence_integration.py,215,test,8038,b724f24325f0f68565485a619006817a4fec41ee25120372360ddd097731225e,behavior verification; retained in test scope
 frontend/advanced-reader/tests/fixtures.ts,214,test,7740,9c1a6b36bf9b70e372bb0aea893c7e5f65d50c81c3d5a049dd96ad2ae5a5b3b7,behavior verification; retained in test scope
@@ -335,6 +344,8 @@ tests/test_mathmongo_launcher.py,195,test,6608,225053e68acc96d29b041ef9d61617ee8
 mathmongo/source_catalog_migration/locator.py,193,maintained,7283,f0fe261461be683ae2c70fee14445f74c5bb255085d68b23df363d1364d2a63f,hand-maintained source; review independently of coverage
 tests/test_edit_concept_legacy_source_link_ui.py,193,test,6762,ab554a72cf1994eb3aada9dccb68a98eaa9af4fa464216524c3ffcb43ad6faff,behavior verification; retained in test scope
 tests/test_mathmongo_desktop.py,193,test,7461,c95105ee1e7718712c80caa42b20677552e537067535f60e75486d5d042db92b,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/FINAL_STUDY_RESULTS.json,192,resource,5399,7fee37ab0c79ffe10464755507541bcb67e5f67333bd4aba9e1a60ee732522b9,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/ROOM_RESULTS.json,192,resource,5281,f8908d298a728759fe0702699c837b10ad8499c98e4d22476d2bc08d3a0ff562,data/template/asset; inspect its consumers and provenance
 mathmongo/reading_space/indexes.py,192,maintained,6612,cb952f16a88337b7a2af78e3246f36627367a0fbe1235529cc212c0d7a00bf84,hand-maintained source; review independently of coverage
 docs/READING_ANNOTATIONS_S4.md,191,documentation,8487,d3a96218e1f3a31474583accdf402dd23eb2912b79ccf518bda9c3b1c42ca6c6,documentation or license; not executable source
 tests/test_reading_space_polish_s4_2.py,189,test,6391,ef765d906508e9c7c93b75d05c295c0e0a262eee7b1cfe6df92658cd74c31492,behavior verification; retained in test scope
@@ -348,17 +359,20 @@ frontend/advanced-reader/src/concepts/ConceptPanels.tsx,180,maintained,6424,3f81
 mathmongo/advanced_reader/static/advanced_reader/third-party/pdfjs-LICENSE.txt,177,generated,10174,0d542e0c8804e39aa7f37eb00da5a762149dc682d7829451287e11b938e94594,review build inputs; do not refactor generated output
 mathmongo/advanced_reader/launcher.py,176,maintained,5760,170f59c20ce965c3a87d795c5f73a7e5bda4fcc77be59cb1b3cced3ba0da161b,hand-maintained source; review independently of coverage
 TODO.md,175,documentation,4225,86862ef112a7ad15188bfface3104ecca9880832cfa0ca9c7a9adec81081758a,documentation or license; not executable source
+frontend/advanced-reader/tests/study-document.test.ts,175,test,5553,633e536992464b0c0953239eee86d606ca50dcdc3062d0aa270160bc2976ff88,behavior verification; retained in test scope
 docs/ADVANCED_READER_CONCEPT_LINKING_S5C.md,174,documentation,8471,3f85854cdb760af563b0dc827c879b4b2c412335ca2ddf5262e8e119ec761b8a,documentation or license; not executable source
 docs/READING_SPACE_S3.md,174,documentation,7976,bdeeec23b1200e156e44e0efcdd33d12232903e07f4b4c787f6a07df1f9af2cb,documentation or license; not executable source
 tests/test_mathmongo_config.py,174,test,6091,0f31e788cc6d8423d62fae03b2af619b868db30c8d7c0d50d641eb246c34761b,behavior verification; retained in test scope
 editor/concept_linking/concept_cards.py,173,maintained,6407,250026f5e0675a10b34ae48e57b0e709e245cdf58357b059526f37d2c7cf9235,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/concept_search.py,173,maintained,5978,86d845d3da7339449f68b0d449382c476a0d04c92200b99302e8525b13895f86,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/followup/FINAL.md,171,documentation,10165,73ad34a2209dc267c05e04efc86a8aecad2f978468487aafb04e1e4953dc705c,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/BATCH3_RESULTS.json,169,resource,4719,42b8f1bfe761b825acf5c55909afbf5f18dc64f0ac2982d89db913273ed042fb,data/template/asset; inspect its consumers and provenance
 tests/test_knowledge_graph_database_scope.py,167,test,6833,ad654bae5fd1019ed4944a0d9416283d2d2671d16cb0d63969ceeb256d8044bf,behavior verification; retained in test scope
 editor/source_catalog/data_quality.py,166,maintained,6824,ffc76c1637781a81a4707fa6ac970a892c48f93e1786b7e2399b26a95e4fbce3,hand-maintained source; review independently of coverage
 tests/test_desktop_launch.py,166,test,6280,e70fecec65f1006c3d06f87f20a5701fcb7d40625071c5e601d97d0c8c039bdb,behavior verification; retained in test scope
 frontend/advanced-reader/src/types/events.ts,165,maintained,3822,bbcf4b43318bb932682be72fb10fbb2d78374294f21d05e391ba8b34d2372fd4,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/study-layout.test.ts,164,test,4843,84b504f2c0a84ad301bd1053d853f9f4b8ddea2310eed5a93f06aba7de33717a,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/LARGE_FILES.md,163,documentation,16205,f3745831831bc2a8fb28b83a09b109286308200ac08df6d1fb5c6b588ed9470d,documentation or license; not executable source
 tests/test_document_builder_database_scope.py,163,test,6173,ddd7dfbf9a316dd341f12740497f207207fdb80a6f0bc230dfd8523b78f8e844,behavior verification; retained in test scope
 docs/PHASE_S1A_SOURCE_CATALOG_CORE.md,161,documentation,7802,10d65ac40fcca4d94af85a03e89121c6c51a98b1027b9061b67e5accc5d5446a,documentation or license; not executable source
 docs/RELEASE_NOTES_v0.13.0_MANAGED_SOURCE_WORKFLOW.md,161,documentation,7183,6b3fc6f0bb56a127a539303b8151fcf5e0fe4ef1f4968a9098c08e3c550ce669,documentation or license; not executable source
@@ -366,11 +380,13 @@ mathmongo/advanced_reader/concept_schemas.py,160,maintained,4595,8f2b8d445a9ea92
 mathmongo/desktop_launch.py,159,maintained,5241,f8f185714a3e5a4561249cd17bdd289bb4855c627c3f9ee261f643fa2d49ed52,hand-maintained source; review independently of coverage
 .gitignore,157,configuration,3297,f7421cb1729dacba4707403c0354d3dfaf44e989b25a93acd68f0b842931fcca,validate with its build/runtime tooling
 exporters_latex/concept_ordering.py,156,maintained,4926,bad50b266ea7077dfa928ea5f1b710c51a71138b69236da5807ececd9565d920,hand-maintained source; review independently of coverage
+frontend/advanced-reader/tests/study-room-browser.mjs,156,test,14084,3d88a7a09188f4c613b939d30c94290252a6a7f4885a8b8dcf52b85b7bb88ea7,behavior verification; retained in test scope
 editor/source_catalog/workflows.py,154,maintained,5427,5a7d5e86178802c8f887dece1e754f0d4c024d530a023a627a7c38ee8ca41d18,hand-maintained source; review independently of coverage
 scripts/export_quarto_book.py,154,maintained,4970,dd9dd38ac9d76b8a77381032767c2b593348e78394bf96fb9425cba001b43649,hand-maintained source; review independently of coverage
 tests/test_academic_cli_foundation.py,154,test,5409,6670468299c5055e1cb06c2d161f0e1b448a28895c5bdc9f1ce473873cae7fe9,behavior verification; retained in test scope
 tests/test_concept_source_link_contract.py,153,test,5033,2b144786cd41b2e9a85dd2e377889dd2f9e33f6cbec8dab142b488cfb0f96d1c,behavior verification; retained in test scope
 docs/PHASE_S1C2P_GUARDED_PRODUCTION_AND_PORTABILITY.md,152,documentation,8983,84fcd8532b177161034133e9b7fe154ee8d82be38ab36fc6120f805589e3c774,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/BATCH4_RESULTS.json,152,resource,3936,891dce13909e72c5cdcbf67a714318500c55c50178565eb900b17cb054d81b7b,data/template/asset; inspect its consumers and provenance
 mathmongo/local_runtime/models.py,152,maintained,5453,2bfee9ae8a6ef482f9abd21d84e3b863b2e486bcfb4f368793404517ee8cf556,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/analysis-summary.json,151,resource,5151,6919cf05875df6a5d5e48081e66145b74dc027b3f6b6527186c03472b4faf8bf,data/template/asset; inspect its consumers and provenance
 exporters_latex/exportar_qmd_desde_mongo.py,151,maintained,5719,0e70880f85d44535b7a60b11050a6bbff0e500ce6299768e94a4c423ebfd0bf9,hand-maintained source; review independently of coverage
@@ -389,20 +405,21 @@ editor/cornell/ui_helpers.py,143,maintained,5314,2b009a3cbbf0ba518e9e2036437a382
 editor/interface.py,143,maintained,5924,acf2e4b830167137cea153e2d96deb460032614960197fbcea289c9c0ca47f4c,hand-maintained source; review independently of coverage
 docs/DIARIO_REFERENCES_PAGE_LAYOUT.md,142,documentation,6890,5405d178baa6e24359f2a23abf6655cc3c6339d9716a1f07473c24e3f5ca0139,documentation or license; not executable source
 tests/test_diary_note_models.py,142,test,5760,e8d1192942a83c266ad55d5fc54fc0d8813a7255028e123dc9ce344dae79e2a4,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/BIBLIOGRAPHY_ANNEX.md,139,documentation,9241,2e23696904597bf9c951045fc8e208f4957a3f9cc97e7fa464fc701ab323947c,documentation or license; not executable source
 docs/audits/sonarqube-2026-11/sphere/RESULTS.json,137,resource,4830,6ead16e649dcf7e5d6fca061c18de7a2a53654fa74e0878b3dbe979fea6daec4,data/template/asset; inspect its consumers and provenance
 editor/reading_space/document_picker.py,137,maintained,5464,1f60f93c1957105800d3b49d0a4dd39461bb4bbbfe9302d5c7168a2c507e08ea,hand-maintained source; review independently of coverage
 quarto_book_build/chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.qmd,136,generated,5526,54d504a84fda22029a4191d75c486cde4b41c36672301454b781c0d4133ce292,review build inputs; do not refactor generated output
+tests/run_knowledge_map_e2e.py,135,test,8118,77033314ff1512327f57a5af36ed40a68e5e0b315c09a0534852e2b5db361dc2,behavior verification; retained in test scope
 docs/GUIA_READING_SPACE_MATHMONGO_BUILD.md,133,documentation,6073,2bb9168f30b2ba1f153a0734ecc7cea84e70ea7455a3a3acdcc37f3ed4b6841e,documentation or license; not executable source
 docs/audits/sonarqube-2026-11/mandala/BATCH2_RESULTS.json,132,resource,3267,93824c76b6dc6ffbc78799615d8a2d9720acff8f683c0a0a0954b0ae8a0ca85e,data/template/asset; inspect its consumers and provenance
+frontend/advanced-reader/src/knowledge-map/map-filters.ts,132,maintained,3251,aaf270f457918fe9f4fb0885febe4656619f1df5bcdf0cdb2aabdc8a611e3370,hand-maintained source; review independently of coverage
 tests/test_database_import_page_ui.py,132,test,3879,f763369e6ba4469b19f0d8c54e18f167778931283adeba4c4561e2f9483224f6,behavior verification; retained in test scope
 tests/test_verified_backup.py,131,test,4523,0f4e19bd3811e5fec27ebc933c29ecf87654cb98fbcebc66374ac5c3b99d0859,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/closure/CHECKPOINT.md,129,documentation,9231,4dffcd12180a8b6f864c09bcb570cd57ed2dad665cc04b6d4a65e0e59a795800,documentation or license; not executable source
 editor/cornell/identity.py,128,maintained,3806,9835e36a8d9445b3581005bb003e184f07bb3b65d1fb5324c5d40743dc9cfe7d,hand-maintained source; review independently of coverage
-frontend/advanced-reader/tests/study-document.test.ts,128,test,4399,00ee306babe5f2fba8a10e14b84d3a8f3e58af322e910ca6e25c16b1f927f844,behavior verification; retained in test scope
 scripts/validate_latex_concepts.py,128,maintained,4809,0963291aae6df0a77adb14514439dc93339088af60a7b35e486cb953cf1842f7,hand-maintained source; review independently of coverage
 docs/PHASE_EDIT_CONCEPT_UPDATE_FEEDBACK.md,127,documentation,5001,a551fffa78ebb892b4a95d507ea62c9fe76494f0464e6e84dfde98b559f68687,documentation or license; not executable source
 mathmongo/bibliography_lookup/capture.py,127,maintained,6021,5c330348a597d6c0862151307a22088a9fe62d1d0b221823a2e67adf7c1454e5,hand-maintained source; review independently of coverage
-tests/run_knowledge_map_e2e.py,126,test,7125,a41f1b8f99cfd5ff077c535507d89fbbefd0553298b467ebe2c91ab6baaaf47e,behavior verification; retained in test scope
 tests/sonar_http_support.py,125,test,5924,cc9a8ea9a60730c5c595b192f3211a1a87b4b7c2dc08ffb89054d3e73d989211,behavior verification; retained in test scope
 mathmongo/local_runtime/health.py,124,maintained,3864,56810d3ac45b2cf2edc4466e35c3f41dc8533fd568b3b862467c33b60b539f14,hand-maintained source; review independently of coverage
 tests/test_audit_data_safety.py,124,test,5801,fb67f489ebb01142d0e3378cdb9a9b0ed1bb2aa20460fbaf0878ad1ca42b4c29,behavior verification; retained in test scope
@@ -416,6 +433,7 @@ editor/cpi/service.py,119,maintained,4181,2e4d0749818bb6d4a1b924c9564ead6d2af238
 mathkb_config.py,119,maintained,4104,380d4a349b3d180b1db7f39fac9b5b79ef8b6f76917bdfb93cc3256155698db0,hand-maintained source; review independently of coverage
 editor/source_catalog/legacy_concepts.py,118,maintained,3903,5a0661de0bd4c8b4c05ba325695b27af557f3418449acddef701baa334fd2843,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/security.py,117,maintained,3989,34e5005b75d9871242cec9ffc1eabac1d7fd4254d9a78e59dfbcf928591d7f72,hand-maintained source; review independently of coverage
+frontend/advanced-reader/tests/study-provenance.test.ts,116,test,3063,abdc0c73c65c1f81d048e1a743fd055c2ff9d7f74875289f8edd2c2e47be9cc1,behavior verification; retained in test scope
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/iccs/LICENSE,116,generated,6553,286e4fd7b447330b2c88e23890e3cd0a9d38cb398d4a59cb247f578ccbda3213,review build inputs; do not refactor generated output
 tests/test_cpi_region_interactions.py,116,test,4422,732fcdd561383ae7591a91753629e2d55ef3490f8a9d0348e8aa46144e429c77,behavior verification; retained in test scope
 docs/LOCAL_RUNTIME.md,115,documentation,4662,dbe96ffc982a41073629255634783b4c6657829e06eea6de538f785a957450b8,documentation or license; not executable source
@@ -433,8 +451,9 @@ docs/READING_SPACE_POLISH_S4_2.md,108,documentation,5588,242ac61314bf3e55110a66f
 frontend/advanced-reader/src/knowledge-map/document-citation.ts,108,maintained,2931,60370f042e152702044c0fdbecb9f1d6f74a919fdefff88b4a67cae9c04bb1dd,hand-maintained source; review independently of coverage
 docs/PHASE_L1_5_DESKTOP_LAUNCHER_ICON.md,107,documentation,6069,291ea8f571189443fdbf76e531b0704cbacc9d958e25d85e72fa10567dca72c0,documentation or license; not executable source
 docs/audits/sonarqube-2026-11/followup/CLARIFICATIONS.md,107,documentation,6422,a3d3e78660279ace6232863b1e726241ad443ee3d78bde17b242fd22b0e19046,documentation or license; not executable source
-frontend/advanced-reader/tests/knowledge-map-browser.mjs,107,test,10019,fe37b118fde1cf9f0b873cdbf8fb8dbcc06b2d3f964d637c60e43de2ed10a139,behavior verification; retained in test scope
+frontend/advanced-reader/tests/knowledge-map-browser.mjs,107,test,10034,2aa7712295bd78c61e048714712d1d6209a5840f46dd1267344178f3e90a87c1,behavior verification; retained in test scope
 editor/database_scope.py,106,maintained,3526,2cbc9880aa7f45863ecbaaa4541877e265cc817f520e91ba6fe577a866a35d4a,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/knowledge-map/provenance.ts,105,maintained,3409,5637c277969655886fbfc9b2d4e145173b168174b1876ae6b04d06e81227ec5a,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/components/SelectionActionToolbar.tsx,103,maintained,3833,9cdd06d39307bfe9335d07f1395e50b7c3b4a2eb68a0a53720d42000e54e9b27,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/knowledge-map/math.ts,103,maintained,3537,f66baff62cec51b9ace6df41602ae05a4dc4c9e292a96b4b15f0b873e69724e2,hand-maintained source; review independently of coverage
 tests/test_source_catalog_import_safety.py,103,test,3657,745a4ca2db1106310cf2b0bb8de72630fdc5853e7c3514360bd2ad7a708f570d,behavior verification; retained in test scope
@@ -453,6 +472,7 @@ tests/advanced_reader_test_support.py,96,test,3404,b6ebc2b986e71143be29efa0e4686
 tests/test_audit_production_guards.py,96,test,5310,009ab483f7c5cb54c2f54f12adf5f17e1efaf3e50a54440ee72b6e4ecc5b2257,behavior verification; retained in test scope
 quarto_book_build/_book/site_libs/quarto-html/tabsets/tabsets.js,95,generated,2882,a9c226bf70e82eaf5476f619cecfb70b4446b87ce4d1634d6404b0b2ba006d15,review build inputs; do not refactor generated output
 docs/PDF_PREVIEW_CORNELL_CPI_AUDIT.md,94,documentation,4746,0d14782ad1cd94f258b4698a87bbfbea362399fa6899a31a7682f6f0b491aca5,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/BATCH4_INVENTORY.json,94,resource,1997,4ba5f8d03e294b98ffd0fcc82e0dba53cd32c2f010e142d8c7a6ba2ce9520636,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/followup/DIAGNOSIS.md,93,documentation,7574,da3a713d79cf8ce8baccd73fd09a59033f9526ea78e4fd3ec9cfb98377373898,documentation or license; not executable source
 scripts/quality_mongo.py,93,maintained,4246,aa4651ce362e11262ce73f48947deee99af5775f7bd435b72092fa344eb6a780,hand-maintained source; review independently of coverage
 tests/test_database_connection_bootstrap.py,93,test,3181,406ad7c53e31c4c975a84bfffadb99dd78c2e523c4ce46fa4d488f74fd6bf45a,behavior verification; retained in test scope
@@ -463,24 +483,26 @@ frontend/advanced-reader/src/knowledge-map/layout.ts,91,maintained,3118,01aed728
 docs/LOCAL_INSTALLER_FEASIBILITY_AUDIT.md,90,documentation,10238,1c5b1d341654a3a463f72ae722b844dd4f447ca061ff7ad0f8d87b8b8a7daacf,documentation or license; not executable source
 mathmongo/source_catalog_migration/source_planner.py,90,maintained,4201,3a6c12e08c2db8a8d9001b198059795e678aa24bc8b718085028db0af160d48c,hand-maintained source; review independently of coverage
 parsers/yaml_latex_parser.py,90,maintained,3298,f39b78ac1808bfef46502ae789dc48b0311fb3e3d3555abebc6b38f7313fd2f0,hand-maintained source; review independently of coverage
-docs/audits/sonarqube-2026-11/mandala/README.md,89,documentation,5512,baa2deb0089fc5c413d8ea6f0229ed9d4053df81e7e8bc0f5df1e973fd9e985d,documentation or license; not executable source
 docs/PHASE_L1_INSTALLABLE_ENTRYPOINT.md,88,documentation,5852,f51e8d8b3b2b914c95deedf1960d0cc5b679388623c8276e282901ed1f96c97f,documentation or license; not executable source
 quarto_book/styles/coloredtheorem.sty,88,resource,3195,630eb5bd478a08f221636e136bd51cc8e931add8a2375a92329cfc3750152d71,data/template/asset; inspect its consumers and provenance
 quarto_book_build/styles/coloredtheorem.sty,88,generated,3195,630eb5bd478a08f221636e136bd51cc8e931add8a2375a92329cfc3750152d71,review build inputs; do not refactor generated output
 templates_latex/coloredtheorem.sty,88,resource,3195,630eb5bd478a08f221636e136bd51cc8e931add8a2375a92329cfc3750152d71,data/template/asset; inspect its consumers and provenance
 tests/test_audit_legacy_parsers.py,88,test,4215,cf9883ef00a1e6b501414bad36949448e92eab4cbb9bc6a9c0c0d9ce3eba5f46,behavior verification; retained in test scope
 docs/SIMPLIFIED_READING_WORKFLOW.md,87,documentation,4125,4c6cd797d33c6fa715a8a6dae3274df30ddf2cbc4e87d96bfb875b44ea216da7,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/BATCH4_COVERAGE.csv,87,resource,6008,079efa6684d93b94c0b4f679eac441ef0ba78ca6448c2ae3e0590e8cc89ddca1,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/FINAL_STUDY_COVERAGE.csv,87,resource,6011,958c739ab49e95949b5586967de53a4b5d75b6b28aa47ed00a8c3a3237965b59,data/template/asset; inspect its consumers and provenance
 editor/diary_note_editor_export.py,87,maintained,2983,fcbd25f42c3d6314136a422683772ddc8e0ccc6823e8c379dae1c7fe202bde7c,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/closure/SONAR_REVIEW.csv,86,resource,29184,a749fe6bd19ebe010a99e1cb8d567fc3d7a0e3c2e4a33f03598216159f33c3f7,data/template/asset; inspect its consumers and provenance
+frontend/advanced-reader/tests/study-keyboard.test.ts,86,test,3361,d7cecb6729207fb79b0948b98483d10f663b392f99ca4bbc285fae4ef5e5fe90,behavior verification; retained in test scope
 tests/test_latex_toolbar_consumers.py,86,test,3297,e8d1c99be39665ffb5f4989f05a0b79b01f924f5f49d56fe77709fc5f5fc3b71,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/closure/ENVIRONMENT.md,85,documentation,5191,4567acdadb56be116bf0be7141acf5b134bd4a6e479a7cd00a2158547e3dd6fd,documentation or license; not executable source
 tests/test_knowledge_map_bridge.py,85,test,3707,da26437a2a2c6191a17ee72557af0eeed88e4ad85b1a8d6993dd180d9ace6c8e,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/SONAR_ISSUES.csv,84,resource,21252,a879537cb2e17e3f2fdffce67513f49b1851c919bb2e276a25a07f8085b214d4,data/template/asset; inspect its consumers and provenance
+frontend/advanced-reader/src/knowledge-map/reader.ts,84,maintained,2789,a896125d5a4717623d8b196f8e91fc59aa3460e9f1ede97f55000b896bc64712,hand-maintained source; review independently of coverage
 tests/test_local_runtime_health.py,84,test,2653,05b7820fa110feae3a9f6bf7f3ca16e695672ae14c3a8d81e07372409fe52d3f,behavior verification; retained in test scope
 docs/user-guide/DATABASE_IMPORT.md,83,documentation,4264,cc6742020113085f7c54d06a769a6aea891f7ef33b9560c059373248d8340226,documentation or license; not executable source
 frontend/advanced-reader/src/pdf/canvasPaint.ts,83,maintained,2430,6d50d9f917cde1171081bd439f889e396faf95afc4a4005813d315f275a65194,hand-maintained source; review independently of coverage
 tests/run_theme_draft_e2e.py,83,test,3533,cf141a875819ccd8829b66114ff7ff9e41d6e9570cdb69e20f3e581bb2adf94c,behavior verification; retained in test scope
-frontend/advanced-reader/src/knowledge-map/reader.ts,82,maintained,2718,0fcc56b574dfaf7ffc5e19c7131593357cf4fb8f17aab0f08e254b62fd16786b,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/range_requests.py,82,maintained,2633,a3da5d9ec0e258b222db2920198e048373f8d893c2ddc762da319d111f8473ff,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/canonical.py,82,maintained,2747,076b76bd437bbf5100d04935875be24861cbdd81b392be5930c314f879fc9871,hand-maintained source; review independently of coverage
 quarto_book_build/_book/search.json,82,generated,3032,a22250d2f3d46ecc886d510a01aa95a1e67e8190954d4070ed1e16d552bd0f37,review build inputs; do not refactor generated output
@@ -488,15 +510,18 @@ frontend/advanced-reader/vite.config.ts,81,maintained,2136,aaaa10824d71ff48abb0b
 frontend/advanced-reader/tests/study-reader.test.ts,80,test,3045,94f3c538983692a71f7fdfe2c54e4d4b979c7385a29545b9f3fcc6cd2b6801bf,behavior verification; retained in test scope
 mathmongo/legacy_concept_aliases.py,80,maintained,3169,233f24237094c814365584eeb93a18ce16b22cc0398c6a4520058b497c84dd65,hand-maintained source; review independently of coverage
 docs/SOURCE_DOCUMENTS_S2.md,78,documentation,3632,d25ebf6205574a844e6248b92ee0e7f9a9c2d968061007df4d7b871e4ea7a19e,documentation or license; not executable source
+scripts/quality.py,78,maintained,3537,d74b361895a3c8d824f7aa53602227d2c1c5df3c35757ee6be48476df07691b3,hand-maintained source; review independently of coverage
 tests/test_concept_reference_schema.py,78,test,2489,60802666785785cf47af5c75099e089ffa0f4f887073697282e22486394e4119,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/BATCH3_COVERAGE.csv,77,resource,5151,5186bf6642bafb64413527784150b6ffe476883dbb57104db50a1b33eba725a4,data/template/asset; inspect its consumers and provenance
 frontend/advanced-reader/src/annotations/ui.ts,77,maintained,2395,1c19507d994340b3ffd5722264130871a02736509c82022b3c67143dbd6e780c,hand-maintained source; review independently of coverage
 tests/test_teaching_ui_polish.py,77,test,3108,3fd68a2328659a28e538139168418ac08d0c20c8d8894ad6bed91de6b6d6a4b1,behavior verification; retained in test scope
 frontend/advanced-reader/tests/study-drafts.test.ts,75,test,2669,90781684c0ac523605852568e9350ef08f75f9677723699cf244f8c6f3118487,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/COMPARISON.md,74,documentation,5904,c9ae7adff74bc5547a8ba68c063b01e0605e27877c3ddbfa3049032d27add59b,documentation or license; not executable source
 frontend/advanced-reader/src/pdf/types.ts,74,maintained,2312,1f2605bf9b8981f0670b285ecc770ce4dca3c03dc852a77215542b1dce7f30bd,hand-maintained source; review independently of coverage
+frontend/advanced-reader/tests/study-room.test.ts,74,test,6888,b38df87bbe43a5a8947b54c7eff2621171fa9d9553c64c160d704fa424be18b7,behavior verification; retained in test scope
 tests/test_latex_tools_export_compile.py,74,test,2046,a6fc858c42c27a3e55c02111d14fc8f00752d54acf3d000955b7be5ba81a8ecb,behavior verification; retained in test scope
 editor/helpers/managed_source_selection.py,73,maintained,2368,9194e9588e488a0e28d2b31d3b5890d747a3e630940a52cc33c1a7882ce40bc6,hand-maintained source; review independently of coverage
-docs/audits/sonarqube-2026-11/mandala/LARGE_FILES.md,72,documentation,11029,7c279dd1f14a4f3647c874250d29ef643fd9a68184f6b5797fad25a58e3955a1,documentation or license; not executable source
+tests/test_study_navigation.py,73,test,4258,51ebb81ff8c85520e18075325a95a4467ddaa5b44df3abd19e76bd5e0da570c4,behavior verification; retained in test scope
 frontend/advanced-reader/src/components/DocumentInspector.tsx,72,maintained,2390,e4261c277f6e69ee4f6af0b541b8a0bcc072efb87d647f1870d3ff0044c38f1a,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/knowledge-map/geometry.ts,72,maintained,4310,86e31a864cccf6091c0d31d0d834398ac45b68612424eaa587e5b5d5792d3a96,hand-maintained source; review independently of coverage
 tests/test_latex_algorithm_environment.py,72,test,2401,c2c87f88f609578d9f228d17888193dfb3b02fa9ebd4b0ae63d7c0c5fd128c17,behavior verification; retained in test scope
@@ -507,12 +532,13 @@ tests/test_mathmongo_theme_apptest.py,71,test,2602,4d8cd254e16268d8ede47a4407830
 editor/cornell/persistence.py,70,maintained,2477,b25c5bd175068cfe037cf2a148bb16ffbb080027d0d42432920d75b4fe5fefd7,hand-maintained source; review independently of coverage
 editor/cpi/persistence.py,70,maintained,2326,64a6b72a074172d365879c60e6308a4625ba9a85c698af4918a1869ce224db73,hand-maintained source; review independently of coverage
 scripts/cocid_tutorial_streamlit_validation.py,70,maintained,2448,722d11e7aa20b8e0361976490ac05fed0584537e4787e531476b23d673f97e2d,hand-maintained source; review independently of coverage
-scripts/quality.py,70,maintained,3114,eada3b003efe69d6ec4a0d409123405d0fb73bed6657efde5c5331e92e1b24e5,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/sphere/REPEAT.md,69,documentation,2922,1e228259816a1d7485e44e0c5ae557f28374469297f795f602766daff8cb1d9e,documentation or license; not executable source
+editor/knowledge_map.py,69,maintained,3210,f7e5d2a775b36e7f99aca8159fab82e95a3be8fe7c62e2577daaceb0ad0c3ca8,hand-maintained source; review independently of coverage
 exporters_latex/actualizar_quarto_yml.py,69,maintained,2202,30d53c485659fcc45524ed260c35c0c6a8ecf2090054ccd67e7f918f4f0bf82e,hand-maintained source; review independently of coverage
-scripts/repository_inventory.py,69,maintained,3310,fe7cfe49adbb5c05c4af70c16c7653f2181cf69d248bf241b36e38e5a4c1cc60,hand-maintained source; review independently of coverage
+scripts/repository_inventory.py,69,maintained,3331,c02f0521f205bd1fff32361a27025eb34a879c83d74b51b0bbf8c48aeb861d80,hand-maintained source; review independently of coverage
 .streamlit/config.toml,68,configuration,1744,821b4a8ffe97fdff2c3ba3e7894551c321ec1e37c4abb6d7e90532b0ffefa907,validate with its build/runtime tooling
 docs/audits/sonarqube-2026-11/sphere/README.md,68,documentation,4971,0584e49541dd906700e9792e05ab298e338afd2df7c2c696a0fac7be2949d3ee,documentation or license; not executable source
+editor/study_navigation.py,68,maintained,3464,59147b8f60da576fc4f3c7639a0185f6a6a1c87b80c99b69fff11a155cae0f4d,hand-maintained source; review independently of coverage
 scripts/export_quarto_from_mongo.py,67,maintained,2361,75894895814b14e618015d558bacb51f40da8f94bad69a70f4b26c22adf1c2d9,hand-maintained source; review independently of coverage
 templates_latex/cpi_landscape_letter_v1.tex,67,resource,1589,93e496d64204eefd789fc84f8f1903d98df34a825f28dfa006335a519e44b63f,data/template/asset; inspect its consumers and provenance
 editor/source_catalog/reference_actions.py,66,maintained,2267,ff45ac8f9410c456dc8a585e970bba0a9eaab2404dd413b8fe45db062474e4a8,hand-maintained source; review independently of coverage
@@ -520,13 +546,14 @@ frontend/advanced-reader/src/components/SelectionInspector.tsx,66,maintained,245
 tests/test_light_theme_contrast.py,66,test,2108,aac9479c55e4bfa83f7535e9b6ed4eee3c680526eae45ed610701a17479a20f2,behavior verification; retained in test scope
 docs/audits/sonarqube-2026-11/closure/PYTHON_ADVISORIES.csv,65,resource,57985,d45a37a5cb701d19b1754d3e1c08acc7bc1c8bfa7e56c3504abf76e0998f0480,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/followup/PYTHON_ADVISORIES.csv,65,resource,48191,98e774e86106af69811a866f575fab0f12826da8d7b97261e81698a73740f889,data/template/asset; inspect its consumers and provenance
+frontend/advanced-reader/src/knowledge-map/keyboard.ts,65,maintained,3008,b2ee2924fa54ff5567755096d09eb3a735e9931fb88e9ffb52fe8f629ddf7533,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/knowledge-map/areas.ts,64,maintained,1920,f56b2fd1e16bd33d52dc930fc71d941098f35970710105094bd3eca92d260518,hand-maintained source; review independently of coverage
 docs/audits/legacy_curves_migration_2026-07-28.md,63,documentation,2833,6ef4f6092c3a2cf8568c70298a4e23f0532a2aed4ecbc0a4ea10fe493837496c,documentation or license; not executable source
 frontend/advanced-reader/tests/pdfViewportFixture.ts,63,test,2228,54163df6175cc8e1a247b069b346bf03e52b2b9c615b19d5cef59d64d4428fd6,behavior verification; retained in test scope
 scripts/install_quarto.sh,62,maintained,1487,a9ae2e712ae42a00f527c4e688026a9538da6f11e91c83808149d7aaead412ce,hand-maintained source; review independently of coverage
 tests/test_audit_export_integrity.py,62,test,2938,178fb2cbb3813e7ce3487921cfa9ac55ef975ea1f1ea2e34f0fca5be463b1a2d,behavior verification; retained in test scope
+frontend/advanced-reader/tests/api.test.ts,61,test,1943,aac72f89581cc0475ffa043d4aa3fb289539ff9993a2fa7a0b25e407f4eaa793,behavior verification; retained in test scope
 docs/CLI_GUI_PARITY.md,60,documentation,6875,c3023ada47722c772cfec8b7e1a291a6195bc9f4bf73c4651eb114dc6b2c8d0c,documentation or license; not executable source
-docs/audits/sonarqube-2026-11/mandala/BIBLIOGRAPHY_ANNEX.md,60,documentation,3745,b7489e1e6f4ec7af76466b460700211cc58e70b125cc7aceb47e0473ff162237,documentation or license; not executable source
 scripts/install_chktex.sh,60,maintained,1079,ed481a7faac99792486a1ae461cb049327a493722dca52a72d9e4bcf93d24c76,hand-maintained source; review independently of coverage
 editor/cornell/__init__.py,59,maintained,2348,b4e6813e30a562867e5c3fd1a1f49291f1226ca45e32fcb718eb9cdadfb46d67,hand-maintained source; review independently of coverage
 frontend/advanced-reader/package.json,59,resource,1859,70b800473ee3be6b50b585b9bf789a4f60240ea924f3b1141c52a4cb987f275c,data/template/asset; inspect its consumers and provenance
@@ -536,12 +563,10 @@ tests/test_bibliography_lookup_ui.py,59,test,2714,ae677da9df6fb9cd1c54c16016b348
 editor/database_connections.py,58,maintained,1885,e7dd5d365500461bc7440cdd180f13893f2d4e3b09797cf058951cf640568a77,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/study-math.test.ts,57,test,2307,6862d074bf43789732a5373c91c69d2d40abdbef1bea712e95be415b0ed1c4a3,behavior verification; retained in test scope
 docs/audits/legacy_curves_resolution_2026-07-28.md,56,documentation,2701,8dcdb9d4cf01b2098ec0e5f92826d312f1663d33cc426d5b151022d3e7a90abd,documentation or license; not executable source
-editor/knowledge_map.py,56,maintained,2466,c8c1e1e1f45d0ec0c8afc62cb9a350a4abcfc10836a5891664cec5d1d835785a,hand-maintained source; review independently of coverage
 tests/test_sonar_tooling.py,56,test,2667,83510d01687e6378f448586b1e1cc27af33061ea7bb2a2cfb6e73a1c943e990b,behavior verification; retained in test scope
-frontend/advanced-reader/tests/study-keyboard.test.ts,55,test,2010,2d47702beb73bd0e6cd82bd8154f8f4416aaeb6c66a833820203d011c0c4de2d,behavior verification; retained in test scope
+docs/audits/sonarqube-2026-11/mandala/BATCH1_COVERAGE.csv,55,resource,3662,f47d96168dc7be5c56ed69385684e643e6fe461122d8d9e4efd3e1a64370ab07,data/template/asset; inspect its consumers and provenance
 tests/test_migration_plan_identity.py,55,test,3192,09d48a61a55307b381c866ba71a8440f981c792853f0e9e80529b3635a82a533,behavior verification; retained in test scope
 docs/BACKUP_AND_RECOVERY.md,54,documentation,2113,b338344b9feec295b10bbce3f7b5a81602ed98c3cbf529b066978c43efcaae94,documentation or license; not executable source
-frontend/advanced-reader/src/knowledge-map/keyboard.ts,54,maintained,2438,56bdc84896b528ba2f7741a77f1acab9f11285344a84e65edbee4072054e27c0,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/followup/REGRESSIONS.md,53,documentation,5077,077dfb6f0651647006e874416303c41274ad3ac64bc9b260b2148149a2109c57,documentation or license; not executable source
 editor/validators/concept_validator.py,53,maintained,1342,3ff138116ff782b11e8a3aee2f203573916d3cd9572e1919ac027090ce35e11f,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/runtime-notices.test.ts,53,test,2123,b3631176205509c10637e6e0d3d627d9308d8572633040a696b6a22fec5c1030,behavior verification; retained in test scope
@@ -560,7 +585,6 @@ frontend/advanced-reader/scripts/runtime-notices.mjs,45,maintained,1836,a9d1d9e5
 mathmongo/local_runtime/__init__.py,45,maintained,1836,1df2588f1cccfbdfaa866d220e6a478a8896df46c9fae2455683018cd0ce2bbf,hand-maintained source; review independently of coverage
 infra/sonarqube/compose.yaml,44,configuration,1225,824aa762abf4b0a7e9add5c41dff4672219b707082245d8e45ab9a07f04eb3f8,validate with its build/runtime tooling
 scripts/export_knowledge_graph.py,43,maintained,1600,d278efa0e2d48c4353cfa6f06b904416eb8c1c12c244fd2d892296d91ff56dd0,hand-maintained source; review independently of coverage
-frontend/advanced-reader/tests/api.test.ts,42,test,1529,e9bf224356da852c75d1771298e67add2cf41cf7a35a751151ebf5e83c6694b7,behavior verification; retained in test scope
 docs/user-guide/images/SCREENSHOT_PLAN.md,40,documentation,7902,4bc091401b8c6c8c49678e22a42118d360d29d5cea0bcd4d211eea0308663b10,documentation or license; not executable source
 editor/concept_linking/navigation.py,40,maintained,1449,028e6c99f67a3be18598ef7dc51c03cc8a7b63299c00163c59abb76f8510b537,hand-maintained source; review independently of coverage
 editor/reading_annotations/navigation.py,40,maintained,971,7adfcaa51f49ccb7b83a15037cec479d39f9b354e66d795b71db453c47824230,hand-maintained source; review independently of coverage
@@ -580,7 +604,9 @@ tests/test_pdf_export_diagnostics.py,34,test,1212,67ad31148fdd154a564b633505319f
 mathmongo/document_page_maps/__init__.py,33,maintained,1434,2c3d87f30ecf8548ef9d4789c1a8e9a39793b5a582c5441b707db21bc51e081b,hand-maintained source; review independently of coverage
 docs/DOCTOR_AND_BOOTSTRAP.md,32,documentation,1347,0a3d42131cee92b3a36502a729b1501bbf518bca3479d312ccc156e94a2ea183,documentation or license; not executable source
 docs/audits/sonarqube-2026-11/mandala/INTERFACE_DECISION.md,32,documentation,2041,0607da61ba0e57f6903889368a8d5b235af1041839f2c5e8edf7adf58dae3ba6,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/RUFF_CURRENT.csv,32,resource,2539,3fa3e27a36261fd07b120596ce0214e3208d2731a812d66a8807da0223f5f703,data/template/asset; inspect its consumers and provenance
 docs/COMPATIBILITY_MATRIX.md,31,documentation,1653,8218b0212564eb52ed569d4253cf230158de33b77f664acb7342961851736d57,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/BIBLIOGRAPHY_LIVE_RESULTS.json,31,resource,877,7fad6073d39a44caf6acf2844db2fca11387329048ae04f345c2aba433eaf418,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/sphere/RUFF.csv,31,resource,2605,2d2c8929703130efe4e0823d2da4fd685189bbc87e2a56ff71969e129ba8d981,data/template/asset; inspect its consumers and provenance
 docs/user-guide/images/start-flows/00_source_pdf_concepto.svg,31,resource,2336,878709ad9731531881dea3d5cb64e56f6182277f5b1b3b5c77b94836c092fb4f,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/closure/COVERAGE.csv,30,resource,1329,046da470208bed4725aace58e98f47569b0d76fd2946624b3c22f7c99981d824,data/template/asset; inspect its consumers and provenance
@@ -588,6 +614,7 @@ docs/audits/sonarqube-2026-11/mandala/DEPENDENCIES.md,30,documentation,1908,3bb5
 editor/data/formato_ejemplo.md,30,documentation,651,5d0b5c0965469cfc0c643fdc05475a1acd740fd26cf8eaf7531664da329462d8,documentation or license; not executable source
 mathmongo/advanced_reader/static/advanced_reader/assets/altText_spinner-BKF_PYl9.svg,30,generated,2710,4089182e21627182ed1d4020978b597d984fb8de4cf547e9f4ac2aec9af13179,review build inputs; do not refactor generated output
 tests/test_legacy_utc_clock.py,30,test,1221,27a466d31f856f5991636a1448bc251a0da8c5a0b46c8372217f017e852e5f67,behavior verification; retained in test scope
+frontend/advanced-reader/src/styles/study-reader-theme.css,29,maintained,876,1d92eff42dfcf4e9f8447cc8cc6f5bc262b862c96c04331dc9460606f7a3f0a8,hand-maintained source; review independently of coverage
 mathmongo/reading_space/__init__.py,29,maintained,1188,de6071ceca6c84038126b017486835d0e7c0279ca7283064bca11d9022e796ff,hand-maintained source; review independently of coverage
 quarto_book/_quarto.yml,29,configuration,523,d05ba9250dbf347f72b31cf0ad23ef784fa855f821808cfd0e4ddc532350a7d0,validate with its build/runtime tooling
 editor/reading_space/source_entrypoints.py,28,maintained,873,5811b59c778e1252bb3e416994b618848c73f618c5fc94832721eaa81aa9c33a,hand-maintained source; review independently of coverage
@@ -620,6 +647,7 @@ frontend/advanced-reader/tsconfig.app.json,22,resource,616,3d4d27b65734302ddcd1c
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_OPENJPEG,22,generated,1285,717fc62da03292dbb4dd0c8280bd4ce7bb8550dcf31d772bc93455fb50313425,review build inputs; do not refactor generated output
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_QCMS,22,generated,1285,eb5104ca33552be007857a28351bc408f379ddd4bfacab1226b09c6d1e9fd7c4,review build inputs; do not refactor generated output
 docs/audits/sonarqube-2026-11/closure/COMMITS.md,21,documentation,3069,d5437484760f16d0fea7b6455a8cb1e39b1f57d6e37a6991ead59b90a523f50d,documentation or license; not executable source
+docs/audits/sonarqube-2026-11/mandala/TOP20_CURRENT.csv,21,resource,3668,aa3e2e63ad6eab8027863ca26d48d454229992686bc7427d91ce119b0f0255ae,data/template/asset; inspect its consumers and provenance
 docs/instruccion_latex_imagenes.md,21,documentation,743,9d9f19af14d94b6cd97df7c4bdd9f846c1216b9a57f462546e5cd9e8a313f5ce,documentation or license; not executable source
 editor/cpi/__init__.py,21,maintained,614,a606907be6674b6a5b1a398ce0e938f863f56e7bb4a14b0b92e13913f52b5c8c,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/setup.ts,21,test,645,500e01394abb4a2fe3b6e71c303b95d5b1b6ea4ba660ab1442a764e7a0577523,behavior verification; retained in test scope
@@ -633,13 +661,15 @@ frontend/advanced-reader/playwright.config.ts,20,maintained,517,a389a24791507e5a
 frontend/advanced-reader/src/concepts/labels.ts,20,maintained,1211,f415f0fa8d77fb4264d2da7428bc18f12de1c3d6f6a957bf267fed960a4d1368,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/text-normalization.test.ts,20,test,1128,1d3d8ed9be4442313717df36577cf41938eea05db206010c5b416cd7387403f6,behavior verification; retained in test scope
 frontend/advanced-reader/src/knowledge-map/theme.ts,19,maintained,749,0696950b03c790eec6845352ff97744d65dc3a33b0ae0b4f53d566c71686dd91,hand-maintained source; review independently of coverage
-mathmongo/advanced_reader/static/advanced_reader/index.html,19,generated,833,4ff149762d935a280b4048a92074518f07c123181ffa019b131e279b17fb885d,review build inputs; do not refactor generated output
+mathmongo/advanced_reader/static/advanced_reader/index.html,19,generated,833,5be541d786ee11fa6e804493d53a973759a254499287988bec3e613043430262,review build inputs; do not refactor generated output
 docs/audits/sonarqube-2026-11/followup/NEW_COVERAGE.csv,18,resource,2372,1c38779c41255b882804554db674ea651ad05e07446d7cd1e37dcfa178423474,data/template/asset; inspect its consumers and provenance
 frontend/advanced-reader/src/components/ReaderStatus.tsx,18,maintained,577,dd544188bc860b78a5c025a0a9d8ee35840c0f88ad34eda799b7c467ff282803,hand-maintained source; review independently of coverage
 frontend/advanced-reader/vite.map.config.ts,18,maintained,590,73ada810dff65b8f7c9553fc8a28cd48863a8b9b2a241f3dacff81dcde9157be,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/followup/SONAR_BUGS.csv,17,resource,9766,2614608c562f32debe28dce96bbdfcd6d03639acd7d7bb1a0b49c8d6eb810e1f,data/template/asset; inspect its consumers and provenance
 editor/reading_annotations/__init__.py,17,maintained,777,6aaa9a086b7ae0ff51c378ddfa783001310e8b948e0dc27b050ee42212804def,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/main.tsx,17,maintained,642,4e9b0f30fb3ffe1aa0ea35bf29ae59a9b0537ae6e936ccee3b1a81caf9756d0d,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/openjpeg_nowasm_fallback.js,17,generated,451593,d026e7a9fde71cbc5a292d93446210aaddca6919e26a9ee463e9fe0c1b8ce4f2,review build inputs; do not refactor generated output
+frontend/advanced-reader/tests/study-reader-theme.test.ts,16,test,811,a884a0ffdf46b5955572aab6b0b47504fdaf22776ce65332832ac41b70de352d,behavior verification; retained in test scope
 docs/TEACHING_RELEASE_CHECKLIST.md,15,documentation,1195,da7fc9c2d4bc17bcd4649d5969f3294a6b008c29eb9d4d6a70fddcb264b5d761,documentation or license; not executable source
 editor/helpers/concept_builders.py,15,maintained,410,e5040cf7f5234317d8de304ae2d831c06312f0f6fa75b209b103e35f78d1c5fe,hand-maintained source; review independently of coverage
 frontend/advanced-reader/index.html,15,maintained,485,17c70162a8c0eb8db7e4da8e7908450b65fb9f4edb5c06f54ec712774ecfd2c4,hand-maintained source; review independently of coverage
@@ -647,9 +677,8 @@ frontend/advanced-reader/tsconfig.node.json,15,resource,345,12c6a92c980396d355c1
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/jbig2_nowasm_fallback.js,15,generated,145703,04c795a6657a4553a64b781ea3e85256203d913c3b71b72b85fa3ce00622f458,review build inputs; do not refactor generated output
 constraints/security-2026-11.txt,14,documentation,351,b36510aca9196c1ba6b5ea4d7c16c16cf5445c3a642056de95e93860b3f71fa7,documentation or license; not executable source
 docs/audits/sonarqube-2026-11/sphere/COMMITS.md,14,documentation,1783,b2005cf1f000dd0c0087c2ec746306970e9dd14473b1392bb16c6221e5552b45,documentation or license; not executable source
-frontend/advanced-reader/tests/study-sphere-playwright.config.mjs,14,test,372,e3a388450a1148d56792312338398196185340479b8e8b15d64470f54ee9ff5c,behavior verification; retained in test scope
+frontend/advanced-reader/tests/study-sphere-playwright.config.mjs,14,test,449,fd0462405dd6d6aadef70b5338467a303b999cabe071d17ecfaf45211b15f9f6,behavior verification; retained in test scope
 mathmongo/time.py,14,maintained,552,71b2182aac980993d8143ad897fc1836c4d668a5ca7f69d741e17a823900fa8a,hand-maintained source; review independently of coverage
-frontend/advanced-reader/src/main.tsx,13,maintained,473,5cc4951faf409e9cf06775eb9db798b7fd18a7e09f85931515c4bed4623a180c,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_JBIG2,13,generated,555,aad3cce09842e00e9e11ad5e8fef8cc02fbc3a3768fe2f007443b9cee37aaee5,review build inputs; do not refactor generated output
 templates_latex/notes.cls,13,resource,379,ed8400cbc61331a64efc1437162758a1edb90aee6382f563cef1f5f289ee9e20,data/template/asset; inspect its consumers and provenance
 quarto_book_build/_book/site_libs/bootstrap/bootstrap-41f439ca147b692b25f8da8cb301bfdc.min.css,12,generated,508227,7f8bbcd0f89f215a1f9c0ac20ca1d23074f90aabd27b390c4f72f660e1e216e6,review build inputs; do not refactor generated output
@@ -672,6 +701,7 @@ mathmongo/advanced_reader/static/advanced_reader/assets/cursor-editorTextHighlig
 mathmongo/migrate_source_catalog.py,8,maintained,231,07ec524cc76cab2907b2e99c0e590dd4e8cb4ba9082b331a4bcbdd8f2985df47,hand-maintained source; review independently of coverage
 mathmongo/pyproject.toml,8,configuration,241,7420d84ecff3d6a20bf5c722b2302b17c6221be3e46dbdc02fe455872e803c49,validate with its build/runtime tooling
 editor/concept_linking/__init__.py,7,maintained,356,2401548d8129c68e9b7f893995b1afa7c72921162f88fc83f45099211682210d,hand-maintained source; review independently of coverage
+frontend/advanced-reader/src/study-reader-theme.ts,7,maintained,352,63eb1b2efc731e438f361421f5ca00fdeecdff976fb0a4151d58255fd1aaf25a,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tsconfig.json,7,resource,119,770b4140bbb581e2dfd9ea9946ffc9c75a1d86ba7d2db5f77c83e37cbdf9d808,data/template/asset; inspect its consumers and provenance
 mathmongo/advanced_reader/static/advanced_reader/assets/pages_selected-DQo9a_mV.svg,7,generated,355,a66ae84122fc40cc1282c68205909387e05a80061b9a7268a54b4bd0c9e7e2fc,review build inputs; do not refactor generated output
 quarto_book_build/_book/site_libs/bootstrap/bootstrap.min.js,7,generated,80668,d2ea6c1e0cabca20d18e924b25a1cd0187c38ba7c33f60ab06e1b0402b9bcdb5,review build inputs; do not refactor generated output
@@ -744,11 +774,11 @@ quarto_book_build/_book/site_libs/quarto-search/autocomplete.umd.js,3,generated,
 editor/ui/__init__.py,2,maintained,55,80a7e8acb01ff723104d78891b19bd189ead9c19578fc3648ca4ee1a70400583,hand-maintained source; review independently of coverage
 frontend/advanced-reader/scripts/text-normalization.d.mts,2,resource,131,5dab8d7a341928142f6081cd9625557ad73a349c642afc42c6d5b2fcf92a714a,data/template/asset; inspect its consumers and provenance
 mathmongo/academic_cli/__init__.py,2,maintained,82,c2c7cf9a26f567570494f1775fd42d61d54b41f67fb79f184dcb4d6d96868f1a,hand-maintained source; review independently of coverage
-mathmongo/advanced_reader/static/knowledge_map/index-_hash_.css,2,generated,13136,c69e08950980500e4dbf2ba5161469aa083aa72e93e3647ede9842806074a2ef,review build inputs; do not refactor generated output
+mathmongo/advanced_reader/static/knowledge_map/index-_hash_.css,2,generated,16216,06c8304708e4427e070c44547cdaec41aad7532add68c1f04aeacf1fe7bba5c0,review build inputs; do not refactor generated output
 quarto_book_build/.gitignore,2,generated,28,a2c42d7579873fcc1885712af8e33d47a2d84452ca1214383e92b03ed98321c4,review build inputs; do not refactor generated output
 quarto_book_build/_book/site_libs/quarto-html/tippy.umd.min.js,2,generated,24033,41181eeec6d7ba64cb9165f0e95563e34e026bde79e7c13aeec83270429b6fae,review build inputs; do not refactor generated output
-mathmongo/advanced_reader/static/advanced_reader/assets/index-DlPmOMxI.js,1,generated,78038,b170a9141017214d1811079d1938f725a7863dfd17957dd93d0876f1fadaf37f,review build inputs; do not refactor generated output
-mathmongo/advanced_reader/static/advanced_reader/assets/index-PbTTNh-R.css,1,generated,15225,bfc9653f35fd37667442880d22ab512a6cb3999a0e0fb92f9574d710641838b7,review build inputs; do not refactor generated output
+mathmongo/advanced_reader/static/advanced_reader/assets/index-DDDgtRbv.css,1,generated,16044,2b468520fd309d82bb7243557681206298ef3697b73fddb4f492939c887c2449,review build inputs; do not refactor generated output
+mathmongo/advanced_reader/static/advanced_reader/assets/index-DpYOp6kD.js,1,generated,78739,c0b6cf50c75e03ea07a106aeb3c3691bbb73b897101b2d2d65e95561ca3f100e,review build inputs; do not refactor generated output
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-runtime-CEKqoi4j.css,1,generated,178378,8396e8cb66a933f833b882d13da12ff5c22cf608606c965d9e95c579c2924928,review build inputs; do not refactor generated output
 mathmongo/advanced_reader/static/advanced_reader/assets/treeitem-collapsed-DXRI_Bty.svg,1,generated,93,37c96d0dc2f626c541303a76067184ac09614f2390a8430e973a84e5184e2646,review build inputs; do not refactor generated output
 mathmongo/advanced_reader/static/advanced_reader/assets/treeitem-expanded-twNeHY0Y.svg,1,generated,94,df4a149c4eaed4573620621087f7bab816f049e3e341574654fab598435db086,review build inputs; do not refactor generated output
@@ -758,6 +788,11 @@ media/images/.gitkeep,1,resource,1,01ba4719c80b6fe911b091a7c05124b64eeece964e09c
 quarto_book_build/_book/site_libs/quarto-html/tippy.css,1,generated,1409,5969f497d9158d7682f8219c6f13fa67269cdf5bf50a3931d95327151dee5678,review build inputs; do not refactor generated output
 scripts/__init__.py,1,maintained,65,e75200f036aac42be6cdf4d20de19905c358e5539babcd09a2679b2bbadd503a,hand-maintained source; review independently of coverage
 assets/icons/mathmongo-256.png,,resource,17543,8477d67cf028b96bc423d2f00d22d9922d66bea2834f7681042b55d0e277d9ad,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/screenshots/mathfield-keyboard.png,,resource,86403,510a7bc388a0a640da7f159dae6078cbae7fde920887b45ebddc03883ba5e11c,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/screenshots/pdf-study-theme.png,,resource,68056,11c178500959486237f55c0c7a3aa666163466b71b9c94ff49eafd56e989d6a2,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/screenshots/room-1920.png,,resource,342435,3426c1aadaa1344375307cd9d4df48b299cb3a142d21e22ed2f0e0b66ddc529a,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/screenshots/room-compare-420.png,,resource,59687,31ddc6d73cd4f9f28e407a5cc8064f53e5120408c0aad712c872bfcc3fbd6ca2,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/screenshots/visual-export.png,,resource,54095,569bc69888eed2b1daf616bc2b0aa71858e99eccc252d179cbf910d03e40b373,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/sphere/images/02-created.png,,resource,381159,ebdd70f1e05ba899c167fd854807248a09be23fff148903d82a8cac98263292c,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/sphere/images/03-edited.png,,resource,380384,f24f6954b29f45ab3d57122b5f651c4458e81f7afe543a9ea505f466c7ae11d4,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/sphere/images/04-reloaded.png,,resource,380384,f24f6954b29f45ab3d57122b5f651c4458e81f7afe543a9ea505f466c7ae11d4,data/template/asset; inspect its consumers and provenance
