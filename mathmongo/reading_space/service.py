@@ -287,6 +287,35 @@ class ReadingSpaceService:
             strict_state_association=True,
         )
 
+    def _verified_reader_context(self, context: ReaderContext) -> ReadingServiceResult[ReaderContext]:
+        """Read verified bytes without persisting an opening or installing indexes."""
+        inspection: DocumentIntegrityInspection | None = None
+        pdf_payload: DocumentPdfPayload | None = None
+        if context.document.kind == DocumentKind.PDF:
+            try:
+                inspection = self.document_service.inspect_document_integrity(context.document.document_id)
+                if not inspection.ok:
+                    return ReadingServiceResult(
+                        ReadingOperationStatus.INTEGRITY_ERROR,
+                        replace(context, integrity=inspection, openable=False),
+                        "PDF integrity verification failed.",
+                    )
+                pdf_payload = self.document_service.read_pdf_document(context.document.document_id)
+            except Exception:
+                return ReadingServiceResult(
+                    ReadingOperationStatus.INTEGRITY_ERROR,
+                    message="The verified PDF blob could not be read safely.",
+                )
+        return ReadingServiceResult(ReadingOperationStatus.SUCCESS,
+            replace(context, integrity=inspection, pdf_payload=pdf_payload))
+
+    def preview_document(self, document_id: str, *, user_scope: str = "local") -> ReadingServiceResult[ReaderContext]:
+        """Continue reading when writes are unavailable, preserving all write gates."""
+        base = self.get_reader_context(document_id, user_scope=user_scope)
+        if not base.completed or base.value is None:
+            return base
+        return self._verified_reader_context(base.value)
+
     def open_document(
         self,
         document_id: str,
@@ -303,24 +332,12 @@ class ReadingSpaceService:
         )
         if not base.completed or base.value is None:
             return base
-        context = base.value
-        inspection: DocumentIntegrityInspection | None = None
-        pdf_payload: DocumentPdfPayload | None = None
-        if context.document.kind == DocumentKind.PDF:
-            try:
-                inspection = self.document_service.inspect_document_integrity(document_id)
-                if not inspection.ok:
-                    return ReadingServiceResult(
-                        ReadingOperationStatus.INTEGRITY_ERROR,
-                        replace(context, integrity=inspection, openable=False),
-                        "PDF integrity verification failed.",
-                    )
-                pdf_payload = self.document_service.read_pdf_document(document_id)
-            except Exception:
-                return ReadingServiceResult(
-                    ReadingOperationStatus.INTEGRITY_ERROR,
-                    message="The verified PDF blob could not be read safely.",
-                )
+        verified = self._verified_reader_context(base.value)
+        if not verified.completed or verified.value is None:
+            return verified
+        context = verified.value
+        inspection = context.integrity
+        pdf_payload = context.pdf_payload
         try:
             state = self.states.mark_opened(
                 document_id=document_id,
