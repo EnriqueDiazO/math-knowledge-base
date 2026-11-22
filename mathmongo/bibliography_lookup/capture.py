@@ -93,6 +93,8 @@ class ReferenceCapture:
                     "edition",
                     "isbn",
                     "doi",
+                    "url",
+                    "accessed_at",
                     "language",
                     "bibtex",
                     "notes",

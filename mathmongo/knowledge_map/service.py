@@ -329,9 +329,17 @@ class KnowledgeMapService:
             self.operations.update_one({'_id': intent.operation_id}, {'$set': {
                 'before_meta': record['before_meta'], 'before_latex': record['before_latex']}})
         citation = self.citation_patch(intent, current.get('source_id', ''))
-        patch = {**citation, 'titulo': intent.titulo.strip(), 'comentario': intent.comentario,
-                 'categorias': intent.categorias, '_map_edit_operation': intent.operation_id,
+        patch = {**citation, '_map_edit_operation': intent.operation_id,
                  'ultima_actualizacion': record['created_at']}
+        # Compare with the immutable authoring snapshot, also on partial retries.
+        # An untouched optional field retains its original missing/null form.
+        before_meta = record['before_meta']
+        if intent.titulo != (before_meta.get('titulo') or str(before_meta['id'])):
+            patch['titulo'] = intent.titulo.strip()
+        if intent.comentario != (before_meta.get('comentario') or ''):
+            patch['comentario'] = intent.comentario
+        if intent.categorias != (before_meta.get('categorias') or []):
+            patch['categorias'] = intent.categorias
         if current.get('_map_edit_operation') == intent.operation_id:
             if any(current.get(k) != v for k, v in patch.items()):
                 raise MapConflictError('Conflicto tras una edición parcial; revisa los datos actuales.')

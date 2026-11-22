@@ -9,8 +9,10 @@ from pydantic import BaseModel
 from pydantic import ConfigDict
 
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
+from mathmongo.knowledge_map.service import CONCEPT_TYPES
 from mathmongo.knowledge_map.service import Intent
 from mathmongo.study.application import StudyApplication
+from schemas.schemas import TipoRelacion
 
 
 class PreparationRequest(BaseModel):
@@ -95,6 +97,15 @@ def build_study_router() -> APIRouter:
     def concept(request: Request, key: str = Query(..., max_length=1000)):
         return scoped(request).concept(key)
 
+    @router.get("/choices")
+    def choices(request: Request):
+        app = scoped(request)
+        return {"sources": [{"id": source.source_id, "name": source.name} for source in app.sources.list(page_size=100, status="active").items], "concept_types": list(CONCEPT_TYPES), "relation_types": [kind.value for kind in TipoRelacion]}
+
+    @router.get("/concepts")
+    def concepts(request: Request, q: str = Query("", max_length=200), tipo: str = Query("", max_length=40), source_id: str = Query("", max_length=100), page: int = Query(1, ge=1, le=1000000)):
+        return scoped(request).concepts(q, tipo, source_id, page)
+
     @router.get("/overview")
     def overview(request: Request):
         app = scoped(request)
@@ -102,6 +113,11 @@ def build_study_router() -> APIRouter:
 
     @router.post("/operations")
     def operation(payload: Intent, request: Request):
-        return scoped(request).maps.execute(payload.model_dump(mode="json"))
+        app = scoped(request)
+        if payload.action in {"create","create_connected","edit","connect","publish_note"}:
+            from mathmongo.study.preparation import AuthoringPreparation
+            if AuthoringPreparation(app.db).inspect(core_only=True)["state"] != "ready":
+                raise AdvancedReaderError("authoring_preparation", "Prepara las restricciones de la biblioteca antes de guardar conceptos o relaciones. El borrador se conserva.", status_code=409)
+        return app.maps.execute(payload.model_dump(mode="json"))
 
     return router

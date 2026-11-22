@@ -23,6 +23,8 @@ from mathmongo.advanced_reader.schemas import ApiErrorResponse
 from mathmongo.advanced_reader.security import LOOPBACK_HOSTS
 from mathmongo.advanced_reader.security import SECURITY_HEADERS
 from mathmongo.advanced_reader.security import redacted_request_path
+from mathmongo.source_documents.models import MAX_SOURCE_PDF_UPLOAD_BYTES
+from mathmongo.study.catalog_routes import build_catalog_router
 from mathmongo.study.routes import build_study_router
 
 LOGGER = logging.getLogger("mathmongo.advanced_reader")
@@ -185,6 +187,10 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
     async def local_security(request: Request, call_next):
         started = time.monotonic()
         body_limit = 1024 * 1024 if request.url.path.startswith('/api/study/v1/') else MAX_VISUAL_ANNOTATION_REQUEST_BYTES
+        pdf_upload = request.method == "POST" and request.url.path.startswith("/api/study/v1/sources/") and request.url.path.endswith("/documents/pdf")
+        expected_media_type = "application/pdf" if pdf_upload else "application/json"
+        if pdf_upload:
+            body_limit = MAX_SOURCE_PDF_UPLOAD_BYTES
         request.state.request_id = uuid4().hex
         try:
             host_header = request.headers.get("host", "")
@@ -214,7 +220,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
                         .partition(";")[0]
                         .strip()
                         .casefold()
-                        != "application/json"
+                        != expected_media_type
                     ):
                         message = (
                             "Visual annotation writes require same-origin request metadata."
@@ -305,6 +311,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
 
     app.include_router(build_api_router())
     app.include_router(build_study_router())
+    app.include_router(build_catalog_router())
 
     def serve_index(request: Request) -> FileResponse:
         index = dependencies.frontend_root / "index.html"

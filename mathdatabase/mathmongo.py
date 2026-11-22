@@ -54,6 +54,50 @@ def _format_index_spec(spec: dict) -> str:
     )
 
 
+def ensure_compatible_index(collection, keys, *, name: str | None = None, **options) -> str:
+    """Reuse equivalent indexes and refuse replacement of incompatible options."""
+    expected_key = _index_key(keys)
+    expected_options = _expected_index_options(**options)
+    incompatible = None
+    for index_doc in collection.list_indexes():
+        existing_key = _index_key(index_doc.get("key", {}).items())
+        if existing_key != expected_key:
+            continue
+
+        existing_options = _index_options(index_doc)
+        if existing_options == expected_options:
+            return index_doc["name"]
+
+        incompatible = index_doc
+
+    if incompatible is not None:
+        raise MongoIndexInitializationError(
+            "MongoDB está conectado, pero falló la inicialización de índices.\n"
+            f"Colección: {collection.full_name}\n"
+            f"Índice existente incompatible: {_format_index_spec(incompatible)}\n"
+            f"Índice esperado: name={name!r}, key={expected_key}, options={expected_options}"
+        )
+
+    try:
+        return collection.create_index(keys, name=name, **options)
+    except OperationFailure as exc:
+        if getattr(exc, "code", None) == 85:
+            raise MongoIndexInitializationError(
+                "MongoDB está conectado, pero falló la inicialización de índices.\n"
+                f"Colección: {collection.full_name}\n"
+                f"Índice esperado: name={name!r}, key={expected_key}, options={expected_options}\n"
+                f"MongoDB respondió: {exc}"
+            ) from exc
+        raise
+
+
+CORE_IDENTITY_INDEXES = (
+    ("concepts", (("id", 1), ("source", 1))),
+    ("latex_documents", (("id", 1), ("source", 1))),
+    ("relations", (("desde", 1), ("hasta", 1), ("tipo", 1))),
+)
+
+
 class MathMongo:
     def __init__(self, mongo_uri: str | None = None, db_name: str | None = None):
         settings = resolve_config()
@@ -71,52 +115,12 @@ class MathMongo:
         self.ensure_indexes()
 
     def _ensure_index(self, collection, keys, *, name: str | None = None, **options) -> str:
-        expected_key = _index_key(keys)
-        expected_options = _expected_index_options(**options)
-        for index_doc in collection.list_indexes():
-            existing_key = _index_key(index_doc.get("key", {}).items())
-            if existing_key != expected_key:
-                continue
-
-            existing_options = _index_options(index_doc)
-            if existing_options == expected_options:
-                return index_doc["name"]
-
-            raise MongoIndexInitializationError(
-                "MongoDB está conectado, pero falló la inicialización de índices.\n"
-                f"Colección: {collection.full_name}\n"
-                f"Índice existente incompatible: {_format_index_spec(index_doc)}\n"
-                f"Índice esperado: name={name!r}, key={expected_key}, options={expected_options}"
-            )
-
-        try:
-            return collection.create_index(keys, name=name, **options)
-        except OperationFailure as exc:
-            if getattr(exc, "code", None) == 85:
-                raise MongoIndexInitializationError(
-                    "MongoDB está conectado, pero falló la inicialización de índices.\n"
-                    f"Colección: {collection.full_name}\n"
-                    f"Índice esperado: name={name!r}, key={expected_key}, options={expected_options}\n"
-                    f"MongoDB respondió: {exc}"
-                ) from exc
-            raise
+        """Keep the established instance API over the shared compatibility check."""
+        return ensure_compatible_index(collection, keys, name=name, **options)
 
     def ensure_indexes(self) -> None:
-        self._ensure_index(
-            self.concepts,
-            [("id", ASCENDING), ("source", ASCENDING)],
-            unique=True,
-        )
-        self._ensure_index(
-            self.latex_documents,
-            [("id", ASCENDING), ("source", ASCENDING)],
-            unique=True,
-        )
-        self._ensure_index(
-            self.relations,
-            [("desde", ASCENDING), ("hasta", ASCENDING), ("tipo", ASCENDING)],
-            unique=True,
-        )
+        for collection_name, keys in CORE_IDENTITY_INDEXES:
+            self._ensure_index(getattr(self, collection_name), list(keys), unique=True)
         self._ensure_index(self.knowledge_graph_maps, [("name", ASCENDING)], name="kg_maps_name")
         self._ensure_index(
             self.knowledge_graph_maps,

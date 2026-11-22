@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from uuid import uuid4
 
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
+from mathmongo.concepts.deletion import ConceptDeletionService
 from mathmongo.knowledge_map.service import KnowledgeMapService
 from mathmongo.knowledge_map.service import digest
 from mathmongo.reading_annotations.service import ReadingAnnotationService
@@ -129,10 +130,10 @@ class StudyApplication:
             "name": source.name,
             "description": source.description,
             "documents": [
-                {
+                {"web_url": item.web.url_normalized if item.web else None, **{
                     key: item.model_dump(mode="json")[key]
                     for key in ("document_id", "source_id", "reference_id", "title", "kind")
-                }
+                }}
                 for item in items
             ],
             "references": [
@@ -160,6 +161,20 @@ class StudyApplication:
             .limit(20)
         )
         return {"items": items, "total": self.db.reading_notes.count_documents(query), "page": page}
+
+    def concepts(self, query="", kind="", source_id="", page=1):
+        """Page metadata before loading bodies; legacy source identity stays intact."""
+        filters = {"_delete_operation": {"$exists": False}}
+        if query.strip():
+            filters["titulo"] = {"$regex": re.escape(query.strip()), "$options": "i"}
+        if kind:
+            filters["tipo"] = kind
+        if source_id:
+            source = self.sources.get_by_id(source_id)
+            filters["$or"] = [{"source_id": source_id}, {"source": source.name if source else ""}]
+        projection = {"id": 1, "source": 1, "titulo": 1, "tipo": 1}
+        items = [{"key": str(doc["id"]) + "@" + doc["source"], "titulo": doc.get("titulo") or str(doc["id"]), "tipo": doc.get("tipo", "nota"), "source": doc["source"]} for doc in self.db.concepts.find(filters, projection).sort([("titulo", 1), ("_id", 1)]).skip((page-1)*20).limit(20)]
+        return {"items": items, "page": page, "total": self.db.concepts.count_documents(filters)}
 
     def note(self, note_id, reading):
         """Return only the requested canonical note and its optimistic revision."""
@@ -219,11 +234,28 @@ class StudyApplication:
             "source": concept["source"],
             "source_id": concept.get("source_id", ""),
             "tipo": concept.get("tipo", "nota"),
-            "categorias": concept.get("categorias", []),
-            "comentario": concept.get("comentario", ""),
+            "categorias": concept.get("categorias") or [],
+            "comentario": concept.get("comentario") or "",
             "reference_id": concept.get("reference_id", ""),
             "reference_locator": concept.get("reference_locator"),
             "contenido_latex": (latex or {}).get("contenido_latex", ""),
             "revision": digest([concept, latex]),
             "passages": passages,
+            "relations": self.concept_relations(concept),
         }
+
+    def concept_relations(self, concept):
+        """Resolve both historical endpoint forms and human titles without bodies."""
+        result = []
+        for edge in self.db.relations.find(ConceptDeletionService.relation_query(concept)).limit(200):
+            item = {"tipo": edge.get("tipo", ""), "descripcion": edge.get("descripcion", "")}
+            for field, label in (("desde", "from"), ("hasta", "to")):
+                endpoint = edge.get(field)
+                if not isinstance(endpoint, str):
+                    endpoint = str(edge.get(field + "_id", "")) + "@" + str(edge.get(field + "_source", ""))
+                concept_id, _, source = endpoint.rpartition("@")
+                row = self.db.concepts.find_one({"id": concept_id, "source": source}, {"titulo": 1})
+                item[label] = endpoint
+                item[label + "_title"] = row.get("titulo") if row else "Concepto no disponible"
+            result.append(item)
+        return result
