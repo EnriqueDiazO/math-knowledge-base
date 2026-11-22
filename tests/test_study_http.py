@@ -160,3 +160,19 @@ def test_study_writes_validate_origin_size_and_fields_before_mutating(service, h
     assert 'borrador se conserva' in invalid.json()['error']['message']
     assert service.db.reading_notes.count_documents({}) == 0
     assert service.operations.count_documents({}) == 0
+
+
+def test_notes_search_and_source_filter_before_paging_return_only_navigation_metadata(service, http):
+    """A matching note beyond page one is found without exposing full bodies."""
+    client, context = http
+    client.post(BASE + "/prepare", json={"version": context["preparation"]["version"]})
+    reading = client.app.state.advanced_reader_dependencies.annotation_service
+    for number in range(22):
+        assert reading.create_note(source_id=service.test_source_id, title=f"Otra {number}", body="Cuerpo privado").completed
+    target = reading.create_note(source_id=service.test_source_id, title="Una búsqueda [literal]", body="\n  Texto exacto $x$\n")
+    assert target.completed
+    found = client.get(BASE + "/notes", params={"q":"[literal]", "source_id":service.test_source_id}).json()
+    assert found["total"] == 1 and found["items"][0]["note_id"] == target.value.note_id
+    assert "body" not in found["items"][0]
+    assert client.get(BASE + "/notes", params={"source_id":"otra"}).json()["total"] == 0
+    assert client.get(BASE + "/notes/" + target.value.note_id).json()["body"] == "\n  Texto exacto $x$\n"

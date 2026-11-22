@@ -526,7 +526,7 @@ class ReadingNote(ReadingAnnotationModel):
     @field_validator("body", mode="before")
     @classmethod
     def body_is_required(cls, value: Any) -> str:
-        return _text(value, required=True, maximum=MAX_BODY_CHARS, field_name="body")
+        return _legacy_identity_text(value, maximum=MAX_BODY_CHARS, field_name="body")
 
     @field_validator("page_start", "page_end", mode="before")
     @classmethod

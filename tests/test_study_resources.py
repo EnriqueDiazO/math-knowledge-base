@@ -238,3 +238,23 @@ def test_room_goal_requires_the_actual_saved_view_and_marker(service):
     assert service.execute({**payload,'operation_id':str(uuid4()),'room_state':wrong})['status'] == 'conflict'
     assert service.execute({**payload,'operation_id':str(uuid4()),'room_state':{**state,'goal_view_uid':''}})['status'] == 'conflict'
     assert list(service.db.knowledge_graph_maps.find({})) == before
+
+
+def test_note_noop_edit_retains_exact_canonical_latex_and_revision_contract(reading):
+    """Leading/trailing LaTeX whitespace and unknown blocks survive save and replay."""
+    api, notes, document, _mark = reading
+    raw = "\n  " + r"\begin{context}Texto $x^2$\end{context}" + "\n\n"
+    payload = {
+        "operation_id": str(uuid4()), "action": "save_note",
+        "source_id": document.source_id, "document_id": document.document_id,
+        "titulo": "Documento exacto", "contenido_latex": raw,
+    }
+    result = api.execute(payload)
+    assert result["status"] == "saved"
+    note = notes.get_note(result["note_id"]).value
+    assert note.body == raw
+    saved = api.execute({**payload, "operation_id": str(uuid4()), "note_id": note.note_id,
+                         "revision": digest(note.model_dump())})
+    assert saved["status"] == "saved"
+    assert notes.get_note(note.note_id).value.body == raw
+    assert api.db.reading_notes.count_documents({}) == 1

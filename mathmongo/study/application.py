@@ -141,9 +141,15 @@ class StudyApplication:
             ],
         }
 
-    def notes(self, page=1):
+    def notes(self, page=1, search="", source_id="", document_id=""):
         """Navigation summaries exclude note bodies; opening a note loads its content."""
         query = {"status": "active", "user_scope": "local"}
+        if search.strip():
+            query["title"] = {"$regex": re.escape(search.strip()), "$options": "i"}
+        if source_id:
+            query["source_id"] = source_id
+        if document_id:
+            query["document_id"] = document_id
         items = list(
             self.db.reading_notes.find(
                 query,

@@ -136,9 +136,9 @@ class StudyResources:
         note_id = intent.note_id or "note_" + intent.operation_id
         existing = self.reading.get_note(note_id)
         current = existing.value if existing.completed else None
-        title, body = intent.titulo.strip(), intent.contenido_latex.strip()
+        title, body = intent.titulo.strip(), intent.contenido_latex
         citation = self.maps.citation_patch(intent, current.source_id if current else intent.source_id)
-        if not title or not body:
+        if not title or not body.strip():
             raise MapConflictError("Nombre y contenido de la nota son obligatorios.")
         if (
             current is not None

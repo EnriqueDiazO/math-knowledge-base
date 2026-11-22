@@ -85,8 +85,8 @@ def build_study_router() -> APIRouter:
         return scoped(request).source(source_id, deps.document_service.documents)
 
     @router.get("/notes")
-    def notes(request: Request, page: int = Query(1, ge=1)):
-        return scoped(request).notes(page)
+    def notes(request: Request, page: int = Query(1, ge=1), q: str = Query("", max_length=200), source_id: str = Query("", max_length=100), document_id: str = Query("", max_length=100)):
+        return scoped(request).notes(page, q, source_id, document_id)
 
     @router.get("/notes/{note_id}")
     def note(note_id: str, request: Request):
