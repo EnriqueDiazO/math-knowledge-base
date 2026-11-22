@@ -109,6 +109,7 @@ def main():
                 MATHMONGO_INDEPENDENT_URL=f"http://127.0.0.1:{app_port}",
                 MATHMONGO_INDEPENDENT_EVIDENCE=str(evidence),
                 MATHMONGO_STUDY_BROWSER=browser,
+                MATHMONGO_PALETTE_SOURCE=source.source_id,
             )
             for alias in ("MONGO_URI", "MONGO_DB", "DB_NAME"):
                 environment.pop(alias, None)
@@ -181,6 +182,30 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 + "\n"
             )
             print(json.dumps({"browser": browser, "status": "passed", "streamlit_started": False}))
+            if "--palette" in sys.argv:
+                # Seed visual examples only after checking the exact migration
+                # checkpoint counts. These records live in this owned database.
+                from mathmongo.knowledge_map.service import KnowledgeMapService
+                from types import SimpleNamespace
+                service = KnowledgeMapService(SimpleNamespace(db=db, concepts=db.concepts,
+                    relations=db.relations, latex_documents=db.latex_documents))
+                palette = json.loads((ROOT / "editor/ui/concept_types.json").read_text())
+                for kind, values in palette.items():
+                    result = service.execute({
+                        "operation_id": str(uuid4()), "action": "create",
+                        "source_id": source.source_id, "titulo": "Muestra · " + values["label"],
+                        "tipo": kind, "contenido_latex": r"Una idea con $\frac{1}{2}$.",
+                        "categorias": ["Álgebra"],
+                    })
+                    assert result["status"] == "saved", result
+                subprocess.run(
+                    ["node", "tests/concept-palette-browser.mjs"],
+                    cwd=ROOT / "frontend/advanced-reader", env=environment,
+                    check=True, timeout=180,
+                )
+                assert db.concepts.count_documents({}) == 9
+                assert db.reading_notes.count_documents({}) == 1
+                print(json.dumps({"browser": browser, "palette": "passed", "temporary_concepts": 9}))
         finally:
             if app is not None:
                 app.terminate()
