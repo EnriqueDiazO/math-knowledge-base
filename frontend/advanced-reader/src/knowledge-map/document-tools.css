@@ -41,9 +41,14 @@
 }
 @media (max-width: 600px) {
   .document-composer .document-toolbar {
-    position: static;
+    position: sticky;
+    top: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
   }
-  .document-tool-group {
-    max-width: 100%;
+  .document-toolbar .document-tool-group {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    max-width: none;
   }
 }

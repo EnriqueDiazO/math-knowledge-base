@@ -82,6 +82,7 @@ await test(
           background: getComputedStyle(element).backgroundColor,
         }));
         await expect(block.locator("math-field")).toHaveCount(2);
+        if (key === "proposicion") await expect(block).toHaveCSS("border-left-style", "double");
       }
       await page.screenshot({
         path: evidence + "/all-types-reading.png",
@@ -159,6 +160,14 @@ await test(
         .getByRole("button", { name: "Fuente LaTeX", exact: true })
         .click();
       await page.setViewportSize({ width: 390, height: 844 });
+      const narrowLayout = await page.evaluate(() => {
+        const tools = document.querySelector(".document-toolbar").getBoundingClientRect();
+        const documentSurface = document.querySelector(".study-document-viewport").getBoundingClientRect();
+        const actions = document.querySelector(".study-document-actions").getBoundingClientRect();
+        return { toolbarHeight: tools.height, surfaceBottom: documentSurface.bottom, actionsTop: actions.top };
+      });
+      expect(narrowLayout.toolbarHeight).toBeLessThan(110);
+      expect(narrowLayout.actionsTop).toBeGreaterThanOrEqual(narrowLayout.surfaceBottom);
       await page.screenshot({
         path: evidence + "/editor-types-narrow.png",
         fullPage: true,
@@ -211,6 +220,7 @@ await test(
             ],
             reducedMotion: "reduce",
             keyboardFocus: true,
+            narrowLayout,
             formulas: true,
             unpublishedDraftRecovered: true,
             draftUrl: new URL(draftUrl).pathname,

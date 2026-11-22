@@ -83,8 +83,7 @@ section[data-result="proof"] > header::before {
   > div {
   padding: 0.4rem 1.1rem;
 }
-[data-concept-type="proposicion"] section[data-result],
-section[data-result][data-concept-type="proposicion"] {
+:is(.document-composer, .reading-document, .document-dialog) section[data-result][data-concept-type="proposicion"] {
   border-left-style: double;
   border-left-width: 5px;
 }
