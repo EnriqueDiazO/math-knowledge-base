@@ -1,0 +1,95 @@
+{
+  "source_revision": "be6d6c9d387dcaa80b612ba0f5f80420fb72bbba",
+  "maintained": 328,
+  "tests": 200,
+  "large_maintained": [
+    {
+      "path": "editor/editor_streamlit.py",
+      "lines": "5736"
+    },
+    {
+      "path": "editor/cuaderno_page.py",
+      "lines": "4122"
+    },
+    {
+      "path": "visualizations/grafoconocimiento.py",
+      "lines": "3670"
+    },
+    {
+      "path": "editor/utils/db_import.py",
+      "lines": "2904"
+    },
+    {
+      "path": "editor/utils/db_update.py",
+      "lines": "2242"
+    },
+    {
+      "path": "mathmongo/reading_annotations/service.py",
+      "lines": "1686"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/bootstrap.py",
+      "lines": "1635"
+    },
+    {
+      "path": "editor/cornell/streamlit_page.py",
+      "lines": "1634"
+    },
+    {
+      "path": "editor/cpi/streamlit_page.py",
+      "lines": "1485"
+    },
+    {
+      "path": "editor/concept_linking/linking_wizard.py",
+      "lines": "1264"
+    },
+    {
+      "path": "editor/reading_space/reader_page.py",
+      "lines": "1242"
+    },
+    {
+      "path": "frontend/advanced-reader/src/app/App.tsx",
+      "lines": "1227"
+    },
+    {
+      "path": "editor/source_catalog/edit_source_page.py",
+      "lines": "1192"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/apply_safety.py",
+      "lines": "1186"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/manifest.py",
+      "lines": "1122"
+    },
+    {
+      "path": "editor/pdf_export.py",
+      "lines": "1115"
+    },
+    {
+      "path": "editor/utils/knowledge_graph_sync.py",
+      "lines": "1076"
+    },
+    {
+      "path": "exporters_latex/latex_validation.py",
+      "lines": "1046"
+    },
+    {
+      "path": "mathmongo/reading_annotations/repository.py",
+      "lines": "1010"
+    },
+    {
+      "path": "frontend/advanced-reader/src/styles/reader.css",
+      "lines": "1008"
+    }
+  ],
+  "categories": {
+    "generated": 276,
+    "maintained": 328,
+    "resource": 140,
+    "documentation": 102,
+    "test": 200,
+    "configuration": 11
+  }
+}

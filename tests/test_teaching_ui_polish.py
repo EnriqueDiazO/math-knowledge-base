@@ -33,9 +33,9 @@ def test_theme_control_and_navigation_are_rendered_in_the_sidebar() -> None:
     """Keep the complete visual preference control out of the page body."""
     app = STREAMLIT_APP.read_text(encoding="utf-8")
 
-    assert 'with st.sidebar:\n    st.divider()\n    st.subheader("Tema")\n    active_theme = render_theme_control(st)' in app
+    assert 'with st.sidebar:\n    st.divider()\n    st.subheader("Tema")\n    active_theme = render_theme_control(st, study_mode=' in app
     assert 'with st.sidebar:\n    st.subheader("Navegación")\n    selected_page = st.selectbox(' in app
-    assert app.count("render_theme_control(st)") == 1
+    assert app.count("render_theme_control(st,") == 1
 
 
 def test_chart_theming_uses_the_shared_plotly_helper() -> None:

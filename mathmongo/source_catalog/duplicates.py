@@ -16,6 +16,7 @@ from pydantic import Field
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog.normalization import clean_text
+from mathmongo.source_catalog.normalization import isbn_equivalents
 from mathmongo.source_catalog.normalization import normalize_author
 from mathmongo.source_catalog.normalization import normalize_bibtex_key
 from mathmongo.source_catalog.normalization import normalize_doi
@@ -283,8 +284,8 @@ def classify_reference_duplicate(
             ],
         )
 
-    candidate_isbns = set(candidate.fingerprints.isbn_normalized)
-    existing_isbns = set(existing.fingerprints.isbn_normalized)
+    candidate_isbns = {equivalent for isbn in candidate.isbn for equivalent in isbn_equivalents(isbn)}
+    existing_isbns = {equivalent for isbn in existing.isbn for equivalent in isbn_equivalents(isbn)}
     shared_isbns = sorted(candidate_isbns & existing_isbns)
     if shared_isbns:
         return DuplicateMatch(

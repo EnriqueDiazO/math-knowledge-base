@@ -3,7 +3,6 @@ import json
 import math
 import os
 import urllib.parse
-from datetime import datetime
 from pathlib import Path
 
 import networkx as nx
@@ -11,9 +10,15 @@ from pyvis.network import Network
 
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
-
+from mathmongo.time import naive_utc_now
 
 DEBUG_KNOWLEDGE_GRAPH = os.getenv("DEBUG_KNOWLEDGE_GRAPH", "0") == "1"
+
+
+def _json_for_inline_script(value) -> str:
+    """Serialize data without HTML delimiters that could terminate a script tag."""
+    return (json.dumps(value, ensure_ascii=False)
+            .replace("<", "\\u003c").replace(">", "\\u003e").replace("&", "\\u0026"))
 
 
 class GrafoConocimiento:
@@ -832,7 +837,7 @@ class GrafoConocimiento:
 
         return {
             "version": previous_state.get("version", 1),
-            "exportedAt": datetime.utcnow().isoformat() + "Z",
+            "exportedAt": naive_utc_now().isoformat() + "Z",
             "nodes": nodes,
             "edges": edges,
             "fullNodes": nodes,
@@ -860,8 +865,8 @@ class GrafoConocimiento:
     def _restore_state_bootstrap(self, graph_state: dict | None) -> str:
         if not graph_state:
             return ""
-        state_json = json.dumps(graph_state, ensure_ascii=False).replace("</script>", "<\\/script>")
-        state_json_literal = json.dumps(state_json, ensure_ascii=False)
+        state_json = json.dumps(graph_state, ensure_ascii=False)
+        state_json_literal = _json_for_inline_script(state_json)
         return f"""
 <script id="exported-graph-state-script">
 (function () {{
@@ -1042,7 +1047,7 @@ class GrafoConocimiento:
 """)
 
         html = net.generate_html(name=str(salida or "knowledge_graph.html"), local=True, notebook=False)
-        layout_payload_json = json.dumps(layout_payload, ensure_ascii=False)
+        layout_payload_json = _json_for_inline_script(layout_payload)
         
         overlay = """
 <script>

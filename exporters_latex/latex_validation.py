@@ -898,10 +898,7 @@ def validate_concept_from_mongo(
     run_compile: bool = True,
     run_linters: bool = True,
 ) -> LatexValidationResult:
-    if hasattr(db, "concepts"):
-        concept = db.concepts.find_one({"id": concept_id, "source": source})
-    else:
-        concept = db.concepts.find_one({"id": concept_id, "source": source})
+    concept = db.concepts.find_one({"id": concept_id, "source": source})
     concept = concept or {"id": concept_id, "source": source}
     latex_doc = _get_latex_doc(db, concept_id, source) or {}
     return validate_latex_fragment(

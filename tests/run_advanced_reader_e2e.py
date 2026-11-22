@@ -48,7 +48,7 @@ from mathmongo.source_documents.storage import SourceDocumentBlobStore  # noqa: 
 
 MONGO_URI = os.environ.get("MATHMONGO_E2E_MONGO_URI", "mongodb://127.0.0.1:27017")
 CHROME_PATH = os.environ.get("MATHMONGO_CHROME_PATH", "/usr/bin/google-chrome")
-PYTHON = REPOSITORY_ROOT / "mathdbmongo" / "bin" / "python"
+PYTHON = Path(sys.executable)
 FRONTEND_ROOT = REPOSITORY_ROOT / "frontend" / "advanced-reader"
 
 

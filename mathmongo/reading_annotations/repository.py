@@ -633,9 +633,15 @@ class ReadingNoteRepository:
         reference_id: str | None,
         tags: list[str] | tuple[str, ...] | None = None,
         at: datetime | None = None,
+        reference_locator: dict | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> ReadingNote | None:
-        current = self.get_by_id(note_id)
+        validate_note_id(note_id)
+        observed = self._collection.find_one({"note_id": note_id})
+        current = _model(observed, ReadingNote)
         if current is None:
+            return None
+        if expected_updated_at is not None and current.updated_at != expected_updated_at:
             return None
         payload = current.model_dump(mode="python")
         payload.update(
@@ -650,9 +656,21 @@ class ReadingNoteRepository:
                 "updated_at": at or utc_now(),
             }
         )
+        if reference_locator is not None:
+            payload['reference_locator'] = reference_locator
         if tags is not None:
             payload["tags"] = list(tags)
-        return self._replace(ReadingNote.model_validate(payload))
+        note = ReadingNote.model_validate(payload)
+        # The exact stored snapshot catches concurrent content, tags and lifecycle
+        # writes, including legacy records that omit model default fields.
+        query = {"_id": observed["_id"], "$expr": {"$eq": ["$$ROOT", {"$literal": observed}]}}
+        try:
+            result = self._collection.replace_one(query, {**observed, **_mongo_document(note)}, upsert=False)
+        except DuplicateKeyError as exc:
+            raise ReadingAnnotationConflictError("Concurrent Reading Note conflict") from exc
+        except Exception as exc:
+            raise ReadingAnnotationRepositoryError("Reading Note update failed") from exc
+        return note if result.matched_count else None
 
     def update_tags(
         self,

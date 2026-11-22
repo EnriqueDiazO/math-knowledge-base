@@ -1038,258 +1038,24 @@ def _render_latex_tools() -> None:
         )
 
 
-def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
+def _replace_region_images(
+    document: CpiDocument, page_index: int, region_name: str, image_ids: tuple[str, ...]
+) -> CpiDocument:
+    """Replace only one region's image references, retaining all document metadata."""
+    safe_index = valid_page_index(document, page_index)
+    current = document.ordered_pages()[safe_index]
+    region = getattr(current, region_name)
+    updated = replace(current, **{region_name: replace(region, image_ids=image_ids)})
+    return replace_page(document, safe_index, updated)
+
+
+def _render_region_media_manager(db: Any, page: CpiPage, page_index: int, region_name: str) -> None:
+    """Share upload/insert/detach behavior while keeping each region's widget keys."""
     import streamlit as st
 
-    _render_latex_tools()
-    comprehension_col, production_col = st.columns(2)
-    with comprehension_col:
-        st.subheader("Comprensión")
-        st.caption("Valor epistémico")
-        editable_text_area(
-            "LaTeX Comprensión",
-            height=280,
-            key="cpi_comprehension_latex",
-            on_change=_mark_dirty,
-        )
-        region_name = "comprehension"
-        region = page.comprehension
-        label = REGION_LABELS[region_name]
-        latex_key = "cpi_comprehension_latex"
-        safe_prefix = f"cpi_page_{page_index + 1}_{page.page_number}_{region_name}_media"
-        with st.expander(f"{label} · Imágenes: {len(region.image_ids)}", expanded=False):
-            uploaded = st.file_uploader(
-                f"Subir imagen para {label}",
-                type=[extension.lstrip(".") for extension in ALLOWED_IMAGE_EXTENSIONS],
-                key=f"{safe_prefix}_upload",
-            )
-            description = st.text_input("Descripción", key=f"{safe_prefix}_description")
-            tags = st.text_input("Tags", key=f"{safe_prefix}_tags")
-            if st.button("Guardar imagen", key=f"{safe_prefix}_save", disabled=uploaded is None):
-                try:
-                    document = _document_from_inputs()
-                    note_id = st.session_state.get(SESSION_NOTE_ID)
-                    asset = save_media_asset(
-                        db,
-                        note_id=str(note_id) if note_id else None,
-                        filename=uploaded.name,
-                        data=uploaded.getvalue(),
-                        mime_type=getattr(uploaded, "type", None),
-                        tags=normalize_tags(tags),
-                        description=description,
-                    )
-                    pages = document.ordered_pages()
-                    safe_index = valid_page_index(document, page_index)
-                    current_page = pages[safe_index]
-                    image_ids = list(current_page.comprehension.image_ids)
-                    if asset["asset_id"] not in image_ids:
-                        image_ids.append(asset["asset_id"])
-                    updated_page = CpiPage(
-                        page_number=current_page.page_number,
-                        comprehension=CpiRegion(
-                            heading=current_page.comprehension.heading,
-                            latex=current_page.comprehension.latex,
-                            image_ids=tuple(image_ids),
-                        ),
-                        production=current_page.production,
-                        integration=current_page.integration,
-                    )
-                    st.session_state[SESSION_DOCUMENT] = replace_page(
-                        document,
-                        safe_index,
-                        updated_page,
-                    )
-                    _mark_dirty()
-                    st.success(f"Imagen asociada a {label}.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"No se pudo guardar la imagen: {exc}")
-            clean_ids = [asset_id for asset_id in region.image_ids if str(asset_id or "").strip()]
-            try:
-                assets = (
-                    list(media_collection(db).find({"asset_id": {"$in": clean_ids}}))
-                    if clean_ids
-                    else []
-                )
-            except Exception as exc:
-                st.error(f"No se pudieron cargar las imágenes de {label}: {exc}")
-                assets = []
-            assets_by_id = {asset.get("asset_id"): asset for asset in assets}
-            for asset_id in region.image_ids:
-                asset = assets_by_id.get(asset_id)
-                if not asset:
-                    st.warning(f"Asset faltante en {label}: {asset_id}")
-                    continue
-                st.markdown(f"**{asset.get('original_filename') or asset.get('filename') or asset_id}**")
-                if media_path_exists(asset):
-                    st.image(str(resolve_media_asset_path(asset)), caption=asset.get("description") or "")
-                else:
-                    st.warning(f"Archivo faltante: {asset.get('path')}")
-                ref = cpi_image_reference(asset_id)
-                st.code(ref, language="latex")
-                col_insert, col_remove = st.columns(2)
-                if col_insert.button("Insertar referencia LaTeX", key=f"{safe_prefix}_insert_{asset_id}"):
-                    st.session_state[latex_key] = append_latex_snippet(
-                        st.session_state.get(latex_key, ""),
-                        ref,
-                    )
-                    _mark_dirty()
-                    st.rerun()
-                if col_remove.button("Quitar asociación", key=f"{safe_prefix}_remove_{asset_id}"):
-                    document = _document_from_inputs()
-                    pages = document.ordered_pages()
-                    safe_index = valid_page_index(document, page_index)
-                    current_page = pages[safe_index]
-                    updated_page = CpiPage(
-                        page_number=current_page.page_number,
-                        comprehension=CpiRegion(
-                            heading=current_page.comprehension.heading,
-                            latex=current_page.comprehension.latex,
-                            image_ids=tuple(
-                                image_id
-                                for image_id in current_page.comprehension.image_ids
-                                if image_id != asset_id
-                            ),
-                        ),
-                        production=current_page.production,
-                        integration=current_page.integration,
-                    )
-                    st.session_state[SESSION_DOCUMENT] = replace_page(
-                        document,
-                        safe_index,
-                        updated_page,
-                    )
-                    _mark_dirty()
-                    st.rerun()
-    with production_col:
-        st.subheader("Producción")
-        st.caption("Valor pragmático")
-        editable_text_area(
-            "LaTeX Producción",
-            height=280,
-            key="cpi_production_latex",
-            on_change=_mark_dirty,
-        )
-        region_name = "production"
-        region = page.production
-        label = REGION_LABELS[region_name]
-        latex_key = "cpi_production_latex"
-        safe_prefix = f"cpi_page_{page_index + 1}_{page.page_number}_{region_name}_media"
-        with st.expander(f"{label} · Imágenes: {len(region.image_ids)}", expanded=False):
-            uploaded = st.file_uploader(
-                f"Subir imagen para {label}",
-                type=[extension.lstrip(".") for extension in ALLOWED_IMAGE_EXTENSIONS],
-                key=f"{safe_prefix}_upload",
-            )
-            description = st.text_input("Descripción", key=f"{safe_prefix}_description")
-            tags = st.text_input("Tags", key=f"{safe_prefix}_tags")
-            if st.button("Guardar imagen", key=f"{safe_prefix}_save", disabled=uploaded is None):
-                try:
-                    document = _document_from_inputs()
-                    note_id = st.session_state.get(SESSION_NOTE_ID)
-                    asset = save_media_asset(
-                        db,
-                        note_id=str(note_id) if note_id else None,
-                        filename=uploaded.name,
-                        data=uploaded.getvalue(),
-                        mime_type=getattr(uploaded, "type", None),
-                        tags=normalize_tags(tags),
-                        description=description,
-                    )
-                    pages = document.ordered_pages()
-                    safe_index = valid_page_index(document, page_index)
-                    current_page = pages[safe_index]
-                    image_ids = list(current_page.production.image_ids)
-                    if asset["asset_id"] not in image_ids:
-                        image_ids.append(asset["asset_id"])
-                    updated_page = CpiPage(
-                        page_number=current_page.page_number,
-                        comprehension=current_page.comprehension,
-                        production=CpiRegion(
-                            heading=current_page.production.heading,
-                            latex=current_page.production.latex,
-                            image_ids=tuple(image_ids),
-                        ),
-                        integration=current_page.integration,
-                    )
-                    st.session_state[SESSION_DOCUMENT] = replace_page(
-                        document,
-                        safe_index,
-                        updated_page,
-                    )
-                    _mark_dirty()
-                    st.success(f"Imagen asociada a {label}.")
-                    st.rerun()
-                except Exception as exc:
-                    st.error(f"No se pudo guardar la imagen: {exc}")
-            clean_ids = [asset_id for asset_id in region.image_ids if str(asset_id or "").strip()]
-            try:
-                assets = (
-                    list(media_collection(db).find({"asset_id": {"$in": clean_ids}}))
-                    if clean_ids
-                    else []
-                )
-            except Exception as exc:
-                st.error(f"No se pudieron cargar las imágenes de {label}: {exc}")
-                assets = []
-            assets_by_id = {asset.get("asset_id"): asset for asset in assets}
-            for asset_id in region.image_ids:
-                asset = assets_by_id.get(asset_id)
-                if not asset:
-                    st.warning(f"Asset faltante en {label}: {asset_id}")
-                    continue
-                st.markdown(f"**{asset.get('original_filename') or asset.get('filename') or asset_id}**")
-                if media_path_exists(asset):
-                    st.image(str(resolve_media_asset_path(asset)), caption=asset.get("description") or "")
-                else:
-                    st.warning(f"Archivo faltante: {asset.get('path')}")
-                ref = cpi_image_reference(asset_id)
-                st.code(ref, language="latex")
-                col_insert, col_remove = st.columns(2)
-                if col_insert.button("Insertar referencia LaTeX", key=f"{safe_prefix}_insert_{asset_id}"):
-                    st.session_state[latex_key] = append_latex_snippet(
-                        st.session_state.get(latex_key, ""),
-                        ref,
-                    )
-                    _mark_dirty()
-                    st.rerun()
-                if col_remove.button("Quitar asociación", key=f"{safe_prefix}_remove_{asset_id}"):
-                    document = _document_from_inputs()
-                    pages = document.ordered_pages()
-                    safe_index = valid_page_index(document, page_index)
-                    current_page = pages[safe_index]
-                    updated_page = CpiPage(
-                        page_number=current_page.page_number,
-                        comprehension=current_page.comprehension,
-                        production=CpiRegion(
-                            heading=current_page.production.heading,
-                            latex=current_page.production.latex,
-                            image_ids=tuple(
-                                image_id
-                                for image_id in current_page.production.image_ids
-                                if image_id != asset_id
-                            ),
-                        ),
-                        integration=current_page.integration,
-                    )
-                    st.session_state[SESSION_DOCUMENT] = replace_page(
-                        document,
-                        safe_index,
-                        updated_page,
-                    )
-                    _mark_dirty()
-                    st.rerun()
-    st.subheader("Integración")
-    editable_text_area(
-        "LaTeX Integración",
-        height=180,
-        key="cpi_integration_latex",
-        on_change=_mark_dirty,
-    )
-    region_name = "integration"
-    region = page.integration
+    region = getattr(page, region_name)
     label = REGION_LABELS[region_name]
-    latex_key = "cpi_integration_latex"
+    latex_key = f"cpi_{region_name}_latex"
     safe_prefix = f"cpi_page_{page_index + 1}_{page.page_number}_{region_name}_media"
     with st.expander(f"{label} · Imágenes: {len(region.image_ids)}", expanded=False):
         uploaded = st.file_uploader(
@@ -1312,26 +1078,12 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
                     tags=normalize_tags(tags),
                     description=description,
                 )
-                pages = document.ordered_pages()
-                safe_index = valid_page_index(document, page_index)
-                current_page = pages[safe_index]
-                image_ids = list(current_page.integration.image_ids)
+                current = document.ordered_pages()[valid_page_index(document, page_index)]
+                image_ids = list(getattr(current, region_name).image_ids)
                 if asset["asset_id"] not in image_ids:
                     image_ids.append(asset["asset_id"])
-                updated_page = CpiPage(
-                    page_number=current_page.page_number,
-                    comprehension=current_page.comprehension,
-                    production=current_page.production,
-                    integration=CpiRegion(
-                        heading=current_page.integration.heading,
-                        latex=current_page.integration.latex,
-                        image_ids=tuple(image_ids),
-                    ),
-                )
-                st.session_state[SESSION_DOCUMENT] = replace_page(
-                    document,
-                    safe_index,
-                    updated_page,
+                st.session_state[SESSION_DOCUMENT] = _replace_region_images(
+                    document, page_index, region_name, tuple(image_ids)
                 )
                 _mark_dirty()
                 st.success(f"Imagen asociada a {label}.")
@@ -1354,47 +1106,73 @@ def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
             if not asset:
                 st.warning(f"Asset faltante en {label}: {asset_id}")
                 continue
-            st.markdown(f"**{asset.get('original_filename') or asset.get('filename') or asset_id}**")
+            st.markdown(
+                f"**{asset.get('original_filename') or asset.get('filename') or asset_id}**"
+            )
             if media_path_exists(asset):
-                st.image(str(resolve_media_asset_path(asset)), caption=asset.get("description") or "")
+                st.image(
+                    str(resolve_media_asset_path(asset)), caption=asset.get("description") or ""
+                )
             else:
                 st.warning(f"Archivo faltante: {asset.get('path')}")
             ref = cpi_image_reference(asset_id)
             st.code(ref, language="latex")
             col_insert, col_remove = st.columns(2)
-            if col_insert.button("Insertar referencia LaTeX", key=f"{safe_prefix}_insert_{asset_id}"):
+            if col_insert.button(
+                "Insertar referencia LaTeX", key=f"{safe_prefix}_insert_{asset_id}"
+            ):
                 st.session_state[latex_key] = append_latex_snippet(
-                    st.session_state.get(latex_key, ""),
-                    ref,
+                    st.session_state.get(latex_key, ""), ref
                 )
                 _mark_dirty()
                 st.rerun()
             if col_remove.button("Quitar asociación", key=f"{safe_prefix}_remove_{asset_id}"):
                 document = _document_from_inputs()
-                pages = document.ordered_pages()
-                safe_index = valid_page_index(document, page_index)
-                current_page = pages[safe_index]
-                updated_page = CpiPage(
-                    page_number=current_page.page_number,
-                    comprehension=current_page.comprehension,
-                    production=current_page.production,
-                    integration=CpiRegion(
-                        heading=current_page.integration.heading,
-                        latex=current_page.integration.latex,
-                        image_ids=tuple(
-                            image_id
-                            for image_id in current_page.integration.image_ids
-                            if image_id != asset_id
-                        ),
-                    ),
+                current = document.ordered_pages()[valid_page_index(document, page_index)]
+                image_ids = tuple(
+                    image_id
+                    for image_id in getattr(current, region_name).image_ids
+                    if image_id != asset_id
                 )
-                st.session_state[SESSION_DOCUMENT] = replace_page(
-                    document,
-                    safe_index,
-                    updated_page,
+                st.session_state[SESSION_DOCUMENT] = _replace_region_images(
+                    document, page_index, region_name, image_ids
                 )
                 _mark_dirty()
                 st.rerun()
+
+
+def _render_region_editor(
+    db: Any, page: CpiPage, page_index: int, region_name: str, *, height: int, caption: str = ""
+) -> None:
+    """Render one CPI region with its independent text and media controls."""
+    import streamlit as st
+
+    label = REGION_LABELS[region_name]
+    st.subheader(label)
+    if caption:
+        st.caption(caption)
+    editable_text_area(
+        f"LaTeX {label}", height=height, key=f"cpi_{region_name}_latex", on_change=_mark_dirty
+    )
+    _render_region_media_manager(db, page, page_index, region_name)
+
+
+def _render_page_editor(db: Any, page: CpiPage, page_index: int) -> None:
+    """Compose the existing two-column CPI layout without duplicating persistence."""
+    import streamlit as st
+
+    _render_latex_tools()
+    comprehension_col, production_col = st.columns(2)
+    with comprehension_col:
+        _render_region_editor(
+            db, page, page_index, "comprehension", height=280, caption="Valor epistémico"
+        )
+    with production_col:
+        _render_region_editor(
+            db, page, page_index, "production", height=280, caption="Valor pragmático"
+        )
+    _render_region_editor(db, page, page_index, "integration", height=180)
+
 
 
 def _save_current_note(db: Any) -> None:

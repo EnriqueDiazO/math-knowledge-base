@@ -109,15 +109,19 @@ def build_advanced_reader_url(
     *,
     base_url: str | None = None,
     environment: Mapping[str, str] | None = None,
+    study_mode: bool = False,
 ) -> str:
-    """Build a reader URL whose only query parameter is ``document_id``."""
+    """Build a logical PDF link, optionally carrying the study presentation theme."""
     canonical_document_id = validate_document_id(document_id)
     resolved_base = (
         _loopback_base_url(base_url)
         if base_url is not None
         else get_advanced_reader_base_url(environment)
     )
-    query = urlencode({"document_id": canonical_document_id})
+    parameters = {"document_id": canonical_document_id}
+    if study_mode:
+        parameters["theme"] = "study"
+    query = urlencode(parameters)
     return f"{resolved_base}{ADVANCED_READER_PATH}?{query}"
 
 

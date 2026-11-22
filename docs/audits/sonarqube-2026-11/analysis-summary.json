@@ -1,0 +1,151 @@
+{
+  "server_version": "26.11.0.134175",
+  "scanner_version": "8.4.0.16527",
+  "postgres_image": "postgres:17.12-bookworm",
+  "analysis_source_revision": "4b8cb48c5c0b21cf09c2f7f02f7fc7b8f248e391",
+  "configuration_sha256": "841f93701f9fc485ed6b051961753156368173feaf438c5b27b4551e6642ac78",
+  "profiles_equal": true,
+  "baseline": {
+    "source_revision": "1bc8026f01c8f6470c7ce6a887df89fa6cd9ab2f",
+    "analysis": {
+      "id": "8e579a8d-1427-49d9-ba0a-3bddc0fe28f4",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "9fd1bdae-7827-4b7c-839e-7791f9f4c72d",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-21T16:52:20+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-21T16:52:21+0000",
+      "executedAt": "2026-11-21T16:52:23+0000",
+      "executionTimeMs": 2008,
+      "hasScannerContext": true,
+      "warningCount": 1,
+      "warnings": [
+        "Missing blame information for 2 files. This may lead to some features not working correctly. Please check the analysis logs and refer to <a href=\"https://docs.sonarsource.com/sonarqube-community-build/analyzing-source-code/scm-integration/\" rel=\"noopener noreferrer\" target=\"_blank\">the documentation</a>."
+      ],
+      "infoMessages": []
+    },
+    "metrics": {
+      "coverage": "62.0",
+      "complexity": "16050",
+      "duplicated_lines_density": "1.9",
+      "code_smells": "61",
+      "security_issues": "{\"INFO\":0,\"LOW\":2,\"MEDIUM\":1,\"HIGH\":0,\"BLOCKER\":0,\"total\":3}",
+      "maintainability_issues": "{\"INFO\":0,\"LOW\":1,\"MEDIUM\":32,\"HIGH\":17,\"BLOCKER\":0,\"total\":50}",
+      "security_hotspots": "0",
+      "sqale_index": "480",
+      "bugs": "17",
+      "lines_to_cover": "45706",
+      "uncovered_lines": "17376",
+      "cognitive_complexity": "17756",
+      "duplicated_blocks": "86",
+      "ncloc": "89799",
+      "files": "279",
+      "vulnerabilities": "3",
+      "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":15,\"HIGH\":63,\"BLOCKER\":0,\"total\":78}",
+      "line_coverage": "62.0"
+    },
+    "gate": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "final": {
+    "analysis": {
+      "id": "d8729841-c636-4714-8f17-f1e71a5e25a8",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "f7d5bcc2-691b-4a6e-ae2b-91d8f759911e",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-21T17:31:11+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-21T17:31:12+0000",
+      "executedAt": "2026-11-21T17:31:14+0000",
+      "executionTimeMs": 2098,
+      "hasScannerContext": true,
+      "warningCount": 0,
+      "warnings": [],
+      "infoMessages": []
+    },
+    "metrics": {
+      "coverage": "62.9",
+      "complexity": "16073",
+      "duplicated_lines_density": "1.9",
+      "code_smells": "61",
+      "security_issues": "{\"INFO\":0,\"LOW\":2,\"MEDIUM\":1,\"HIGH\":0,\"BLOCKER\":0,\"total\":3}",
+      "maintainability_issues": "{\"INFO\":0,\"LOW\":1,\"MEDIUM\":32,\"HIGH\":17,\"BLOCKER\":0,\"total\":50}",
+      "security_hotspots": "0",
+      "sqale_index": "480",
+      "bugs": "16",
+      "lines_to_cover": "45803",
+      "uncovered_lines": "16993",
+      "cognitive_complexity": "17788",
+      "duplicated_blocks": "86",
+      "ncloc": "89907",
+      "files": "281",
+      "vulnerabilities": "3",
+      "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":14,\"HIGH\":63,\"BLOCKER\":0,\"total\":77}",
+      "line_coverage": "62.9"
+    },
+    "gate": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "31.2"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "restart_verified": true
+}

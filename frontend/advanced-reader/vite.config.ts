@@ -1,6 +1,7 @@
 import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
+import { stripAsciiLineEnds } from "./scripts/text-normalization.mjs";
 
 function normalizeGeneratedSvgWhitespace(): Plugin {
   return {
@@ -16,7 +17,7 @@ function normalizeGeneratedSvgWhitespace(): Plugin {
             typeof output.source === "string"
               ? output.source
               : new TextDecoder().decode(output.source);
-          output.source = source.replace(/[\t ]+$/gmu, "");
+          output.source = stripAsciiLineEnds(source);
         }
       }
     },
@@ -66,6 +67,11 @@ export default defineConfig({
     },
   },
   test: {
+    coverage: {
+      provider: "v8",
+      reporter: ["text", "lcov", "json-summary"],
+      include: ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
+    },
     environment: "jsdom",
     setupFiles: ["./tests/setup.ts"],
     css: false,

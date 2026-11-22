@@ -245,6 +245,11 @@ def semantic_plan_payload(plan: MigrationPlan) -> dict[str, Any]:
     payload.pop("generated_at", None)
     payload.pop("semantic_sha256", None)
     payload.pop("live_comparison", None)
+    # Location and filesystem timestamps are provenance, not semantic identity.
+    # Content hash/member inventory remain bound; copying the approved bytes must
+    # not invalidate decisions or silently select another migration plan.
+    payload["input_snapshot"].pop("filename", None)
+    payload["input_snapshot"].pop("modified_at", None)
     return payload
 
 

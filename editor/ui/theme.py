@@ -4,10 +4,13 @@
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
+
 from typing import Any
 from typing import Literal
 
-ThemeName = Literal["light", "dark"]
+ThemeName = Literal["light", "dark", "study"]
 
 THEME_STATE_KEY = "mathmongo_ui_theme"
 
@@ -58,9 +61,32 @@ THEME_TOKENS: dict[ThemeName, dict[str, str]] = {
 }
 
 
+STUDY_TOKENS = json.loads(Path(__file__).with_name("study_theme.json").read_text())
+THEME_TOKENS["study"] = {
+    "primary": STUDY_TOKENS["turquoise"],
+    "primary_hover": STUDY_TOKENS["selected-bg"],
+    "background": STUDY_TOKENS["bg"],
+    "surface": STUDY_TOKENS["panel"],
+    "panel": STUDY_TOKENS["panel"],
+    "secondary": STUDY_TOKENS["control"],
+    "input": STUDY_TOKENS["control"],
+    "table_header": STUDY_TOKENS["hover"],
+    "text": STUDY_TOKENS["text"],
+    "muted_text": STUDY_TOKENS["muted"],
+    "border": STUDY_TOKENS["border"],
+    "sidebar": STUDY_TOKENS["bg"],
+    "sidebar_secondary": STUDY_TOKENS["panel"],
+    "success": STUDY_TOKENS["selected-bg"],
+    "warning": STUDY_TOKENS["control"],
+    "error": STUDY_TOKENS["error-bg"],
+    "info": STUDY_TOKENS["panel"],
+    "chart_grid": STUDY_TOKENS["line"],
+}
+
+
 def normalize_theme(value: object) -> ThemeName:
     """Return a supported session theme without accepting arbitrary CSS values."""
-    return "dark" if value == "dark" else "light"
+    return "study" if value == "study" else "dark" if value == "dark" else "light"
 
 
 def get_mathmongo_theme(ui: Any) -> ThemeName:
@@ -71,8 +97,11 @@ def get_mathmongo_theme(ui: Any) -> ThemeName:
     return theme
 
 
-def render_theme_control(ui: Any) -> ThemeName:
+def render_theme_control(ui: Any, *, study_mode: bool = False) -> ThemeName:
     """Render the compact visible theme switch without touching application drafts."""
+    if study_mode:
+        ui.caption("Tema Azul profundo · espacio de estudio")
+        return "study"
     current = get_mathmongo_theme(ui)
     choice = ui.segmented_control(
         "Tema",
@@ -104,7 +133,8 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
         # alerts) may carry its own muted colour or opacity.  Scope these
         # corrections to the light theme so the already-approved dark theme is
         # completely unaffected.
-        light_contrast_overrides = """
+        light_contrast_overrides = (
+            """
 [data-testid="stWidgetLabel"],
 [data-testid="stWidgetLabel"] *,
 [data-testid="stCaptionContainer"],
@@ -127,7 +157,9 @@ def apply_mathmongo_theme(theme: ThemeName, ui: Any) -> None:
   color: %(muted_text)s !important;
   opacity: 1 !important;
 }
-""" % tokens
+"""
+            % tokens
+        )
     ui.html(
         """
 <style id="mathmongo-session-theme">

@@ -1,0 +1,32 @@
+rule,count,consequence,priority
+B904,1,Examinar ubicación y contrato antes de cambiar,P2
+D100,25,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D101,28,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D102,23,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D103,106,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D104,6,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D107,9,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D200,8,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D202,3,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D205,14,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D212,33,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D301,1,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+D415,12,Documentación/formato de docstrings; no equivale a defecto de ejecución,P3
+E101,1437,Tabs en literal JavaScript del exportador PyVis; conservar salida al extraer plantilla,P2
+E402,1,Examinar ubicación y contrato antes de cambiar,P2
+E702,2,Examinar ubicación y contrato antes de cambiar,P2
+E712,4,Examinar ubicación y contrato antes de cambiar,P2
+E721,6,Tipo exacto en validadores; no reemplazar por isinstance sin probar bool/subclases,P2
+F401,1,"Revisar uso/reexport/dinámica, no borrar sólo por búsqueda",P2
+F403,1,"Revisar uso/reexport/dinámica, no borrar sólo por búsqueda",P2
+F541,1,"Revisar uso/reexport/dinámica, no borrar sólo por búsqueda",P2
+I001,9,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+UP006,119,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+UP007,74,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+UP009,2,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+UP015,3,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+UP035,15,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+UP038,45,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+W291,48,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+W292,3,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3
+W293,115,Formato/imports/sintaxis; aplicar por lote con pruebas de compatibilidad,P3

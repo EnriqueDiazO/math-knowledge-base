@@ -1,0 +1,31 @@
+rule,checkpoint_count,final_count,consequence
+E101,1437,1437,Estilo/documentación/modernización; mantener inventario existente
+UP006,119,119,Estilo/documentación/modernización; mantener inventario existente
+W293,115,115,Estilo/documentación/modernización; mantener inventario existente
+D103,106,106,Estilo/documentación/modernización; mantener inventario existente
+UP007,74,74,Estilo/documentación/modernización; mantener inventario existente
+W291,48,48,Estilo/documentación/modernización; mantener inventario existente
+UP038,45,45,Estilo/documentación/modernización; mantener inventario existente
+D212,33,33,Estilo/documentación/modernización; mantener inventario existente
+D101,28,28,Estilo/documentación/modernización; mantener inventario existente
+D100,25,25,Estilo/documentación/modernización; mantener inventario existente
+D102,23,23,Estilo/documentación/modernización; mantener inventario existente
+UP035,15,15,Estilo/documentación/modernización; mantener inventario existente
+D205,14,14,Estilo/documentación/modernización; mantener inventario existente
+D415,12,12,Estilo/documentación/modernización; mantener inventario existente
+I001,12,11,Estilo/documentación/modernización; mantener inventario existente
+D107,9,9,Estilo/documentación/modernización; mantener inventario existente
+D200,8,8,Estilo/documentación/modernización; mantener inventario existente
+D104,6,6,Estilo/documentación/modernización; mantener inventario existente
+E721,6,6,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.
+E712,4,4,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.
+W292,3,3,Estilo/documentación/modernización; mantener inventario existente
+UP015,3,3,Estilo/documentación/modernización; mantener inventario existente
+D202,3,3,Estilo/documentación/modernización; mantener inventario existente
+UP009,2,2,Estilo/documentación/modernización; mantener inventario existente
+E402,1,1,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.
+F403,1,1,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.
+F541,1,1,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.
+B904,1,1,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.
+D301,1,1,Estilo/documentación/modernización; mantener inventario existente
+F401,1,1,Revisión contextual existente; no clasificar automáticamente como fallo. Ver RUFF.md original.

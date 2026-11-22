@@ -9,6 +9,28 @@ from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
 
 
+def _terminated_line_value(text: str, marker: str, *, require_whitespace: bool = False) -> str | None:
+    """Read the legacy newline-terminated field in linear time, including blank values."""
+    start = text.find(marker)
+    while start >= 0:
+        beginning = start + len(marker)
+        value_start = beginning
+        while value_start < len(text) and text[value_start].isspace():
+            value_start += 1
+        if require_whitespace and value_start == beginning:
+            start = text.find(marker, beginning)
+            continue
+        end = text.find("\n", value_start)
+        if end < 0:
+            # Greedy legacy whitespace may have consumed the last newline.
+            end = text.rfind("\n", beginning, value_start)
+            if end < beginning + int(require_whitespace):
+                return None
+            value_start = end
+        return text[value_start:end]
+    return None
+
+
 class MarkdownParser:
     """
     → Clase para convertir archivos Markdown estructurados en objetos JSON.
@@ -51,14 +73,14 @@ class MarkdownParser:
             "contexto": ""
         }
 
-        titulo = re.search(r"#\s+(.*?)\n", contenido)
+        titulo = _terminated_line_value(contenido, "#", require_whitespace=True)
 
         #id_match = re.search(r"\*\*ID\*\*:\s*(.*)", contenido)
         #if id_match:
         #    obj["id"] = id_match.group(1).strip()
 
-        if titulo and not obj["id"]:
-            partes = re.findall(r"(proposición|teorema|definición|lema|corolario|ejemplo)\s+(\d+)[\.-]?(\d+)?", titulo.group(1).lower())
+        if titulo is not None and not obj["id"]:
+            partes = re.findall(r"(proposición|teorema|definición|lema|corolario|ejemplo)\s+(\d+)[\.-]?(\d+)?", titulo.lower())
             #if partes:
             #    tipo, a, b = partes[0]
             #    obj["tipo"] = tipo.lower()
@@ -71,7 +93,7 @@ class MarkdownParser:
             resumen = obj["contenido_latex"] or contenido
             hash_val = hashlib.sha1(resumen.encode("utf-8")).hexdigest()[:8]
             obj["id"] = f"{tipo_detectado}:{slug}:{hash_val}"
-            obj["titulo"] = titulo.group(1).strip()
+            obj["titulo"] = titulo.strip()
             #if partes and not obj["id"]:
             #tipo, a, b = partes[0]
             #prefijo = {
@@ -110,18 +132,13 @@ class MarkdownParser:
         if explicacion_latex:
             obj["explicacion_latex"] = explicacion_latex[0].strip()
 
-        ref = re.search(r"\*\*Referencia\*\*:\s*(.*?)\n", contenido)
-        if ref:
-            partes = [x.strip() for x in ref.group(1).split(",")]
+        ref = _terminated_line_value(contenido, "**Referencia**:")
+        if ref is not None:
+            partes = [x.strip() for x in ref.split(",")]
             if len(partes) >= 3:
-                obj["referencia"] = {
-                    "autor": partes[0],
-                    "año": int(partes[1]),
-                    "obra": partes[2],
-                    "capitulo": partes[3],
-                    "pagina": partes[4],
-                    "bibkey":partes[5]
-                }
+                campos_referencia = ("autor", "año", "obra", "capitulo", "pagina", "bibkey")
+                obj["referencia"] = dict(zip(campos_referencia, partes[:6], strict=False))
+                obj["referencia"]["año"] = int(partes[1])
             #if len(partes) >= 5:
             #    obj["referencia"].update({
             #        "capitulo": partes[3].replace("Cap.", "").strip(),

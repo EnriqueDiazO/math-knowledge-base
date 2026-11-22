@@ -357,7 +357,6 @@ def test_fresh_database_source_concept_edit_export_import_round_trip(
                 )
             )
     finally:
-        cleanup_error: Exception | None = None
         try:
             if cleanup_authorized:
                 client.drop_database(fresh_name)
@@ -368,9 +367,5 @@ def test_fresh_database_source_concept_edit_export_import_round_trip(
                 assert temporary_root is None or not temporary_root.exists()
             else:
                 assert write_audit.database_names == []
-        except Exception as exc:  # pragma: no cover - preserves cleanup diagnostics
-            cleanup_error = exc
         finally:
             client.close()
-        if cleanup_error is not None:
-            raise cleanup_error

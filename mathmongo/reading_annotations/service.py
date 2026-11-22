@@ -6,6 +6,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass
+from datetime import datetime
 from enum import Enum
 from typing import Any
 from typing import Generic
@@ -1042,6 +1043,7 @@ class ReadingAnnotationService:
         page_start: int | None = None,
         page_end: int | None = None,
         tags: tuple[str, ...] | list[str] = (),
+        reference_locator: dict | None = None,
         user_scope: str = "local",
         note_id: str | None = None,
     ) -> ReadingAnnotationServiceResult[ReadingNote]:
@@ -1067,6 +1069,7 @@ class ReadingAnnotationService:
             "page_start": page_start,
             "page_end": page_end,
             "tags": list(tags),
+            "reference_locator": reference_locator,
         }
         if note_id is not None:
             values["note_id"] = note_id
@@ -1241,6 +1244,8 @@ class ReadingAnnotationService:
         page_end: int | None = None,
         tags: tuple[str, ...] | list[str] = (),
         user_scope: str = "local",
+        reference_locator: dict | None = None,
+        expected_updated_at: datetime | None = None,
     ) -> ReadingAnnotationServiceResult[ReadingNote]:
         gate = self._write_gate()
         if gate is not None:
@@ -1273,7 +1278,11 @@ class ReadingAnnotationService:
                 page_end=page_end,
                 reference_id=reference_id,
                 tags=tags,
+                expected_updated_at=expected_updated_at,
+                **({"reference_locator": reference_locator} if reference_locator is not None else {}),
             )
+            if value is None:
+                return self._result(ReadingAnnotationOperationStatus.CONFLICT, message="Reading Note changed; keep the local draft and review the current version.")
         except (ValidationError, ValueError) as exc:
             return self._result(ReadingAnnotationOperationStatus.INVALID_STATE, message=str(exc))
         except ReadingAnnotationConflictError as exc:

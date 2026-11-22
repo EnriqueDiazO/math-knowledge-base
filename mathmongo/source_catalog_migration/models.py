@@ -11,7 +11,7 @@ from pydantic import ConfigDict
 from pydantic import Field
 
 SCHEMA_VERSION = 1
-PLANNER_VERSION = "s1c1-v1"
+PLANNER_VERSION = "s1c1-v2"
 PLANNER_NAMESPACE = "mathmongo.source-catalog-migration"
 
 

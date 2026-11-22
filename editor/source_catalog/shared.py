@@ -28,7 +28,9 @@ _CREDENTIAL_RE = re.compile(
     r"access[_-]?token|authorization)[\"']?\s*[=:]\s*)"
     r"(?P<value>[\"'][^\"']*[\"']|[^,;}\]]+)"
 )
-_PYDANTIC_INPUT_RE = re.compile(r"input_value=.*?(?=,\s*input_type=|\]\s*$)", re.DOTALL)
+# Input can itself contain Pydantic's delimiters. Retain the diagnostic prefix,
+# but never infer a safe suffix from attacker-controlled rendered input.
+_PYDANTIC_INPUT_RE = re.compile(r"input_value=.*", re.DOTALL)
 _FILE_URI_RE = re.compile(r"(?i)file:///(?:[^\s,;:'\"<>\])]+)")
 _WINDOWS_PATH_RE = re.compile(r"(?i)(?<![\w\\])[a-z]:\\(?:[^\\\s,;:'\"<>\])]+\\?)+")
 _INTERNAL_PATH_RE = re.compile(

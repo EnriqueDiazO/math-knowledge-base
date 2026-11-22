@@ -1,0 +1,192 @@
+{
+  "revision": "be6d6c9d387dcaa80b612ba0f5f80420fb72bbba",
+  "analysis_id": "ce5ea5f2-3ad3-49a8-8da5-9b9c5cadade9",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "82.3"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "70.9",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "18195"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.5",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "50377"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "14517",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "19590",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "98884"
+        },
+        {
+          "metric": "files",
+          "value": "326"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "71.2",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "profiles_same_except_lastUsed": true,
+  "new_code_breakdown": {
+    "new_lines_to_cover": 4845.0,
+    "new_uncovered_lines": 679.0,
+    "new_conditions_to_cover": 1594.0,
+    "new_uncovered_conditions": 463.0,
+    "tooling_scripts": {
+      "new_lines_to_cover": 454.0,
+      "new_uncovered_lines": 29.0,
+      "new_conditions_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0
+    }
+  },
+  "open_issues": [],
+  "python": {
+    "covered": 32097,
+    "valid": 45747,
+    "line_coverage_percent": 70.16
+  },
+  "v8": {
+    "lines": {
+      "total": 4396,
+      "covered": 3473,
+      "skipped": 0,
+      "pct": 79
+    },
+    "statements": {
+      "total": 4812,
+      "covered": 3715,
+      "skipped": 0,
+      "pct": 77.2
+    },
+    "functions": {
+      "total": 1062,
+      "covered": 797,
+      "skipped": 0,
+      "pct": 75.04
+    },
+    "branches": {
+      "total": 2807,
+      "covered": 1866,
+      "skipped": 0,
+      "pct": 66.47
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "reports": {
+    "revision": "be6d6c9d387dcaa80b612ba0f5f80420fb72bbba",
+    "status": " M docs/audits/sonarqube-2026-11/mandala/CODE_INVENTORY.csv\n M docs/audits/sonarqube-2026-11/mandala/LARGE_FILES.md\n M docs/audits/sonarqube-2026-11/mandala/README.md\n M docs/audits/sonarqube-2026-11/mandala/REVIEW_REGISTER.csv\n M docs/audits/sonarqube-2026-11/mandala/TOP20_CURRENT.csv\n?? docs/audits/sonarqube-2026-11/mandala/BATCH4_INVENTORY.json\n?? docs/audits/sonarqube-2026-11/mandala/BATCH4_RESULTS.json\n?? docs/audits/sonarqube-2026-11/mandala/FINAL_STUDY_RESULTS.json\n?? docs/audits/sonarqube-2026-11/mandala/STUDY_ROOM.md\n?? docs/audits/sonarqube-2026-11/mandala/screenshots/\n",
+    "reports": {
+      "evidence/sonar/coverage.xml": "b906d10a99f119e22267909301594c72ad3353ea235d1df482f12068c858f615",
+      "frontend/advanced-reader/coverage/lcov.info": "ec904d7138eecde2486a9e34b142bf93131818ea7766258aa3a336c4734e290e",
+      "frontend/advanced-reader/coverage/coverage-summary.json": "417a20d3b5686da34bfbcb6ac6b348ca414c54ecab3b06ef7fde2b170e9a4029"
+    }
+  }
+}

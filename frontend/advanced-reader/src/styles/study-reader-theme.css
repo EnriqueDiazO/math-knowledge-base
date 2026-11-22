@@ -1,0 +1,29 @@
+:root[data-study-theme="true"] {
+  color-scheme: dark;
+  --surface: var(--mm-panel);
+  --surface-subtle: var(--mm-bg);
+  --surface-raised: var(--mm-control);
+  --line: var(--mm-line);
+  --line-strong: var(--mm-border);
+  --text: var(--mm-text);
+  --muted: var(--mm-muted);
+  --accent: var(--mm-turquoise);
+  --accent-strong: var(--mm-focus);
+  --accent-soft: var(--mm-hover);
+  --success: var(--mm-turquoise);
+  --warning: var(--mm-amber);
+  --danger: var(--mm-error);
+  color: var(--text);
+  background: var(--surface-subtle);
+}
+:root[data-study-theme="true"] button.primary {
+  color: var(--mm-selected-text);
+  background: var(--mm-selected-bg);
+  border-color: var(--mm-selected-border);
+}
+:root[data-study-theme="true"] button.primary:hover:not(:disabled) {
+  background: var(--mm-hover);
+}
+:root[data-study-theme="true"] #viewerContainer {
+  background: var(--mm-bg);
+}

@@ -435,7 +435,8 @@ def render_database_import_page(ui: Any, current_mongo: Any) -> None:
             if mode == CREATE_MODE:
                 _render_create_mode(ui, archive_path, current_mongo)
             else:
-                assert update_selection is not None
+                if update_selection is None:
+                    raise ValueError("Seleccione una base y una estrategia de actualización válidas.")
                 target_name, strategy = update_selection
                 _render_update_mode(
                     ui,

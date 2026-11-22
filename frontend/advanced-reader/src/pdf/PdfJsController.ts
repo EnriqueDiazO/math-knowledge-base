@@ -48,7 +48,7 @@ const MIN_APP_SCALE = 0.25;
 const MAX_APP_SCALE = 5;
 const SCALE_STEP = 1.1;
 
-export const PDFJS_VERSION = "6.1.200";
+export const PDFJS_VERSION = "6.2.108";
 export const PDFJS_RESOURCE_BASE_URL = `/assets/pdfjs-${PDFJS_VERSION}`;
 export const PDFJS_RESOURCE_URLS = Object.freeze({
   cMapUrl: `${PDFJS_RESOURCE_BASE_URL}/cmaps/`,

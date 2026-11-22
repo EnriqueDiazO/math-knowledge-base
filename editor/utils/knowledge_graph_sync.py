@@ -4,8 +4,8 @@ from copy import deepcopy
 from datetime import datetime
 from typing import Any
 
+from mathmongo.time import naive_utc_now
 from visualizations.grafoconocimiento import GrafoConocimiento
-
 
 DEFAULT_SYNC_SETTINGS = {
     "suppress_new_nodes_prompt": False,
@@ -18,7 +18,7 @@ DEFAULT_SYNC_SETTINGS = {
 
 
 def utc_timestamp() -> str:
-    return datetime.utcnow().isoformat() + "Z"
+    return naive_utc_now().isoformat() + "Z"
 
 
 def default_sync_settings(settings: dict | None = None) -> dict:

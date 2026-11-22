@@ -1,0 +1,22 @@
+[run]
+relative_files = True
+patch = subprocess
+source =
+    .
+omit =
+    tests/*
+    mathdbmongo/*
+    .venv/*
+    venv/*
+    env/*
+    .tools/*
+    .agents/*
+    lib/*
+    build/*
+    dist/*
+
+[report]
+include_namespace_packages = True
+
+[xml]
+output = evidence/sonar/coverage.xml

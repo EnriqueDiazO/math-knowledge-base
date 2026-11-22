@@ -1,0 +1,568 @@
+import type { Selection as MathSelection } from "mathlive";
+import { Editor, Extension, Node as TiptapNode } from "@tiptap/core";
+import type { JSONContent } from "@tiptap/core";
+import StarterKit from "@tiptap/starter-kit";
+import { TextSelection } from "@tiptap/pm/state";
+import { makeMath, mathErrors } from "./math";
+import { mountMathKeyboard } from "./keyboard";
+import {
+  normalizedOriginals,
+  parseDocument,
+  resultNames,
+  serialize,
+} from "./document";
+
+const dom = <K extends keyof HTMLElementTagNameMap>(tag: K, text = "") => {
+  const element = document.createElement(tag);
+  element.textContent = text;
+  return element;
+};
+function control(
+  parent: HTMLElement,
+  text: string,
+  action: () => void,
+): HTMLButtonElement {
+  const glyphs: Record<string, string> = {
+    Negrita: "B",
+    Énfasis: "I",
+    Encabezado: "H₂",
+    Lista: "• ≡",
+    "Lista numerada": "1. ≡",
+    Código: "</>",
+    "Deshacer texto": "↶",
+    "Rehacer texto": "↷",
+  };
+  const button = dom("button", glyphs[text] ?? text);
+  if (glyphs[text]) button.setAttribute("aria-label", text);
+  button.title = text;
+  button.type = "button";
+  button.onmousedown = (event) => event.preventDefault();
+  button.onclick = action;
+  parent.append(button);
+  return button;
+}
+const Provenance = Extension.create({
+  name: "originalSource",
+  addGlobalAttributes() {
+    return [
+      {
+        types: [
+          "paragraph",
+          "heading",
+          "bulletList",
+          "orderedList",
+          "listItem",
+          "codeBlock",
+          "blockquote",
+          "resultBlock",
+          "formula",
+          "sourceBlock",
+        ],
+        attributes: {
+          raw: { default: null, rendered: false },
+          signature: { default: null, rendered: false },
+        },
+      },
+    ];
+  },
+});
+const ResultBlock = TiptapNode.create({
+  name: "resultBlock",
+  group: "block",
+  content: "block+",
+  defining: true,
+  addAttributes() {
+    return {
+      environment: { default: "remark" },
+      title: { default: "" },
+      before: { default: null },
+      after: { default: null },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "section[data-result]" }];
+  },
+  renderHTML({ node }) {
+    return [
+      "section",
+      {
+        "data-result": String(node.attrs.environment),
+        "aria-label":
+          resultNames[String(node.attrs.environment)] ?? "Resultado",
+      },
+      [
+        "header",
+        { contenteditable: "false" },
+        `${resultNames[String(node.attrs.environment)] ?? "Resultado"}${node.attrs.title ? ": " + String(node.attrs.title) : ""}`,
+      ],
+      ["div", 0],
+    ];
+  },
+});
+const SourceAtom = TiptapNode.create({
+  name: "sourceAtom",
+  inline: true,
+  group: "inline",
+  atom: true,
+  addAttributes() {
+    return { source: { default: "" } };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-source-atom]" }];
+  },
+  renderHTML({ node }) {
+    return [
+      "span",
+      {
+        "data-source-atom": "",
+        class: "protected-inline",
+        title: "Fragmento original protegido",
+        contenteditable: "false",
+      },
+      String(node.attrs.source),
+    ];
+  },
+});
+const SourceBlock = TiptapNode.create({
+  name: "sourceBlock",
+  group: "block",
+  atom: true,
+  addAttributes() {
+    return {
+      source: { default: "" },
+      reason: { default: "Fragmento original protegido" },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "details[data-source-block]" }];
+  },
+  renderHTML({ node }) {
+    return [
+      "details",
+      { "data-source-block": "", class: "protected-block" },
+      ["summary", {}, String(node.attrs.reason)],
+      ["pre", {}, ["code", {}, String(node.attrs.source)]],
+    ];
+  },
+});
+const Formula = TiptapNode.create({
+  name: "formula",
+  inline: true,
+  group: "inline",
+  atom: true,
+  selectable: true,
+  addAttributes() {
+    return {
+      latex: { default: "" },
+      display: { default: false },
+      legacy: { default: false },
+    };
+  },
+  parseHTML() {
+    return [{ tag: "span[data-formula]" }];
+  },
+  renderHTML({ node }) {
+    return [
+      "span",
+      { "data-formula": "", "data-display": String(node.attrs.display) },
+      String(node.attrs.latex),
+    ];
+  },
+  addNodeView() {
+    return ({ node, editor, getPos }) => {
+      const wrapper = dom("span");
+      wrapper.className = node.attrs.display
+        ? "formula-block"
+        : "formula-inline";
+      const errors = mathErrors(String(node.attrs.latex));
+      const protectedFormula = Boolean(node.attrs.legacy && errors.length);
+      const math = makeMath(
+        String(node.attrs.latex),
+        editor.isEditable && !protectedFormula,
+      );
+      const warning = dom("span");
+      warning.className = "formula-warning";
+      warning.setAttribute("role", "status");
+      const report = () => {
+        const current = mathErrors(math.value);
+        warning.textContent = current.length
+          ? protectedFormula
+            ? "Fórmula original conservada; ver fuente"
+            : "Fórmula en elaboración"
+          : "";
+        wrapper.dataset.invalid = String(
+          current.length > 0 && !protectedFormula,
+        );
+      };
+      const update = () => {
+        const pos = getPos();
+        if (typeof pos !== "number") return;
+        editor.view.dispatch(
+          editor.state.tr.setNodeMarkup(pos, undefined, {
+            ...node.attrs,
+            latex: math.value,
+            legacy: false,
+          }),
+        );
+        report();
+      };
+      math.addEventListener("input", update);
+      math.addEventListener("move-out", (event) => {
+        const pos = getPos();
+        if (typeof pos !== "number") return;
+        const direction = (event as CustomEvent).detail?.direction;
+        const target = direction === "backward" ? pos : pos + node.nodeSize;
+        editor.view.dispatch(
+          editor.state.tr.setSelection(
+            TextSelection.near(editor.state.doc.resolve(target)),
+          ),
+        );
+        editor.view.focus();
+      });
+      wrapper.append(math, warning);
+      if (protectedFormula) {
+        const details = dom("details");
+        details.append(
+          dom("summary", "Ver fuente"),
+          dom("code", String(node.attrs.latex)),
+        );
+        wrapper.append(details);
+      }
+      report();
+      return {
+        dom: wrapper,
+        stopEvent: (event) =>
+          event.target instanceof globalThis.Node &&
+          math.contains(event.target),
+        ignoreMutation: () => true,
+        update(next) {
+          if (next.type !== node.type) return false;
+          node = next;
+          if (math.value !== String(next.attrs.latex))
+            math.setValue(String(next.attrs.latex), {
+              silenceNotifications: true,
+            });
+          report();
+          return true;
+        },
+        destroy() {
+          math.removeEventListener("input", update);
+        },
+      };
+    };
+  },
+});
+export const documentExtensions = () => [
+  StarterKit.configure({ link: false, underline: false, trailingNode: false }),
+  Provenance,
+  ResultBlock,
+  Formula,
+  SourceAtom,
+  SourceBlock,
+];
+export type EditorSnapshot = {
+  json: JSONContent;
+  selection: number;
+  scroll: number;
+  sourceMode: boolean;
+  dialogScroll?: number;
+  math?: { index: number; selection: MathSelection };
+};
+export class DocumentEditor {
+  readonly editor: Editor;
+  private source: HTMLTextAreaElement;
+  private visual: HTMLDivElement;
+  private preview: HTMLDivElement;
+  private sourceMode = false;
+  private activeMath?: ReturnType<typeof makeMath>;
+  private restored?: EditorSnapshot;
+  private disposeKeyboard: () => void = () => {};
+  private disposePreview?: () => void;
+  constructor(
+    private parent: HTMLElement,
+    latex: string,
+    private changed: (latex: string, snapshot: EditorSnapshot) => void,
+    snapshot?: EditorSnapshot,
+  ) {
+    this.restored = snapshot;
+    parent.classList.add("document-composer");
+    const dialog = parent.closest("dialog");
+    if (dialog instanceof HTMLElement)
+      this.disposeKeyboard = mountMathKeyboard(dialog);
+    const toolbar = dom("div");
+    toolbar.className = "document-toolbar";
+    toolbar.setAttribute("aria-label", "Herramientas del documento");
+    this.visual = dom("div");
+    this.visual.className = "visual-document";
+    this.visual.addEventListener("focusin", (event) => {
+      const field = event
+        .composedPath()
+        .find(
+          (target) =>
+            target instanceof HTMLElement && target.tagName === "MATH-FIELD",
+        );
+      this.activeMath = field as ReturnType<typeof makeMath> | undefined;
+    });
+    this.visual.addEventListener(
+      "selection-change",
+      (event) => {
+        const field = event
+          .composedPath()
+          .find(
+            (target) =>
+              target instanceof HTMLElement && target.tagName === "MATH-FIELD",
+          );
+        if (field) this.activeMath = field as ReturnType<typeof makeMath>;
+        if (this.editor) this.remember();
+      },
+      true,
+    );
+    this.source = dom("textarea");
+    this.source.setAttribute("aria-label", "Fuente LaTeX");
+    this.source.hidden = true;
+    this.preview = dom("div");
+    this.preview.className = "document-preview";
+    this.preview.hidden = true;
+    this.editor = new Editor({
+      element: this.visual,
+      extensions: documentExtensions(),
+      content: snapshot?.json ?? parseDocument(latex),
+      editorProps: {
+        attributes: {
+          role: "textbox",
+          "aria-label": "Documento visual",
+          "aria-multiline": "true",
+        },
+      },
+      onUpdate: () => this.notify(),
+      onSelectionUpdate: () => this.remember(),
+    });
+    if (!snapshot)
+      this.editor.commands.setContent(
+        normalizedOriginals(this.editor.getJSON()),
+        { emitUpdate: false },
+      );
+    const format = (name: string, action: () => void) =>
+      control(toolbar, name, action);
+    format("Negrita", () => this.editor.chain().focus().toggleBold().run());
+    format("Énfasis", () => this.editor.chain().focus().toggleItalic().run());
+    format("Encabezado", () =>
+      this.editor.chain().focus().toggleHeading({ level: 2 }).run(),
+    );
+    format("Lista", () => this.editor.chain().focus().toggleBulletList().run());
+    format("Lista numerada", () =>
+      this.editor.chain().focus().toggleOrderedList().run(),
+    );
+    format("Código", () => this.editor.chain().focus().toggleCodeBlock().run());
+    format("Deshacer texto", () => this.editor.chain().focus().undo().run());
+    format("Rehacer texto", () => this.editor.chain().focus().redo().run());
+    const results = dom("select");
+    results.setAttribute("aria-label", "Insertar bloque de resultado");
+    results.append(new Option("Bloque de resultado…", ""));
+    Object.entries(resultNames).forEach(([value, label]) =>
+      results.append(new Option(label, value)),
+    );
+    results.onchange = () => {
+      if (results.value)
+        this.editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "resultBlock",
+            attrs: { environment: results.value },
+            content: [{ type: "paragraph" }],
+          })
+          .run();
+      results.value = "";
+    };
+    toolbar.append(results);
+    format("Insertar fórmula en línea", () => this.insertFormula(false));
+    format("Insertar fórmula en bloque", () => this.insertFormula(true));
+    const templates: Record<string, string> = {
+      Fracción: "\\frac{#0}{#?}",
+      Exponente: "x^{#0}",
+      Subíndice: "x_{#0}",
+      Raíz: "\\sqrt{#0}",
+      Integral: "\\int_{0}^{1}#0\\,dx",
+      "Matriz 2×2": "\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}",
+      Símbolos: "\\forall x\\in\\mathbb{R}",
+    };
+    Object.entries(templates).forEach(([name, template]) =>
+      format(name, () => this.insertTemplate(template)),
+    );
+    format("Volver al párrafo", () => {
+      this.visual
+        .querySelectorAll("math-field")
+        .forEach((field) => (field as unknown as HTMLElement).blur());
+      this.editor.commands.setTextSelection(
+        this.editor.state.doc.content.size - 1,
+      );
+      this.editor.commands.insertContent({ type: "paragraph" });
+      this.editor.view.focus();
+    });
+    format("Fuente LaTeX", () => this.toggleSource());
+    format("Vista previa", () => {
+      this.preview.hidden = !this.preview.hidden;
+      if (!this.preview.hidden) this.updatePreview();
+    });
+    this.source.oninput = () => {
+      this.changed(this.source.value, this.snapshot());
+      this.updatePreview();
+    };
+    parent.append(toolbar, this.visual, this.source, this.preview);
+    this.source.value = latex;
+    if (snapshot) {
+      this.sourceMode = snapshot.sourceMode;
+      this.visual.hidden = this.sourceMode;
+      this.source.hidden = !this.sourceMode;
+      if (snapshot.math && !this.sourceMode) {
+        const math = this.visual.querySelectorAll("math-field")[
+          snapshot.math.index
+        ] as ReturnType<typeof makeMath> | undefined;
+        if (math) {
+          this.activeMath = math;
+          math.selection = structuredClone(snapshot.math.selection);
+        }
+      }
+      try {
+        this.editor.commands.setTextSelection(snapshot.selection);
+      } catch {
+        this.editor.commands.focus("end");
+      }
+      this.visual.scrollTop = snapshot.scroll;
+      this.restored = snapshot;
+    }
+  }
+  restoreViewport(): void {
+    const dialog = this.parent.closest("dialog");
+    if (dialog && this.restored?.dialogScroll !== undefined)
+      dialog.scrollTop = this.restored.dialogScroll;
+  }
+  restoreFocus(): void {
+    const snapshot = this.restored;
+    const dialog = this.parent.closest("dialog");
+    const restoreScroll = () => {
+      if (dialog && snapshot?.dialogScroll !== undefined)
+        dialog.scrollTop = snapshot.dialogScroll;
+    };
+    if (this.sourceMode) this.source.focus();
+    else if (snapshot?.math) {
+      const field = this.visual.querySelectorAll("math-field")[
+        snapshot.math.index
+      ] as ReturnType<typeof makeMath> | undefined;
+      if (field && !field.readOnly) {
+        this.activeMath = field;
+        field.selection = structuredClone(snapshot.math.selection);
+        field.addEventListener("focusin", restoreScroll, { once: true });
+        field.focus();
+      }
+    } else this.editor.view.focus();
+    restoreScroll();
+  }
+  private remember(): void {
+    if (!this.sourceMode) this.changed(this.value(), this.snapshot());
+  }
+  private notify(): void {
+    this.changed(this.value(), this.snapshot());
+    this.updatePreview();
+  }
+  private updatePreview(): void {
+    if (this.preview.hidden) return;
+    this.disposePreview?.();
+    this.disposePreview = renderDocument(this.preview, this.value());
+  }
+  value(): string {
+    return this.sourceMode
+      ? this.source.value
+      : serialize(this.editor.getJSON());
+  }
+  snapshot(): EditorSnapshot {
+    const fields = Array.from(this.visual.querySelectorAll("math-field"));
+    const index = this.activeMath ? fields.indexOf(this.activeMath) : -1;
+    const math =
+      index >= 0 && this.activeMath?.selection && !this.sourceMode
+        ? { index, selection: structuredClone(this.activeMath.selection) }
+        : undefined;
+    const result = {
+      json: this.editor.getJSON(),
+      selection: this.editor.state.selection.from,
+      scroll: this.visual.scrollTop,
+      sourceMode: this.sourceMode,
+      dialogScroll: this.parent.closest("dialog")?.scrollTop,
+      ...(math ? { math } : {}),
+    };
+    this.restored = result;
+    return result;
+  }
+  valid(): boolean {
+    return (
+      this.sourceMode || !this.visual.querySelector('[data-invalid="true"]')
+    );
+  }
+  private toggleSource(): void {
+    if (this.sourceMode) {
+      this.editor.commands.setContent(parseDocument(this.source.value), {
+        emitUpdate: false,
+      });
+      this.editor.commands.setContent(
+        normalizedOriginals(this.editor.getJSON()),
+        { emitUpdate: false },
+      );
+    } else this.source.value = this.value();
+    this.sourceMode = !this.sourceMode;
+    this.visual.hidden = this.sourceMode;
+    this.source.hidden = !this.sourceMode;
+    this.notify();
+  }
+  insertFormula(display: boolean): void {
+    const before = new Set(this.visual.querySelectorAll("math-field"));
+    this.editor.commands.insertContent({
+      type: "formula",
+      attrs: { latex: "", display, legacy: false },
+    });
+    const field = Array.from(this.visual.querySelectorAll("math-field")).find(
+      (candidate) => !before.has(candidate),
+    );
+    this.activeMath = field as ReturnType<typeof makeMath> | undefined;
+    (field as HTMLElement | undefined)?.focus();
+  }
+  insertTemplate(template: string): void {
+    const active =
+      this.visual.getRootNode() instanceof ShadowRoot
+        ? (this.visual.getRootNode() as ShadowRoot).activeElement
+        : document.activeElement;
+    const fields = Array.from(this.visual.querySelectorAll("math-field"));
+    let math =
+      (this.activeMath?.isConnected ? this.activeMath : undefined) ??
+      fields.find((field) => field === active) ??
+      fields.at(-1);
+    if (!math) {
+      this.insertFormula(true);
+      math = this.visual.querySelector("math-field") ?? undefined;
+    }
+    if (math && "insert" in math) {
+      (math as ReturnType<typeof makeMath>).insert(template, {
+        insertionMode: "replaceAll",
+        selectionMode: "placeholder",
+      });
+      math.dispatchEvent(new InputEvent("input", { bubbles: true }));
+      (math as unknown as HTMLElement).focus();
+    }
+  }
+  destroy(): void {
+    this.disposeKeyboard();
+    this.disposePreview?.();
+    this.editor.destroy();
+  }
+}
+/** Preview, reader and editor share exactly the same parser and node views. */
+export function renderDocument(parent: HTMLElement, latex: string): () => void {
+  const reader = new Editor({
+    element: parent,
+    extensions: documentExtensions(),
+    editable: false,
+    content: parseDocument(latex),
+    editorProps: { attributes: { class: "mathematical-document" } },
+  });
+  return () => reader.destroy();
+}

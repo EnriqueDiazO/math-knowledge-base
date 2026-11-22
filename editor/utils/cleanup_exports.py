@@ -361,7 +361,8 @@ def delete_files_safely(
         files_count, dirs_count, bytes_count = _path_counts(target)
         try:
             if move_to_backup:
-                assert backup_dir is not None
+                if backup_dir is None:
+                    raise ValueError("A validated backup directory is required before moving files")
                 destination = _backup_destination(target, root, backup_dir)
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.move(str(target), str(destination))

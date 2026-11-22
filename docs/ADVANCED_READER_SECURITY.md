@@ -208,7 +208,7 @@ La política que aplica el middleware es exacta por ruta:
   `Cache-Control: no-cache`;
 - assets bajo `/assets/`: `Cache-Control: public, max-age=31536000, immutable`;
   chunks y worker llevan hash, y los auxiliares PDF.js quedan fijados por el
-  namespace de versión `pdfjs-6.1.200` y su inventario validado;
+  namespace de versión `pdfjs-6.2.108` y su inventario validado;
 - todas las rutas `/api/`, incluido el PDF completo o parcial:
   `Cache-Control: no-store, private`.
 

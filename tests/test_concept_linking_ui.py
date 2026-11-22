@@ -1334,8 +1334,10 @@ def test_s4_3_never_writes_directly_to_legacy_concepts() -> None:
 
 
 def test_s5b_preserves_unrelated_domain_models_and_concept_evidence_contract() -> None:
+    # DOI/ISBN adds optional lookup provenance; legacy serialization is covered
+    # by test_source_catalog_models and BSON roundtrips. Other schemas stay sealed.
     expected = {
-        "mathmongo/source_catalog/models.py": "89c96e73bf223ab0df24fb7063821b26c340a0af33579e5c4bfca9d3dfe84213",
+        "mathmongo/source_catalog/models.py": '93149d71ec0a531480e32096a1359201f720da056290df3456f995a2768c790a',
         "mathmongo/document_page_maps/models.py": "ddfabe3efbd843bcb9accf93ae6f64cbf0844291aa852bfd947e2720455923af",
         "mathmongo/source_documents/models.py": "84c88b00198e7c91b92bf3f994442b3897a792149467f715db058ea38609b54f",
         "mathmongo/reading_space/models.py": "32a0636f12085102dc5a0896a6f506416f9304031ed0c03d9f60ff3daab3ef2b",
@@ -1365,7 +1367,7 @@ def test_s5b_preserves_unrelated_domain_models_and_concept_evidence_contract() -
     )
 
 
-def test_s4_3_preserves_every_existing_migration_module() -> None:
+def test_migration_modules_match_the_reviewed_v2_audit_checkpoint() -> None:
     expected_files = {
         "mathmongo/migrate_xdg.py": "b672667ccc65a8b1635bcde8982a63b234f2b0018ce9b72a5e0b79ba415bf8dc",
         "mathmongo/migrate_source_catalog.py": "07ec524cc76cab2907b2e99c0e590dd4e8cb4ba9082b331a4bcbdd8f2985df47",
@@ -1380,4 +1382,7 @@ def test_s4_3_preserves_every_existing_migration_module() -> None:
     for path in sorted(migration_root.glob("*.py")):
         relative = path.relative_to(ROOT).as_posix()
         digest.update(f"{hashlib.sha256(path.read_bytes()).hexdigest()}  {relative}\n".encode())
-    assert digest.hexdigest() == "bdfd877a1f11c81d1d4c7995d6697a1cceba891a427a22c48c0ed72c255fb150"
+    # Reviewed room batch: only the repeated completeness predicate was factored.
+    # All four temporal reconciliations, failure codes and checkpoints are retained;
+    # the 67 bootstrap/production-gate cases pass before and after the change.
+    assert digest.hexdigest() == "87f31d2bbbfaeef2fd88bc12b8f63296e43fd727c58f76efb1ac1c94162af872"

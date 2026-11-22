@@ -11,6 +11,8 @@ from editor.source_catalog.data_quality import render_data_quality
 from editor.source_catalog.document_ui import clear_source_document_preview
 from editor.source_catalog.document_ui import render_source_documents
 from editor.source_catalog.legacy_concepts import render_legacy_concepts
+from editor.source_catalog.lookup_ui import render_lookup_reference_plan
+from editor.source_catalog.lookup_ui import render_reference_refresh
 from editor.source_catalog.presentation import render_association_cards
 from editor.source_catalog.presentation import render_change_cards
 from editor.source_catalog.presentation import render_key_value_card
@@ -41,6 +43,7 @@ from mathmongo.source_catalog.models import ReferenceStatus
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog.models import SourceStatus
 from mathmongo.source_catalog.models import SourceType
+from mathmongo.source_catalog.repository import reference_revision
 
 SOURCE_SECTIONS = (
     "Overview & Edit",
@@ -498,10 +501,21 @@ def _render_reference_editor(
             "Asociaciones no disponibles",
             (("IDs de Source", reference.source_ids),),
         )
+    render_reference_refresh(ui, context, reference, writes_enabled=writes_enabled)
+    base_key = state_key('edit_reference_base', reference.reference_id)
+    if base_key not in ui.session_state:
+        ui.session_state[base_key] = reference.model_dump(mode='python')
+    base = Reference.model_validate(ui.session_state[base_key])
+    if reference_revision(base) != reference_revision(reference):
+        ui.warning('La ficha cambió desde que abriste el formulario. Revisa la versión actual antes de aplicar tus campos.')
+        if ui.button('He revisado la versión actual: conservar mis campos y adoptar esta revisión',
+            key=state_key('edit_reference_review', reference.reference_id)):
+            ui.session_state[base_key] = reference.model_dump(mode='python')
+            base = reference
     draft = render_reference_form(
         ui,
         key_prefix=f"edit_reference_{reference.reference_id}",
-        initial=reference,
+        initial=base,
         source_ids=reference.source_ids,
         reference_id=reference.reference_id,
     )
@@ -565,6 +579,8 @@ def _render_reference_editor(
                 reference.reference_id,
                 _reference_changes(draft.reference),
                 allow_duplicate=bool(duplicates),
+                expected_updated_at=base.updated_at,
+                expected_revision=reference_revision(base),
             ),
             success="Reference changes saved.",
         )
@@ -770,13 +786,15 @@ def _render_add_reference(
     ):
         mode = ui.radio(
             "New Reference input",
-            ("Manual", "Paste / Upload BibTeX"),
+            ("DOI / ISBN", "Manual", "Paste / Upload BibTeX"),
             horizontal=True,
             key=state_key("edit_add_reference_mode", source.source_id),
         )
         plans: list[ReferenceSavePlan] = []
         ready = False
-        if mode == "Manual":
+        if mode == "DOI / ISBN":
+            plans, ready = render_lookup_reference_plan(ui, context, key_prefix=f"edit_online_{source.source_id}")
+        elif mode == "Manual":
             draft = render_reference_form(
                 ui,
                 key_prefix=f"edit_add_manual_{source.source_id}",

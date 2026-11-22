@@ -350,6 +350,7 @@ def _render_advanced_reader_link(
         reader_url = build_advanced_reader_url(
             document_id,
             base_url=readiness.base_url,
+            study_mode=bool(getattr(ui, "session_state", {}).get("mathmongo_room_return")),
         )
     except (TypeError, ValueError):
         reader_url = None

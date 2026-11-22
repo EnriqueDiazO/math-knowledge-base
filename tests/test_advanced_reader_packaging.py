@@ -22,7 +22,7 @@ except ImportError:  # pragma: no cover - Python 3.10 in the project environment
 REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 FRONTEND_ROOT = REPOSITORY_ROOT / "frontend" / "advanced-reader"
 STATIC_ROOT = REPOSITORY_ROOT / "mathmongo" / "advanced_reader" / "static" / "advanced_reader"
-PDFJS_VERSION = "6.1.200"
+PDFJS_VERSION = "6.2.108"
 PDFJS_ASSET_INVENTORIES = {
     "cmaps": (169, "95e459bcb13faa8998861ebf9954a86ac2ec362342318cef04ad67d38bfcc4d7"),
     "standard_fonts": (
@@ -116,7 +116,7 @@ def test_python_package_declares_bounded_runtime_dependencies_and_static_assets(
 
     assert dependencies["fastapi"] == ">=0.115,<1.0"
     assert dependencies["uvicorn"] == ">=0.34,<1.0"
-    assert dependencies["python"] == ">=3.10,<3.14"
+    assert dependencies["python"] == ">=3.11.5,<3.14"
     assert {
         "path": "mathmongo/advanced_reader/static/**",
         "format": ["sdist", "wheel"],
@@ -153,7 +153,7 @@ def test_python_package_contains_the_explicit_factory_and_module_launcher() -> N
 
     makefile = (REPOSITORY_ROOT / "Makefile").read_text(encoding="utf-8")
     assert re.search(r"(?m)^advanced-reader:\s*$", makefile)
-    assert "mathdbmongo/bin/python -m mathmongo.advanced_reader" in makefile
+    assert "$(VENV_DIR)/bin/python -m mathmongo.advanced_reader" in makefile
 
 
 def test_frontend_manifest_has_reproducible_pinned_runtime_and_build_commands() -> None:
@@ -162,7 +162,11 @@ def test_frontend_manifest_has_reproducible_pinned_runtime_and_build_commands() 
     assert package["type"] == "module"
     assert package["packageManager"] == "npm@11.12.1"
     assert package["dependencies"] == {
-        "pdfjs-dist": "6.1.200",
+        "@tiptap/core": "3.35.0",
+        "@tiptap/starter-kit": "3.35.0",
+        "dompurify": "3.4.18",
+        "mathlive": "0.111.4",
+        "pdfjs-dist": "6.2.108",
         "react": "19.2.7",
         "react-dom": "19.2.7",
     }
@@ -330,7 +334,7 @@ def test_third_party_document_records_runtime_versions_licenses_and_offline_poli
         "React DOM",
         "pdfjs-dist",
         "19.2.7",
-        "6.1.200",
+        "6.2.108",
         "Apache-2.0",
         "BSD-3-Clause",
         "MIT",

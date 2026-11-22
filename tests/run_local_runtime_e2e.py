@@ -42,7 +42,7 @@ from mathmongo.source_documents.service import DocumentOperationStatus  # noqa: 
 from mathmongo.source_documents.service import SourceDocumentService  # noqa: E402
 from mathmongo.source_documents.storage import SourceDocumentBlobStore  # noqa: E402
 
-PYTHON = REPOSITORY_ROOT / "mathdbmongo" / "bin" / "python"
+PYTHON = Path(sys.executable)
 MONGOD = shutil.which("mongod")
 NODE = shutil.which("node")
 CHROME = shutil.which("google-chrome")
@@ -822,7 +822,8 @@ def main() -> int:
                     owned_processes=owned_processes,
                 )
                 isolated_databases = set(client.list_database_names())
-                if database_name not in isolated_databases or "MathV0" not in isolated_databases:
+                allowed_databases = {"admin", "config", "local", database_name, wrong_database}
+                if database_name not in isolated_databases or not isolated_databases <= allowed_databases:
                     raise RuntimeError(
                         "Streamlit databases were not confined to the ephemeral mongod"
                     )

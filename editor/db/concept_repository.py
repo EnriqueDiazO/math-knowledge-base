@@ -1,5 +1,6 @@
 import re
 
+
 def upsert_concept_metadata(db, concept_id: str, source: str, concepto_dict: dict) -> None:
     """
     Persist concept metadata using the current upsert behavior.
@@ -46,6 +47,8 @@ def insert_concept_with_latex_atomic(
     concepto_dict: dict,
     contenido_latex: str,
     now,
+    *,
+    operation_id: str | None = None,
 ) -> None:
     """
     Best-effort atomic insert across concepts and latex_documents.
@@ -66,15 +69,30 @@ def insert_concept_with_latex_atomic(
         "fecha_creacion": now,
         "ultima_actualizacion": now,
     }
+    if operation_id is not None:
+        latex_doc["_map_operation"] = operation_id
     source_id = doc.get("source_id")
     if source_id is not None:
         latex_doc["source_id"] = source_id
 
+    # A rejected first insert belongs to no compensation: deleting by identity
+    # here would erase the pre-existing concept that caused a duplicate error.
+    inserted = db.concepts.insert_one(doc)
+    rollback_filter = {"id": concept_id, "source": source}
+    inserted_id = getattr(inserted, "inserted_id", doc.get("_id"))
+    if inserted_id is not None:
+        # Standalone MongoDB has no multi-document transactions. Bound the
+        # compensation to this acknowledged insert, even if another writer
+        # subsequently replaces a concept with the same logical identity.
+        rollback_filter["_id"] = inserted_id
     try:
-        db.concepts.insert_one(doc)
         db.latex_documents.insert_one(latex_doc)
     except Exception:
-        db.concepts.delete_one({"id": concept_id, "source": source})
+        if operation_id is None:
+            db.concepts.delete_one(rollback_filter)
+        # Map operations have a durable recovery identity. Another flow may
+        # already have changed/referenced the metadata: keep it, report partial
+        # progress and reconcile content, rather than deleting a live concept.
         raise
 
 

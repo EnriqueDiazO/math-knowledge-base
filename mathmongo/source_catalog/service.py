@@ -8,6 +8,7 @@ from collections.abc import Mapping
 from copy import deepcopy
 from dataclasses import dataclass
 from dataclasses import field
+from datetime import datetime
 from enum import Enum
 from typing import Any
 from typing import Generic
@@ -30,6 +31,7 @@ from mathmongo.source_catalog.repository import PhysicalDeletionBlockedError
 from mathmongo.source_catalog.repository import ReferenceRepository
 from mathmongo.source_catalog.repository import RepositoryConflictError
 from mathmongo.source_catalog.repository import SourceRepository
+from mathmongo.source_catalog.repository import reference_revision
 
 T = TypeVar("T")
 FutureLinkDetector = Callable[[Any, str], Iterable[str]]
@@ -481,6 +483,8 @@ class SourceCatalogService:
         changes: Mapping[str, Any],
         *,
         allow_duplicate: bool = False,
+        expected_revision: str = "",
+        expected_updated_at: datetime | None = None,
     ) -> CatalogResult[Reference]:
         """Update approved bibliographic fields and derived fingerprints."""
         unexpected = set(changes) - self._REFERENCE_UPDATE_FIELDS
@@ -497,6 +501,10 @@ class SourceCatalogService:
             return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Reference not found.")
         try:
             current = _reference_from_repository(current_value)
+            if expected_updated_at is not None and current.updated_at != expected_updated_at:
+                raise RepositoryConflictError("Reference changed; review the current version before saving.")
+            if expected_revision and reference_revision(current) != expected_revision:
+                raise RepositoryConflictError("Reference changed; review the current metadata before saving.")
             data = current.model_dump(mode="python")
             data.update(dict(changes))
             data["updated_at"] = utc_now()
@@ -529,7 +537,7 @@ class SourceCatalogService:
                 if key in changes
                 or key in {"doi_normalized", "fingerprints", "status", "updated_at"}
             }
-            updated = self.references.update(reference_id, controlled)
+            updated = self.references.update(reference_id, controlled, **({"expected_updated_at": expected_updated_at} if expected_updated_at is not None else {}), **({"expected_revision": expected_revision} if expected_revision else {}))
             if updated is None:
                 return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Reference not found.")
             return CatalogResult(

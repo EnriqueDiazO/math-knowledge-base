@@ -163,6 +163,14 @@ class Reconciliation:
     reference_keys: frozenset[str]
 
 
+def _catalog_is_complete(reconciliation: Reconciliation, expected: ExpectedCatalog) -> bool:
+    """Check reconciled entity counts; callers retain each temporal read barrier."""
+    return (
+        len(reconciliation.source_keys) == len(expected.sources)
+        and len(reconciliation.reference_keys) == len(expected.references)
+    )
+
+
 def _entity_hash(entity: Source | Reference) -> str:
     return sha256_digest(entity.model_dump(mode="json"))
 
@@ -1311,7 +1319,11 @@ class BootstrapEngine:
                 self._checkpoint("manifest_prepared")
             else:
                 resumed = True
-            assert manifest is not None and expected is not None
+            if manifest is None or expected is None:
+                raise BootstrapBlockedError(
+                    "missing_prepared_state",
+                    "The prepared manifest and expected catalog are required before reconciliation.",
+                )
 
             reconciliation = self._reconcile(manifest, expected)
             if manifest.state == ManifestState.APPLIED:
@@ -1396,9 +1408,7 @@ class BootstrapEngine:
             manifest = self._cas(manifest, state=ManifestState.VERIFYING)
 
             final_reconciliation = self._reconcile(manifest, expected)
-            if len(final_reconciliation.source_keys) != len(expected.sources) or len(
-                final_reconciliation.reference_keys
-            ) != len(expected.references):
+            if not _catalog_is_complete(final_reconciliation, expected):
                 raise BootstrapError(
                     "catalog_verification_incomplete",
                     "Final Source Catalog verification found missing entities.",
@@ -1422,18 +1432,14 @@ class BootstrapEngine:
                     "Legacy collections or indexes changed during Source Catalog apply.",
                 )
             closing_reconciliation = self._reconcile(manifest, expected)
-            if len(closing_reconciliation.source_keys) != len(expected.sources) or len(
-                closing_reconciliation.reference_keys
-            ) != len(expected.references):
+            if not _catalog_is_complete(closing_reconciliation, expected):
                 raise BootstrapBlockedError(
                     "catalog_changed_during_verification",
                     "The Source Catalog changed during final verification.",
                 )
             self._checkpoint("verification_complete")
             boundary_reconciliation = self._reconcile(manifest, expected)
-            if len(boundary_reconciliation.source_keys) != len(expected.sources) or len(
-                boundary_reconciliation.reference_keys
-            ) != len(expected.references):
+            if not _catalog_is_complete(boundary_reconciliation, expected):
                 raise BootstrapBlockedError(
                     "catalog_changed_at_commit_boundary",
                     "The Source Catalog changed at the final manifest commit boundary.",
@@ -1456,9 +1462,7 @@ class BootstrapEngine:
                     "Legacy collections or indexes changed at the final manifest commit boundary.",
                 )
             last_reconciliation = self._reconcile(manifest, expected)
-            if len(last_reconciliation.source_keys) != len(expected.sources) or len(
-                last_reconciliation.reference_keys
-            ) != len(expected.references):
+            if not _catalog_is_complete(last_reconciliation, expected):
                 raise BootstrapBlockedError(
                     "catalog_changed_at_commit_boundary",
                     "The Source Catalog changed at the final manifest commit boundary.",

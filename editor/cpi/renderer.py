@@ -33,7 +33,7 @@ from mathkb_config import PROJECT_ROOT
 TEMPLATE_PATH = PROJECT_ROOT / "templates_latex" / "cpi_landscape_letter_v1.tex"
 ASSETS_DIRNAME = "cpi_assets"
 SOURCE_MARKER_PATTERN = re.compile(r"% CPI source page=(?P<page>\d+) region=(?P<region>\w+)")
-LATEX_FILE_LINE_PATTERN = re.compile(r"(?P<file>[^\s:]+\.tex):(?P<line>\d+):")
+LATEX_FILE_LINE_PATTERN = re.compile(r"(?<![^\s:])(?P<file>[^\s:]+\.tex):(?P<line>\d+):")
 LATEX_ERROR_PATTERN = re.compile(r"LaTeX Error:\s*(?P<message>.+)")
 REGION_LABELS = {
     "comprehension": "Comprensión",

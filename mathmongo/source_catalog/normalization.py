@@ -121,6 +121,22 @@ def is_valid_isbn(value: Any) -> bool:
     return is_valid_isbn10(value) or is_valid_isbn13(value)
 
 
+def isbn_equivalents(value: Any) -> frozenset[str]:
+    """Compare the same edition's valid ISBN-10/978 ISBN-13 without rewriting it."""
+    normalized = normalize_isbn(value)
+    if normalized is None or not re.fullmatch(r"(?:[0-9]{9}[0-9X]|[0-9]{13})", normalized) or not is_valid_isbn(normalized):
+        return frozenset()
+    if len(normalized) == 10:
+        stem = '978' + normalized[:9]
+        check = (-sum(int(char) * (1 if index % 2 == 0 else 3) for index, char in enumerate(stem))) % 10
+        return frozenset({normalized, stem + str(check)})
+    if normalized.startswith('978'):
+        stem = normalized[3:12]
+        check = (-sum((10 - index) * int(char) for index, char in enumerate(stem))) % 11
+        return frozenset({normalized, stem + ('X' if check == 10 else str(check))})
+    return frozenset({normalized})
+
+
 @dataclass(frozen=True, slots=True)
 class ISBNAnalysis:
     """Pure diagnostic result for one original ISBN value."""

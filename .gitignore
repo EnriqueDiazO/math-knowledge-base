@@ -49,6 +49,8 @@ dist/
 *.csv
 *.tsv
 *.xlsx
+# Private authoritative migration corpus; never publish its contents.
+/mathkb_export_20260712_073927.zip
 # ───── Quarto build (generated) ─────
 quarto_book_build/
 quarto_book_build/_book/
@@ -142,3 +144,14 @@ mathmongo/advanced_reader/static/advanced_reader.backup-*/
 !poetry.lock
 !frontend/advanced-reader/index.html
 !mathmongo/advanced_reader/static/advanced_reader/index.html
+
+# Local quality tooling, reports, scanner cache and private Sonar credentials
+.tools/
+evidence/
+.scannerwork/
+.coverage
+.coverage.*
+htmlcov/
+infra/sonarqube/.env
+infra/sonarqube/*.local.json
+.env

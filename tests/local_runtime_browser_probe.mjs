@@ -124,12 +124,9 @@ async function waitForPaintedFirstPage(page) {
 }
 
 async function selectStreamlitOption(page, label, optionText) {
-  const selectbox = page
-    .locator('[data-testid="stSidebar"] [data-testid="stSelectbox"]')
-    .filter({ hasText: label })
-    .first();
+  const selectbox = page.getByRole("combobox", { name: label, exact: true });
   await selectbox.waitFor({ state: "visible", timeout: 30_000 });
-  await selectbox.getByRole("combobox").click();
+  await selectbox.click();
   const option = page.getByRole("option").filter({ hasText: optionText }).first();
   await option.waitFor({ state: "visible", timeout: 10_000 });
   await option.click();
@@ -171,6 +168,21 @@ async function validateReader(context) {
   await textLayer.waitFor({ state: "attached", timeout: 20_000 });
   const text = (await textLayer.textContent())?.replace(/\s+/gu, " ").trim() ?? "";
   const screenshot = await page.screenshot({ type: "png" });
+  const scrollContainer = page.locator("#viewerContainer");
+  await scrollContainer.evaluate((element) => { element.scrollTop = 0; });
+  await scrollContainer.focus();
+  await page.keyboard.press("ArrowDown");
+  await page.waitForFunction(() => document.getElementById("viewerContainer").scrollTop > 0,
+    undefined, { timeout: 3000 });
+  const keyboardScroll = await scrollContainer.evaluate((element) => ({
+    focused: document.activeElement === element,
+    delta: element.scrollTop,
+    name: element.getAttribute("aria-label"),
+  }));
+  if (!keyboardScroll.focused || keyboardScroll.delta <= 0 || !keyboardScroll.name) {
+    throw new Error("reader_keyboard_scroll_region_not_accessible");
+  }
+
   if (
     canvas === null ||
     !text.includes("Advanced Reader page 1") ||
@@ -193,6 +205,7 @@ async function validateReader(context) {
     remote_request_count: remoteOrigins.size,
     page_error_count: pageErrors.length,
     screenshot_bytes: screenshot.byteLength,
+    keyboard_scroll: keyboardScroll,
     canvas,
   };
 }
@@ -206,26 +219,23 @@ async function validateStreamlit(context) {
   await page
     .locator('[data-testid="stAppViewContainer"]')
     .waitFor({ state: "visible", timeout: 30_000 });
-  await selectStreamlitOption(page, "Navigation", "Reading Space");
+  await selectStreamlitOption(page, "Navegación", "Reading Space");
   await page
-    .getByRole("heading", { name: /Reading Space/u })
+    .getByRole("heading", { name: /Lectura/u })
     .first()
     .waitFor({ state: "visible", timeout: 30_000 });
 
-  const documentsTab = page.getByRole("tab", { name: "Documents", exact: true });
+  const documentsTab = page.getByRole("tab", { name: "Biblioteca", exact: true });
   await documentsTab.waitFor({ state: "visible", timeout: 20_000 });
   await documentsTab.click();
-  const expander = page
-    .locator('[data-testid="stExpander"]')
-    .filter({ hasText: documentTitle })
-    .first();
-  await expander.waitFor({ state: "visible", timeout: 30_000 });
-  await expander.locator("summary").click();
-  const openButton = expander.getByRole("button", { name: "Open", exact: true });
+  const card = page.locator(`.st-key-reading_space_library_card_${documentId}`);
+  await card.waitFor({ state: "visible", timeout: 30_000 });
+  await card.getByText(documentTitle, { exact: true }).waitFor({ state: "visible" });
+  const openButton = card.getByRole("button", { name: /^(Leer|Continuar)$/u });
   if (!(await openButton.isEnabled())) throw new Error("streamlit_document_open_disabled");
   await openButton.click();
 
-  const workspaceTab = page.getByRole("tab", { name: "Workspace", exact: true });
+  const workspaceTab = page.getByRole("tab", { name: "Leer", exact: true });
   await workspaceTab.waitFor({ state: "visible", timeout: 30_000 });
   await workspaceTab.click();
   const ready = page.getByText("Lector avanzado listo.", { exact: true }).first();
@@ -252,7 +262,7 @@ async function validateStreamlit(context) {
   const popupPromise = context.waitForEvent("page", { timeout: 10_000 });
   await link.click();
   const popup = await popupPromise;
-  await popup.waitForLoadState("domcontentloaded", { timeout: 20_000 });
+  await popup.waitForURL(target.href, { waitUntil: "domcontentloaded", timeout: 20_000 });
   const opened = new URL(popup.url());
   if (opened.href !== target.href) throw new Error("streamlit_reader_link_did_not_open");
   await popup.close();

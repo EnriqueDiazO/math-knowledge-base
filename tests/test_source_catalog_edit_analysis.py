@@ -454,6 +454,7 @@ def test_reference_update_submit_is_not_deadlocked_by_inner_confirmation(
             errors=(),
         ),
     )
+    monkeypatch.setattr(edit_source_page, "render_reference_refresh", lambda *_args, **_kwargs: None)
     monkeypatch.setattr(edit_source_page, "render_duplicate_preview", lambda *_args: None)
 
     edit_source_page._render_reference_editor(

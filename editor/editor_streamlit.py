@@ -53,6 +53,10 @@ from editor.reading_space.state import READING_SPACE_NAV_LABEL
 from editor.reading_space.state import add_reading_space_navigation
 from editor.reading_space.state import apply_pending_navigation as apply_pending_reading_navigation
 from editor.reading_space.state import sync_database_state as sync_reading_database_state
+from editor.source_catalog.state import request_navigation
+from editor.study_navigation import ROOM_RETURN
+from editor.study_navigation import STUDY_ROOM_NAV_LABEL
+from editor.study_navigation import add_study_room_navigation
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -164,6 +168,7 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_latex_runtime_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.time import naive_utc_now
 from schemas.schemas import ConceptoBase
 from visualizations.grafoconocimiento import GrafoConocimiento
 
@@ -1121,7 +1126,7 @@ with st.sidebar.expander("Acciones de conexión", expanded=False, icon=":materia
 with st.sidebar:
     st.divider()
     st.subheader("Tema")
-    active_theme = render_theme_control(st)
+    active_theme = render_theme_control(st, study_mode=(NAVIGATION_WIDGET not in st.session_state and st.query_params.get("study") == "1") or st.session_state.get(NAVIGATION_WIDGET) in {"🗺️ Grafo de conocimiento", STUDY_ROOM_NAV_LABEL} or (st.session_state.get(NAVIGATION_WIDGET) == READING_SPACE_NAV_LABEL and bool(st.session_state.get(ROOM_RETURN))))
 apply_mathmongo_theme(active_theme, st)
 st.sidebar.divider()
 
@@ -1201,6 +1206,7 @@ if _cuaderno_is_installed(db):
     nav_options[1:1] = ["📝 Cuaderno", "🟩 Cornell", CPI_NAV_LABEL]
 nav_options = add_source_catalog_navigation(nav_options)
 nav_options = add_reading_space_navigation(nav_options)
+nav_options = add_study_room_navigation(nav_options)
 
 apply_pending_navigation(st.session_state, nav_options)
 apply_pending_reading_navigation(
@@ -1208,6 +1214,8 @@ apply_pending_reading_navigation(
     nav_options,
     navigation_key=NAVIGATION_WIDGET,
 )
+if NAVIGATION_WIDGET not in st.session_state and st.query_params.get('study') == '1':
+    st.session_state[NAVIGATION_WIDGET] = STUDY_ROOM_NAV_LABEL
 if st.session_state.get(NAVIGATION_WIDGET) not in nav_options:
     st.session_state.pop(NAVIGATION_WIDGET, None)
 with st.sidebar:
@@ -1219,6 +1227,11 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page
+if page == STUDY_ROOM_NAV_LABEL and st.query_params.get('study') != '1':
+    st.query_params['study'] = '1'
+elif page not in {STUDY_ROOM_NAV_LABEL, READING_SPACE_NAV_LABEL} and 'study' in st.query_params:
+    del st.query_params['study']
+
 
 
 # Source Catalog pages
@@ -1247,7 +1260,17 @@ elif page == READING_SPACE_NAV_LABEL:
             f"{catalog_context_error or 'no active MongoDB database.'}"
         )
     else:
+        if st.session_state.get(ROOM_RETURN) and st.button('Volver a la habitación de estudio', key='study_reader_return'):
+            request_navigation(st.session_state, STUDY_ROOM_NAV_LABEL)
+            st.rerun()
         render_reading_space_page(catalog_context)
+
+elif page == STUDY_ROOM_NAV_LABEL:
+    if db is None or not active_database_scope:
+        st.error('Selecciona una conexión y base para abrir la habitación.')
+    else:
+        from editor.knowledge_map import render_knowledge_map
+        render_knowledge_map(db, active_database_scope, room_mode=True)
 
 # Dashboard page
 elif page == "🏠 Inicio":
@@ -4153,7 +4176,7 @@ elif page == "🗺️ Grafo de conocimiento":
 
     maps_col = db.db["knowledge_graph_maps"]
     try:
-        all_maps = list(maps_col.find({}).sort("updated_at", -1).limit(200))
+        all_maps = list(maps_col.find({"study_room": {"$exists": False}}).sort("updated_at", -1).limit(200))
     except Exception as exc:
         all_maps = []
         st.error(f"No se pudieron listar los mapas guardados: {exc}")
@@ -4199,7 +4222,7 @@ elif page == "🗺️ Grafo de conocimiento":
         {t.value for t in TipoRelacion} | saved_relation_type_options | db_relation_type_options,
         key=str.lower,
     )
-    kg_sections = ["📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"]
+    kg_sections = ["🌐 Esfera editable", "📊 Nuevo mapa", "📚 Mapas guardados", "✏️ Editar mapa", "📤 Exportar / importar"]
     requested_kg_section = st.session_state.pop("knowledge_graph_section_request", None)
     if requested_kg_section in kg_sections:
         st.session_state["knowledge_graph_section"] = requested_kg_section
@@ -4209,7 +4232,7 @@ elif page == "🗺️ Grafo de conocimiento":
         elif st.session_state.get("knowledge_graph_active_mode") == "view":
             st.session_state["knowledge_graph_section"] = "📚 Mapas guardados"
         else:
-            st.session_state["knowledge_graph_section"] = "📊 Nuevo mapa"
+            st.session_state["knowledge_graph_section"] = "🌐 Esfera editable"
 
     kg_section = st.radio(
         "Sección de mapas",
@@ -4219,7 +4242,11 @@ elif page == "🗺️ Grafo de conocimiento":
         label_visibility="collapsed",
     )
 
-    if kg_section == "📊 Nuevo mapa":
+    if kg_section == "🌐 Esfera editable":
+        from editor.knowledge_map import render_knowledge_map
+        render_knowledge_map(db, active_database_scope)
+
+    elif kg_section == "📊 Nuevo mapa":
         st.subheader("📊 Nuevo mapa")
         col1, col2 = st.columns(2)
         with col1:
@@ -4319,7 +4346,7 @@ elif page == "🗺️ Grafo de conocimiento":
                         st.error("Se detectaron inconsistencias antes de guardar el mapa.")
                         st.warning("\n".join(f"- {issue}" for issue in integrity_issues[:8]))
                         st.stop()
-                    now = datetime.utcnow()
+                    now = naive_utc_now()
                     inferred_sources = infer_sources_from_graph_state(graph_state)
                     inferred_types = infer_concept_types_from_graph_state(graph_state)
                     map_sources = merge_ordered_values(selected_sources, inferred_sources)
@@ -4426,7 +4453,7 @@ elif page == "🗺️ Grafo de conocimiento":
                 with action_col3:
                     if st.button("Duplicar", key="kg_duplicate_map"):
                         try:
-                            now = datetime.utcnow()
+                            now = naive_utc_now()
                             duplicate = {k: v for k, v in selected_doc.items() if k != "_id"}
                             duplicate["name"] = f"Copia de {selected_doc.get('name', 'Mapa sin nombre')}"
                             duplicate["map_uid"] = str(uuid4())
@@ -4567,7 +4594,7 @@ elif page == "🗺️ Grafo de conocimiento":
                         {
                             "$set": {
                                 "graph_state": repaired_graph_state,
-                                "updated_at": datetime.utcnow(),
+                                "updated_at": naive_utc_now(),
                             }
                         },
                     )
@@ -4758,7 +4785,7 @@ elif page == "🗺️ Grafo de conocimiento":
                                 {
                                     "$set": {
                                         "graph_state": repaired_graph_state,
-                                        "updated_at": datetime.utcnow(),
+                                        "updated_at": naive_utc_now(),
                                     }
                                 },
                             )
@@ -4863,7 +4890,7 @@ elif page == "🗺️ Grafo de conocimiento":
                                 {
                                     "$set": {
                                         "sync_settings": updated_sync_settings,
-                                        "updated_at": datetime.utcnow(),
+                                        "updated_at": naive_utc_now(),
                                     }
                                 },
                             )
@@ -5284,7 +5311,7 @@ elif page == "🗺️ Grafo de conocimiento":
                                             )
                                         ),
                                         "map_uid": edit_doc.get("map_uid") or str(uuid4()),
-                                        "updated_at": datetime.utcnow(),
+                                        "updated_at": naive_utc_now(),
                                     }
                                 },
                             )
@@ -5406,7 +5433,7 @@ elif page == "🗺️ Grafo de conocimiento":
                     inferred_sources = infer_sources_from_graph_state(graph_state)
                     inferred_types = infer_concept_types_from_graph_state(graph_state)
                     primary_map_source = inferred_sources[0] if inferred_sources else ""
-                    now = datetime.utcnow()
+                    now = naive_utc_now()
                     result = maps_col.insert_one(
                         {
                             "name": import_name.strip(),

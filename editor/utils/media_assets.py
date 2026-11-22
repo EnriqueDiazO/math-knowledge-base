@@ -6,7 +6,6 @@ import mimetypes
 import re
 import shutil
 import unicodedata
-from datetime import datetime
 from pathlib import Path
 from uuid import uuid4
 
@@ -24,6 +23,7 @@ from mathkb_config import MEDIA_ROOT
 from mathkb_config import PROJECT_ROOT
 from mathmongo.paths import find_symlink_component
 from mathmongo.paths import validate_mutable_path
+from mathmongo.time import naive_utc_now
 
 LATEX_IMAGE_EXTENSIONS = {".png", ".jpg", ".jpeg", ".pdf"}
 HEAVY_TIKZ_DRAW_THRESHOLD = 500
@@ -136,7 +136,7 @@ def save_media_asset(
     destination.write_bytes(data)
 
     relative_path = relative_media_path(destination.relative_to(DATA_DIR))
-    now = datetime.utcnow()
+    now = naive_utc_now()
     concept_key = concept_media_key(concept_id, source) if concept_id and source else None
     note_key = note_media_key(note_id) if note_id else None
     doc = {
@@ -185,7 +185,7 @@ def attach_media_assets_to_note(db, *, note_id: str, asset_ids: list[str] | tupl
     note_key = note_media_key(note_id)
     if not note_key:
         raise ValueError("note_id cannot be empty")
-    now = datetime.utcnow()
+    now = naive_utc_now()
     for asset_id in dict.fromkeys(str(value).strip() for value in asset_ids):
         if not asset_id:
             continue
@@ -210,7 +210,7 @@ def detach_media_assets_from_note_record(
         clean_ids = [str(asset.get("asset_id") or "") for asset in assets]
     else:
         clean_ids = [str(asset_id or "") for asset_id in asset_ids]
-    now = datetime.utcnow()
+    now = naive_utc_now()
     for asset_id in dict.fromkeys(clean_ids):
         if not asset_id:
             continue
@@ -324,17 +324,9 @@ def detach_media_asset_from_concept(
     )
     media_collection(db).update_one(
         {"asset_id": asset_id},
-        {"$pull": {"concept_ids": concept_key}, "$set": {"updated_at": datetime.utcnow()}},
+        {"$pull": {"concept_ids": concept_key}, "$set": {"updated_at": naive_utc_now()}},
     )
-    asset = media_collection(db).find_one({"asset_id": asset_id})
-    if not asset:
-        return False
-    still_referenced = bool(asset.get("concept_ids") or asset.get("note_ids"))
-    if delete_if_unreferenced and not still_referenced:
-        _delete_local_asset_file(asset)
-        media_collection(db).delete_one({"asset_id": asset_id})
-        return True
-    return False
+    return delete_if_unreferenced and delete_media_asset_if_unreferenced(db, asset_id)
 
 
 def detach_media_asset_from_note(
@@ -352,17 +344,9 @@ def detach_media_asset_from_note(
     )
     media_collection(db).update_one(
         {"asset_id": asset_id},
-        {"$pull": {"note_ids": note_key}, "$set": {"updated_at": datetime.utcnow()}},
+        {"$pull": {"note_ids": note_key}, "$set": {"updated_at": naive_utc_now()}},
     )
-    asset = media_collection(db).find_one({"asset_id": asset_id})
-    if not asset:
-        return False
-    still_referenced = bool(asset.get("concept_ids") or asset.get("note_ids"))
-    if delete_if_unreferenced and not still_referenced:
-        _delete_local_asset_file(asset)
-        media_collection(db).delete_one({"asset_id": asset_id})
-        return True
-    return False
+    return delete_if_unreferenced and delete_media_asset_if_unreferenced(db, asset_id)
 
 
 def media_path_exists(asset: dict) -> bool:

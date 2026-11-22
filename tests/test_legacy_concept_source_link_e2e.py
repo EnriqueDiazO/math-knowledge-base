@@ -185,7 +185,6 @@ def test_link_legacy_concept_to_existing_source_in_temporary_database() -> None:
         for collection_name in dependency_collections:
             assert database[collection_name].count_documents({}) == 0
     finally:
-        cleanup_error: Exception | None = None
         try:
             if cleanup_authorized:
                 client.drop_database(database_name)
@@ -193,9 +192,5 @@ def test_link_legacy_concept_to_existing_source_in_temporary_database() -> None:
                 assert set(write_audit.database_names) == {database_name}
             else:
                 assert write_audit.database_names == []
-        except Exception as exc:  # pragma: no cover - preserves cleanup diagnostics
-            cleanup_error = exc
         finally:
             client.close()
-        if cleanup_error is not None:
-            raise cleanup_error

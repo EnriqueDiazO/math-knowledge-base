@@ -5,6 +5,7 @@ from __future__ import annotations
 from typing import Any
 
 from editor.source_catalog.bibtex_ui import render_bibtex_input
+from editor.source_catalog.lookup_ui import render_lookup_reference_plan
 from editor.source_catalog.presentation import render_section_header
 from editor.source_catalog.presentation import render_source_summary_card
 from editor.source_catalog.reference_actions import render_reference_save_plan
@@ -35,7 +36,7 @@ from mathmongo.source_catalog.models import Source
 
 ADD_PREVIEW_KEY = state_key("add_preview")
 RECENT_CREATED_SOURCE_ID = state_key("recent_created_source_id")
-REFERENCE_MODES = ("None", "Manual", "Paste / Upload BibTeX")
+REFERENCE_MODES = ("None", "DOI / ISBN", "Manual", "Paste / Upload BibTeX")
 
 
 def _show_form_errors(ui: Any, draft: SourceFormDraft | ReferenceFormDraft) -> None:
@@ -203,7 +204,9 @@ def render_add_source_page(
         )
     plans: list[ReferenceSavePlan] = []
     references_ready = True
-    if reference_mode == "Manual":
+    if reference_mode == "DOI / ISBN":
+        plans, references_ready = render_lookup_reference_plan(ui, context, key_prefix="add_online")
+    elif reference_mode == "Manual":
         plans, references_ready = _manual_reference_plan(ui, context)
     elif reference_mode == "Paste / Upload BibTeX":
         render_section_header(ui, "Vista previa de BibTeX")

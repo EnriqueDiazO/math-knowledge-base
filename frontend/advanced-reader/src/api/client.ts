@@ -46,8 +46,9 @@ export function documentIdFromSearch(search: string): string | null {
   const keys = [...parameters.keys()];
   if (
     documentIds.length !== 1 ||
-    keys.length !== 1 ||
-    keys[0] !== "document_id" ||
+    keys.some((key) => !["document_id", "theme"].includes(key)) ||
+    parameters.getAll("theme").length > 1 ||
+    (parameters.has("theme") && parameters.get("theme") !== "study") ||
     !isValidDocumentId(documentIds[0])
   ) {
     return null;
@@ -57,32 +58,47 @@ export function documentIdFromSearch(search: string): string | null {
 
 function documentPath(documentId: string, suffix = ""): string {
   if (!isValidDocumentId(documentId)) {
-    throw new ReaderApiError("invalid_document_id", "El identificador del Document no es válido.");
+    throw new ReaderApiError(
+      "invalid_document_id",
+      "El identificador del Document no es válido.",
+    );
   }
   return `${API_ROOT}/documents/${encodeURIComponent(documentId)}${suffix}`;
 }
 
 function annotationPath(annotationId: string, suffix = ""): string {
   if (!ANNOTATION_ID_PATTERN.test(annotationId)) {
-    throw new ReaderApiError("invalid_annotation_id", "La anotación visual no es válida.");
+    throw new ReaderApiError(
+      "invalid_annotation_id",
+      "La anotación visual no es válida.",
+    );
   }
   return `${API_ROOT}/visual-annotations/${encodeURIComponent(annotationId)}${suffix}`;
 }
 
 function evidencePath(evidenceLinkId: string, suffix = ""): string {
   if (!EVIDENCE_ID_PATTERN.test(evidenceLinkId)) {
-    throw new ReaderApiError("invalid_evidence_id", "El vínculo conceptual no es válido.");
+    throw new ReaderApiError(
+      "invalid_evidence_id",
+      "El vínculo conceptual no es válido.",
+    );
   }
   return `${API_ROOT}/concept-evidence/${encodeURIComponent(evidenceLinkId)}${suffix}`;
 }
 
 export function sameOriginUrl(path: string): string {
   if (!path.startsWith(`${API_ROOT}/`) || path.startsWith("//")) {
-    throw new ReaderApiError("invalid_api_path", "La ruta de API no está permitida.");
+    throw new ReaderApiError(
+      "invalid_api_path",
+      "La ruta de API no está permitida.",
+    );
   }
   const url = new URL(path, window.location.origin);
   if (url.origin !== window.location.origin) {
-    throw new ReaderApiError("cross_origin_blocked", "La API debe compartir origen con el lector.");
+    throw new ReaderApiError(
+      "cross_origin_blocked",
+      "La API debe compartir origen con el lector.",
+    );
   }
   return `${url.pathname}${url.search}`;
 }
@@ -96,11 +112,16 @@ async function decodeError(response: Response): Promise<ReaderApiError> {
   }
   const code = body.error?.code ?? body.code ?? "api_error";
   const message =
-    body.error?.message ?? body.message ?? "El lector no pudo completar la solicitud.";
+    body.error?.message ??
+    body.message ??
+    "El lector no pudo completar la solicitud.";
   return new ReaderApiError(code, message, response.status);
 }
 
-async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> {
+async function requestJson<T>(
+  path: string,
+  init: RequestInit = {},
+): Promise<T> {
   let response: Response;
   const headers = new Headers(init.headers);
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
@@ -125,8 +146,15 @@ async function requestJson<T>(path: string, init: RequestInit = {}): Promise<T> 
 }
 
 export interface AdvancedReaderApi {
-  getMetadata(documentId: string, signal?: AbortSignal): Promise<DocumentMetadata>;
-  getPageLabel(documentId: string, pdfPage: number, signal?: AbortSignal): Promise<PageLabel>;
+  getMetadata(
+    documentId: string,
+    signal?: AbortSignal,
+  ): Promise<DocumentMetadata>;
+  getPageLabel(
+    documentId: string,
+    pdfPage: number,
+    signal?: AbortSignal,
+  ): Promise<PageLabel>;
   savePage(
     documentId: string,
     pdfPage: number,
@@ -147,22 +175,41 @@ export interface AdvancedReaderApi {
     payload: CreateVisualAnnotation,
     signal?: AbortSignal,
   ): Promise<VisualAnnotation>;
-  getVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
+  getVisualAnnotation(
+    annotationId: string,
+    signal?: AbortSignal,
+  ): Promise<VisualAnnotation>;
   updateVisualAnnotation(
     annotationId: string,
     payload: UpdateVisualAnnotation,
     signal?: AbortSignal,
   ): Promise<VisualAnnotation>;
-  archiveVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
-  reactivateVisualAnnotation(annotationId: string, signal?: AbortSignal): Promise<VisualAnnotation>;
+  archiveVisualAnnotation(
+    annotationId: string,
+    signal?: AbortSignal,
+  ): Promise<VisualAnnotation>;
+  reactivateVisualAnnotation(
+    annotationId: string,
+    signal?: AbortSignal,
+  ): Promise<VisualAnnotation>;
   searchConcepts(
     query: string,
-    options?: { source?: string; conceptType?: string; category?: string; page?: number; limit?: number },
+    options?: {
+      source?: string;
+      conceptType?: string;
+      category?: string;
+      page?: number;
+      limit?: number;
+    },
     signal?: AbortSignal,
   ): Promise<ConceptSearchResult>;
   listAnnotationConceptEvidence(
     annotationId: string,
-    options?: { status?: "active" | "archived" | "all"; page?: number; limit?: number },
+    options?: {
+      status?: "active" | "archived" | "all";
+      page?: number;
+      limit?: number;
+    },
     signal?: AbortSignal,
   ): Promise<ConceptEvidenceList>;
   createAnnotationConceptEvidence(
@@ -224,12 +271,18 @@ export const advancedReaderApi: AdvancedReaderApi = {
       throw new ReaderApiError("page_invalid", "La página PDF no es válida.");
     }
     const payload: ReadingPageUpdate = { pdf_page: pdfPage };
-    return requestJson<ReadingStateResponse>(documentPath(documentId, "/reading-state/page"), {
-      method: "PUT",
-      signal,
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
-    });
+    return requestJson<ReadingStateResponse>(
+      documentPath(documentId, "/reading-state/page"),
+      {
+        method: "PUT",
+        signal,
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
+      },
+    );
   },
 
   listVisualAnnotations(documentId, options = {}, signal) {
@@ -257,7 +310,9 @@ export const advancedReaderApi: AdvancedReaderApi = {
   },
 
   getVisualAnnotation(annotationId, signal) {
-    return requestJson<VisualAnnotation>(annotationPath(annotationId), { signal });
+    return requestJson<VisualAnnotation>(annotationPath(annotationId), {
+      signal,
+    });
   },
 
   updateVisualAnnotation(annotationId, payload, signal) {
@@ -284,7 +339,10 @@ export const advancedReaderApi: AdvancedReaderApi = {
   searchConcepts(query, options = {}, signal) {
     const value = query.trim();
     if (!value || Array.from(value).length > 160) {
-      throw new ReaderApiError("concept_query_invalid", "La búsqueda debe tener entre 1 y 160 caracteres.");
+      throw new ReaderApiError(
+        "concept_query_invalid",
+        "La búsqueda debe tener entre 1 y 160 caracteres.",
+      );
     }
     const parameters = new URLSearchParams({
       q: value,
@@ -292,9 +350,13 @@ export const advancedReaderApi: AdvancedReaderApi = {
       limit: String(options.limit ?? 20),
     });
     if (options.source) parameters.set("source", options.source);
-    if (options.conceptType) parameters.set("concept_type", options.conceptType);
+    if (options.conceptType)
+      parameters.set("concept_type", options.conceptType);
     if (options.category) parameters.set("category", options.category);
-    return requestJson<ConceptSearchResult>(`${API_ROOT}/concepts/search?${parameters}`, { signal });
+    return requestJson<ConceptSearchResult>(
+      `${API_ROOT}/concepts/search?${parameters}`,
+      { signal },
+    );
   },
 
   listAnnotationConceptEvidence(annotationId, options = {}, signal) {
@@ -336,7 +398,8 @@ export const advancedReaderApi: AdvancedReaderApi = {
       page: String(options.page ?? 1),
       limit: String(options.limit ?? 25),
     });
-    if (options.pdfPage !== undefined) parameters.set("pdf_page", String(options.pdfPage));
+    if (options.pdfPage !== undefined)
+      parameters.set("pdf_page", String(options.pdfPage));
     return requestJson<DocumentConceptSummary>(
       documentPath(documentId, `/visual-concept-evidence?${parameters}`),
       { signal },
@@ -348,7 +411,8 @@ export const advancedReaderApi: AdvancedReaderApi = {
       page: String(options.page ?? 1),
       limit: String(options.limit ?? 25),
     });
-    if (options.pdfPage !== undefined) parameters.set("pdf_page", String(options.pdfPage));
+    if (options.pdfPage !== undefined)
+      parameters.set("pdf_page", String(options.pdfPage));
     return requestJson<UnlinkedVisualAnnotationList>(
       documentPath(documentId, `/unlinked-visual-annotations?${parameters}`),
       { signal },

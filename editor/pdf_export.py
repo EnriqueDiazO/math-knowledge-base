@@ -33,6 +33,7 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_latex_runtime_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
+from mathmongo.source_catalog.citations import extra_citation_latex
 
 # Valores constantes
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -439,8 +440,18 @@ def _copy_pdf_to_final_path(pdf_file: Path, final_pdf: Path) -> None:
     final_parent = validate_mutable_path(final_pdf.parent)
     final_parent.mkdir(parents=True, exist_ok=True)
     final_pdf = validate_mutable_path(final_pdf, allowed_root=final_parent)
-    shutil.copy2(pdf_file, final_pdf)
-    os.chmod(final_pdf, 0o644)
+    temporary = None
+    try:
+        with tempfile.NamedTemporaryFile(dir=final_parent, suffix=".pdf.tmp", delete=False) as handle:
+            temporary = Path(handle.name)
+            with pdf_file.open("rb") as source:
+                shutil.copyfileobj(source, handle)
+            handle.flush()
+            os.fsync(handle.fileno())
+        os.replace(temporary, final_pdf)
+    finally:
+        if temporary is not None:
+            temporary.unlink(missing_ok=True)
 
 
 def _generar_pdf_desde_latex_temporal(
@@ -1013,6 +1024,7 @@ def _generar_latex_content(concepto: Dict) -> str:
             latex_doc += f"DOI: {referencia['doi']}\\\\\n"
         if referencia.get("url"):
             latex_doc += r"\url{" + referencia["url"] + "}\\\\" "\n"
+        latex_doc += extra_citation_latex(referencia)
         latex_doc += "\n"
     
     # --- ID interno ---

@@ -5,7 +5,6 @@ MVP-R2: structure only, no behavior change.
 """
 
 from typing import List
-from typing import List
 from editor.db.concept_repository import semantic_duplicate_exists
 
 def validate_new_concept_identity(

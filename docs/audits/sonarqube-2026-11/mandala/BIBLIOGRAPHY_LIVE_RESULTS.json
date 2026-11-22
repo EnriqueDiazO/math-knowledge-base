@@ -1,0 +1,31 @@
+[
+  {
+    "query": "10.1007/BF01106749",
+    "status": "found",
+    "provider": "crossref",
+    "retrieved_at_utc": "2026-11-22T00:24:31.775495Z",
+    "record_kind": "article",
+    "title": "Singular integral operators along a complex contour",
+    "year": 1977,
+    "language": "en",
+    "edition": null,
+    "isbn": [],
+    "response_normalized_json_sha256": "6e9b8d991defd952851377795f884fd9ce626aba2b0c77f26671320fb2ad072a"
+  },
+  {
+    "query": "9780140328721",
+    "status": "found",
+    "provider": "openlibrary",
+    "retrieved_at_utc": "2026-11-22T00:24:33.085642Z",
+    "record_kind": "edition",
+    "title": "Fantastic Mr. Fox",
+    "year": 1988,
+    "language": "eng",
+    "edition": null,
+    "isbn": [
+      "0140328726",
+      "9780140328721"
+    ],
+    "response_normalized_json_sha256": "cfe009c84763cac73024971638989fb9053dc7c3ab107b1b5e8aa663de80a1f1"
+  }
+]

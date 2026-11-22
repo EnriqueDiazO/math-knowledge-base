@@ -365,6 +365,9 @@ export function AdvancedReaderApp({
     api.getMetadata(documentId, abortController.signal)
       .then((value) => {
         if (!abortController.signal.aborted) {
+          if (!value.capabilities.thumbnails) {
+            setSidebarOpen(false);
+          }
           setMetadata(value);
           const initialPage = value.reading_state.current_page ?? 1;
           currentPageRef.current = initialPage;
@@ -389,12 +392,6 @@ export function AdvancedReaderApp({
       });
     return () => abortController.abort();
   }, [api, documentId, emitEvent, retryKey]);
-
-  useEffect(() => {
-    if (metadata !== null && !metadata.capabilities.thumbnails) {
-      setSidebarOpen(false);
-    }
-  }, [metadata]);
 
   useEffect(() => {
     if (
@@ -1059,7 +1056,7 @@ export function AdvancedReaderApp({
             onChoose={beginVisualAnnotation}
             onCancel={() => controllerRef.current?.clearSelection("user")}
           />
-          <div ref={containerRef} id="viewerContainer" tabIndex={0}>
+          <div ref={containerRef} id="viewerContainer" tabIndex={0} role="region" aria-label="Páginas del documento">
             <div ref={viewerRef} id="viewer" className="pdfViewer" />
           </div>
         </main>
