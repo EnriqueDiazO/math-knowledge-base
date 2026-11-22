@@ -42,6 +42,7 @@ if concepts:
 
 
 def test_confirmation_is_bound_to_the_selected_concept_not_a_global_armed_flag(service, tmp_path):
+    """Verify confirmation is bound to the selected concept not a global armed flag."""
     app, first, other = _app(service, tmp_path)
     assert not app.exception
     app.button[0].click().run()
@@ -61,6 +62,7 @@ def test_confirmation_is_bound_to_the_selected_concept_not_a_global_armed_flag(s
 def test_partial_recovery_remains_available_after_the_concept_row_disappeared(
     service, tmp_path, monkeypatch
 ):
+    """Verify partial recovery remains available after the concept row disappeared."""
     app, first, other = _app(service, tmp_path)
     app.button[0].click().run()
     app.text_input[0].input(first["titulo"]).run()

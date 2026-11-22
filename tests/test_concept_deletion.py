@@ -40,6 +40,7 @@ def seeded(service):
 
 
 def test_delete_removes_both_relation_directions_and_retains_shared_source_media_and_notes(service):
+    """Verify delete removes both relation directions and retains shared source media and notes."""
     first, other, deletion = seeded(service)
     concept = service.find(first)
     plan = deletion.plan(concept["id"], concept["source"])
@@ -57,6 +58,7 @@ def test_delete_removes_both_relation_directions_and_retains_shared_source_media
 
 @pytest.mark.parametrize("dependency", ["evidence", "saved_view"])
 def test_evidence_or_explicit_view_membership_blocks_without_writes(service, dependency):
+    """Verify evidence or explicit view membership blocks without writes."""
     first, _other, deletion = seeded(service)
     concept = service.find(first)
     if dependency == "evidence":
@@ -78,6 +80,7 @@ def test_evidence_or_explicit_view_membership_blocks_without_writes(service, dep
 
 
 def test_wrong_context_stale_confirmation_and_new_identity_are_not_deleted(service):
+    """Verify wrong context stale confirmation and new identity are not deleted."""
     first, _other, deletion = seeded(service)
     concept = service.find(first)
     plan = deletion.plan(concept["id"], concept["source"])
@@ -100,6 +103,7 @@ def test_wrong_context_stale_confirmation_and_new_identity_are_not_deleted(servi
 def test_partial_delete_retries_only_its_observed_records_and_never_claims_false_success(
     service, monkeypatch
 ):
+    """Verify partial delete retries only its observed records and never claims false success."""
     first, other, deletion = seeded(service)
     concept = service.find(first)
     plan = deletion.plan(concept["id"], concept["source"])
@@ -126,6 +130,7 @@ def test_partial_delete_retries_only_its_observed_records_and_never_claims_false
 
 
 def test_concurrent_relation_change_is_preserved_for_review(service, monkeypatch):
+    """Verify concurrent relation change is preserved for review."""
     first, _other, deletion = seeded(service)
     concept = service.find(first)
     plan = deletion.plan(concept["id"], concept["source"])

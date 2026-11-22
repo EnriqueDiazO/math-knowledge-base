@@ -5,8 +5,6 @@ from __future__ import annotations
 from datetime import datetime
 
 import streamlit as st
-
-from editor.ui.concept_deletion import render_concept_deletion
 from streamlit_ace import st_ace
 
 from editor.database_scope import database_scope_token
@@ -38,6 +36,7 @@ from editor.pdf_preview import render_pdf_preview
 from editor.source_catalog.shared import safe_error_message as safe_catalog_error
 from editor.source_catalog.state import consume_legacy_concept_open
 from editor.source_catalog.state import state_key as source_catalog_state_key
+from editor.ui.concept_deletion import render_concept_deletion
 from editor.ui.concept_media import _render_concept_media_manager
 from editor.ui.concept_media import _render_tikz_weight_warnings
 from editor.ui.concept_pdf import _generate_concept_pdf_preview

@@ -185,8 +185,9 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.
-                from mathmongo.knowledge_map.service import KnowledgeMapService
                 from types import SimpleNamespace
+
+                from mathmongo.knowledge_map.service import KnowledgeMapService
                 service = KnowledgeMapService(SimpleNamespace(db=db, concepts=db.concepts,
                     relations=db.relations, latex_documents=db.latex_documents))
                 palette = json.loads((ROOT / "editor/ui/concept_types.json").read_text())

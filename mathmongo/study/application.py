@@ -19,6 +19,7 @@ class StudyApplication:
     """One immutable configured library, never chosen from a client database name."""
 
     def __init__(self, database):
+        """Bind the configured library without creating resources or indexes."""
         self.db = database
         self.maps = KnowledgeMapService(
             SimpleNamespace(

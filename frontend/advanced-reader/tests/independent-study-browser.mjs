@@ -207,15 +207,16 @@ await test(
         ),
       );
     } catch (error) {
-      await page.screenshot({ path: evidence + "/failure.png" });
       await writeFile(
         evidence + "/failure.txt",
         String(error) +
           "\n" +
-          (await page.locator("body").innerText()) +
-          "\n" +
           JSON.stringify(errors),
       );
+      // A diagnostic capture must not mask the original test failure.
+      await page.screenshot({ path: evidence + "/failure.png", timeout: 5000 }).catch(async (captureError) => {
+        await writeFile(evidence + "/capture-failure.txt", String(captureError));
+      });
       throw error;
     } finally {
       await context.close();

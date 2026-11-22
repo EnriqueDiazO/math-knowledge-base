@@ -40,12 +40,12 @@ from mathmongo.advanced_reader.schemas import VisualAnnotationListResponse
 from mathmongo.advanced_reader.schemas import VisualAnnotationResponse
 from mathmongo.advanced_reader.schemas import VisualAnnotationUpdate
 from mathmongo.advanced_reader.security import sanitized_inline_filename
-from mathmongo.study.routes import optional_reader_scope
 from mathmongo.reading_annotations.models import AnnotationStatus
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.service import ReadingAnnotationOperationStatus
 from mathmongo.reading_annotations.service import ReadingAnnotationService
 from mathmongo.reading_space.service import ReadingOperationStatus
+from mathmongo.study.routes import optional_reader_scope
 
 API_PREFIX = "/api/advanced-reader"
 
