@@ -1049,15 +1049,10 @@ def test_reading_space_ui_has_no_local_url_network_or_s4_escape_hatch() -> None:
 
 
 def test_router_declares_reading_space_navigation_and_page() -> None:
-    path = ROOT / "editor" / "editor_streamlit.py"
-    source = path.read_text(encoding="utf-8")
-    tree = ast.parse(source, filename=str(path))
-    calls = {
-        node.func.id
-        for node in ast.walk(tree)
-        if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)
-    }
-
-    assert "add_reading_space_navigation" in calls
-    assert "apply_pending_reading_navigation" in calls
-    assert "render_reading_space_page" in calls
+    from editor.application_navigation import PAGES
+    from editor.reading_space.state import READING_SPACE_NAV_LABEL
+    assert PAGES[READING_SPACE_NAV_LABEL] == "reading"
+    paths = [ROOT / "editor/application_navigation.py", ROOT / "editor/app_pages/reading.py"]
+    calls = {node.func.id for path in paths for node in ast.walk(ast.parse(path.read_text()))
+             if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
+    assert {"add_reading_space_navigation", "apply_pending_reading_navigation", "render_reading_space_page"} <= calls

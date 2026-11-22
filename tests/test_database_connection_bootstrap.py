@@ -29,10 +29,7 @@ class _ManagerSpy:
 
 
 def _bootstrap_branch() -> str:
-    source = STREAMLIT_APP.read_text(encoding="utf-8")
-    start = source.index("# Initialize database manager in session state")
-    end = source.index("# Database connection sidebar", start)
-    return source[start:end]
+    return (ROOT / "editor/application_bootstrap.py").read_text(encoding="utf-8")
 
 
 def test_configured_database_is_the_only_automatic_connection() -> None:
@@ -83,11 +80,8 @@ def test_streamlit_bootstrap_has_no_implicit_mathv0_connection() -> None:
 
 
 def test_additional_connections_remain_an_explicit_sidebar_action() -> None:
-    source = STREAMLIT_APP.read_text(encoding="utf-8")
-    start = source.index("# Secondary database actions")
-    end = source.index("st.sidebar.divider()", start)
-    branch = source[start:end]
+    branch = (ROOT / "editor/connection_controls.py").read_text(encoding="utf-8")
 
     assert 'with st.sidebar.expander("Administrar conexiones"' in branch
     assert 'st.button("Añadir conexión", icon=":material/add:")' in branch
-    assert "db_manager.add_connection(" in branch
+    assert "manager.add_connection(" in branch

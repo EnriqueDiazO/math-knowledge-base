@@ -169,6 +169,6 @@ def test_connection_guidance_keeps_broken_pipe_out_of_the_primary_message() -> N
 
 def test_streamlit_masks_uri_input_and_sanitizes_connection_errors() -> None:
     root = Path(__file__).resolve().parents[1]
-    source = (root / "editor/editor_streamlit.py").read_text(encoding="utf-8")
+    source = "\n".join((root / path).read_text(encoding="utf-8") for path in ("editor/connection_controls.py", "editor/connection_manager.py"))
     assert 'type="password"' in source
     assert "mongo_connection_guidance(e, mongo_uri, db_name)" in source

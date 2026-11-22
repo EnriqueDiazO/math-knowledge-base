@@ -84,9 +84,7 @@ def test_interactive_graph_cleanup_rejects_a_symlinked_html_leaf(
 
 def test_editor_streamlit_backup_and_import_staging_are_guarded() -> None:
     root = Path(__file__).resolve().parents[1]
-    source = (root / "editor/editor_streamlit.py").read_text(
-        encoding="utf-8"
-    )
+    source = "\n".join((root / path).read_text(encoding="utf-8") for path in ("editor/app_pages/database_export.py", "editor/app_pages/concepts.py"))
 
     backup_guard = source.index("out_dir = validate_mutable_path(get_backups_dir())")
     backup_mkdir = source.index("out_dir.mkdir(", backup_guard)

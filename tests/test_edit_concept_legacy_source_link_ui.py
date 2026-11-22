@@ -14,7 +14,7 @@ APP_PATH = Path(__file__).resolve().parents[1] / "editor" / "editor_streamlit.py
 
 
 def _app_source() -> str:
-    return APP_PATH.read_text(encoding="utf-8")
+    return "\n".join(path.read_text(encoding="utf-8") for path in sorted((APP_PATH.parent / "app_pages").glob("*.py")))
 
 
 def _branch(start_marker: str, end_marker: str) -> str:
@@ -25,17 +25,11 @@ def _branch(start_marker: str, end_marker: str) -> str:
 
 
 def _edit_branch() -> str:
-    return _branch(
-        'elif page == "🖊️ Editar concepto":',
-        '\nelif page == "🧠 Conceptos":',
-    )
+    return (Path(__file__).resolve().parents[1] / "editor/app_pages/concept_edit.py").read_text(encoding="utf-8")
 
 
 def _add_concept_branch() -> str:
-    return _branch(
-        'elif page == "💡 Nuevo concepto":',
-        '\nelif page == "🖊️ Editar concepto":',
-    )
+    return (Path(__file__).resolve().parents[1] / "editor/app_pages/concept_create.py").read_text(encoding="utf-8")
 
 
 def _link_section() -> str:

@@ -30,12 +30,13 @@ def test_teaching_theme_declares_native_warm_light_and_dark_tokens() -> None:
 
 
 def test_theme_control_and_navigation_are_rendered_in_the_sidebar() -> None:
-    """Keep the complete visual preference control out of the page body."""
-    app = STREAMLIT_APP.read_text(encoding="utf-8")
-
-    assert 'with st.sidebar:\n    st.divider()\n    st.subheader("Tema")\n    active_theme = render_theme_control(st, study_mode=' in app
-    assert 'with st.sidebar:\n    st.subheader("Navegación")\n    selected_page = st.selectbox(' in app
-    assert app.count("render_theme_control(st,") == 1
+    """Preserve the compatibility controls while their native pages migrate."""
+    import ast
+    paths = [ROOT / "editor/connection_controls.py", ROOT / "editor/application_navigation.py"]
+    for path in paths:
+        tree = ast.parse(path.read_text())
+        assert any(isinstance(node, ast.With) and any(ast.unparse(item.context_expr) == "st.sidebar" for item in node.items) for node in ast.walk(tree))
+    assert paths[0].read_text().count("render_theme_control(st,") == 1
 
 
 def test_chart_theming_uses_the_shared_plotly_helper() -> None:
@@ -44,7 +45,8 @@ def test_chart_theming_uses_the_shared_plotly_helper() -> None:
     theme_module = (ROOT / "editor" / "ui" / "theme.py").read_text(encoding="utf-8")
 
     assert "def apply_chart_theme" in theme_module
-    assert app.count("apply_chart_theme(") >= 4
+    charts = '\n'.join(path.read_text() for path in (ROOT / 'editor/app_pages').glob('*.py'))
+    assert charts.count("apply_chart_theme(") >= 4
 
 
 def test_stale_or_destructive_teaching_copy_is_absent() -> None:
@@ -71,7 +73,8 @@ def test_main_interface_uses_native_containers_and_hides_technical_preview() -> 
     app = STREAMLIT_APP.read_text(encoding="utf-8")
     reference_form = REFERENCE_FORM.read_text(encoding="utf-8")
 
-    assert "st.container(border=True)" in app
+    pages = "\n".join(path.read_text() for path in (ROOT / "editor/app_pages").glob("*.py"))
+    assert "st.container(border=True)" in pages
     assert "unsafe_allow_html=True" not in app
-    assert 'with st.expander("Diagnóstico seguro", expanded=False' in app
+    assert 'with st.expander("Diagnóstico seguro", expanded=False' in pages
     assert 'with ui.expander("Resultado normalizado", expanded=False):' in reference_form

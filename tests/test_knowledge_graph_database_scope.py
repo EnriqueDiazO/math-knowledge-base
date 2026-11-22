@@ -15,7 +15,7 @@ from editor.database_scope import mark_knowledge_map_loaded
 from editor.database_scope import sync_knowledge_graph_scope
 
 ROOT = Path(__file__).resolve().parents[1]
-APP_SOURCE = ROOT / "editor" / "editor_streamlit.py"
+APP_SOURCE = ROOT / "editor" / "app_pages" / "knowledge_graph.py"
 
 
 class _WriteSpyCollection:
@@ -156,7 +156,7 @@ def test_switch_is_pure_session_cleanup_with_no_mongodb_writes() -> None:
 
 def test_graph_scope_sync_precedes_reads_and_map_identity_guards_writes() -> None:
     source = APP_SOURCE.read_text(encoding="utf-8")
-    branch = source[source.index('elif page == "🗺️ Grafo de conocimiento":'):]
+    branch = source
 
     assert branch.index("sync_knowledge_graph_scope(") < branch.index(
         'maps_col = db.db["knowledge_graph_maps"]'

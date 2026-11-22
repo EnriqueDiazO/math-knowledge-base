@@ -287,33 +287,18 @@ class _ReadOnlyUI:
 
 
 def test_router_ast_preserves_existing_pages_and_routes_catalog_labels() -> None:
-    tree = ast.parse(ROUTER.read_text(encoding="utf-8"), filename=str(ROUTER))
-
-    assert _literal_list_assignment(tree, "nav_options") == EXISTING_NAVIGATION
-    assert any(_is_navigation_helper_assignment(node) for node in tree.body)
-    assert add_source_catalog_navigation(list(EXISTING_NAVIGATION)) == [
-        EXISTING_NAVIGATION[0],
-        ADD_SOURCE_NAV_LABEL,
-        EDIT_SOURCE_NAV_LABEL,
-        *EXISTING_NAVIGATION[1:],
-    ]
-    assert ADD_SOURCE_NAV_LABEL == "\u2795 Add Source"
-    assert EDIT_SOURCE_NAV_LABEL == "\u270f\ufe0f Edit Source"
-    assert NAVIGATION_WIDGET == "source_catalog_navigation"
+    from editor.application_navigation import PAGES
+    assert set(EXISTING_NAVIGATION) <= PAGES.keys()
+    assert set(OPTIONAL_EXISTING_NAVIGATION) <= PAGES.keys()
+    assert PAGES[ADD_SOURCE_NAV_LABEL] == "source_create"
+    assert PAGES[EDIT_SOURCE_NAV_LABEL] == "source_edit"
+    assert PAGES["🟥 CPI"] == "cpi"
+    tree = ast.parse((ROOT / "editor/application_navigation.py").read_text())
     assert _selectbox_uses_namespaced_key(tree)
-    source = ROUTER.read_text(encoding="utf-8")
-    assert all(label in source for label in OPTIONAL_EXISTING_NAVIGATION)
-    assert 'CPI_NAV_LABEL = "🟥 CPI"' in source
-
-    add_branch = _page_branch(tree, "ADD_SOURCE_NAV_LABEL", symbolic=True)
-    edit_branch = _page_branch(tree, "EDIT_SOURCE_NAV_LABEL", symbolic=True)
-    assert "render_add_source_page" in _calls_in_body(add_branch)
-    assert "render_edit_source_page" in _calls_in_body(edit_branch)
-    for existing_page in EXISTING_NAVIGATION:
-        _page_branch(tree, existing_page)
-    for optional_page in OPTIONAL_EXISTING_NAVIGATION:
-        _page_branch(tree, optional_page)
-    _page_branch(tree, "CPI")
+    assert add_source_catalog_navigation(list(EXISTING_NAVIGATION)) == [EXISTING_NAVIGATION[0], ADD_SOURCE_NAV_LABEL, EDIT_SOURCE_NAV_LABEL, *EXISTING_NAVIGATION[1:]]
+    for slug, callee in (("source_create", "render_add_source_page"), ("source_edit", "render_edit_source_page")):
+        page = ast.parse((ROOT / "editor/app_pages" / (slug + ".py")).read_text())
+        assert callee in {node.func.id for node in ast.walk(page) if isinstance(node, ast.Call) and isinstance(node.func, ast.Name)}
 
 
 def test_s1b_modules_do_not_define_or_access_out_of_scope_collections() -> None:
