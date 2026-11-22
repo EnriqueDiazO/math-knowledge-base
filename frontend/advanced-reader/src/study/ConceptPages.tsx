@@ -3,8 +3,10 @@ import renderMap from "../knowledge-map/component";
 import type { Data, Intent } from "../knowledge-map/model";
 import { DocumentContent } from "./DocumentSurface";
 import { ConceptTypeBadge } from "./ConceptTypeBadge";
-import { executeStudy } from "./api";
-import type { ConceptDetail, StudyContext } from "./api";
+import { executeStudy, getOverview } from "./api";
+import type { ConceptDetail, StudyContext, Page } from "./api";
+import { conceptTypes } from "../knowledge-map/concept-types";
+import { ConceptRelations } from "./ConceptRelations";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import type { Navigate } from "./navigation";
@@ -16,13 +18,38 @@ export function ConceptsPage({
   context: StudyContext;
   navigate: Navigate;
 }) {
-  const resource = useStudyResource<Data>(context, "/overview");
   const [query, setQuery] = useState("");
+  const [kind, setKind] = useState(""),
+    [source, setSource] = useState(""),
+    [page, setPage] = useState(1);
+  const choices = useStudyResource<{ sources: { id: string; name: string }[] }>(
+    context,
+    "/choices",
+  );
+  const resource = useStudyResource<
+    Page<{ key: string; titulo: string; tipo: string; source: string }>
+  >(
+    context,
+    "/concepts?" +
+      new URLSearchParams({
+        q: query,
+        tipo: kind,
+        source_id: source,
+        page: String(page),
+      }),
+  );
   return (
     <section>
       <header>
         <p className="eyebrow">Conocimiento compartido</p>
         <h1>Conceptos</h1>
+        <StudyLink
+          to="/study/concepts/new"
+          navigate={navigate}
+          className="primary-button"
+        >
+          + Crear concepto
+        </StudyLink>
         <p>
           Lee un concepto y sigue su procedencia. Las esferas muestran los
           mismos conceptos.
@@ -33,33 +60,82 @@ export function ConceptsPage({
         <input
           type="search"
           value={query}
-          onChange={(event) => setQuery(event.target.value)}
+          onChange={(event) => {
+            setQuery(event.target.value);
+            setPage(1);
+          }}
         />
+      </label>
+      <label>
+        Explorar por tipo
+        <select
+          value={kind}
+          onChange={(event) => {
+            setKind(event.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Todos los tipos</option>
+          {Object.entries(conceptTypes).map(([value, type]) => (
+            <option key={value} value={value}>
+              {type.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        Filtrar por fuente
+        <select
+          value={source}
+          onChange={(event) => {
+            setSource(event.target.value);
+            setPage(1);
+          }}
+        >
+          <option value="">Todas las fuentes</option>
+          {choices.data?.sources.map((item) => (
+            <option key={item.id} value={item.id}>
+              {item.name}
+            </option>
+          ))}
+        </select>
       </label>
       {resource.error && (
         <p role="alert">
           {resource.error} <button onClick={resource.retry}>Reintentar</button>
         </p>
       )}
-      {resource.data?.nodes
-        .filter((node) =>
-          node.titulo.toLocaleLowerCase().includes(query.toLocaleLowerCase()),
-        )
-        .map((node) => (
-          <article key={node.key}>
-            <h2>
-              <StudyLink
-                to={"/study/concepts/" + encodeURIComponent(node.key)}
-                navigate={navigate}
-              >
-                {node.titulo}
-              </StudyLink>
-            </h2>
-            <p>
-              <ConceptTypeBadge type={node.tipo} /> · {node.source}
-            </p>
-          </article>
-        ))}
+      {resource.data?.items.map((node) => (
+        <article key={node.key}>
+          <h2>
+            <StudyLink
+              to={"/study/concepts/" + encodeURIComponent(node.key)}
+              navigate={navigate}
+            >
+              {node.titulo}
+            </StudyLink>
+          </h2>
+          <p>
+            <ConceptTypeBadge type={node.tipo} /> · {node.source}
+          </p>
+        </article>
+      ))}
+      <nav aria-label="Páginas de conceptos">
+        <button
+          type="button"
+          disabled={page === 1}
+          onClick={() => setPage(page - 1)}
+        >
+          Anterior
+        </button>
+        <button
+          type="button"
+          disabled={!resource.data || page * 20 >= resource.data.total}
+          onClick={() => setPage(page + 1)}
+        >
+          Siguiente
+        </button>
+      </nav>
     </section>
   );
 }
@@ -94,6 +170,20 @@ export function ConceptPage({
           <ConceptTypeBadge type={concept.tipo} /> · {concept.source}
         </p>
         <h1>{concept.titulo}</h1>
+        <div className="study-actions">
+          <StudyLink
+            to={"/study/concepts/" + encodeURIComponent(concept.key) + "/edit"}
+            navigate={navigate}
+          >
+            Editar concepto
+          </StudyLink>
+          <StudyLink
+            to={"/study/sources/" + encodeURIComponent(concept.source_id)}
+            navigate={navigate}
+          >
+            Abrir fuente
+          </StudyLink>
+        </div>
         <StudyLink
           to={"/study/spaces?concept=" + encodeURIComponent(concept.key)}
           navigate={navigate}
@@ -102,6 +192,12 @@ export function ConceptPage({
         </StudyLink>
       </header>
       <DocumentContent content={concept.contenido_latex} />
+      <ConceptRelations
+        context={context}
+        concept={concept}
+        navigate={navigate}
+        changed={resource.retry}
+      />
       <section>
         <h2>Origen y pasajes</h2>
         {concept.passages.map((passage, index) => (
@@ -163,8 +259,12 @@ export function SpacesPage({
         parentElement: container,
         data,
         selectionKey: new URLSearchParams(search).get("concept") ?? undefined,
-        onOpenDocument: (key) =>
-          navigateRef.current("/study/concepts/" + encodeURIComponent(key)),
+        onOpenDocument: (key, edit) =>
+          navigateRef.current(
+            "/study/concepts/" +
+              encodeURIComponent(key) +
+              (edit ? "/edit" : ""),
+          ),
         setTriggerValue: (key, value) => {
           if (key === "open_note") {
             navigateRef.current(
@@ -181,10 +281,12 @@ export function SpacesPage({
           }
           const intent = value as Intent;
           void executeStudy(context, intent)
-            .then((result) => {
+            .then(async (result) => {
               if (!disposed) {
                 setMessage(result.message);
-                mount({ ...data, result });
+                const fresh =
+                  result.status === "saved" ? await getOverview(context) : data;
+                if (!disposed) mount({ ...fresh, result });
               }
             })
             .catch((reason) => {

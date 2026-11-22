@@ -96,6 +96,7 @@ export type Result = {
   note_id?: string;
 };
 export type SourceDocument = {
+  web_url?: string | null;
   document_id: string;
   source_id: string;
   reference_id: string | null;

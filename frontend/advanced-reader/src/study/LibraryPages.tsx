@@ -4,6 +4,9 @@ import { bibliographyLabel } from "./api";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import type { Navigate } from "./navigation";
+import { ReferenceForm } from "./ReferenceForm";
+import { DocumentForm } from "./DocumentForm";
+import { documentLink } from "./document-links";
 
 export function LibraryPage({
   context,
@@ -27,6 +30,13 @@ export function LibraryPage({
         <p className="eyebrow">Fuentes y biblioteca</p>
         <h1>Tu biblioteca</h1>
         <p>Localiza una lectura por título, autor, año, DOI o ISBN.</p>
+        <StudyLink
+          to="/study/sources/new"
+          navigate={navigate}
+          className="primary-button"
+        >
+          + Añadir fuente
+        </StudyLink>
       </header>
       <form
         className="study-search"
@@ -155,6 +165,20 @@ export function SourcePage({
         <p>{source.description}</p>
       </header>
       <div className="study-actions">
+        <StudyLink
+          to={
+            "/study/concepts/new?" + new URLSearchParams({ source: sourceId })
+          }
+          navigate={navigate}
+        >
+          + Crear concepto desde esta fuente
+        </StudyLink>
+        <button type="button" onClick={() => setSection("add-reference")}>
+          + Añadir referencia
+        </button>
+        <button type="button" onClick={() => setSection("add-document")}>
+          + Asociar documento
+        </button>
         <button
           onClick={() => setSection("documents")}
           aria-pressed={section === "documents"}
@@ -174,18 +198,50 @@ export function SourcePage({
           Escribir nota sobre esta fuente
         </StudyLink>
       </div>
-      {section === "documents" ? (
+      {section === "add-reference" ? (
+        <ReferenceForm
+          context={context}
+          sourceId={sourceId}
+          done={() => {
+            resource.retry();
+            setSection("references");
+          }}
+        />
+      ) : section === "add-document" ? (
+        <DocumentForm
+          context={context}
+          source={source}
+          done={() => {
+            resource.retry();
+            setSection("documents");
+          }}
+        />
+      ) : section === "documents" ? (
         <div className="study-library-list">
           {source.documents.map((document) => (
             <article key={document.document_id}>
               <h2>{document.title}</h2>
               <p>{document.kind === "pdf" ? "Documento PDF" : "Página web"}</p>
-              <StudyLink
-                to={"/study/read/" + encodeURIComponent(document.document_id)}
-                navigate={navigate}
-              >
-                Leer documento
-              </StudyLink>
+              {document.kind === "web" ? (
+                documentLink(document.web_url) ? (
+                  <a
+                    href={documentLink(document.web_url)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Abrir página web
+                  </a>
+                ) : (
+                  <p>La dirección de esta página necesita revisión.</p>
+                )
+              ) : (
+                <StudyLink
+                  to={"/study/read/" + encodeURIComponent(document.document_id)}
+                  navigate={navigate}
+                >
+                  Leer documento
+                </StudyLink>
+              )}
             </article>
           ))}
           {!source.documents.length && (
@@ -201,6 +257,15 @@ export function SourcePage({
             <article key={index}>
               <h2>{reference.title || source.name}</h2>
               <p>{bibliographyLabel(reference)}</p>
+              {documentLink(reference.url) && (
+                <a
+                  href={documentLink(reference.url)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Abrir referencia
+                </a>
+              )}
               {reference.doi && <p>DOI: {reference.doi}</p>}
               {reference.isbn?.length ? (
                 <p>ISBN: {reference.isbn.join(", ")}</p>

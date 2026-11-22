@@ -21,6 +21,8 @@ export type StudyContext = {
   };
 };
 export type Bibliography = {
+  reference_id?: string;
+  url?: string | null;
   title?: string;
   year?: number;
   doi?: string;
@@ -41,6 +43,14 @@ export type Page<T> = { items: T[]; total: number; page: number };
 export type NoteDetail = ReadingNote & { reference_id: string | null };
 export type ConceptDetail = Node & {
   source_id: string;
+  relations?: {
+    from: string;
+    to: string;
+    from_title?: string;
+    to_title?: string;
+    tipo: string;
+    descripcion: string;
+  }[];
   passages: {
     document_id: string;
     pdf_page: number | null;

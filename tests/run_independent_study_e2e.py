@@ -182,6 +182,28 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 + "\n"
             )
             print(json.dumps({"browser": browser, "status": "passed", "streamlit_started": False}))
+            if "--authoring" in sys.argv:
+                if "--needs-preparation" in sys.argv:
+                    # Simulate a compatible unprepared library only inside this
+                    # PID-owned database. The application never drops indexes.
+                    for collection, keys in [("sources", [("source_id", 1)]), ("references", [("reference_id", 1)]), ("concepts", [("id", 1), ("source", 1)]), ("latex_documents", [("id", 1), ("source", 1)]), ("relations", [("desde", 1), ("hasta", 1), ("tipo", 1)])]:
+                        for index in db[collection].list_indexes():
+                            if list(index["key"].items()) == keys and index.get("unique"):
+                                db[collection].drop_index(index["name"])
+                    environment["MATHMONGO_AUTHORING_PREPARE"] = "1"
+                upload = work / "authoring.pdf"
+                upload.write_bytes(synthetic_text_pdf(padding_bytes=0))
+                environment["MATHMONGO_AUTHORING_PDF"] = str(upload)
+                subprocess.run(["node", "tests/authoring-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
+                proof = json.loads((evidence / "authoring-browser.json").read_text())
+                assert db.sources.count_documents({"source_id": proof["sourceId"]}) == 1
+                assert db.concepts.count_documents({"source_id": proof["sourceId"]}) == 2
+                assert db.references.count_documents({"source_ids": proof["sourceId"]}) == 1
+                assert db.source_documents.count_documents({"source_id": proof["sourceId"]}) == 1
+                assert db.relations.count_documents({"desde": proof["secondKey"], "hasta": proof["firstKey"], "tipo": "requiere_concepto"}) == 1
+                assert db.sources.count_documents({"source_id": proof["webSourceId"]}) == 1
+                assert db.references.find_one({"source_ids": proof["webSourceId"]})["doi"] is None
+                print(json.dumps({"browser": browser, "authoring": "passed", "streamlit_started": False}))
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.

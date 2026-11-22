@@ -5,14 +5,17 @@ export function StudyLink({
   to,
   navigate,
   children,
+  className,
 }: {
   to: string;
   navigate: Navigate;
   children: ReactNode;
+  className?: string;
 }) {
   return (
     <a
       href={to}
+      className={className}
       onClick={(event) => {
         if (
           event.button ||

@@ -7,10 +7,20 @@ import { LibraryPage, SourcePage } from "./LibraryPages";
 import { newStudyDraft, studyVault } from "./drafts";
 import { useStudyRoute } from "./navigation";
 import { StudyLink } from "./StudyLink";
+import { useOperationScope } from "./useOperationScope";
 import "./study.css";
 import "./surfaces.css";
+import "./activity-forms.css";
 
 const AppearancePage = lazy(() => import("./AppearancePage"));
+const NewSourcePage = lazy(() =>
+  import("./SourceForms").then((module) => ({ default: module.NewSourcePage })),
+);
+const ConceptEditorPage = lazy(() =>
+  import("./ConceptWorkspace").then((module) => ({
+    default: module.ConceptEditorPage,
+  })),
+);
 
 const ReadingPage = lazy(() => import("./ReadingPage"));
 const NotesPage = lazy(() =>
@@ -43,6 +53,7 @@ const pages = [
 ] as const;
 export function StudyApp() {
   const [context, setContext] = useState<StudyContext>();
+  const scope = useOperationScope(context);
   const [error, setError] = useState(""),
     [notice, setNotice] = useState(""),
     [retry, setRetry] = useState(0);
@@ -93,7 +104,7 @@ export function StudyApp() {
       const checked = await studyRequest<StudyContext>("/prepare", context, {
         version: context.preparation.version,
       });
-      if (checked.library_id !== context.library_id) return;
+      if (!scope.active || checked.library_id !== context.library_id) return;
       setContext(checked);
       setNotice(
         checked.preparation.state === "ready"
@@ -101,6 +112,7 @@ export function StudyApp() {
           : "No se confirmó la preparación. El borrador se conserva; consulta Ajustes o reintenta.",
       );
     } catch (reason) {
+      if (!scope.active) return;
       setNotice((reason as Error).message);
     }
   };
@@ -108,6 +120,15 @@ export function StudyApp() {
   if (section === "library")
     content = (
       <LibraryPage context={context} navigate={navigate} search={url.search} />
+    );
+  else if (section === "sources" && identity === "new")
+    content = (
+      <NewSourcePage
+        key={context.library_id}
+        context={context}
+        navigate={navigate}
+        search={url.search}
+      />
     );
   else if (section === "sources")
     content = (
@@ -137,6 +158,25 @@ export function StudyApp() {
         navigate={navigate}
         search={url.search}
         notify={setNotice}
+      />
+    );
+  else if (section === "concepts" && identity === "new")
+    content = (
+      <ConceptEditorPage
+        key={context.library_id + url.search}
+        context={context}
+        navigate={navigate}
+        search={url.search}
+      />
+    );
+  else if (section === "concepts" && parts[2] === "edit")
+    content = (
+      <ConceptEditorPage
+        key={context.library_id + parts[1]}
+        context={context}
+        navigate={navigate}
+        search={url.search}
+        conceptKey={parts[1]}
       />
     );
   else if (section === "concepts")
@@ -183,7 +223,9 @@ export function StudyApp() {
       <section>
         <h1>Ajustes</h1>
         <h2>Biblioteca activa</h2>
-        <StudyLink to="/study/settings/appearance" navigate={navigate}>Ver los tipos matemáticos y su paleta</StudyLink>
+        <StudyLink to="/study/settings/appearance" navigate={navigate}>
+          Ver los tipos matemáticos y su paleta
+        </StudyLink>
         <p>{context.name}</p>
         <p>
           La conexión se configura en el backend local. Las credenciales
@@ -310,6 +352,7 @@ export function StudyApp() {
           </aside>
         )}
         <Suspense
+          key={context.library_id + context.runtime_id}
           fallback={<p role="status">Abriendo el espacio de trabajo…</p>}
         >
           {content}
