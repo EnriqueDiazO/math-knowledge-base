@@ -845,3 +845,126 @@ describe("study presentation and recoverable goals", () => {
     expect(trigger).not.toHaveBeenCalled();
   });
 });
+
+it("retains later view membership changes after confirming an older immutable layout submission", () => {
+  const payload = mount();
+  choose("Seleccionar concepto", "a@Fuente");
+  click("Quitar concepto seleccionado de esta esfera");
+  click("Guardar disposición");
+  const sent = trigger.mock.calls.at(-1)![1];
+  expect(sent.view_state?.members).toEqual(["b@Fuente"]);
+  choose("Seleccionar concepto", "b@Fuente");
+  click("Quitar concepto seleccionado de esta esfera");
+  expect(sent.view_state?.members).toEqual(["b@Fuente"]);
+  expect(trigger).toHaveBeenCalledTimes(1);
+  mount({
+    ...payload,
+    result: {
+      operation_id: sent.operation_id,
+      status: "saved",
+      message: "Guardada",
+      view_revision: "saved-rev",
+    },
+  });
+  expect(persistedView(payload.scope)?.layoutDirty).toBe(true);
+  expect(persistedView(payload.scope)?.members).toEqual([]);
+  expect(payload.nodes).toHaveLength(2);
+});
+
+it("keeps an unconfirmed document inert and offers retry inside the modal without discarding its draft", () => {
+  const payload = mount();
+  click("Crear concepto aquí");
+  input("Nombre", "Documento pendiente");
+  input("Contenido (texto o LaTeX)", "Texto conservado");
+  submit();
+  const sent = trigger.mock.calls.at(-1)![1];
+  mount({
+    ...payload,
+    result: {
+      operation_id: sent.operation_id,
+      status: "uncertain",
+      message: "Sin confirmar",
+    },
+  });
+  expect(parent.querySelector<HTMLFormElement>("form")!.inert).toBe(true);
+  click("Reconciliar envío del documento");
+  expect(trigger.mock.calls.at(-1)![1]).toEqual(sent);
+  mount({
+    ...payload,
+    result: {
+      operation_id: sent.operation_id,
+      status: "uncertain",
+      message: "Sin confirmar otra vez",
+    },
+  });
+  click("Volver conservando el envío pendiente");
+  expect(parent.querySelector(".editor-dialog")).toBeNull();
+  expect(persistedView(payload.scope)?.draft?.title).toBe(
+    "Documento pendiente",
+  );
+  expect(persistedView(payload.scope)?.pending).toEqual(sent);
+});
+
+it("recovers the math selection and outer document scroll with its lossless draft", () => {
+  const payload = mount();
+  choose("Seleccionar concepto", "a@Fuente");
+  click("Editar ficha");
+  const field = parent.querySelector("math-field") as HTMLElement & {
+    selection: { ranges: [number, number][]; direction: string };
+  };
+  field.selection = { ranges: [[1, 3]], direction: "backward" };
+  field.tabIndex = 0;
+  field.focus();
+  parent.querySelector<HTMLDialogElement>(".editor-dialog")!.scrollTop = 150;
+  fireEvent(field, new Event("selection-change", { bubbles: true }));
+  click("Conservar borrador y volver");
+  click("Recuperar borradores");
+  fireEvent.click(getByRole(parent, "button", { name: /Álgebra.*edit/u }));
+  const recovered = parent.querySelector("math-field") as typeof field;
+  expect(recovered.selection).toEqual({
+    ranges: [[1, 3]],
+    direction: "backward",
+  });
+  expect(
+    parent.querySelector<HTMLDialogElement>(".editor-dialog")!.scrollTop,
+  ).toBe(150);
+  click("Fuente LaTeX");
+  expect(
+    (getByLabelText(parent, "Fuente LaTeX") as HTMLTextAreaElement).value,
+  ).toBe(payload.nodes[0].contenido_latex);
+});
+
+it("does not replace an already linked goal when a different old draft is acknowledged", () => {
+  const payload = data(),
+    view = freshView();
+  const draft = draftFor(payload, view, "create", [0, 0, 1]);
+  draft.id = crypto.randomUUID();
+  draft.title = "Older goal draft";
+  draft.goalId = "goal";
+  view.draft = draft;
+  view.pending = intention(draft, "late-goal-ack");
+  view.goals = [
+    {
+      id: "goal",
+      label: "Pregunta",
+      point: [1, 0, 0],
+      state: "working",
+      draftId: "other-draft",
+      conceptKey: "b@Fuente",
+    },
+  ];
+  localStorage.setItem(
+    "mathmongo-map-v2-" + payload.scope,
+    JSON.stringify(view),
+  );
+  mount({
+    ...payload,
+    result: {
+      operation_id: "late-goal-ack",
+      status: "saved",
+      message: "Confirmado",
+      key: "a@Fuente",
+    },
+  });
+  expect(persistedView(payload.scope)?.goals?.[0].conceptKey).toBe("b@Fuente");
+});

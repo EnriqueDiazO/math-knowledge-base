@@ -53,6 +53,10 @@ from editor.reading_space.state import READING_SPACE_NAV_LABEL
 from editor.reading_space.state import add_reading_space_navigation
 from editor.reading_space.state import apply_pending_navigation as apply_pending_reading_navigation
 from editor.reading_space.state import sync_database_state as sync_reading_database_state
+from editor.source_catalog.state import request_navigation
+from editor.study_navigation import ROOM_RETURN
+from editor.study_navigation import STUDY_ROOM_NAV_LABEL
+from editor.study_navigation import add_study_room_navigation
 
 # Add parent directory to path to import modules
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -1122,7 +1126,7 @@ with st.sidebar.expander("Acciones de conexión", expanded=False, icon=":materia
 with st.sidebar:
     st.divider()
     st.subheader("Tema")
-    active_theme = render_theme_control(st, study_mode=st.session_state.get(NAVIGATION_WIDGET) in {"🗺️ Grafo de conocimiento", "Habitación de estudio"})
+    active_theme = render_theme_control(st, study_mode=(NAVIGATION_WIDGET not in st.session_state and st.query_params.get("study") == "1") or st.session_state.get(NAVIGATION_WIDGET) in {"🗺️ Grafo de conocimiento", STUDY_ROOM_NAV_LABEL} or (st.session_state.get(NAVIGATION_WIDGET) == READING_SPACE_NAV_LABEL and bool(st.session_state.get(ROOM_RETURN))))
 apply_mathmongo_theme(active_theme, st)
 st.sidebar.divider()
 
@@ -1202,6 +1206,7 @@ if _cuaderno_is_installed(db):
     nav_options[1:1] = ["📝 Cuaderno", "🟩 Cornell", CPI_NAV_LABEL]
 nav_options = add_source_catalog_navigation(nav_options)
 nav_options = add_reading_space_navigation(nav_options)
+nav_options = add_study_room_navigation(nav_options)
 
 apply_pending_navigation(st.session_state, nav_options)
 apply_pending_reading_navigation(
@@ -1209,6 +1214,8 @@ apply_pending_reading_navigation(
     nav_options,
     navigation_key=NAVIGATION_WIDGET,
 )
+if NAVIGATION_WIDGET not in st.session_state and st.query_params.get('study') == '1':
+    st.session_state[NAVIGATION_WIDGET] = STUDY_ROOM_NAV_LABEL
 if st.session_state.get(NAVIGATION_WIDGET) not in nav_options:
     st.session_state.pop(NAVIGATION_WIDGET, None)
 with st.sidebar:
@@ -1220,6 +1227,11 @@ with st.sidebar:
         label_visibility="collapsed",
     )
 page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page
+if page == STUDY_ROOM_NAV_LABEL and st.query_params.get('study') != '1':
+    st.query_params['study'] = '1'
+elif page not in {STUDY_ROOM_NAV_LABEL, READING_SPACE_NAV_LABEL} and 'study' in st.query_params:
+    del st.query_params['study']
+
 
 
 # Source Catalog pages
@@ -1248,7 +1260,17 @@ elif page == READING_SPACE_NAV_LABEL:
             f"{catalog_context_error or 'no active MongoDB database.'}"
         )
     else:
+        if st.session_state.get(ROOM_RETURN) and st.button('Volver a la habitación de estudio', key='study_reader_return'):
+            request_navigation(st.session_state, STUDY_ROOM_NAV_LABEL)
+            st.rerun()
         render_reading_space_page(catalog_context)
+
+elif page == STUDY_ROOM_NAV_LABEL:
+    if db is None or not active_database_scope:
+        st.error('Selecciona una conexión y base para abrir la habitación.')
+    else:
+        from editor.knowledge_map import render_knowledge_map
+        render_knowledge_map(db, active_database_scope, room_mode=True)
 
 # Dashboard page
 elif page == "🏠 Inicio":
@@ -4154,7 +4176,7 @@ elif page == "🗺️ Grafo de conocimiento":
 
     maps_col = db.db["knowledge_graph_maps"]
     try:
-        all_maps = list(maps_col.find({}).sort("updated_at", -1).limit(200))
+        all_maps = list(maps_col.find({"study_room": {"$exists": False}}).sort("updated_at", -1).limit(200))
     except Exception as exc:
         all_maps = []
         st.error(f"No se pudieron listar los mapas guardados: {exc}")

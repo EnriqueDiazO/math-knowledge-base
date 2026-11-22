@@ -1,3 +1,4 @@
+import type { Selection as MathSelection } from "mathlive";
 import { Editor, Extension, Node as TiptapNode } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
@@ -264,6 +265,8 @@ export type EditorSnapshot = {
   selection: number;
   scroll: number;
   sourceMode: boolean;
+  dialogScroll?: number;
+  math?: { index: number; selection: MathSelection };
 };
 export class DocumentEditor {
   readonly editor: Editor;
@@ -272,6 +275,7 @@ export class DocumentEditor {
   private preview: HTMLDivElement;
   private sourceMode = false;
   private activeMath?: ReturnType<typeof makeMath>;
+  private restored?: EditorSnapshot;
   private disposeKeyboard: () => void = () => {};
   private disposePreview?: () => void;
   constructor(
@@ -280,6 +284,7 @@ export class DocumentEditor {
     private changed: (latex: string, snapshot: EditorSnapshot) => void,
     snapshot?: EditorSnapshot,
   ) {
+    this.restored = snapshot;
     parent.classList.add("document-composer");
     const dialog = parent.closest("dialog");
     if (dialog instanceof HTMLElement)
@@ -298,6 +303,20 @@ export class DocumentEditor {
         );
       this.activeMath = field as ReturnType<typeof makeMath> | undefined;
     });
+    this.visual.addEventListener(
+      "selection-change",
+      (event) => {
+        const field = event
+          .composedPath()
+          .find(
+            (target) =>
+              target instanceof HTMLElement && target.tagName === "MATH-FIELD",
+          );
+        if (field) this.activeMath = field as ReturnType<typeof makeMath>;
+        if (this.editor) this.remember();
+      },
+      true,
+    );
     this.source = dom("textarea");
     this.source.setAttribute("aria-label", "Fuente LaTeX");
     this.source.hidden = true;
@@ -396,13 +415,49 @@ export class DocumentEditor {
       this.sourceMode = snapshot.sourceMode;
       this.visual.hidden = this.sourceMode;
       this.source.hidden = !this.sourceMode;
+      if (snapshot.math && !this.sourceMode) {
+        const math = this.visual.querySelectorAll("math-field")[
+          snapshot.math.index
+        ] as ReturnType<typeof makeMath> | undefined;
+        if (math) {
+          this.activeMath = math;
+          math.selection = structuredClone(snapshot.math.selection);
+        }
+      }
       try {
         this.editor.commands.setTextSelection(snapshot.selection);
       } catch {
         this.editor.commands.focus("end");
       }
       this.visual.scrollTop = snapshot.scroll;
+      this.restored = snapshot;
     }
+  }
+  restoreViewport(): void {
+    const dialog = this.parent.closest("dialog");
+    if (dialog && this.restored?.dialogScroll !== undefined)
+      dialog.scrollTop = this.restored.dialogScroll;
+  }
+  restoreFocus(): void {
+    const snapshot = this.restored;
+    const dialog = this.parent.closest("dialog");
+    const restoreScroll = () => {
+      if (dialog && snapshot?.dialogScroll !== undefined)
+        dialog.scrollTop = snapshot.dialogScroll;
+    };
+    if (this.sourceMode) this.source.focus();
+    else if (snapshot?.math) {
+      const field = this.visual.querySelectorAll("math-field")[
+        snapshot.math.index
+      ] as ReturnType<typeof makeMath> | undefined;
+      if (field && !field.readOnly) {
+        this.activeMath = field;
+        field.selection = structuredClone(snapshot.math.selection);
+        field.addEventListener("focusin", restoreScroll, { once: true });
+        field.focus();
+      }
+    } else this.editor.view.focus();
+    restoreScroll();
   }
   private remember(): void {
     if (!this.sourceMode) this.changed(this.value(), this.snapshot());
@@ -422,12 +477,22 @@ export class DocumentEditor {
       : serialize(this.editor.getJSON());
   }
   snapshot(): EditorSnapshot {
-    return {
+    const fields = Array.from(this.visual.querySelectorAll("math-field"));
+    const index = this.activeMath ? fields.indexOf(this.activeMath) : -1;
+    const math =
+      index >= 0 && this.activeMath?.selection && !this.sourceMode
+        ? { index, selection: structuredClone(this.activeMath.selection) }
+        : undefined;
+    const result = {
       json: this.editor.getJSON(),
       selection: this.editor.state.selection.from,
       scroll: this.visual.scrollTop,
       sourceMode: this.sourceMode,
+      dialogScroll: this.parent.closest("dialog")?.scrollTop,
+      ...(math ? { math } : {}),
     };
+    this.restored = result;
+    return result;
   }
   valid(): boolean {
     return (

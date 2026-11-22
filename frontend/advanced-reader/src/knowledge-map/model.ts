@@ -110,6 +110,7 @@ export type ReadingNote = {
   title: string;
   body: string;
   revision: string;
+  reference_locator?: CitationLocator | null;
   page_start: number | null;
   page_end: number | null;
   tags: string[];
@@ -120,6 +121,7 @@ export type Annotation = {
   source_id: string;
   reference_id: string | null;
   page_number: number | null;
+  page_label?: string | null;
   quote_text: string | null;
   body: string;
   kind: string;
@@ -308,6 +310,9 @@ export function draftFor(
   };
 }
 export function intention(draft: Draft, operationId: string): Intent {
+  return structuredClone(submittedIntention(draft, operationId));
+}
+function submittedIntention(draft: Draft, operationId: string): Intent {
   if (draft.action === "save_note")
     return {
       operation_id: operationId,
@@ -376,7 +381,7 @@ export function acceptResult(data: Data, view: View): void {
 }
 
 export function studyState(view: View): StudyState {
-  return {
+  return structuredClone({
     version: 1,
     points: view.points,
     flatPoints: view.flatPoints ?? {},
@@ -385,7 +390,7 @@ export function studyState(view: View): StudyState {
     mandala: !!view.mandala,
     goals: view.goals ?? [],
     members: view.members ?? null,
-  };
+  });
 }
 export function applySavedView(view: View, saved: SavedView): void {
   view.mapUid = saved.uid;

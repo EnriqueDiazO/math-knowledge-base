@@ -6,6 +6,7 @@ export function openReader(
   node: Node,
   size: number,
   closed: () => void,
+  provenance?: (parent: HTMLElement) => void,
 ): () => void {
   const dialog = document.createElement("dialog");
   dialog.className = "document-dialog reader-dialog";
@@ -65,6 +66,7 @@ export function openReader(
   );
   references.append(details);
   article.append(references);
+  provenance?.(article);
   dialog.append(top, article);
   parent.append(dialog);
   dialog.showModal();

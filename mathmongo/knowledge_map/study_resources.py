@@ -51,6 +51,7 @@ class StudyResources:
                             "source_id",
                             "reference_id",
                             "page_number",
+                            "page_label",
                             "quote_text",
                             "body",
                             "kind",
@@ -112,6 +113,12 @@ class StudyResources:
             note = self.reading.get_note(room.note_id)
             if not note.completed:
                 raise MapConflictError("La nota ya no está disponible.")
+        if bool(room.goal_view_uid) != bool(room.goal_id):
+            raise MapConflictError('La pregunta necesita una vista y un identificador válidos.')
+        if room.goal_id:
+            selected = self.db['knowledge_graph_maps'].find_one({'map_uid': room.goal_view_uid, 'study_view.version': 1})
+            if selected is None or room.goal_view_uid not in {s.view_uid for s in room.spheres} or not any(g.get('id') == room.goal_id for g in selected['study_view'].get('goals', [])):
+                raise MapConflictError('La pregunta ya no está disponible en una esfera de la habitación.')
         return self.maps.save_presentation(
             intent,
             record,

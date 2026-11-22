@@ -7,7 +7,6 @@ import {
   acceptResult,
   draftFor,
   freshView,
-  intention,
   neighbors,
   visibleNodes,
   studyState,
@@ -15,12 +14,13 @@ import {
 } from "./model";
 import type { Data, Draft, View, Goal, SavedView, Result } from "./model";
 import { element, button, field, selector } from "./ui";
-import { DocumentEditor } from "./document-editor";
+import { DocumentDialog } from "./document-dialog";
+import { renderConceptSources } from "./provenance";
 import { openReader } from "./reader";
 import { DraftVault, persistedView, storeView } from "./drafts";
 import { consumeBibliography, emptyLocator } from "./bibliography";
-import { DocumentCitation } from "./document-citation";
-import { thematicLayout, relax } from "./layout";
+import { renderRoom } from "./room";
+import { renderMapFilters, renderMapThemes } from "./map-filters";
 
 export type Bridge = {
   parentElement: HTMLElement;
@@ -29,6 +29,10 @@ export type Bridge = {
   initialView?: SavedView;
   initialDraft?: Draft;
   onExit?: () => void;
+  onSelect?: (key: string) => void;
+  selectionKey?: string;
+  draftMapUid?: string;
+  expandOnMount?: boolean;
   onSaved?: (result: Result, draft: Draft) => void;
 };
 const memory = new Map<string, View>();
@@ -47,7 +51,14 @@ function readView(scope: string): View {
   }
   return freshView();
 }
-export default function render({
+export default function render(bridge: Bridge): () => void {
+  if (!bridge.data.roomMode) return renderMap(bridge);
+  mounted.get(bridge.parentElement)?.();
+  const cleanup = renderRoom(bridge, renderMap);
+  mounted.set(bridge.parentElement, cleanup);
+  return cleanup;
+}
+export function renderMap({
   parentElement,
   data,
   setTriggerValue,
@@ -55,22 +66,32 @@ export default function render({
   initialDraft,
   onExit,
   onSaved,
+  onSelect,
+  selectionKey,
+  draftMapUid,
+  expandOnMount,
 }: Bridge): () => void {
   mounted.get(parentElement)?.();
   const view = readView(data.scope);
-  if (initialView && view.mapUid !== initialView.uid)
+  if (
+    initialView &&
+    (view.mapUid !== initialView.uid ||
+      (!view.layoutDirty &&
+        !view.draft &&
+        !view.pending &&
+        view.viewRevision !== initialView.revision))
+  )
     applySavedView(view, initialView);
   memory.set(data.scope, view);
-  view.mapUid ??= crypto.randomUUID();
+  view.mapUid ??= draftMapUid ?? crypto.randomUUID();
+  if (expandOnMount !== undefined) view.expanded = expandOnMount;
+  if (selectionKey !== undefined) view.selected = selectionKey;
   view.mapName ??= "Mi esfera de estudio";
   view.pinned ??= [];
   view.areas ??= [];
   view.goals ??= [];
   view.flatPoints ??= {};
   let vault = new DraftVault(data.scope, view.mapUid);
-  let composer: DocumentEditor | undefined;
-  let citationControls: DocumentCitation | undefined;
-  let editorDialog: HTMLDialogElement | undefined;
   let readingDispose: (() => void) | undefined;
   let expansion: HTMLDialogElement | undefined;
   let timer: ReturnType<typeof setTimeout> | undefined;
@@ -88,7 +109,10 @@ export default function render({
     view.status = data.result;
     if (data.result.status === "saved") {
       view.viewRevision = data.result.view_revision;
-      view.layoutDirty = false;
+      view.layoutDirty =
+        JSON.stringify(studyState(view)) !==
+          JSON.stringify(view.pending.view_state) ||
+        view.mapName !== view.pending.map_name;
       view.pending = undefined;
     } else if (["invalid", "conflict"].includes(data.result.status))
       view.pending = undefined;
@@ -111,11 +135,27 @@ export default function render({
       view.acknowledged === confirmingId
     ) {
       if (data.result.status === "saved") vault.complete(acknowledgedDraft);
+      if (
+        data.result.status === "saved" &&
+        data.result.key &&
+        view.members &&
+        ["create", "create_connected", "publish_note"].includes(
+          acknowledgedDraft.action,
+        ) &&
+        !view.members.includes(data.result.key)
+      ) {
+        view.members.push(data.result.key);
+        view.layoutDirty = true;
+      }
       if (data.result.status === "saved" && onSaved)
         queueMicrotask(() => onSaved(data.result!, acknowledgedDraft));
-      if (acknowledgedDraft.goalId && data.result.key) {
+      if (
+        data.result.status === "saved" &&
+        acknowledgedDraft.goalId &&
+        data.result.key
+      ) {
         const goal = view.goals.find((g) => g.id === acknowledgedDraft.goalId);
-        if (goal) {
+        if (goal && (!goal.conceptKey || goal.conceptKey === data.result.key)) {
           goal.conceptKey = data.result.key;
           view.points[data.result.key] = goal.point;
           view.layoutDirty = true;
@@ -134,6 +174,18 @@ export default function render({
       existing && !existing.completed
         ? existing
         : structuredClone(initialDraft);
+  }
+  if (view.draft?.goalId) {
+    const goal = view.goals.find((g) => g.id === view.draft?.goalId);
+    if (
+      goal &&
+      !goal.conceptKey &&
+      (goal.draftId !== view.draft.id || goal.state !== "working")
+    ) {
+      goal.draftId = view.draft.id ?? "";
+      goal.state = "working";
+      view.layoutDirty = true;
+    }
   }
   if (view.pending && data.result?.operation_id !== view.pending.operation_id)
     view.status = {
@@ -244,7 +296,24 @@ export default function render({
     renderAside();
     renderStatus();
     redraw();
+    onSelect?.(key);
   };
+  const documentDialog = new DocumentDialog({
+    view,
+    data,
+    get vault() {
+      return vault;
+    },
+    root,
+    canvas,
+    save,
+    refresh,
+    renderStatus,
+    submitPending,
+    requestDraw: () => scene.request(),
+    onExit,
+    setTriggerValue,
+  });
   const start = (
     action: Draft["action"],
     point: Vec = unrotate([0, 0, 1], view.camera),
@@ -256,7 +325,7 @@ export default function render({
     }
     if (view.draft) {
       vault.put(view.draft);
-      closeEditor();
+      documentDialog.close();
     }
     const candidate =
       goal?.point ??
@@ -280,321 +349,17 @@ export default function render({
         "Borrador recuperable en este navegador; aún no es un concepto guardado.",
     };
     vault.put(view.draft);
-    showEditor();
+    documentDialog.open();
     redraw();
     renderStatus();
   };
-  function closeEditor(): void {
-    citationControls?.destroy();
-    citationControls = undefined;
-    if (view.draft && composer) {
-      view.draft.content = composer.value();
-      view.draft.document = composer.snapshot();
-      vault.put(view.draft);
-    }
-    composer?.destroy();
-    composer = undefined;
-    editorDialog?.remove();
-    editorDialog = undefined;
-    save();
-  }
-  function keepAndClose(): void {
-    closeEditor();
-    view.draft = undefined;
-    view.status = {
-      status: "draft",
-      message:
-        "Borrador local conservado. Puedes recuperarlo; no se publicó contenido nuevo.",
-    };
-    refresh();
-    canvas.focus();
-    onExit?.();
-  }
-  function showEditor(): void {
-    if (!view.draft) return;
-    const draft = view.draft;
-    citationControls?.destroy();
-    editorDialog?.remove();
-    composer?.destroy();
-    const dialog = element("dialog", "", "document-dialog editor-dialog");
-    editorDialog = dialog;
-    const header = element("header");
-    header.append(
-      element(
-        "h2",
-        draft.action === "save_note"
-          ? "Escribir nota de trabajo"
-          : draft.action === "edit"
-            ? "Editar concepto"
-            : draft.action === "connect"
-              ? "Conectar conceptos"
-              : "Escribir concepto",
-      ),
-    );
-    const close = button("Conservar borrador y volver", keepAndClose, header);
-    close.disabled = !!view.pending;
-    dialog.append(header);
-    const form = element("form");
-    dialog.append(form);
-    const meta = element("details");
-    meta.open = draft.action === "connect";
-    meta.append(element("summary", "Metadatos, fuente y referencia"));
-    form.append(meta);
-    const name = field(form, "Nombre", draft.title, (value) => {
-      draft.title = value;
-      vault.put(draft);
-    });
-    name.required = draft.action !== "connect";
-    name.maxLength = 500;
-    if (
-      draft.action !== "edit" &&
-      draft.action !== "connect" &&
-      draft.action !== "save_note"
-    ) {
-      if (draft.action !== "publish_note")
-        selector(
-          meta,
-          "Source administrada",
-          data.sources.map((s) => ({ value: s.id, text: s.name })),
-          draft.source,
-          (value) => {
-            draft.source = value;
-            save();
-          },
-        );
-      selector(
-        meta,
-        "Tipo de concepto",
-        data.concept_types.map((s) => ({ value: s, text: s })),
-        draft.type,
-        (value) => {
-          draft.type = value;
-          save();
-        },
-      );
-    }
-    field(meta, "Categorías separadas por comas", draft.categories, (value) => {
-      draft.categories = value;
-      save();
-    });
-    field(
-      meta,
-      "Comentario",
-      draft.comment,
-      (value) => {
-        draft.comment = value;
-        save();
-      },
-      true,
-    );
-    if (draft.action !== "connect")
-      citationControls = new DocumentCitation(
-        dialog,
-        form,
-        draft,
-        () => vault.put(draft),
-        (payload) => setTriggerValue("bibliography", payload),
-        () => composer?.editor.view.focus(),
-      );
-    if (draft.action !== "connect") {
-      const writing = element("div");
-      form.append(writing);
-      composer = new DocumentEditor(
-        writing,
-        draft.content,
-        (content, snapshot) => {
-          draft.content = content;
-          draft.document = snapshot;
-          vault.put(draft);
-        },
-        draft.document,
-      );
-    }
-    if (["connect", "create_connected"].includes(draft.action))
-      relationFields(form, draft);
-    const controls = element("div", "", "editor-actions");
-    form.append(controls);
-    const submit = element(
-      "button",
-      draft.action === "save_note" ? "Guardar nota" : "Guardar concepto",
-      "primary",
-    );
-    submit.type = "submit";
-    submit.disabled =
-      !!view.pending ||
-      (draft.action.startsWith("create") && !data.sources.length);
-    controls.append(submit);
-    button(
-      "Descargar borrador",
-      () => {
-        const url = URL.createObjectURL(
-          new Blob([JSON.stringify(draft, null, 2)], {
-            type: "application/json",
-          }),
-        );
-        const link = element("a");
-        link.href = url;
-        link.download = "mathmongo-borrador.json";
-        link.click();
-        URL.revokeObjectURL(url);
-      },
-      controls,
-    );
-    if (!view.pending)
-      button(
-        "Descartar borrador…",
-        () => {
-          const confirmation = element("div", "", "discard-confirm");
-          confirmation.append(
-            element(
-              "p",
-              "¿Descartar este borrador local? Los conceptos ya guardados permanecerán.",
-            ),
-          );
-          button(
-            "Sí, descartar este borrador",
-            () => {
-              const id = draft.id!;
-              composer?.destroy();
-              composer = undefined;
-              view.draft = undefined;
-              vault.discard(id);
-              dialog.remove();
-              editorDialog = undefined;
-              refresh();
-            },
-            confirmation,
-          );
-          button(
-            "Seguir escribiendo",
-            () => confirmation.remove(),
-            confirmation,
-          );
-          controls.append(confirmation);
-        },
-        controls,
-      );
-    if (view.status?.status === "conflict" && draft.action === "edit")
-      button(
-        "Revisar versión actual",
-        () => {
-          const node = data.nodes.find((n) => n.key === draft.origin);
-          if (!node) return;
-          const review = element("section");
-          review.append(
-            element("p", `Versión actual de ${node.titulo}`),
-            element("pre", node.contenido_latex),
-          );
-          button(
-            "He revisado: usar esta versión como base",
-            () => {
-              draft.revision = node.revision;
-              view.status = {
-                status: "draft",
-                message:
-                  "Revisión actual adoptada explícitamente; borrador conservado.",
-              };
-              vault.put(draft);
-              review.remove();
-              renderStatus();
-            },
-            review,
-          );
-          controls.append(review);
-        },
-        controls,
-      );
-    form.onsubmit = (event) => {
-      event.preventDefault();
-      if (view.pending) return;
-      if (composer && !composer.valid()) {
-        view.status = {
-          status: "draft",
-          message:
-            "Hay una fórmula en elaboración. El borrador está conservado; corrígela antes de confirmar.",
-        };
-        renderStatus();
-        return;
-      }
-      draft.content = composer?.value() ?? draft.content;
-      draft.submitted = true;
-      vault.put(draft);
-      view.pending = intention(draft, crypto.randomUUID());
-      submitPending();
-    };
-    if (view.pending)
-      form
-        .querySelectorAll("input,select,textarea,button")
-        .forEach((n) => ((n as HTMLInputElement).disabled = true));
-    dialog.oncancel = (event) => {
-      event.preventDefault();
-      if (!view.pending) keepAndClose();
-    };
-    root.append(dialog);
-    dialog.showModal();
-    citationControls?.restore();
-  }
-  function relationFields(parent: HTMLElement, draft: Draft): void {
-    const preview = element("p", "", "preview");
-    const update = () => {
-      const origin =
-          data.nodes.find((n) => n.key === draft.origin)?.titulo ??
-          draft.origin,
-        target =
-          draft.action === "connect"
-            ? (data.nodes.find((n) => n.key === draft.target)?.titulo ??
-              "Destino")
-            : draft.title;
-      preview.textContent = `${draft.reverse ? target : origin} → [${draft.relation}] → ${draft.reverse ? origin : target}`;
-      save();
-      scene.request();
-    };
-    if (draft.action === "connect")
-      selector(
-        parent,
-        "Destino",
-        [
-          { value: "", text: "Elegir concepto" },
-          ...data.nodes.map((n) => ({
-            value: n.key,
-            text: `${n.titulo} · ${n.source}`,
-          })),
-        ],
-        draft.target,
-        (v) => {
-          draft.target = v;
-          update();
-        },
-      );
-    selector(
-      parent,
-      "Tipo de relación",
-      data.relation_types.map((s) => ({ value: s, text: s })),
-      draft.relation,
-      (v) => {
-        draft.relation = v;
-        update();
-      },
-    );
-    const label = element("label", "Invertir sentido "),
-      checkbox = element("input");
-    checkbox.type = "checkbox";
-    checkbox.checked = draft.reverse;
-    checkbox.onchange = () => {
-      draft.reverse = checkbox.checked;
-      update();
-    };
-    label.append(checkbox);
-    parent.append(label, preview);
-    update();
-  }
   function submitPending(): void {
     if (!view.pending) return;
     view.status = {
       status: "saving",
       message: "Guardando… espera la confirmación del servidor.",
     };
-    closeEditor();
+    documentDialog.close();
     save();
     renderStatus();
     setTriggerValue("intent", view.pending);
@@ -657,7 +422,7 @@ export default function render({
             status: "conflict",
             message: "Conserva la ficha parcial y revisa el contenido actual.",
           };
-          showEditor();
+          documentDialog.open();
           renderStatus();
         },
         status,
@@ -709,12 +474,18 @@ export default function render({
         readingDispose?.();
         view.reader = node.key;
         save();
-        readingDispose = openReader(root, node, view.textSize ?? 19, () => {
-          view.reader = undefined;
-          readingDispose = undefined;
-          save();
-          canvas.focus();
-        });
+        readingDispose = openReader(
+          root,
+          node,
+          view.textSize ?? 19,
+          () => {
+            view.reader = undefined;
+            readingDispose = undefined;
+            save();
+            canvas.focus();
+          },
+          (parent) => renderConceptSources(parent, node, data, setTriggerValue),
+        );
       },
       actions,
       true,
@@ -873,128 +644,12 @@ export default function render({
     const saved = goal.draftId ? vault.get(goal.draftId) : undefined;
     if (saved) {
       view.draft = saved;
-      showEditor();
+      documentDialog.open();
     } else start("create", goal.point, goal);
   }
-  function renderFilters(): void {
-    filters.replaceChildren();
-    const all = { value: "", text: "Todos" };
-    const human = (a: string, b: string) => a.localeCompare(b, "es");
-    selector(
-      filters,
-      "Fuente visible",
-      [
-        all,
-        ...[...new Set(data.nodes.map((n) => n.source))]
-          .sort(human)
-          .map((s) => ({ value: s, text: s })),
-      ],
-      view.source,
-      (v) => {
-        view.source = v;
-        refresh();
-      },
-    );
-    selector(
-      filters,
-      "Tipo visible",
-      [
-        all,
-        ...[...new Set(data.nodes.map((n) => n.tipo))]
-          .sort(human)
-          .map((s) => ({ value: s, text: s })),
-      ],
-      view.type,
-      (v) => {
-        view.type = v;
-        refresh();
-      },
-    );
-    selector(
-      filters,
-      "Relación visible",
-      [all, ...data.relation_types.map((s) => ({ value: s, text: s }))],
-      view.relation,
-      (v) => {
-        view.relation = v;
-        refresh();
-      },
-    );
-    button(
-      view.frontOnly
-        ? "Mostrar hemisferio posterior"
-        : "Sólo hemisferio frontal",
-      () => {
-        view.frontOnly = !view.frontOnly;
-        refresh();
-      },
-      filters,
-    );
-  }
-  function renderThemes(): void {
-    themes.replaceChildren();
-    themes.append(
-      element(
-        "p",
-        "Áreas: elige categorías temáticas explícitamente. Fuente, tipo y área son dimensiones distintas.",
-        "hint",
-      ),
-    );
-    const categories = [
-      ...new Set(data.nodes.flatMap((n) => n.categorias)),
-    ].sort((a, b) => a.localeCompare(b, "es"));
-    categories.forEach((area) => {
-      const label = element("label", area),
-        check = element("input");
-      check.type = "checkbox";
-      check.checked = view.areas!.includes(area);
-      check.onchange = () => {
-        if (check.checked && view.areas!.length >= 6) {
-          check.checked = false;
-          return;
-        }
-        view.areas = check.checked
-          ? [...view.areas!, area]
-          : view.areas!.filter((a) => a !== area);
-        view.layoutDirty = true;
-        renderThemes();
-        refresh();
-      };
-      label.prepend(check);
-      themes.append(label);
-    });
-    button(
-      view.mandala ? "Desactivar estilo mandala" : "Activar estilo mandala",
-      () => {
-        view.mandala = !view.mandala;
-        view.layoutDirty = true;
-        renderThemes();
-        refresh();
-      },
-      themes,
-    );
-    button(
-      "Organizar por áreas",
-      () => {
-        if (!view.areas?.length) return;
-        scene.rememberLayout();
-        view.points = thematicLayout(data, view);
-        view.layoutDirty = true;
-        refresh();
-      },
-      themes,
-    );
-    button(
-      "Disposición orgánica: ensayo breve",
-      () => {
-        scene.rememberLayout();
-        view.points = relax(view.points, view.pinned ?? []);
-        view.layoutDirty = true;
-        refresh();
-      },
-      themes,
-    );
-  }
+  const renderFilters = () => renderMapFilters(filters, data, view, refresh);
+  const renderThemes = () =>
+    renderMapThemes(themes, data, view, refresh, () => scene.rememberLayout());
   function expand(): void {
     if (expansion) {
       expansion.close();
@@ -1020,6 +675,15 @@ export default function render({
     save();
   }
   button("Crear concepto aquí", () => start("create"), toolbar, true);
+  if (onExit)
+    button(
+      "Volver a la habitación",
+      () => {
+        documentDialog.close();
+        onExit();
+      },
+      toolbar,
+    );
   const selection = selector(
     toolbar,
     "Seleccionar concepto",
@@ -1146,25 +810,26 @@ export default function render({
     },
     extras,
   );
-  selector(
-    extras,
-    "Abrir vista guardada",
-    [
-      { value: "", text: "Elegir vista guardada" },
-      ...(data.views ?? []).map((s) => ({ value: s.uid, text: s.name })),
-    ],
-    view.mapUid,
-    (savedUid) => {
-      const chosen = data.views?.find((s) => s.uid === savedUid);
-      if (!chosen) return;
-      closeEditor();
-      view.draft = undefined;
-      applySavedView(view, chosen);
-      vault = new DraftVault(data.scope, chosen.uid);
-      renderThemes();
-      refresh();
-    },
-  );
+  if (!initialView)
+    selector(
+      extras,
+      "Abrir vista guardada",
+      [
+        { value: "", text: "Elegir vista guardada" },
+        ...(data.views ?? []).map((s) => ({ value: s.uid, text: s.name })),
+      ],
+      view.mapUid,
+      (savedUid) => {
+        const chosen = data.views?.find((s) => s.uid === savedUid);
+        if (!chosen) return;
+        documentDialog.close();
+        view.draft = undefined;
+        applySavedView(view, chosen);
+        vault = new DraftVault(data.scope, chosen.uid);
+        renderThemes();
+        refresh();
+      },
+    );
   button(
     "Recuperar borradores",
     () => {
@@ -1181,7 +846,7 @@ export default function render({
           () => {
             list.close();
             view.draft = draft;
-            showEditor();
+            documentDialog.open();
           },
           list,
         ),
@@ -1190,6 +855,31 @@ export default function render({
       list.onclose = () => list.remove();
       root.append(list);
       list.showModal();
+    },
+    extras,
+  );
+  button(
+    "Añadir concepto seleccionado a esta esfera",
+    () => {
+      if (!view.selected || !data.nodes.some((n) => n.key === view.selected))
+        return;
+      view.members ??= data.nodes.map((n) => n.key);
+      if (!view.members.includes(view.selected))
+        view.members.push(view.selected);
+      view.layoutDirty = true;
+      refresh();
+    },
+    extras,
+  );
+  button(
+    "Quitar concepto seleccionado de esta esfera",
+    () => {
+      if (!view.selected) return;
+      view.members = (view.members ?? data.nodes.map((n) => n.key)).filter(
+        (key) => key !== view.selected,
+      );
+      view.layoutDirty = true;
+      refresh();
     },
     extras,
   );
@@ -1222,12 +912,13 @@ export default function render({
     view.expanded = false;
     expand();
   }
-  if (view.draft) showEditor();
+  if (view.draft) documentDialog.open();
   const cleanup = () => {
-    closeEditor();
+    documentDialog.close();
     readingDispose?.();
     scene.destroy();
     if (timer) clearTimeout(timer);
+    if (expansion) expansion.onclose = null;
     expansion?.remove();
     save();
   };
