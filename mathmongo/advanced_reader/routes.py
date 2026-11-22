@@ -9,6 +9,7 @@ from typing import Any
 from typing import Literal
 
 from fastapi import APIRouter
+from fastapi import Depends
 from fastapi import Header
 from fastapi import Query
 from fastapi import Request
@@ -39,6 +40,7 @@ from mathmongo.advanced_reader.schemas import VisualAnnotationListResponse
 from mathmongo.advanced_reader.schemas import VisualAnnotationResponse
 from mathmongo.advanced_reader.schemas import VisualAnnotationUpdate
 from mathmongo.advanced_reader.security import sanitized_inline_filename
+from mathmongo.study.routes import optional_reader_scope
 from mathmongo.reading_annotations.models import AnnotationStatus
 from mathmongo.reading_annotations.models import DocumentAnnotation
 from mathmongo.reading_annotations.service import ReadingAnnotationOperationStatus
@@ -178,7 +180,7 @@ def _optional_visual_page_label(
 
 
 def build_api_router() -> APIRouter:
-    router = APIRouter(prefix=API_PREFIX)
+    router = APIRouter(prefix=API_PREFIX, dependencies=[Depends(optional_reader_scope)])
 
     @router.get("/health", response_model=HealthResponse)
     def health(request: Request) -> HealthResponse:
