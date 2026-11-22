@@ -1,5 +1,4 @@
 path,lines,kind,bytes,sha256,classification_reason
-editor/editor_streamlit.py,5736,maintained,271836,d3fa3faecdcd6ba373d565d10aa0f61c1d39bad8be6f4daa860dd7e508fa7ec5,hand-maintained source; review independently of coverage
 editor/cuaderno_page.py,4122,maintained,173421,98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554,hand-maintained source; review independently of coverage
 visualizations/grafoconocimiento.py,3670,maintained,124266,568f4436f2f5804594e9aa2c64a54ba74183cbfb95ce69727b11649415f55c89,hand-maintained source; review independently of coverage
 editor/utils/db_import.py,2904,maintained,115496,725bdf213ba1343cafe15d4f55597cd966188e2afa3ca6b04871e00e50944e6e,hand-maintained source; review independently of coverage
@@ -8,9 +7,10 @@ mathmongo/reading_annotations/service.py,1686,maintained,70602,f688f5df1149b8a0b
 mathmongo/source_catalog_migration/bootstrap.py,1635,maintained,71796,ed986959d72ac9baa7d0b8f7d7ca08b6062e123786784b6de9c33f1dd421efb0,hand-maintained source; review independently of coverage
 editor/cornell/streamlit_page.py,1634,maintained,59460,85b96d262000879c7ec8223bad49c5326c7a996632c4c4d141587bf709467774,hand-maintained source; review independently of coverage
 editor/cpi/streamlit_page.py,1485,maintained,54570,7c133a29a37ddb185ea0f73c33b3fbbfeae77c20beef245ffdad5cf42c7a2028,hand-maintained source; review independently of coverage
+editor/app_pages/knowledge_graph.py,1381,maintained,79532,73a068e848a458d0d37c84d68eaa053a3480d43d3e6c5c3d2d042b1f4ab8377f,hand-maintained source; review independently of coverage
 editor/concept_linking/linking_wizard.py,1264,maintained,43966,bb409353b248fa2ba8873832b78d8de5cb813a9150e7d6946f59b134a1cdeaf4,hand-maintained source; review independently of coverage
-editor/reading_space/reader_page.py,1242,maintained,46681,d05d5a35ecff0d130810604a347e47594ce8af0b6a3f2a0b12b715368a9aef60,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/app/App.tsx,1227,maintained,46600,a8ff6556e2ef4cbc13252dd9499532c7571b93e01dfc91be2dd7423e961f9a00,hand-maintained source; review independently of coverage
+editor/reading_space/reader_page.py,1222,maintained,46146,594f1787da2dfcf8897def59109eb8c3b43ff630c1adc7c85b81549ced806bab,hand-maintained source; review independently of coverage
 editor/source_catalog/edit_source_page.py,1192,maintained,45507,6bfa69ee5268dae84a0404d602869f2f641320e404cc69a662546e0c246d4829,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/apply_safety.py,1186,maintained,49763,05fc313b7634c8c0fb67eabbc7692688ea059b94450de67b5c999afe2a203948,hand-maintained source; review independently of coverage
 mathmongo/source_catalog_migration/manifest.py,1122,maintained,46080,e1c3fc228968132ec640311e70c1f3321a414b6eda35263db9737af22287f2a9,hand-maintained source; review independently of coverage

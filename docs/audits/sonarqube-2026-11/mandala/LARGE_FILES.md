@@ -161,3 +161,40 @@ La huella de los fuentes del corte final corresponde a be6d6c9d. Los CSV se
 generan antes de integrar su propia documentación y no constituyen una huella
 autorreferente de sí mismos. El adaptador keyboard.ts permanece pequeño y usa
 geometría pública; sus pruebas, layouts y cleanup se contabilizan en el lote.
+
+### Cambio de prioridad: frontend independiente y extracción de compatibilidad
+
+La nueva decisión del usuario sustituye mantener Streamlit como contenedor.
+Consúltese INTERFACE_DECISION.md y FRONTEND_MIGRATION_REVIEW.md. Los CSV actuales
+se actualizan al corte de fuente 203dd6cd; los informes previos conservan sus
+cifras históricas y no se reescriben como si hubieran medido este corte.
+
+`editor_streamlit.py`: 5744 líneas antes de la extracción (5736 en 4204429f),
+29 después. Configura Streamlit, prepara contexto, selecciona y abre una página.
+Se preservan veinte implementaciones de página y se separan PDF, medios,
+referencias previas, limpieza, helpers de mapas, conexiones y disponibilidad.
+No importan variables del entry ni renderizan al importarse. El conjunto completo
+relacionado mide 6134 líneas: **390 netas añadidas**, no 5715 eliminadas.
+Imports explícitos, contexto y límites de función explican ese crecimiento;
+el beneficio es una entrada acotada y composición comprobable.
+
+`editor/app_pages/knowledge_graph.py`: 1381 líneas, nueva ubicación de una
+implementación conservada. Responsabilidades: explorar el grafo histórico,
+crear/importar/exportar mapas y editar su estado con sincronización previa a
+widgets y guardas de identidad. Continúa siendo grande. Decisión: congelar
+ampliaciones de presentación, preservar consumidores y extraer sólo las
+operaciones que necesite la migración React; no reconstruir otra navegación
+completa en Streamlit. No se ha retirado PyVis ni sus herramientas avanzadas.
+
+`frontend/advanced-reader/src/app/App.tsx`, 1227 líneas: conservar el lector
+probado y extraer responsabilidades de ciclo de documento, anotaciones y vínculos
+cuando se integre el shell React. No añadir Biblioteca, Cuaderno y Espacios a
+este componente. `component.ts` y `room.ts` conservan decisiones anteriores;
+su transporte Bridge debe independizarse antes de retirar CCv2.
+
+Los otros diecinueve archivos propios de más de mil líneas conservan sus
+decisiones individuales de este registro. Las nuevas ubicaciones cuentan en el
+inventario; no se presentan como código eliminado. Borrado de conceptos queda
+abierto: la reproducción aislada conserva evidencia huérfana en ambas rutas y
+una relación huérfana en exploración. Corregir el contrato antes de exponerlo por
+la API nueva, incluyendo revisiones, medios y fallos parciales.

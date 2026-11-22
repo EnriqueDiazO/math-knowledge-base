@@ -1,0 +1,232 @@
+{
+  "analysis_id": "0aa030c7-75e7-4ccb-91eb-f21d04ef7949",
+  "compared": [
+    {
+      "path": "editor/app_pages/knowledge_graph.py",
+      "xml_lines": 714,
+      "xml_uncovered": 661,
+      "sonar_lines": 714,
+      "sonar_uncovered": 661
+    },
+    {
+      "path": "editor/app_pages/relations.py",
+      "xml_lines": 411,
+      "xml_uncovered": 402,
+      "sonar_lines": 411,
+      "sonar_uncovered": 402
+    },
+    {
+      "path": "editor/app_pages/concept_edit.py",
+      "xml_lines": 386,
+      "xml_uncovered": 345,
+      "sonar_lines": 386,
+      "sonar_uncovered": 345
+    },
+    {
+      "path": "editor/app_pages/concept_create.py",
+      "xml_lines": 245,
+      "xml_uncovered": 203,
+      "sonar_lines": 245,
+      "sonar_uncovered": 203
+    },
+    {
+      "path": "editor/graph_page_helpers.py",
+      "xml_lines": 209,
+      "xml_uncovered": 170,
+      "sonar_lines": 209,
+      "sonar_uncovered": 170
+    },
+    {
+      "path": "editor/app_pages/concepts.py",
+      "xml_lines": 165,
+      "xml_uncovered": 148,
+      "sonar_lines": 165,
+      "sonar_uncovered": 148
+    },
+    {
+      "path": "editor/maintenance_page.py",
+      "xml_lines": 144,
+      "xml_uncovered": 118,
+      "sonar_lines": 144,
+      "sonar_uncovered": 118
+    },
+    {
+      "path": "editor/app_pages/export.py",
+      "xml_lines": 96,
+      "xml_uncovered": 87,
+      "sonar_lines": 96,
+      "sonar_uncovered": 87
+    },
+    {
+      "path": "editor/ui/concept_media.py",
+      "xml_lines": 80,
+      "xml_uncovered": 62,
+      "sonar_lines": 80,
+      "sonar_uncovered": 62
+    },
+    {
+      "path": "editor/app_pages/home.py",
+      "xml_lines": 299,
+      "xml_uncovered": 59,
+      "sonar_lines": 299,
+      "sonar_uncovered": 59
+    },
+    {
+      "path": "editor/app_pages/settings.py",
+      "xml_lines": 40,
+      "xml_uncovered": 36,
+      "sonar_lines": 40,
+      "sonar_uncovered": 36
+    },
+    {
+      "path": "editor/helpers/concept_reference_history.py",
+      "xml_lines": 27,
+      "xml_uncovered": 24,
+      "sonar_lines": 27,
+      "sonar_uncovered": 24
+    },
+    {
+      "path": "editor/connection_controls.py",
+      "xml_lines": 63,
+      "xml_uncovered": 20,
+      "sonar_lines": 63,
+      "sonar_uncovered": 20
+    },
+    {
+      "path": "editor/ui/concept_pdf.py",
+      "xml_lines": 25,
+      "xml_uncovered": 17,
+      "sonar_lines": 25,
+      "sonar_uncovered": 17
+    },
+    {
+      "path": "editor/app_pages/database_export.py",
+      "xml_lines": 23,
+      "xml_uncovered": 15,
+      "sonar_lines": 23,
+      "sonar_uncovered": 15
+    },
+    {
+      "path": "editor/connection_manager.py",
+      "xml_lines": 36,
+      "xml_uncovered": 11,
+      "sonar_lines": 36,
+      "sonar_uncovered": 11
+    },
+    {
+      "path": "editor/app_pages/diagnosis.py",
+      "xml_lines": 8,
+      "xml_uncovered": 5,
+      "sonar_lines": 8,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/documents.py",
+      "xml_lines": 8,
+      "xml_uncovered": 5,
+      "sonar_lines": 8,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/source_create.py",
+      "xml_lines": 9,
+      "xml_uncovered": 5,
+      "sonar_lines": 9,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/source_edit.py",
+      "xml_lines": 9,
+      "xml_uncovered": 5,
+      "sonar_lines": 9,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/notebook_availability.py",
+      "xml_lines": 13,
+      "xml_uncovered": 4,
+      "sonar_lines": 13,
+      "sonar_uncovered": 4
+    },
+    {
+      "path": "editor/app_pages/cornell.py",
+      "xml_lines": 5,
+      "xml_uncovered": 3,
+      "sonar_lines": 5,
+      "sonar_uncovered": 3
+    },
+    {
+      "path": "editor/app_pages/cpi.py",
+      "xml_lines": 5,
+      "xml_uncovered": 3,
+      "sonar_lines": 5,
+      "sonar_uncovered": 3
+    },
+    {
+      "path": "editor/app_pages/notebook.py",
+      "xml_lines": 6,
+      "xml_uncovered": 3,
+      "sonar_lines": 6,
+      "sonar_uncovered": 3
+    },
+    {
+      "path": "editor/application_bootstrap.py",
+      "xml_lines": 33,
+      "xml_uncovered": 2,
+      "sonar_lines": 33,
+      "sonar_uncovered": 2
+    },
+    {
+      "path": "editor/application_navigation.py",
+      "xml_lines": 38,
+      "xml_uncovered": 2,
+      "sonar_lines": 38,
+      "sonar_uncovered": 2
+    },
+    {
+      "path": "editor/app_pages/database_import.py",
+      "xml_lines": 6,
+      "xml_uncovered": 2,
+      "sonar_lines": 6,
+      "sonar_uncovered": 2
+    },
+    {
+      "path": "editor/app_pages/maintenance.py",
+      "xml_lines": 4,
+      "xml_uncovered": 1,
+      "sonar_lines": 4,
+      "sonar_uncovered": 1
+    },
+    {
+      "path": "editor/app_pages/reading.py",
+      "xml_lines": 15,
+      "xml_uncovered": 1,
+      "sonar_lines": 15,
+      "sonar_uncovered": 1
+    },
+    {
+      "path": "editor/app_pages/study_room.py",
+      "xml_lines": 9,
+      "xml_uncovered": 1,
+      "sonar_lines": 9,
+      "sonar_uncovered": 1
+    },
+    {
+      "path": "editor/app_pages/__init__.py",
+      "xml_lines": 0,
+      "xml_uncovered": 0,
+      "sonar_lines": 0,
+      "sonar_uncovered": 0
+    },
+    {
+      "path": "editor/application_context.py",
+      "xml_lines": 14,
+      "xml_uncovered": 0,
+      "sonar_lines": 14,
+      "sonar_uncovered": 0
+    }
+  ],
+  "xml_lines": 3145,
+  "xml_uncovered": 2420,
+  "tooling_missing_lines_demonstrated": 0
+}

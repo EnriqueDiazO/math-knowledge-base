@@ -1,6 +1,5 @@
 path,kind,lines,review_status,decision
 mathmongo/advanced_reader/static/knowledge_map/index-BQfoBSNJ.js,generated,57226,clasificado,review build inputs; do not refactor generated output
-editor/editor_streamlit.py,maintained,5736,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
 frontend/advanced-reader/package-lock.json,resource,5109,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 poetry.lock,resource,4648,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/cuaderno_page.py,maintained,4122,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
@@ -16,13 +15,14 @@ mathmongo/advanced_reader/static/knowledge_map/THIRD_PARTY_LICENSES.txt,generate
 editor/cpi/streamlit_page.py,maintained,1485,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
 tests/test_source_catalog_backup.py,test,1422,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_concept_linking_ui.py,test,1388,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/app_pages/knowledge_graph.py,maintained,1381,revisado_con_pendientes,"1381 líneas: exploración PyVis, CRUD de mapas y guardas de identidad/estado. Conservar compatibilidad sin nuevas funciones hasta paridad React; separar sólo lógica reutilizada."
 tests/test_source_catalog_migration_bootstrap.py,test,1325,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/tests/e2e-runner.mjs,test,1302,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 quarto_book_build/_book/site_libs/quarto-search/quarto-search.js,generated,1290,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 editor/concept_linking/linking_wizard.py,maintained,1264,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
-editor/reading_space/reader_page.py,maintained,1242,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
-tests/test_reading_annotations_ui.py,test,1240,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_reading_annotations_ui.py,test,1245,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/src/app/App.tsx,maintained,1227,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/reading_space/reader_page.py,maintained,1222,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
 editor/source_catalog/edit_source_page.py,maintained,1192,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
 mathmongo/source_catalog_migration/apply_safety.py,maintained,1186,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
 tests/test_source_catalog_migration_production_gate.py,test,1128,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
@@ -32,9 +32,9 @@ editor/pdf_export.py,maintained,1115,revisado_con_pendientes,Decisión individua
 tests/test_database_update.py,test,1087,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_source_catalog_migration_cli_live.py,test,1077,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/utils/knowledge_graph_sync.py,maintained,1076,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+docs/audits/sonarqube-2026-11/mandala/CODE_INVENTORY.csv,resource,1058,clasificado,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/REVIEW_REGISTER.csv,resource,1058,clasificado,data/template/asset; inspect its consumers and provenance
 tests/test_reading_space_ui.py,test,1058,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
-docs/audits/sonarqube-2026-11/mandala/CODE_INVENTORY.csv,resource,1049,clasificado,data/template/asset; inspect its consumers and provenance
-docs/audits/sonarqube-2026-11/mandala/REVIEW_REGISTER.csv,resource,1049,clasificado,data/template/asset; inspect its consumers and provenance
 exporters_latex/latex_validation.py,maintained,1046,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
 docs/audits/sonarqube-2026-11/replaced-assets.json,resource,1024,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 mathmongo/reading_annotations/repository.py,maintained,1010,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
@@ -49,18 +49,20 @@ frontend/advanced-reader/src/knowledge-map/component.ts,maintained,927,refactori
 docs/audits/sonarqube-2026-11/INVENTORY.csv,resource,903,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/run_local_runtime_e2e.py,test,896,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/src/knowledge-map/room.ts,maintained,891,revisado_y_verificado,"Habitación canónica y presentación/recuperación separadas; pruebas dirigidas, navegador propio; limitación de carga de recursos documentada"
+editor/app_pages/concept_edit.py,maintained,873,pendiente,hand-maintained source; review independently of coverage
 mathmongo/source_catalog/repository.py,maintained,868,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/cornell/renderer.py,maintained,865,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_reading_annotations_core.py,test,862,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 quarto_book_build/_book/site_libs/quarto-html/quarto.js,generated,847,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 frontend/advanced-reader/src/knowledge-map/style.css,maintained,832,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_catalog/service.py,maintained,831,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-editor/reading_annotations/annotation_panel.py,maintained,828,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_annotations/annotation_panel.py,maintained,827,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/interactive_graph.py,maintained,820,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_cornell_renderer.py,test,816,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_reading_space_core.py,test,816,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/source_catalog/document_ui.py,maintained,797,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_source_catalog_migration_planner.py,test,787,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/app_pages/relations.py,maintained,783,pendiente,hand-maintained source; review independently of coverage
 editor/cpi/renderer.py,maintained,779,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_catalog/bibtex.py,maintained,775,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 GUI_README.md,documentation,751,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -72,10 +74,10 @@ mathmongo/reading_space/repository.py,maintained,726,pendiente_cotejo_manual,"Re
 docs/PHASE_EDIT_CONCEPT_SOURCE_LINK_AUDIT.md,documentation,724,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 scripts/install_cuaderno_mode.py,maintained,722,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/reading_annotations/models.py,maintained,704,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/reading_space/service.py,maintained,704,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_source_documents_core.py,test,704,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/diary_note_ui.py,maintained,687,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/PdfJsController.test.ts,test,687,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
-mathmongo/reading_space/service.py,maintained,687,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/cornell/project_export.py,maintained,681,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/advanced_reader/routes.py,maintained,652,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/PHASE_SOURCE_ADD_CONCEPT_INTEGRATION_AUDIT.md,documentation,639,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -96,24 +98,26 @@ README.md,documentation,586,clasificado,Conservar recursos/documentos/configurac
 tests/test_visual_annotations_core.py,test,584,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_cornell_streamlit_helpers.py,test,581,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_source_catalog_repository.py,test,581,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
-tests/test_edit_concept_identity_preservation.py,test,579,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_edit_concept_identity_preservation.py,test,574,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathdatabase/mathmongo.py,maintained,573,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_source_documents_portability.py,test,573,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/latex_tools.py,maintained,571,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/cornell/layout.py,maintained,570,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/src/knowledge-map/document-editor.ts,maintained,568,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/ADVANCED_READER_S5A.md,documentation,565,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
-tests/test_add_concept_reference_import_ui.py,test,563,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/document_builder.py,maintained,561,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_add_concept_reference_import_ui.py,test,559,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/diary_note_latex.py,maintained,556,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/source_catalog/reference_form.py,maintained,554,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 scripts/seed_cocid_drive_docs_tutorial.py,maintained,550,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/app_pages/concept_create.py,maintained,547,pendiente,hand-maintained source; review independently of coverage
 tests/test_document_page_maps_portability.py,test,547,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/user-guide/GUIA_READING_SPACE_MATHMONGO.md,documentation,545,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_advanced_reader_api.py,test,542,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 exporters_latex/unified_document.py,maintained,539,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_legacy_concept_source_link_service.py,test,538,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_source_documents_ui.py,test,536,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/app_pages/home.py,maintained,530,pendiente,hand-maintained source; review independently of coverage
 mathmongo/source_documents/service.py,maintained,530,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/reading_annotations/forms.py,maintained,529,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_advanced_reader_visual_annotations.py,test,529,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
@@ -174,8 +178,8 @@ frontend/advanced-reader/src/knowledge-map/document.ts,maintained,395,pendiente_
 mathmongo/academic_cli/catalog.py,maintained,395,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/visualAnnotationsApp.test.tsx,test,393,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/README.md,documentation,392,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
-tests/test_edit_concept_update_feedback.py,test,392,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/source_catalog/legacy.py,maintained,390,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_edit_concept_update_feedback.py,test,389,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_cpi_project_export.py,test,386,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/mongodb_service.py,maintained,385,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/ADVANCED_READER_EVENT_CONTRACT.md,documentation,384,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -184,19 +188,20 @@ tests/test_diary_note_latex.py,test,383,conservar_cohortes,Ejecución no equival
 tests/test_mathmongo_cli.py,test,383,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/source_catalog/normalization.py,maintained,377,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/local_runtime/processes.py,maintained,375,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_source_catalog_ui_scope.py,test,373,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_fresh_database_lifecycle_e2e.py,test,371,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_bibliography_lookup.py,test,369,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/cli.py,maintained,364,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/graph_page_helpers.py,maintained,362,pendiente,hand-maintained source; review independently of coverage
 tests/test_source_catalog_legacy_repository.py,test,361,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_note_export.py,test,359,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_ui_scope.py,test,358,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/reading_annotations/indexes.py,maintained,356,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_source_catalog_service.py,test,356,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
-editor/reading_annotations/note_panel.py,maintained,354,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/reading_space/page_map_panel.py,maintained,354,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_catalog_migration/planner.py,maintained,350,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_source_catalog_migration_decisions.py,test,349,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/COCID_DRIVE_DOCS_TUTORIAL_IMPLEMENTATION.md,documentation,346,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_annotations/note_panel.py,maintained,346,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/ThumbnailManager.test.ts,test,346,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_knowledge_map_service.py,test,346,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_advanced_reader_packaging.py,test,345,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
@@ -205,8 +210,8 @@ mathmongo/migrate_xdg.py,maintained,340,pendiente_cotejo_manual,"Reutilizar hall
 mathmongo/advanced_reader/app.py,maintained,337,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/CONCEPT_LINKING_UX_S4_3.md,documentation,335,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 mathmongo/source_documents/models.py,maintained,335,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_xdg_mutable_guards.py,test,335,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/doctor.py,maintained,333,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_xdg_mutable_guards.py,test,333,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/source_catalog_migration/apply_result.py,maintained,331,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_cornell_images.py,test,329,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/document_page_maps/models.py,maintained,326,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -229,6 +234,7 @@ tests/local_runtime_browser_probe.mjs,test,306,conservar_cohortes,Ejecución no 
 scripts/build_reading_space_guide.sh,maintained,302,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_sonar_execution.py,test,302,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/closure/RESULTS.json,resource,301,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/concepts.py,maintained,301,pendiente,hand-maintained source; review independently of coverage
 tests/test_mongodb_service.py,test,301,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/pdf_preview.py,maintained,300,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/App.test.tsx,test,298,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
@@ -248,8 +254,8 @@ mathmongo/knowledge_map/study_resources.py,maintained,286,pendiente_cotejo_manua
 scripts/generate_diary_note_acceptance.py,maintained,286,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_catalog_migration/inventory.py,maintained,285,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_document_page_map_ui.py,test,285,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
-tests/test_add_concept_managed_source_selection.py,test,284,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/cornell/service.py,maintained,282,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_add_concept_managed_source_selection.py,test,279,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/scripts/publish-build.mjs,maintained,277,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/src/annotations/VisualAnnotationLayer.ts,maintained,277,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/cornell/media.py,maintained,276,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -263,14 +269,16 @@ mathmongo/desktop.py,maintained,266,pendiente_cotejo_manual,"Reutilizar hallazgo
 tests/test_legacy_curve_migration.py,test,266,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_quality_lifecycle.py,test,266,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/reading_annotations/concept_picker.py,maintained,265,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_cpi_streamlit_helpers.py,test,265,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/cpi/models.py,maintained,264,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/PHASE_FRESH_DATABASE_LIFECYCLE_E2E.md,documentation,262,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_cpi_streamlit_helpers.py,test,262,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/src/types/api.ts,maintained,261,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/helpers/bibliographic_reference.py,maintained,260,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 exporters_latex/exportadorlatex.py,maintained,259,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/scripts/prepare-pdf-worker.mjs,maintained,258,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/maintenance_page.py,maintained,257,pendiente,hand-maintained source; review independently of coverage
 mathmongo/config.py,maintained,256,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/mandala/README.md,documentation,255,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/source_catalog/state.py,maintained,254,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 parsers/markdownparser.py,maintained,253,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_documents/repository.py,maintained,251,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -292,7 +300,6 @@ tests/test_cpi_service.py,test,243,conservar_cohortes,Ejecución no equivale a r
 editor/source_catalog/lookup_ui.py,maintained,240,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
 tests/test_study_resources.py,test,240,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/VISUAL_ANNOTATIONS_S5B.md,documentation,238,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
-docs/audits/sonarqube-2026-11/mandala/README.md,documentation,238,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/src/annotations/geometry.ts,maintained,238,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 templates_latex/miestilo.sty,resource,237,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_latex_bundle.py,test,237,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
@@ -342,7 +349,6 @@ tests/test_legacy_concept_source_link_e2e.py,test,196,conservar_cohortes,Ejecuci
 tests/test_diary_note_color_palette.py,test,195,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_mathmongo_launcher.py,test,195,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/source_catalog_migration/locator.py,maintained,193,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_edit_concept_legacy_source_link_ui.py,test,193,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_mathmongo_desktop.py,test,193,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/mandala/FINAL_STUDY_RESULTS.json,resource,192,clasificado,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/mandala/ROOM_RESULTS.json,resource,192,clasificado,data/template/asset; inspect its consumers and provenance
@@ -350,9 +356,11 @@ mathmongo/reading_space/indexes.py,maintained,192,pendiente_cotejo_manual,"Reuti
 docs/READING_ANNOTATIONS_S4.md,documentation,191,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_reading_space_polish_s4_2.py,test,189,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/academic_cli/common.py,maintained,187,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_edit_concept_legacy_source_link_ui.py,test,187,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/edit_concept_feedback.py,maintained,186,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/academic_cli/documents.py,maintained,186,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_mathmongo_paths.py,test,186,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/mandala/FRONTEND_MIGRATION_REVIEW.md,documentation,185,pendiente,documentation or license; not executable source
 tests/test_diary_note_persistence.py,test,185,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/MANAGED_SOURCE_WORKFLOW.md,documentation,182,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/src/concepts/ConceptPanels.tsx,maintained,180,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -362,6 +370,7 @@ TODO.md,documentation,175,clasificado,Conservar recursos/documentos/configuraci�
 frontend/advanced-reader/tests/study-document.test.ts,test,175,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/ADVANCED_READER_CONCEPT_LINKING_S5C.md,documentation,174,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/READING_SPACE_S3.md,documentation,174,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/export.py,maintained,174,pendiente,hand-maintained source; review independently of coverage
 tests/test_mathmongo_config.py,test,174,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/concept_linking/concept_cards.py,maintained,173,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/advanced_reader/concept_search.py,maintained,173,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -374,11 +383,13 @@ frontend/advanced-reader/src/types/events.ts,maintained,165,pendiente_cotejo_man
 frontend/advanced-reader/tests/study-layout.test.ts,test,164,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/mandala/LARGE_FILES.md,documentation,163,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_document_builder_database_scope.py,test,163,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_reading_preparation_app.py,test,162,pendiente,behavior verification; retained in test scope
 docs/PHASE_S1A_SOURCE_CATALOG_CORE.md,documentation,161,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/RELEASE_NOTES_v0.13.0_MANAGED_SOURCE_WORKFLOW.md,documentation,161,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 mathmongo/advanced_reader/concept_schemas.py,maintained,160,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/desktop_launch.py,maintained,159,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 .gitignore,configuration,157,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_reading_preparation.py,test,157,pendiente,behavior verification; retained in test scope
 exporters_latex/concept_ordering.py,maintained,156,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/study-room-browser.mjs,test,156,clasificado,behavior verification; retained in test scope
 editor/source_catalog/workflows.py,maintained,154,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -405,9 +416,11 @@ editor/cornell/ui_helpers.py,maintained,143,pendiente_cotejo_manual,"Reutilizar 
 editor/interface.py,maintained,143,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/DIARIO_REFERENCES_PAGE_LAYOUT.md,documentation,142,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_diary_note_models.py,test,142,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/reading_space/preparation.py,maintained,141,pendiente,hand-maintained source; review independently of coverage
 docs/audits/sonarqube-2026-11/mandala/BIBLIOGRAPHY_ANNEX.md,documentation,139,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/audits/sonarqube-2026-11/sphere/RESULTS.json,resource,137,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/reading_space/document_picker.py,maintained,137,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/ui/concept_media.py,maintained,136,pendiente,hand-maintained source; review independently of coverage
 quarto_book_build/chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.qmd,generated,136,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 tests/run_knowledge_map_e2e.py,test,135,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/GUIA_READING_SPACE_MATHMONGO_BUILD.md,documentation,133,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -424,10 +437,10 @@ tests/sonar_http_support.py,test,125,conservar_cohortes,Ejecución no equivale a
 mathmongo/local_runtime/health.py,maintained,124,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_audit_data_safety.py,test,124,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_audit_mongo_regressions.py,test,124,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_internal_pdf_preview_static.py,test,124,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/tests/selection.test.ts,test,123,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/THIRD_PARTY_ADVANCED_READER.md,documentation,122,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/src/components/VisualAnnotationConfirmation.tsx,maintained,121,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_internal_pdf_preview_static.py,test,121,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/knowledge_map/views.py,maintained,120,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/cpi/service.py,maintained,119,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathkb_config.py,maintained,119,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -438,6 +451,7 @@ mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/iccs/LICEN
 tests/test_cpi_region_interactions.py,test,116,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/LOCAL_RUNTIME.md,documentation,115,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_source_catalog_streamlit_forms.py,test,114,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/connection_controls.py,maintained,113,pendiente,hand-maintained source; review independently of coverage
 editor/cpi/identity.py,maintained,112,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_catalog/citations.py,maintained,111,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
 tests/test_doctor.py,test,111,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
@@ -470,12 +484,12 @@ pyproject.toml,configuration,99,clasificado,Conservar recursos/documentos/config
 docs/audits/sonarqube-2026-11/COMMITS.md,documentation,98,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/advanced_reader_test_support.py,test,96,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_audit_production_guards.py,test,96,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/mandala/BATCH4_INVENTORY.json,resource,95,clasificado,data/template/asset; inspect its consumers and provenance
+docs/audits/sonarqube-2026-11/mandala/INTERFACE_DECISION.md,documentation,95,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 quarto_book_build/_book/site_libs/quarto-html/tabsets/tabsets.js,generated,95,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 docs/PDF_PREVIEW_CORNELL_CPI_AUDIT.md,documentation,94,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
-docs/audits/sonarqube-2026-11/mandala/BATCH4_INVENTORY.json,resource,94,clasificado,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/followup/DIAGNOSIS.md,documentation,93,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 scripts/quality_mongo.py,maintained,93,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_database_connection_bootstrap.py,test,93,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/INSTALLATION.md,documentation,92,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/audits/sonarqube-2026-11/closure/README.md,documentation,92,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/src/knowledge-map/drafts.ts,maintained,91,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -488,13 +502,14 @@ quarto_book/styles/coloredtheorem.sty,resource,88,clasificado,Conservar recursos
 quarto_book_build/styles/coloredtheorem.sty,generated,88,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 templates_latex/coloredtheorem.sty,resource,88,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_audit_legacy_parsers.py,test,88,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_latex_toolbar_consumers.py,test,88,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/SIMPLIFIED_READING_WORKFLOW.md,documentation,87,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/audits/sonarqube-2026-11/mandala/BATCH4_COVERAGE.csv,resource,87,clasificado,data/template/asset; inspect its consumers and provenance
 docs/audits/sonarqube-2026-11/mandala/FINAL_STUDY_COVERAGE.csv,resource,87,clasificado,data/template/asset; inspect its consumers and provenance
 editor/diary_note_editor_export.py,maintained,87,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_database_connection_bootstrap.py,test,87,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/closure/SONAR_REVIEW.csv,resource,86,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/tests/study-keyboard.test.ts,test,86,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
-tests/test_latex_toolbar_consumers.py,test,86,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/closure/ENVIRONMENT.md,documentation,85,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/test_knowledge_map_bridge.py,test,85,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/SONAR_ISSUES.csv,resource,84,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -509,12 +524,14 @@ quarto_book_build/_book/search.json,generated,82,revisar_fuente_y_build,Salida r
 frontend/advanced-reader/vite.config.ts,maintained,81,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/study-reader.test.ts,test,80,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/legacy_concept_aliases.py,maintained,80,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_teaching_ui_polish.py,test,80,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/SOURCE_DOCUMENTS_S2.md,documentation,78,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_annotations/panel_utils.py,maintained,78,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 scripts/quality.py,maintained,78,revisado_y_verificado,Cobertura subprocess y navegador propios; 45 casos de ciclo/ejecución + 14 contratos HTTP; fallos no se combinan
 tests/test_concept_reference_schema.py,test,78,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/mandala/BATCH3_COVERAGE.csv,resource,77,clasificado,data/template/asset; inspect its consumers and provenance
 frontend/advanced-reader/src/annotations/ui.ts,maintained,77,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
-tests/test_teaching_ui_polish.py,test,77,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/app_pages/settings.py,maintained,75,pendiente,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/study-drafts.test.ts,test,75,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/sonarqube-2026-11/COMPARISON.md,documentation,74,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/src/pdf/types.ts,maintained,74,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -526,7 +543,6 @@ frontend/advanced-reader/src/components/DocumentInspector.tsx,maintained,72,pend
 frontend/advanced-reader/src/knowledge-map/geometry.ts,maintained,72,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_latex_algorithm_environment.py,test,72,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/PHASE_SOURCE_LINK_CONTRACT.md,documentation,71,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
-editor/reading_annotations/panel_utils.py,maintained,71,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/source_documents/indexes.py,maintained,71,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_mathmongo_theme_apptest.py,test,71,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 editor/cornell/persistence.py,maintained,70,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -549,17 +565,23 @@ docs/audits/sonarqube-2026-11/followup/PYTHON_ADVISORIES.csv,resource,65,clasifi
 frontend/advanced-reader/src/knowledge-map/keyboard.ts,maintained,65,revisado_y_verificado,"API pública de geometría, layouts restaurados y listeners liberados; regresión antes/después y cuatro distribuciones en Chrome/Firefox"
 frontend/advanced-reader/src/knowledge-map/areas.ts,maintained,64,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/audits/legacy_curves_migration_2026-07-28.md,documentation,63,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/connection_manager.py,maintained,63,pendiente,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/pdfViewportFixture.ts,test,63,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 scripts/install_quarto.sh,maintained,62,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_audit_export_integrity.py,test,62,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/application_navigation.py,maintained,61,pendiente,hand-maintained source; review independently of coverage
 frontend/advanced-reader/tests/api.test.ts,test,61,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/CLI_GUI_PARITY.md,documentation,60,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/helpers/concept_reference_history.py,maintained,60,pendiente,hand-maintained source; review independently of coverage
+editor/reading_space/preparation_ui.py,maintained,60,pendiente,hand-maintained source; review independently of coverage
+editor/ui/concept_pdf.py,maintained,60,pendiente,hand-maintained source; review independently of coverage
 scripts/install_chktex.sh,maintained,60,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 editor/cornell/__init__.py,maintained,59,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/package.json,resource,59,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/src/knowledge-map/ui.ts,maintained,59,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 tests/test_audit_regex_boundaries.py,test,59,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_bibliography_lookup_ui.py,test,59,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/application_bootstrap.py,maintained,58,pendiente,hand-maintained source; review independently of coverage
 editor/database_connections.py,maintained,58,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/study-math.test.ts,test,57,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/audits/legacy_curves_resolution_2026-07-28.md,documentation,56,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -584,6 +606,8 @@ frontend/advanced-reader/eslint.config.js,maintained,45,pendiente_cotejo_manual,
 frontend/advanced-reader/scripts/runtime-notices.mjs,maintained,45,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/local_runtime/__init__.py,maintained,45,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 infra/sonarqube/compose.yaml,configuration,44,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_application_page_dispatch.py,test,44,pendiente,behavior verification; retained in test scope
+editor/app_pages/database_export.py,maintained,43,pendiente,hand-maintained source; review independently of coverage
 scripts/export_knowledge_graph.py,maintained,43,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/user-guide/images/SCREENSHOT_PLAN.md,documentation,40,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/concept_linking/navigation.py,maintained,40,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -603,7 +627,6 @@ editor/helpers/enums.py,maintained,34,pendiente_cotejo_manual,"Reutilizar hallaz
 tests/test_pdf_export_diagnostics.py,test,34,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/document_page_maps/__init__.py,maintained,33,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/DOCTOR_AND_BOOTSTRAP.md,documentation,32,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
-docs/audits/sonarqube-2026-11/mandala/INTERFACE_DECISION.md,documentation,32,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/audits/sonarqube-2026-11/mandala/RUFF_CURRENT.csv,resource,32,clasificado,data/template/asset; inspect its consumers and provenance
 docs/COMPATIBILITY_MATRIX.md,documentation,31,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/audits/sonarqube-2026-11/mandala/BIBLIOGRAPHY_LIVE_RESULTS.json,resource,31,clasificado,data/template/asset; inspect its consumers and provenance
@@ -614,6 +637,8 @@ docs/audits/sonarqube-2026-11/mandala/DEPENDENCIES.md,documentation,30,clasifica
 editor/data/formato_ejemplo.md,documentation,30,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 mathmongo/advanced_reader/static/advanced_reader/assets/altText_spinner-BKF_PYl9.svg,generated,30,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 tests/test_legacy_utc_clock.py,test,30,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/editor_streamlit.py,maintained,29,revisado_con_pendientes,Entrada extraída a 29 líneas; contexto explícito y páginas preservadas en 203dd6cd. No es retirada ni migración React terminada.
+editor/notebook_availability.py,maintained,29,pendiente,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/styles/study-reader-theme.css,maintained,29,revisado_y_verificado,"Habitación canónica y presentación/recuperación separadas; pruebas dirigidas, navegador propio; limitación de carga de recursos documentada"
 mathmongo/reading_space/__init__.py,maintained,29,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 quarto_book/_quarto.yml,configuration,29,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -624,9 +649,11 @@ scripts/sonar_persist_host.sh,maintained,28,pendiente_cotejo_manual,"Reutilizar 
 editor/data/formato_definicion.md,documentation,27,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/data/formato_proposicion.md,documentation,27,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LICENSE_FOXIT,generated,27,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
+editor/app_pages/reading.py,maintained,26,pendiente,hand-maintained source; review independently of coverage
 editor/data/formato_corolario.md,documentation,26,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/data/formato_lema.md,documentation,26,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/data/formato_teorema.md,documentation,26,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_space/diagnostics.py,maintained,26,pendiente,hand-maintained source; review independently of coverage
 mathmongo/__init__.py,maintained,26,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 constraints/teaching-2026.txt,documentation,25,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 mathmongo/document_page_maps/errors.py,maintained,25,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
@@ -649,6 +676,8 @@ mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICEN
 docs/audits/sonarqube-2026-11/closure/COMMITS.md,documentation,21,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 docs/audits/sonarqube-2026-11/mandala/TOP20_CURRENT.csv,resource,21,clasificado,data/template/asset; inspect its consumers and provenance
 docs/instruccion_latex_imagenes.md,documentation,21,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/documents.py,maintained,21,pendiente,hand-maintained source; review independently of coverage
+editor/application_context.py,maintained,21,pendiente,hand-maintained source; review independently of coverage
 editor/cpi/__init__.py,maintained,21,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/setup.ts,test,21,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_QCMS,generated,21,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
@@ -657,12 +686,15 @@ mathmongo/advanced_reader/static/advanced_reader/third-party/react-dom-LICENSE.t
 tests/test_audit_graph_style.py,test,21,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 tests/test_cpi_images.py,test,21,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 app/main.py,maintained,20,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/app_pages/source_create.py,maintained,20,pendiente,hand-maintained source; review independently of coverage
+editor/app_pages/source_edit.py,maintained,20,pendiente,hand-maintained source; review independently of coverage
 frontend/advanced-reader/playwright.config.ts,maintained,20,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/src/concepts/labels.ts,maintained,20,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/text-normalization.test.ts,test,20,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 frontend/advanced-reader/src/knowledge-map/theme.ts,maintained,19,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 mathmongo/advanced_reader/static/advanced_reader/index.html,generated,19,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 docs/audits/sonarqube-2026-11/followup/NEW_COVERAGE.csv,resource,18,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/study_room.py,maintained,18,pendiente,hand-maintained source; review independently of coverage
 frontend/advanced-reader/src/components/ReaderStatus.tsx,maintained,18,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/vite.map.config.ts,maintained,18,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 docs/audits/sonarqube-2026-11/followup/SONAR_BUGS.csv,resource,17,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -671,6 +703,7 @@ frontend/advanced-reader/src/main.tsx,maintained,17,pendiente_cotejo_manual,"Reu
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/openjpeg_nowasm_fallback.js,generated,17,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 frontend/advanced-reader/tests/study-reader-theme.test.ts,test,16,clasificado,behavior verification; retained in test scope
 docs/TEACHING_RELEASE_CHECKLIST.md,documentation,15,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/diagnosis.py,maintained,15,pendiente,hand-maintained source; review independently of coverage
 editor/helpers/concept_builders.py,maintained,15,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/index.html,maintained,15,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tsconfig.node.json,resource,15,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -679,14 +712,19 @@ constraints/security-2026-11.txt,documentation,14,clasificado,Conservar recursos
 docs/audits/sonarqube-2026-11/sphere/COMMITS.md,documentation,14,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 frontend/advanced-reader/tests/study-sphere-playwright.config.mjs,test,14,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/time.py,maintained,14,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/app_pages/database_import.py,maintained,13,pendiente,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_JBIG2,generated,13,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 templates_latex/notes.cls,resource,13,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/maintenance.py,maintained,12,pendiente,hand-maintained source; review independently of coverage
+editor/app_pages/notebook.py,maintained,12,pendiente,hand-maintained source; review independently of coverage
 quarto_book_build/_book/site_libs/bootstrap/bootstrap-41f439ca147b692b25f8da8cb301bfdc.min.css,generated,12,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 requirements-dev.txt,documentation,12,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 editor/source_catalog/__init__.py,maintained,11,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
 frontend/advanced-reader/tests/knowledge-map-playwright.config.mjs,test,11,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 mathmongo/advanced_reader/static/advanced_reader/third-party/THIRD_PARTY_NOTICES.txt,generated,11,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 sonar-project.properties,configuration,11,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/app_pages/cornell.py,maintained,10,pendiente,hand-maintained source; review independently of coverage
+editor/app_pages/cpi.py,maintained,10,pendiente,hand-maintained source; review independently of coverage
 templates_latex/mathmongo-macros.sty,resource,10,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
 tests/conftest.py,test,10,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
 docs/user-guide/images/start-flows/01_tres_rutas.svg,resource,9,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
@@ -777,6 +815,7 @@ mathmongo/academic_cli/__init__.py,maintained,2,pendiente_cotejo_manual,"Reutili
 mathmongo/advanced_reader/static/knowledge_map/index-_hash_.css,generated,2,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 quarto_book_build/.gitignore,generated,2,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 quarto_book_build/_book/site_libs/quarto-html/tippy.umd.min.js,generated,2,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
+editor/app_pages/__init__.py,maintained,1,pendiente,hand-maintained source; review independently of coverage
 mathmongo/advanced_reader/static/advanced_reader/assets/index-DDDgtRbv.css,generated,1,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 mathmongo/advanced_reader/static/advanced_reader/assets/index-DpYOp6kD.js,generated,1,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
 mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-runtime-CEKqoi4j.css,generated,1,revisar_fuente_y_build,Salida regenerada; no contabilizar como eliminación de producto
