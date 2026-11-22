@@ -1,0 +1,1636 @@
+{
+  "analysis": "9e85c7f7-d140-4769-bfe8-3c133c4dc1f6",
+  "revision": "4a213d047dfc37db598712dd1dad9830d7071f6c",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "72.3"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.12934"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "metrics": {
+    "coverage": "73.6",
+    "complexity": "19156",
+    "duplicated_lines_density": "1.4",
+    "code_smells": "0",
+    "security_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "maintainability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "security_hotspots": "0",
+    "sqale_index": "0",
+    "bugs": "0",
+    "lines_to_cover": "52350",
+    "uncovered_lines": "13480",
+    "cognitive_complexity": "20024",
+    "duplicated_blocks": "70",
+    "ncloc": "104196",
+    "files": "406",
+    "vulnerabilities": "0",
+    "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "line_coverage": "74.3"
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "active_issues": [
+    {
+      "key": "1e3753f2-221a-4d5c-b754-dc01c5b6d331",
+      "rule": "python:S5332",
+      "severity": "MINOR",
+      "component": "mathmongo-local:mathmongo/local_runtime/health.py",
+      "project": "mathmongo-local",
+      "line": 23,
+      "hash": "537e4fce42dfc3db610640f303e60bf0",
+      "textRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 13,
+        "endOffset": 20
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Using HTTP protocol is insecure. Use HTTPS instead.",
+      "effort": "30min",
+      "debt": "30min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "cwe",
+        "cryptography",
+        "former-hotspot"
+      ],
+      "creationDate": "2026-07-14T06:02:29+0000",
+      "updateDate": "2026-11-21T20:23:18+0000",
+      "type": "VULNERABILITY",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "COMPLETE",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "b386050a-1c3c-4b46-b271-28cd1096bdbf",
+      "rule": "python:S5332",
+      "severity": "MINOR",
+      "component": "mathmongo-local:mathmongo/local_runtime/health.py",
+      "project": "mathmongo-local",
+      "line": 23,
+      "hash": "537e4fce42dfc3db610640f303e60bf0",
+      "textRange": {
+        "startLine": 23,
+        "endLine": 23,
+        "startOffset": 11,
+        "endOffset": 47
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Using HTTP protocol is insecure. Use HTTPS instead.",
+      "effort": "30min",
+      "debt": "30min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "cwe",
+        "cryptography",
+        "former-hotspot"
+      ],
+      "creationDate": "2026-07-14T06:02:29+0000",
+      "updateDate": "2026-11-21T20:23:19+0000",
+      "type": "VULNERABILITY",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "COMPLETE",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "SECURITY",
+          "severity": "LOW"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "980e6b69-24a6-4552-aa82-befa5966880f",
+      "rule": "javascript:S2871",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:frontend/advanced-reader/scripts/prepare-pdf-worker.mjs",
+      "project": "mathmongo-local",
+      "line": 171,
+      "hash": "d8b1aa919a8d7b7448f9baecb4391e6c",
+      "textRange": {
+        "startLine": 171,
+        "endLine": 171,
+        "startOffset": 57,
+        "endOffset": 61
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Provide a compare function that depends on \"String.localeCompare\", to reliably sort elements alphabetically.",
+      "effort": "10min",
+      "debt": "10min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "type-dependent",
+        "bad-practice"
+      ],
+      "creationDate": "2026-07-14T03:03:47+0000",
+      "updateDate": "2026-11-21T20:23:19+0000",
+      "type": "BUG",
+      "scope": "MAIN",
+      "quickFixAvailable": true,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "863f70e2-6f7e-46e1-8522-9565544a2928",
+      "rule": "javascript:S2871",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:frontend/advanced-reader/scripts/publish-build.mjs",
+      "project": "mathmongo-local",
+      "line": 110,
+      "hash": "f94068ee830e810edd12b24584eae047",
+      "textRange": {
+        "startLine": 110,
+        "endLine": 110,
+        "startOffset": 62,
+        "endOffset": 66
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Provide a compare function that depends on \"String.localeCompare\", to reliably sort elements alphabetically.",
+      "effort": "10min",
+      "debt": "10min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "type-dependent",
+        "bad-practice"
+      ],
+      "creationDate": "2026-07-14T03:03:47+0000",
+      "updateDate": "2026-11-21T20:23:20+0000",
+      "type": "BUG",
+      "scope": "MAIN",
+      "quickFixAvailable": true,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "c98c3bcb-eac2-4615-ad2b-c89620d792df",
+      "rule": "javascript:S2871",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:frontend/advanced-reader/scripts/publish-build.mjs",
+      "project": "mathmongo-local",
+      "line": 125,
+      "hash": "27aa00ee5e62961348bd7000b138bd19",
+      "textRange": {
+        "startLine": 125,
+        "endLine": 125,
+        "startOffset": 53,
+        "endOffset": 57
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Provide a compare function that depends on \"String.localeCompare\", to reliably sort elements alphabetically.",
+      "effort": "10min",
+      "debt": "10min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "type-dependent",
+        "bad-practice"
+      ],
+      "creationDate": "2026-07-14T03:03:47+0000",
+      "updateDate": "2026-11-21T20:23:20+0000",
+      "type": "BUG",
+      "scope": "MAIN",
+      "quickFixAvailable": true,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "c73305be-f222-4d90-98a0-95f98ae27a3a",
+      "rule": "typescript:S6845",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:frontend/advanced-reader/src/app/App.tsx",
+      "project": "mathmongo-local",
+      "line": 1076,
+      "hash": "69e8ed023a41063a2eb5acbcdd742ae3",
+      "textRange": {
+        "startLine": 1076,
+        "endLine": 1076,
+        "startOffset": 55,
+        "endOffset": 67
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "`tabIndex` should only be declared on interactive elements.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "accessibility",
+        "react"
+      ],
+      "creationDate": "2026-07-14T01:53:11+0000",
+      "updateDate": "2026-11-21T20:42:36+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CONVENTIONAL",
+      "cleanCodeAttributeCategory": "CONSISTENT",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "LOW"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "15e8337d-37a0-466c-9392-cc29b1dd4ebe",
+      "rule": "python:S8495",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+      "project": "mathmongo-local",
+      "line": 247,
+      "hash": "337e7f5d36a06f63809ea8ee46eb1cf2",
+      "textRange": {
+        "startLine": 247,
+        "endLine": 247,
+        "startOffset": 8,
+        "endOffset": 36
+      },
+      "flows": [
+        {
+          "locations": [
+            {
+              "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+              "textRange": {
+                "startLine": 257,
+                "endLine": 257,
+                "startOffset": 20,
+                "endOffset": 49
+              },
+              "msg": "Returns a 1-tuple.",
+              "msgFormattings": []
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+              "textRange": {
+                "startLine": 260,
+                "endLine": 260,
+                "startOffset": 16,
+                "endOffset": 40
+              },
+              "msg": "Returns a 1-tuple.",
+              "msgFormattings": []
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+              "textRange": {
+                "startLine": 262,
+                "endLine": 262,
+                "startOffset": 16,
+                "endOffset": 48
+              },
+              "msg": "Returns a 1-tuple.",
+              "msgFormattings": []
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+              "textRange": {
+                "startLine": 264,
+                "endLine": 264,
+                "startOffset": 16,
+                "endOffset": 51
+              },
+              "msg": "Returns a 1-tuple.",
+              "msgFormattings": []
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+              "textRange": {
+                "startLine": 266,
+                "endLine": 266,
+                "startOffset": 16,
+                "endOffset": 49
+              },
+              "msg": "Returns a 1-tuple.",
+              "msgFormattings": []
+            }
+          ]
+        },
+        {
+          "locations": [
+            {
+              "component": "mathmongo-local:mathmongo/source_documents/storage.py",
+              "textRange": {
+                "startLine": 267,
+                "endLine": 267,
+                "startOffset": 8,
+                "endOffset": 17
+              },
+              "msg": "Returns a 0-tuple.",
+              "msgFormattings": []
+            }
+          ]
+        }
+      ],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Refactor this function to always return tuples of the same length.",
+      "effort": "10min",
+      "debt": "10min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "type-system",
+        "api-design",
+        "pitfall"
+      ],
+      "creationDate": "2026-07-12T23:19:02+0000",
+      "updateDate": "2026-11-21T21:12:20+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "2508a9fe-1a28-4a73-9414-540aa4b6dce7",
+      "rule": "python:S8786",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:editor/cpi/renderer.py",
+      "project": "mathmongo-local",
+      "line": 36,
+      "hash": "9e051ee4f6c27d5a567a134edebef2f0",
+      "textRange": {
+        "startLine": 36,
+        "endLine": 36,
+        "startOffset": 39,
+        "endOffset": 87
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.",
+      "effort": "20min",
+      "debt": "20min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "regex",
+        "performance"
+      ],
+      "creationDate": "2026-07-08T05:29:33+0000",
+      "updateDate": "2026-11-21T21:01:57+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "EFFICIENT",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "fcd7af11-f90f-4720-9d27-9931a9e9221f",
+      "rule": "python:S8786",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:editor/cornell/renderer.py",
+      "project": "mathmongo-local",
+      "line": 40,
+      "hash": "9e051ee4f6c27d5a567a134edebef2f0",
+      "textRange": {
+        "startLine": 40,
+        "endLine": 40,
+        "startOffset": 39,
+        "endOffset": 87
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.",
+      "effort": "20min",
+      "debt": "20min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "regex",
+        "performance"
+      ],
+      "creationDate": "2026-07-07T06:20:03+0000",
+      "updateDate": "2026-11-21T21:01:58+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "EFFICIENT",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "1585e1f5-54f5-4dd1-b3fc-ca045b34e86e",
+      "rule": "python:S8786",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:exporters_latex/latex_compile.py",
+      "project": "mathmongo-local",
+      "line": 20,
+      "hash": "a3e95015d3585b8412a289ff768970e0",
+      "textRange": {
+        "startLine": 20,
+        "endLine": 20,
+        "startOffset": 6,
+        "endOffset": 73
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.",
+      "effort": "20min",
+      "debt": "20min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "regex",
+        "performance"
+      ],
+      "creationDate": "2026-06-17T15:22:49+0000",
+      "updateDate": "2026-11-21T20:42:36+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "EFFICIENT",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "bd82aa70-2421-4c94-8d55-3a1606e1a74c",
+      "rule": "python:S8786",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:exporters_latex/latex_compile.py",
+      "project": "mathmongo-local",
+      "line": 25,
+      "hash": "bd63a9e6583c35c2caa040ec2bd59584",
+      "textRange": {
+        "startLine": 25,
+        "endLine": 25,
+        "startOffset": 17,
+        "endOffset": 40
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.",
+      "effort": "20min",
+      "debt": "20min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "regex",
+        "performance"
+      ],
+      "creationDate": "2026-06-17T15:22:49+0000",
+      "updateDate": "2026-11-21T20:42:37+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "EFFICIENT",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "27d90b8c-4e41-4f01-b495-fa12fcf9957e",
+      "rule": "python:S8786",
+      "severity": "MAJOR",
+      "component": "mathmongo-local:exporters_latex/latex_compile.py",
+      "project": "mathmongo-local",
+      "line": 26,
+      "hash": "efa293e81f6b70b7ecb492f04ea0ee53",
+      "textRange": {
+        "startLine": 26,
+        "endLine": 26,
+        "startOffset": 17,
+        "endOffset": 38
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Simplify this regular expression to reduce its runtime, as it has super-linear performance due to backtracking.",
+      "effort": "20min",
+      "debt": "20min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "regex",
+        "performance"
+      ],
+      "creationDate": "2026-06-17T15:22:49+0000",
+      "updateDate": "2026-11-21T20:42:37+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "EFFICIENT",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "MEDIUM"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "e6e6bb4f-485a-440a-a367-360fcebf5084",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 86,
+      "hash": "d881579c39f6f46b32ac3beaa0c1492e",
+      "textRange": {
+        "startLine": 86,
+        "endLine": 86,
+        "startOffset": 13,
+        "endOffset": 26
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-07-08T22:10:35+0000",
+      "updateDate": "2026-11-21T21:12:21+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "b3c08653-0573-4e7a-a507-036a936033bd",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 93,
+      "hash": "3d7d336fa4b4fa0ea226988c890f989e",
+      "textRange": {
+        "startLine": 93,
+        "endLine": 93,
+        "startOffset": 11,
+        "endOffset": 24
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-07-08T22:10:35+0000",
+      "updateDate": "2026-11-21T21:12:21+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "4a2453b3-0db9-40bb-8999-64895d25002c",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 81,
+      "hash": "7b513a380ec63b032e8e584eca9bc6c8",
+      "textRange": {
+        "startLine": 81,
+        "endLine": 81,
+        "startOffset": 21,
+        "endOffset": 45
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-27T17:26:26+0000",
+      "updateDate": "2026-11-21T21:12:22+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "485715cf-380d-4b8c-acb8-d68a0a6f843f",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 102,
+      "hash": "bc589d36777d3d70ea6c23b007c04076",
+      "textRange": {
+        "startLine": 102,
+        "endLine": 102,
+        "startOffset": 15,
+        "endOffset": 35
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-27T17:26:26+0000",
+      "updateDate": "2026-11-21T21:12:22+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "536ba10c-e59e-41b7-8f2d-b048d5d6eb4e",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 103,
+      "hash": "fb29d3a09018db0cf46c841d8b20ad15",
+      "textRange": {
+        "startLine": 103,
+        "endLine": 103,
+        "startOffset": 15,
+        "endOffset": 35
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-27T17:26:26+0000",
+      "updateDate": "2026-11-21T21:12:22+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "1004b679-d129-4116-9258-e3529e278de9",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 82,
+      "hash": "b48d3263bf1df8caade35c44990d0f2d",
+      "textRange": {
+        "startLine": 82,
+        "endLine": 82,
+        "startOffset": 11,
+        "endOffset": 24
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:22+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "00865a87-baee-4c3e-bf59-3f297ffc662d",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 83,
+      "hash": "5f30265339aa98e728b396210e3a6f7b",
+      "textRange": {
+        "startLine": 83,
+        "endLine": 83,
+        "startOffset": 12,
+        "endOffset": 25
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:23+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "e37dcea1-6f7a-40e9-9973-cefd62b8bb35",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 84,
+      "hash": "4ca09c9b60acff5813d6155f46000225",
+      "textRange": {
+        "startLine": 84,
+        "endLine": 84,
+        "startOffset": 10,
+        "endOffset": 23
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:23+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "a732d41f-c6e2-462a-8657-799be5c93145",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 85,
+      "hash": "8a6b738da4a6e9b96d5fe4cf82022807",
+      "textRange": {
+        "startLine": 85,
+        "endLine": 85,
+        "startOffset": 10,
+        "endOffset": 23
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:23+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "b6747873-ef79-42d9-a5a8-9eb38d76f9b8",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 87,
+      "hash": "25a0c72d0b6f36dd83e2f713219c64e4",
+      "textRange": {
+        "startLine": 87,
+        "endLine": 87,
+        "startOffset": 13,
+        "endOffset": 26
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:24+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "a1ab2051-040c-4d34-9ccf-d561d20d10ac",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 88,
+      "hash": "b3d6bed0cd841e534129ab4266521583",
+      "textRange": {
+        "startLine": 88,
+        "endLine": 88,
+        "startOffset": 14,
+        "endOffset": 27
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:24+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "559ed2c4-9428-4edb-b929-ad3f1ece5aac",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 89,
+      "hash": "adce66a4595d7f41f7d055659789790c",
+      "textRange": {
+        "startLine": 89,
+        "endLine": 89,
+        "startOffset": 13,
+        "endOffset": 26
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:24+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "ffe5a395-2c98-45bb-aa30-678adbc25209",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 90,
+      "hash": "0fb5e3ec967f6f56b25ff16f40796bcc",
+      "textRange": {
+        "startLine": 90,
+        "endLine": 90,
+        "startOffset": 15,
+        "endOffset": 28
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:25+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "3831bd0f-c969-419f-b5fd-46b07a3b3875",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 91,
+      "hash": "c3f13af4b23b6fe73336080525c8f2a0",
+      "textRange": {
+        "startLine": 91,
+        "endLine": 91,
+        "startOffset": 9,
+        "endOffset": 22
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:25+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    },
+    {
+      "key": "9f4d6651-af85-4a5f-bb94-21e63f79d749",
+      "rule": "python:S8396",
+      "severity": "CRITICAL",
+      "component": "mathmongo-local:schemas/schemas.py",
+      "project": "mathmongo-local",
+      "line": 92,
+      "hash": "19db525f6fcea0ecdc94af0ebf624f64",
+      "textRange": {
+        "startLine": 92,
+        "endLine": 92,
+        "startOffset": 9,
+        "endOffset": 22
+      },
+      "flows": [],
+      "resolution": "FALSE-POSITIVE",
+      "status": "RESOLVED",
+      "message": "Add an explicit default value to this optional field.",
+      "effort": "5min",
+      "debt": "5min",
+      "author": "doeo113900@gmail.com",
+      "tags": [
+        "pydantic",
+        "type-hint",
+        "validation"
+      ],
+      "creationDate": "2025-06-17T04:50:02+0000",
+      "updateDate": "2026-11-21T21:12:25+0000",
+      "type": "CODE_SMELL",
+      "scope": "MAIN",
+      "quickFixAvailable": false,
+      "messageFormattings": [],
+      "codeVariants": [],
+      "cleanCodeAttribute": "CLEAR",
+      "cleanCodeAttributeCategory": "INTENTIONAL",
+      "impacts": [
+        {
+          "softwareQuality": "MAINTAINABILITY",
+          "severity": "HIGH"
+        },
+        {
+          "softwareQuality": "RELIABILITY",
+          "severity": "HIGH"
+        }
+      ],
+      "issueStatus": "FALSE_POSITIVE",
+      "prioritizedRule": false,
+      "fromSonarQubeUpdate": false,
+      "internalTags": [],
+      "linkedTicketStatus": "NOT_LINKED"
+    }
+  ],
+  "frontend_browser_merge": {
+    "unit": {
+      "lines": {
+        "total": 5265,
+        "covered": 3877,
+        "pct": 73.64
+      },
+      "branches": {
+        "total": 3633,
+        "covered": 2194,
+        "pct": 60.39
+      }
+    },
+    "combined": {
+      "lines": {
+        "total": 5265,
+        "covered": 4109,
+        "pct": 78.04
+      },
+      "branches": {
+        "total": 3633,
+        "covered": 2331,
+        "pct": 64.16
+      }
+    },
+    "additional_lines": 232,
+    "additional_branches": 137,
+    "browser_files": [
+      "src/knowledge-map/geometry.ts",
+      "src/knowledge-map/layout.ts",
+      "src/knowledge-map/areas.ts",
+      "src/knowledge-map/canvas.ts",
+      "src/knowledge-map/document-citation.ts",
+      "src/knowledge-map/provenance.ts",
+      "src/knowledge-map/document-dialog.ts",
+      "src/knowledge-map/reader.ts",
+      "src/knowledge-map/room-state.ts",
+      "src/knowledge-map/room.ts",
+      "src/knowledge-map/map-filters.ts",
+      "src/knowledge-map/component.ts",
+      "src/study/ConceptRelations.tsx",
+      "src/study/ConceptPages.tsx",
+      "src/study/ConceptTypeBadge.tsx",
+      "src/study/ConceptWorkspace.tsx",
+      "src/knowledge-map/math.ts",
+      "src/knowledge-map/keyboard.ts",
+      "src/knowledge-map/document.ts",
+      "src/knowledge-map/document-editor.ts",
+      "src/study/DocumentSurface.tsx",
+      "src/study/NoteWorkspace.tsx",
+      "src/study/NotePages.tsx",
+      "src/annotations/ui.ts",
+      "src/concepts/labels.ts",
+      "src/concepts/ConceptLinkWizard.tsx",
+      "src/concepts/ConceptPanels.tsx",
+      "src/components/ReaderStatus.tsx",
+      "src/components/SelectionActionToolbar.tsx",
+      "src/components/SelectionInspector.tsx",
+      "src/components/Toolbar.tsx",
+      "src/components/VisualAnnotationConfirmation.tsx",
+      "src/components/VisualAnnotationsPanel.tsx",
+      "src/pdf/search.ts",
+      "src/app/App.tsx",
+      "src/annotations/geometry.ts",
+      "src/annotations/types.ts",
+      "src/annotations/VisualAnnotationLayer.ts",
+      "src/selection/captureSelection.ts",
+      "src/pdf/canvasPaint.ts",
+      "src/pdf/ThumbnailManager.ts",
+      "src/pdf/PdfJsController.ts",
+      "src/app/ReaderEntry.tsx",
+      "src/study/ReadingPage.tsx",
+      "src/study/SourceForms.tsx",
+      "src/knowledge-map/ui.ts",
+      "src/knowledge-map/bibliography.ts",
+      "src/api/client.ts",
+      "src/knowledge-map/concept-types.ts",
+      "src/knowledge-map/theme.ts",
+      "src/study-reader-theme.ts",
+      "src/study/api.ts",
+      "src/study/navigation.ts",
+      "src/study/StudyLink.tsx",
+      "src/study/useLocalForm.ts",
+      "src/study/useOperationScope.ts",
+      "src/study/AuthoringPreparation.tsx",
+      "src/study/ReferenceForm.tsx",
+      "src/study/DocumentForm.tsx",
+      "src/study/document-links.ts",
+      "src/study/LibraryPages.tsx",
+      "src/knowledge-map/drafts.ts",
+      "src/study/drafts.ts",
+      "src/study/StudyApp.tsx",
+      "src/StudyEntry.tsx",
+      "src/main.tsx",
+      "src/knowledge-map/model.ts"
+    ],
+    "executed_assets": [
+      {
+        "file": "index-h6JkToC_.js",
+        "sha256": "fb2fe8ecbf8e0e992bd1737379febc17f9811c7a834fd374fe0bffbf8edcde95"
+      },
+      {
+        "file": "react-runtime-DydpthbT.js",
+        "sha256": "904c18555d72008115bb03c72c1718b4e7e11560a3eb2e98f438175843c15848"
+      },
+      {
+        "file": "pdfjs-runtime-F8NMAkdw.js",
+        "sha256": "ac79ba45e75f869d57ae2c39347d960cd58cedd80c685d5ee4c9b65c969a9d99"
+      },
+      {
+        "file": "client-YNM-R8bA.js",
+        "sha256": "1b4f94bad62095f2d6adac8c787ed327dc35c24be9e69b61c838d5b2f7859045"
+      },
+      {
+        "file": "ReadingPage-DfNeFlPN.js",
+        "sha256": "bc9f93f89e08f1960ecf91108925805b9199a36436a73865a24b50595b66bacd"
+      },
+      {
+        "file": "ReaderEntry-Dc1UG7Qo.js",
+        "sha256": "f0f4e484226f97754198a1ec6211df4d00a5741d5dc42cd407a753e85358fbcc"
+      },
+      {
+        "file": "model-BTRgm6bT.js",
+        "sha256": "8a906348d16c19474cecd45bd60ec4f21b6a7b1b3fdd22a09259f4881f00eb50"
+      },
+      {
+        "file": "NotePages-Cs3JioYA.js",
+        "sha256": "157b9136898f54b55a7985b8db9ee709ddfd6ef779de58cdfcbfd75621a40ea4"
+      },
+      {
+        "file": "DocumentSurface-BvuZP0VU.js",
+        "sha256": "bfdba079b306a9134e6e08e37e3ffdf985a0aeb15873f441eefc2e04a4cb1685"
+      },
+      {
+        "file": "bibliography-3gukyMLO.js",
+        "sha256": "e1c3c94574f096899c498ff302c49919b0c64776ca91e240f41ccf35c45f692d"
+      },
+      {
+        "file": "ConceptTypeBadge-CiA-H2Ga.js",
+        "sha256": "fea3b8faf27067894e0558b7c5732950b2f15d0a2e177fbdbe8327bbed3d8c21"
+      },
+      {
+        "file": "ConceptPages-Bh64lSyp.js",
+        "sha256": "abbd2338c83ea022da394f881c423506d176ccbb7b05e5821a0569fb37b4ddb0"
+      },
+      {
+        "file": "SourceForms-D48RllaG.js",
+        "sha256": "b93110bbee9bb884808c54b81bce208e63a936286143fb2e64f1f67f9ae9f217"
+      },
+      {
+        "file": "ConceptWorkspace-DTZyCgtl.js",
+        "sha256": "6a5c6e925798bfceda8d271e37ba9e43ba16f3e06bf64e08fa8feab9cdd7e582"
+      }
+    ]
+  }
+}
