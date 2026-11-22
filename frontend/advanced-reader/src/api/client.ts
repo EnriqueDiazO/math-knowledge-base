@@ -118,7 +118,7 @@ async function decodeError(response: Response): Promise<ReaderApiError> {
   return new ReaderApiError(code, message, response.status);
 }
 
-async function requestJson<T>(
+async function requestLibraryJson<T>(
   path: string,
   init: RequestInit = {},
 ): Promise<T> {
@@ -250,7 +250,13 @@ const jsonWrite = (body: object, signal?: AbortSignal): RequestInit => ({
   body: JSON.stringify(body),
 });
 
-export const advancedReaderApi: AdvancedReaderApi = {
+export function createAdvancedReaderApi(libraryId?: string): AdvancedReaderApi {
+  const requestJson = <T>(path: string, init: RequestInit = {}) => {
+    const headers = new Headers(init.headers);
+    if (libraryId) headers.set('X-MathMongo-Library', libraryId);
+    return requestLibraryJson<T>(path, { ...init, headers });
+  };
+  return {
   getMetadata(documentId, signal) {
     return requestJson<DocumentMetadata>(documentPath(documentId), { signal });
   },
@@ -423,3 +429,5 @@ export const advancedReaderApi: AdvancedReaderApi = {
     return sameOriginUrl(documentPath(documentId, "/pdf"));
   },
 };
+}
+export const advancedReaderApi = createAdvancedReaderApi();

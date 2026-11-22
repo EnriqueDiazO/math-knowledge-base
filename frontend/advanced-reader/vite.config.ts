@@ -2,6 +2,7 @@ import react from "@vitejs/plugin-react";
 import type { Plugin } from "vite";
 import { defineConfig } from "vitest/config";
 import { stripAsciiLineEnds } from "./scripts/text-normalization.mjs";
+import { runtimeNotices } from './scripts/runtime-notices.mjs';
 
 function normalizeGeneratedSvgWhitespace(): Plugin {
   return {
@@ -25,7 +26,7 @@ function normalizeGeneratedSvgWhitespace(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), normalizeGeneratedSvgWhitespace()],
+  plugins: [react(), normalizeGeneratedSvgWhitespace(), runtimeNotices(undefined, 'third-party/THIRD_PARTY_LICENSES.txt')],
   base: "/",
   publicDir: "generated/public",
   define: {

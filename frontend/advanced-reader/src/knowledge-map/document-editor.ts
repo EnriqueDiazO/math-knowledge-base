@@ -278,17 +278,19 @@ export class DocumentEditor {
   private restored?: EditorSnapshot;
   private disposeKeyboard: () => void = () => {};
   private disposePreview?: () => void;
+  private viewport: HTMLElement | null;
   constructor(
     private parent: HTMLElement,
     latex: string,
     private changed: (latex: string, snapshot: EditorSnapshot) => void,
     snapshot?: EditorSnapshot,
+    surface?: { keyboardContainer: HTMLElement; viewport: HTMLElement },
   ) {
     this.restored = snapshot;
     parent.classList.add("document-composer");
-    const dialog = parent.closest("dialog");
-    if (dialog instanceof HTMLElement)
-      this.disposeKeyboard = mountMathKeyboard(dialog);
+    this.viewport = surface?.viewport ?? parent.closest("dialog");
+    const keyboardContainer = surface?.keyboardContainer ?? this.viewport;
+    if (keyboardContainer) this.disposeKeyboard = mountMathKeyboard(keyboardContainer);
     const toolbar = dom("div");
     toolbar.className = "document-toolbar";
     toolbar.setAttribute("aria-label", "Herramientas del documento");
@@ -434,13 +436,13 @@ export class DocumentEditor {
     }
   }
   restoreViewport(): void {
-    const dialog = this.parent.closest("dialog");
+    const dialog = this.viewport;
     if (dialog && this.restored?.dialogScroll !== undefined)
       dialog.scrollTop = this.restored.dialogScroll;
   }
   restoreFocus(): void {
     const snapshot = this.restored;
-    const dialog = this.parent.closest("dialog");
+    const dialog = this.viewport;
     const restoreScroll = () => {
       if (dialog && snapshot?.dialogScroll !== undefined)
         dialog.scrollTop = snapshot.dialogScroll;
@@ -488,7 +490,7 @@ export class DocumentEditor {
       selection: this.editor.state.selection.from,
       scroll: this.visual.scrollTop,
       sourceMode: this.sourceMode,
-      dialogScroll: this.parent.closest("dialog")?.scrollTop,
+      dialogScroll: this.viewport?.scrollTop,
       ...(math ? { math } : {}),
     };
     this.restored = result;

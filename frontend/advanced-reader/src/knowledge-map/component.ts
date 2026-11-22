@@ -34,6 +34,7 @@ export type Bridge = {
   draftMapUid?: string;
   expandOnMount?: boolean;
   onSaved?: (result: Result, draft: Draft) => void;
+  onOpenDocument?: (key: string, edit?: boolean) => void;
 };
 const memory = new Map<string, View>();
 const mounted = new WeakMap<HTMLElement, () => void>();
@@ -70,6 +71,7 @@ export function renderMap({
   selectionKey,
   draftMapUid,
   expandOnMount,
+  onOpenDocument,
 }: Bridge): () => void {
   mounted.get(parentElement)?.();
   const view = readView(data.scope);
@@ -470,6 +472,7 @@ export function renderMap({
     button(
       "Leer concepto",
       () => {
+        if (onOpenDocument) { onOpenDocument(node.key); return; }
         view.auto = false;
         readingDispose?.();
         view.reader = node.key;
@@ -490,7 +493,7 @@ export function renderMap({
       actions,
       true,
     );
-    button("Editar ficha", () => start("edit"), actions);
+    button("Editar ficha", () => onOpenDocument ? onOpenDocument(node.key, true) : start("edit"), actions);
     button(
       "Crear conectado",
       () => start("create_connected", view.points[node.key]),

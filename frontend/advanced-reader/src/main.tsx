@@ -1,11 +1,8 @@
 import { createRoot } from "react-dom/client";
-import "pdfjs-dist/web/pdf_viewer.css";
+import { lazy, Suspense } from 'react';
 
-import { AdvancedReaderApp } from "./app/App";
-import { createPdfJsController } from "./pdf/PdfJsController";
-import "./styles/reader.css";
-import "./styles/study-reader-theme.css";
 import { configureReaderTheme } from "./study-reader-theme";
+import { StudyApp } from "./study/StudyApp";
 
 configureReaderTheme(document.documentElement, location.search);
 
@@ -14,4 +11,6 @@ if (rootElement === null) {
   throw new Error("Advanced Reader root element is missing.");
 }
 
-createRoot(rootElement).render(<AdvancedReaderApp controllerFactory={createPdfJsController} />);
+const readerRoute = location.pathname === '/reader' || new URLSearchParams(location.search).has('document_id');
+const ReaderEntry = lazy(() => import('./app/ReaderEntry'));
+createRoot(rootElement).render(<Suspense fallback={<p role="status">Abriendo MathMongo…</p>}>{readerRoute ? <ReaderEntry /> : <StudyApp />}</Suspense>);
