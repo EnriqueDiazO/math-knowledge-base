@@ -124,12 +124,14 @@ class KnowledgeMapService:
         """Bind an edit to both records observed by its author."""
         return digest([doc, self.latex(doc)])
 
-    def graph(self, *, include_study: bool = False) -> dict:
-        """Load the same graph for both projections, with two bulk concept reads."""
+    def graph(self, *, include_study: bool = False, include_content: bool = True) -> dict:
+        """Keep the compatibility snapshot; independent navigation omits full bodies."""
         nodes = []
-        latex_by_key = {identity(d): d for d in self.mongo.latex_documents.find({})
-                        if d.get('id') is not None and d.get('source')}
-        for doc in self.mongo.concepts.find({}):
+        latex_by_key = ({identity(d): d for d in self.mongo.latex_documents.find({})
+                        if d.get('id') is not None and d.get('source')} if include_content else {})
+        projection = None if include_content else {'id': 1, 'source': 1, 'source_id': 1,
+            'titulo': 1, 'tipo': 1, 'categorias': 1}
+        for doc in self.mongo.concepts.find({}, projection):
             if doc.get('id') is None or not doc.get('source'):
                 continue
             latex = latex_by_key.get(identity(doc))
@@ -140,7 +142,7 @@ class KnowledgeMapService:
                           'referencia': {k: str(v) for k, v in (doc.get('referencia') or {}).items() if v is not None},
                           'reference_id': doc.get('reference_id', ''),
                           'reference_locator': doc.get('reference_locator'),
-                          'revision': digest([doc, latex])})
+                          'revision': digest([doc, latex]) if include_content else ''})
         keys = {node['key'] for node in nodes}
         edges = [{'key': str(r['_id']), 'from': r['desde'], 'to': r['hasta'],
                   'tipo': r.get('tipo', ''), 'descripcion': r.get('descripcion', '')}
@@ -319,9 +321,10 @@ class KnowledgeMapService:
         if not intent.titulo.strip() or not intent.contenido_latex.strip():
             raise MapConflictError('El nombre y el contenido son obligatorios.')
         if 'before_meta' not in record:
-            if self.revision(current) != intent.revision:
+            before_latex = self.latex(current)
+            if digest([current, before_latex]) != intent.revision:
                 raise MapConflictError('Conflicto: el concepto cambió. Conserva el borrador y revisa la ficha actual.')
-            record = {**record, 'before_meta': current, 'before_latex': self.latex(current)}
+            record = {**record, 'before_meta': current, 'before_latex': before_latex}
             self.operations.update_one({'_id': intent.operation_id}, {'$set': {
                 'before_meta': record['before_meta'], 'before_latex': record['before_latex']}})
         citation = self.citation_patch(intent, current.get('source_id', ''))
