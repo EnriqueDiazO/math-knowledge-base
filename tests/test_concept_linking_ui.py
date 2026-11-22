@@ -1334,8 +1334,10 @@ def test_s4_3_never_writes_directly_to_legacy_concepts() -> None:
 
 
 def test_s5b_preserves_unrelated_domain_models_and_concept_evidence_contract() -> None:
+    # DOI/ISBN adds optional lookup provenance; legacy serialization is covered
+    # by test_source_catalog_models and BSON roundtrips. Other schemas stay sealed.
     expected = {
-        "mathmongo/source_catalog/models.py": "89c96e73bf223ab0df24fb7063821b26c340a0af33579e5c4bfca9d3dfe84213",
+        "mathmongo/source_catalog/models.py": '93149d71ec0a531480e32096a1359201f720da056290df3456f995a2768c790a',
         "mathmongo/document_page_maps/models.py": "ddfabe3efbd843bcb9accf93ae6f64cbf0844291aa852bfd947e2720455923af",
         "mathmongo/source_documents/models.py": "84c88b00198e7c91b92bf3f994442b3897a792149467f715db058ea38609b54f",
         "mathmongo/reading_space/models.py": "32a0636f12085102dc5a0896a6f506416f9304031ed0c03d9f60ff3daab3ef2b",

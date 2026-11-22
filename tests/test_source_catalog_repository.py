@@ -60,7 +60,10 @@ def _condition_matches(values: list[Any], condition: Any) -> bool:
 
 def _matches(document: dict, query: dict) -> bool:
     for key, condition in query.items():
-        if key == "$or":
+        if key == "$expr":
+            if condition != {"$eq": ["$$ROOT", {"$literal": document}]}:
+                return False
+        elif key == "$or":
             if not any(_matches(document, alternative) for alternative in condition):
                 return False
         elif not _condition_matches(_values(document, key), condition):

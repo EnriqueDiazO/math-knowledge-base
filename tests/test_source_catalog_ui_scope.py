@@ -322,9 +322,18 @@ def test_s1b_modules_do_not_define_or_access_out_of_scope_collections() -> None:
 
     for path in paths:
         tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+        # The new citation flow must prevent deletion of references used by
+        # notes/evidence. Permit only read-only probes in that repository method.
+        allowed_read_nodes: set[int] = set()
+        if path.relative_to(ROOT).as_posix() == 'mathmongo/source_catalog/repository.py':
+            repository = next(node for node in tree.body if isinstance(node, ast.ClassDef) and node.name == 'ReferenceRepository')
+            blockers = next(node for node in repository.body if isinstance(node, ast.FunctionDef) and node.name == 'deletion_blockers')
+            assert all(node.func.attr in {'get_by_id', 'find_one', 'append'} for node in ast.walk(blockers)
+                if isinstance(node, ast.Call) and isinstance(node.func, ast.Attribute))
+            allowed_read_nodes = {id(node) for node in ast.walk(blockers)}
         for node in ast.walk(tree):
             if isinstance(node, ast.Constant) and isinstance(node.value, str):
-                if node.value.casefold() in FORBIDDEN_COLLECTION_NAMES:
+                if node.value.casefold() in FORBIDDEN_COLLECTION_NAMES and id(node) not in allowed_read_nodes:
                     violations.append(f"{path.relative_to(ROOT)}:{node.lineno}: {node.value!r}")
             elif isinstance(node, ast.Attribute):
                 if node.attr.casefold() in FORBIDDEN_COLLECTION_NAMES:

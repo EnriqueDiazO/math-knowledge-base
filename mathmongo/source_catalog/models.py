@@ -140,6 +140,7 @@ class ImportMethod(str, Enum):
     BIBTEX_PASTE = "bibtex_paste"
     BIB_FILE = "bib_file"
     LEGACY = "legacy"
+    ONLINE_LOOKUP = "online_lookup"
 
 
 class CatalogModel(BaseModel):
@@ -415,10 +416,29 @@ class ReferenceFingerprints(CatalogModel):
     isbn_normalized: list[str] = Field(default_factory=list)
 
 
+class LookupProvenance(CatalogModel):
+    """A metadata query, independent of local files and citation locators."""
+
+    provider: Literal['crossref', 'datacite', 'openlibrary']
+    identifier: str = Field(max_length=2000)
+    original_query: str = Field(max_length=2000)
+    record_url: str = Field(max_length=2000)
+    record_kind: str = Field(max_length=40)
+    retrieved_at: datetime
+    response_sha256: str = Field(pattern=r'^[0-9a-f]{64}$')
+
+    @field_validator('retrieved_at')
+    @classmethod
+    def retrieval_is_aware(cls, value: datetime) -> datetime:
+        """Keep the query date explicit and independent of a publication date."""
+        return _aware_utc(value, 'retrieved_at')
+
+
 class ReferenceProvenance(CatalogModel):
     import_method: ImportMethod = ImportMethod.MANUAL
     imported_at: datetime = Field(default_factory=utc_now)
     warnings: list[str] = Field(default_factory=list)
+    external_lookup: LookupProvenance | None = Field(default=None, exclude_if=lambda value: value is None)
 
     @field_validator("imported_at")
     @classmethod

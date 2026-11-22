@@ -6,6 +6,8 @@ an index. Every operation is scoped to the database supplied by its caller.
 
 from __future__ import annotations
 
+import hashlib
+import json
 import re
 from collections.abc import Iterable
 from collections.abc import Mapping
@@ -23,12 +25,18 @@ from pymongo.errors import DuplicateKeyError
 from mathmongo.source_catalog.models import Reference
 from mathmongo.source_catalog.models import Source
 from mathmongo.source_catalog.models import utc_now
+from mathmongo.source_catalog.normalization import isbn_equivalents
 from mathmongo.source_catalog.normalization import suggestion_regex_pattern
 from mathmongo.source_catalog.normalization import url_regex_pattern
 
 T = TypeVar("T")
 MAX_PAGE_SIZE = 100
 MAX_SEARCH_LENGTH = 200
+
+
+def reference_revision(reference: Reference) -> str:
+    """Detect metadata changes even inside one BSON timestamp millisecond."""
+    return hashlib.sha256(json.dumps(reference.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
 
 
 class RepositoryError(RuntimeError):
@@ -133,6 +141,12 @@ def _hydrate_catalog_datetimes(document: Mapping[str, Any]) -> dict[str, Any]:
         provenance = dict(provenance)
         if "imported_at" in provenance:
             provenance["imported_at"] = _aware_utc(provenance["imported_at"])
+        lookup = provenance.get('external_lookup')
+        if isinstance(lookup, Mapping):
+            lookup = dict(lookup)
+            if 'retrieved_at' in lookup:
+                lookup['retrieved_at'] = _aware_utc(lookup['retrieved_at'])
+            provenance['external_lookup'] = lookup
         hydrated["provenance"] = provenance
     return hydrated
 
@@ -638,16 +652,21 @@ class ReferenceRepository:
             model_type=Reference,
         )
 
-    def update(self, reference_id: str, changes: Mapping[str, Any]) -> Reference | None:
+    def update(self, reference_id: str, changes: Mapping[str, Any], *, expected_updated_at: datetime | None = None, expected_revision: str = "") -> Reference | None:
         """Apply a validated controlled `$set` without changing the ID."""
         forbidden = set(changes) & self._IMMUTABLE_FIELDS
         unknown = set(changes) - self._MUTABLE_FIELDS
         if forbidden or unknown:
             fields = sorted(forbidden | unknown)
             raise ImmutableFieldError(f"Unsupported or immutable Reference fields: {fields}")
-        current = self.get_by_id(reference_id)
+        observed = self._collection.find_one({"reference_id": reference_id})
+        current = _model_document(observed, Reference)
         if current is None:
             return None
+        if expected_updated_at is not None and current.updated_at != expected_updated_at:
+            raise RepositoryConflictError("Reference changed; review the current version before saving.")
+        if expected_revision and reference_revision(current) != expected_revision:
+            raise RepositoryConflictError("Reference changed; review the current metadata before saving.")
         candidate_data = current.model_dump(mode="python")
         candidate_data.update(dict(changes))
         candidate_data["updated_at"] = changes.get("updated_at", utc_now())
@@ -658,7 +677,7 @@ class ReferenceRepository:
         set_fields["updated_at"] = candidate_dump["updated_at"]
         try:
             result = self._collection.update_one(
-                {"reference_id": reference_id},
+                {"reference_id": reference_id, "$expr": {"$eq": ["$$ROOT", {"$literal": observed}]}},
                 {"$set": set_fields},
             )
         except DuplicateKeyError as exc:
@@ -666,7 +685,7 @@ class ReferenceRepository:
                 f"Concurrent Reference conflict: {reference_id}"
             ) from exc
         if not result.matched_count:
-            return None
+            raise RepositoryConflictError("Reference changed during save; keep the local draft.")
         return self.get_by_id(reference_id)
 
     def archive(self, reference_id: str) -> Reference | None:
@@ -753,7 +772,7 @@ class ReferenceRepository:
                 [
                     {
                         "fingerprints.isbn_normalized": {
-                            "$in": candidate.fingerprints.isbn_normalized
+                            "$in": sorted({equivalent for isbn in candidate.isbn for equivalent in isbn_equivalents(isbn)})
                         }
                     }
                 ]
@@ -817,11 +836,15 @@ class ReferenceRepository:
         return results
 
     def deletion_blockers(self, reference_id: str) -> tuple[str, ...]:
-        """Report Source associations that forbid physical deletion."""
+        """Retain references used by any canonical resource, including archived records."""
         reference = self.get_by_id(reference_id)
-        if reference is None or not reference.source_ids:
+        if reference is None:
             return ()
-        return (f"source_ids:{len(reference.source_ids)}",)
+        blockers = [f"source_ids:{len(reference.source_ids)}"] if reference.source_ids else []
+        for collection in ('concepts', 'source_documents', 'reading_notes', 'reading_annotations', 'concept_evidence_links'):
+            if self.database[collection].find_one({'reference_id': reference_id}) is not None:
+                blockers.append(collection + ':reference_id')
+        return tuple(blockers)
 
     def physical_delete_if_unused(self, reference_id: str) -> bool:
         """Delete only after rechecking all S1A Reference blockers."""
