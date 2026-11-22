@@ -51,7 +51,43 @@ export function makeMath(latex: string, editable: boolean): MathfieldElement {
 export function mathErrors(latex: string): string[] {
   try {
     const errors: string[] = validateLatex(latex).map((error) => error.code);
+    const stack: number[] = [],
+      pairs = new Map<number, number>();
+    let unmatchedClose = false;
+    for (let index = 0; index < latex.length; index++) {
+      if (latex[index] === "\\") {
+        index++;
+        continue;
+      }
+      if (latex[index] === "{") stack.push(index);
+      if (latex[index] === "}") {
+        const start = stack.pop();
+        if (start === undefined) unmatchedClose = true;
+        else pairs.set(start, index);
+      }
+    }
+    const skipSpace = (from: number) => {
+      while (/\s/u.test(latex[from] ?? "")) from++;
+      return from;
+    };
+    const empty = (start: number) =>
+      pairs.has(start) && skipSpace(start + 1) === pairs.get(start);
+    const emptyRequiredArgument = [
+      ...latex.matchAll(/\\(?:[dt]?frac|sqrt)\b/gu),
+    ].some((match) => {
+      const first = skipSpace(match.index! + match[0].length),
+        end = pairs.get(first);
+      return (
+        empty(first) ||
+        (!match[0].endsWith("sqrt") &&
+          end !== undefined &&
+          empty(skipSpace(end + 1)))
+      );
+    });
     if (
+      stack.length !== 0 ||
+      unmatchedClose ||
+      emptyRequiredArgument ||
       !latex.trim() ||
       latex.includes("\\placeholder") ||
       /(?:[_^]|\\frac|\\sqrt)\s*$/u.test(latex)

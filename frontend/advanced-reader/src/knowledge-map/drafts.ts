@@ -3,15 +3,39 @@ import type { Draft, View } from "./model";
 export class DraftVault {
   readonly key: string;
   private drafts: Record<string, Draft> = {};
+  private unreadableArchive = false;
   available = true;
   constructor(scope: string, map: string) {
     this.key = "mathmongo-drafts-v2-" + scope + "-" + map;
     try {
-      this.drafts = JSON.parse(
+      const parsed: unknown = JSON.parse(
         localStorage.getItem(this.key) ?? "{}",
-      ) as Record<string, Draft>;
+      );
+      if (
+        !parsed ||
+        typeof parsed !== "object" ||
+        Array.isArray(parsed) ||
+        Object.values(parsed).some(
+          (value) =>
+            !value ||
+            typeof value !== "object" ||
+            ![
+              "create",
+              "create_connected",
+              "connect",
+              "edit",
+              "save_note",
+              "publish_note",
+            ].includes(value.action) ||
+            typeof value.content !== "string" ||
+            typeof value.title !== "string",
+        )
+      )
+        throw new Error("Unreadable draft archive");
+      this.drafts = parsed as Record<string, Draft>;
     } catch {
       this.available = false;
+      this.unreadableArchive = true;
     }
   }
   all(): Draft[] {
@@ -23,6 +47,7 @@ export class DraftVault {
     draft.id ??= crypto.randomUUID();
     draft.updated = Date.now();
     this.drafts[draft.id] = structuredClone(draft);
+    if (this.unreadableArchive) return; // Preserve the original archive for recovery.
     try {
       localStorage.setItem(this.key, JSON.stringify(this.drafts));
       this.available = true;
@@ -36,6 +61,7 @@ export class DraftVault {
   }
   discard(id: string): void {
     delete this.drafts[id];
+    if (this.unreadableArchive) return;
     try {
       localStorage.setItem(this.key, JSON.stringify(this.drafts));
     } catch {

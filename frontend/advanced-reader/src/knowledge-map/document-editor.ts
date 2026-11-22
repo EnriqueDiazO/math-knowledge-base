@@ -3,6 +3,7 @@ import type { JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { TextSelection } from "@tiptap/pm/state";
 import { makeMath, mathErrors } from "./math";
+import { mountMathKeyboard } from "./keyboard";
 import {
   normalizedOriginals,
   parseDocument,
@@ -259,6 +260,7 @@ export class DocumentEditor {
   private preview: HTMLDivElement;
   private sourceMode = false;
   private activeMath?: ReturnType<typeof makeMath>;
+  private disposeKeyboard: () => void = () => {};
   private disposePreview?: () => void;
   constructor(
     private parent: HTMLElement,
@@ -269,7 +271,7 @@ export class DocumentEditor {
     parent.classList.add("document-composer");
     const dialog = parent.closest("dialog");
     if (dialog instanceof HTMLElement)
-      window.mathVirtualKeyboard.container = dialog;
+      this.disposeKeyboard = mountMathKeyboard(dialog);
     const toolbar = dom("div");
     toolbar.className = "document-toolbar";
     toolbar.setAttribute("aria-label", "Herramientas del documento");
@@ -471,7 +473,7 @@ export class DocumentEditor {
     }
   }
   destroy(): void {
-    window.mathVirtualKeyboard.hide();
+    this.disposeKeyboard();
     this.disposePreview?.();
     this.editor.destroy();
   }

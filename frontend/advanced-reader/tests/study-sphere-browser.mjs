@@ -1,18 +1,22 @@
-import { chromium, expect, test } from "@playwright/test";
+import { chromium, firefox, expect, test } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 test("study sphere real application", async () => {
   const evidence = process.env.MATHMONGO_MAP_TEST_EVIDENCE,
     phase = process.env.MATHMONGO_STUDY_PHASE;
-  const browser = await chromium.launch({
-    executablePath: "/usr/bin/google-chrome",
-    headless: true,
-    args: ["--no-sandbox"],
-  });
+  const browserName = process.env.MATHMONGO_STUDY_BROWSER ?? "chrome";
+  const browser =
+    browserName === "firefox"
+      ? await firefox.launch({ headless: true })
+      : await chromium.launch({
+          executablePath: "/usr/bin/google-chrome",
+          headless: true,
+          args: ["--no-sandbox"],
+        });
   const context = await browser.newContext({
     viewport: { width: 1366, height: 768 },
     deviceScaleFactor: 1,
     reducedMotion: "reduce",
-    hasTouch: true,
+    hasTouch: browserName === "chrome",
   });
   const page = await context.newPage();
   page.setDefaultTimeout(18000);
@@ -26,7 +30,7 @@ test("study sphere real application", async () => {
   try {
     await page.goto(process.env.MATHMONGO_MAP_TEST_URL);
     const nav = page.getByRole("combobox", { name: "Navegación", exact: true });
-    await nav.click({timeout:60000});
+    await nav.click({ timeout: 60000 });
     await nav.fill("Grafo de conocimiento");
     await page
       .getByRole("option")
@@ -46,16 +50,14 @@ test("study sphere real application", async () => {
       await page.setViewportSize({ width, height });
       await map.locator("canvas").scrollIntoViewIfNeeded();
       sizes.push(
-        await map
-          .locator("canvas")
-          .evaluate((canvas) => ({
-            width: canvas.getBoundingClientRect().width,
-            height: canvas.getBoundingClientRect().height,
-            internalWidth: canvas.width,
-            internalHeight: canvas.height,
-            viewport: [innerWidth, innerHeight],
-            dpr: devicePixelRatio,
-          })),
+        await map.locator("canvas").evaluate((canvas) => ({
+          width: canvas.getBoundingClientRect().width,
+          height: canvas.getBoundingClientRect().height,
+          internalWidth: canvas.width,
+          internalHeight: canvas.height,
+          viewport: [innerWidth, innerHeight],
+          dpr: devicePixelRatio,
+        })),
       );
       await page.screenshot({ path: `${evidence}/${phase}-${width}.png` });
     }
@@ -98,15 +100,13 @@ test("study sphere real application", async () => {
         )
         .toBeGreaterThanOrEqual(0.85);
       expanded.push(
-        await map
-          .locator("canvas")
-          .evaluate((canvas) => ({
-            width: canvas.getBoundingClientRect().width,
-            height: canvas.getBoundingClientRect().height,
-            internalWidth: canvas.width,
-            internalHeight: canvas.height,
-            viewport: [innerWidth, innerHeight],
-          })),
+        await map.locator("canvas").evaluate((canvas) => ({
+          width: canvas.getBoundingClientRect().width,
+          height: canvas.getBoundingClientRect().height,
+          internalWidth: canvas.width,
+          internalHeight: canvas.height,
+          viewport: [innerWidth, innerHeight],
+        })),
       );
       await page.screenshot({
         path: `${evidence}/after-expanded-${width}.png`,
@@ -155,7 +155,16 @@ test("study sphere real application", async () => {
       .getByRole("button", { name: "Insertar fórmula en línea", exact: true })
       .click();
     await editor.getByRole("button", { name: "Fracción", exact: true }).click();
-    await progress("template:"+JSON.stringify(await editor.locator("math-field").evaluateAll(fs=>fs.map(f=>({value:f.value,focus:f.hasFocus()})))));
+    await progress(
+      "template:" +
+        JSON.stringify(
+          await editor
+            .locator("math-field")
+            .evaluateAll((fs) =>
+              fs.map((f) => ({ value: f.value, focus: f.hasFocus() })),
+            ),
+        ),
+    );
     await progress(
       "focus:" +
         JSON.stringify(
@@ -172,7 +181,14 @@ test("study sphere real application", async () => {
             })),
         ),
     );
-    await expect.poll(()=>editor.locator("math-field").last().evaluate(f=>f.getRootNode().activeElement === f)).toBe(true);
+    await expect
+      .poll(() =>
+        editor
+          .locator("math-field")
+          .last()
+          .evaluate((f) => f.getRootNode().activeElement === f),
+      )
+      .toBe(true);
     await page.keyboard.type("1");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.type("2");
@@ -183,6 +199,28 @@ test("study sphere real application", async () => {
           .last()
           .evaluate((field) => field.value)),
     );
+    const keyboardToggle = editor
+      .locator("math-field")
+      .first()
+      .locator('[part="virtual-keyboard-toggle"]');
+    await keyboardToggle.click();
+    const keyboard = editor.locator(".ML__keyboard");
+    await expect(keyboard).toBeVisible();
+    const keyboardStyle = await keyboard.evaluate((el) => ({
+      width: el.getBoundingClientRect().width,
+      height: el.getBoundingClientRect().height,
+      position: getComputedStyle(el).position,
+      background: getComputedStyle(el.querySelector(".MLK__backdrop"))
+        .backgroundColor,
+    }));
+    await progress("keyboard:" + JSON.stringify(keyboardStyle));
+    await editor.screenshot({ path: `${evidence}/after-math-keyboard.png` });
+    expect(keyboardStyle.position).toBe("relative");
+    expect(keyboardStyle.height).toBeLessThanOrEqual(400);
+    expect(keyboardStyle.background).toBe("rgb(9, 26, 39)");
+    await editor
+      .getByRole("button", { name: "Ocultar teclado matemático", exact: true })
+      .click();
     await editor
       .getByRole("button", { name: "Volver al párrafo", exact: true })
       .click();
@@ -197,7 +235,16 @@ test("study sphere real application", async () => {
       .getByRole("button", { name: "Insertar fórmula en línea", exact: true })
       .click();
     await editor.getByRole("button", { name: "Fracción", exact: true }).click();
-    await progress("template:"+JSON.stringify(await editor.locator("math-field").evaluateAll(fs=>fs.map(f=>({value:f.value,focus:f.hasFocus()})))));
+    await progress(
+      "template:" +
+        JSON.stringify(
+          await editor
+            .locator("math-field")
+            .evaluateAll((fs) =>
+              fs.map((f) => ({ value: f.value, focus: f.hasFocus() })),
+            ),
+        ),
+    );
     await expect(editor.locator('[data-invalid="true"]').last()).toBeVisible();
     await editor
       .getByRole("button", { name: "Volver al párrafo", exact: true })
@@ -240,8 +287,28 @@ test("study sphere real application", async () => {
       .locator("math-field")
       .last()
       .click({ position: { x: 15, y: 12 } });
-    await progress("recoveryFocus:"+JSON.stringify(await editor.locator("math-field").evaluateAll(fs=>fs.map(f=>({value:f.value,focus:f.hasFocus(),active:f.getRootNode().activeElement?.tagName})))));
-    await expect.poll(()=>editor.locator("math-field").last().evaluate(f=>f.getRootNode().activeElement === f)).toBe(true);
+    await progress(
+      "recoveryFocus:" +
+        JSON.stringify(
+          await editor
+            .locator("math-field")
+            .evaluateAll((fs) =>
+              fs.map((f) => ({
+                value: f.value,
+                focus: f.hasFocus(),
+                active: f.getRootNode().activeElement?.tagName,
+              })),
+            ),
+        ),
+    );
+    await expect
+      .poll(() =>
+        editor
+          .locator("math-field")
+          .last()
+          .evaluate((f) => f.getRootNode().activeElement === f),
+      )
+      .toBe(true);
     await page.keyboard.type("3");
     await page.keyboard.press("ArrowDown");
     await page.keyboard.type("4");

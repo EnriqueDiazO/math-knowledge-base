@@ -21,7 +21,21 @@ export type Edge = {
 };
 export type Intent = {
   operation_id: string;
-  action: "create" | "create_connected" | "connect" | "edit" | "save_view";
+  action:
+    | "create"
+    | "create_connected"
+    | "connect"
+    | "edit"
+    | "save_view"
+    | "save_room"
+    | "save_note"
+    | "publish_note";
+  room_uid?: string;
+  room_state?: RoomState;
+  note_id?: string;
+  note_revision?: string;
+  document_id?: string;
+  annotation_id?: string;
   map_uid?: string;
   map_name?: string;
   view_state?: StudyState;
@@ -53,6 +67,7 @@ export type StudyState = {
   areas: string[];
   mandala: boolean;
   goals: Goal[];
+  members?: string[] | null;
 };
 export type SavedView = {
   uid: string;
@@ -67,7 +82,59 @@ export type Result = {
   key?: string;
   map_uid?: string;
   view_revision?: string;
+  room_uid?: string;
+  note_id?: string;
 };
+export type SourceDocument = {
+  document_id: string;
+  source_id: string;
+  reference_id: string | null;
+  title: string;
+  kind: "pdf" | "web";
+};
+export type ReadingNote = {
+  note_id: string;
+  source_id: string;
+  document_id: string | null;
+  reference_id: string | null;
+  title: string;
+  body: string;
+  revision: string;
+  page_start: number | null;
+  page_end: number | null;
+  tags: string[];
+};
+export type Annotation = {
+  annotation_id: string;
+  document_id: string;
+  source_id: string;
+  reference_id: string | null;
+  page_number: number | null;
+  quote_text: string | null;
+  body: string;
+  kind: string;
+};
+export type Evidence = {
+  concept_legacy_id: string;
+  concept_legacy_source: string;
+  source_id: string;
+  document_id: string | null;
+  note_id: string | null;
+  annotation_id: string | null;
+  reference_id: string | null;
+  page_number: number | null;
+  link_type: string;
+};
+export type RoomState = {
+  version: 1;
+  name: string;
+  spheres: { view_uid: string; position: [number, number] }[];
+  document_id: string;
+  note_id: string;
+  goal_view_uid: string;
+  goal_id: string;
+};
+export type SavedRoom = { uid: string; revision: string; state: RoomState };
 export type Data = {
   nodes: Node[];
   edges: Edge[];
@@ -77,6 +144,13 @@ export type Data = {
   scope: string;
   views?: SavedView[];
   result?: Result;
+  roomMode?: boolean;
+  documents?: SourceDocument[];
+  notes?: ReadingNote[];
+  annotations?: Annotation[];
+  evidence?: Evidence[];
+  rooms?: SavedRoom[];
+  resource_limit?: string;
 };
 export type Draft = {
   id?: string;
@@ -85,7 +159,17 @@ export type Draft = {
   document?: EditorSnapshot;
   goalId?: string;
   submitted?: boolean;
-  action: "create" | "create_connected" | "connect" | "edit";
+  action:
+    | "create"
+    | "create_connected"
+    | "connect"
+    | "edit"
+    | "save_note"
+    | "publish_note";
+  noteId?: string;
+  documentId?: string;
+  annotationId?: string;
+  noteRevision?: string;
   title: string;
   content: string;
   comment: string;
@@ -104,6 +188,7 @@ export type View = {
   mapName?: string;
   viewRevision?: string;
   layoutDirty?: boolean;
+  members?: string[] | null;
   flatPoints?: Record<string, [number, number]>;
   pinned?: string[];
   areas?: string[];
@@ -150,6 +235,7 @@ export function visibleNodes(data: Data, view: View): Node[] {
       : undefined;
   return data.nodes.filter(
     (n) =>
+      (!view.members || view.members.includes(n.key)) &&
       (!adjacent || adjacent.has(n.key)) &&
       (!view.source || n.source === view.source) &&
       (!view.type || n.tipo === view.type),
@@ -196,6 +282,18 @@ export function draftFor(
   };
 }
 export function intention(draft: Draft, operationId: string): Intent {
+  if (draft.action === "save_note")
+    return {
+      operation_id: operationId,
+      action: "save_note",
+      note_id: draft.noteId ?? "",
+      source_id: draft.source,
+      document_id: draft.documentId ?? "",
+      annotation_id: draft.annotationId ?? "",
+      revision: draft.revision,
+      titulo: draft.title,
+      contenido_latex: draft.content,
+    };
   if (draft.action === "connect")
     return {
       operation_id: operationId,
@@ -221,6 +319,9 @@ export function intention(draft: Draft, operationId: string): Intent {
     revision: draft.revision,
     relation_type: draft.relation,
     reverse: draft.reverse,
+    ...(draft.action === "publish_note"
+      ? { note_id: draft.noteId, note_revision: draft.noteRevision }
+      : {}),
   };
 }
 export function acceptResult(data: Data, view: View): void {
@@ -245,6 +346,7 @@ export function studyState(view: View): StudyState {
     areas: view.areas ?? [],
     mandala: !!view.mandala,
     goals: view.goals ?? [],
+    members: view.members ?? null,
   };
 }
 export function useSavedView(view: View, saved: SavedView): void {

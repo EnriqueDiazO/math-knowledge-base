@@ -52,6 +52,12 @@ def main():
     evidence = ROOT / "evidence/sonar/mandala-2026-11"
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     phase = "before" if "--before" in sys.argv else "after"
+    browser_name = next((arg.split('=', 1)[1] for arg in sys.argv if arg.startswith('--browser=')), 'chrome')
+    if browser_name not in {'chrome', 'firefox'}:
+        raise ValueError('Choose chrome or firefox')
+    if phase != 'before':
+        evidence = evidence / browser_name
+        evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix="mathmongo-study-") as directory:
         work = Path(directory)
         dbpath = work / "db"
@@ -67,6 +73,7 @@ def main():
             MONGODB_DB=name,
             PYTHONPATH=str(ROOT),
             STREAMLIT_BROWSER_GATHER_USAGE_STATS="false",
+            PLAYWRIGHT_BROWSERS_PATH=os.environ.get('PLAYWRIGHT_BROWSERS_PATH', str(Path(os.environ.get('XDG_CACHE_HOME', str(Path.home() / '.cache'))) / 'ms-playwright')),
         )
         for alias in ("MONGO_URI", "MONGO_DB", "DB_NAME"):
             env.pop(alias, None)
@@ -201,6 +208,7 @@ def main():
                     MATHMONGO_MAP_TEST_URL=url,
                     MATHMONGO_MAP_TEST_EVIDENCE=str(evidence),
                     MATHMONGO_STUDY_PHASE=phase,
+                    MATHMONGO_STUDY_BROWSER=browser_name,
                 )
                 command = [
                     "node",

@@ -732,3 +732,6 @@
   --keyboard-toolbar-background: var(--mm-panel);
   --keyboard-toolbar-text: var(--mm-text);
 }
+.math-keyboard-host [role='button'] {
+  border: 1px solid var(--mm-border);
+}

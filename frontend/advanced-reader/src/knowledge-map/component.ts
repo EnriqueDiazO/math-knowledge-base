@@ -13,17 +13,21 @@ import {
   studyState,
   useSavedView,
 } from "./model";
-import type { Data, Draft, View, Goal } from "./model";
+import type { Data, Draft, View, Goal, SavedView, Result } from "./model";
 import { element, button, field, selector } from "./ui";
 import { DocumentEditor } from "./document-editor";
 import { openReader } from "./reader";
 import { DraftVault, persistedView, storeView } from "./drafts";
 import { thematicLayout, relax } from "./layout";
 
-type Bridge = {
+export type Bridge = {
   parentElement: HTMLElement;
   data: Data;
   setTriggerValue: (key: string, value: unknown) => void;
+  initialView?: SavedView;
+  initialDraft?: Draft;
+  onExit?: () => void;
+  onSaved?: (result: Result, draft: Draft) => void;
 };
 const memory = new Map<string, View>();
 const mounted = new WeakMap<HTMLElement, () => void>();
@@ -45,9 +49,15 @@ export default function render({
   parentElement,
   data,
   setTriggerValue,
+  initialView,
+  initialDraft,
+  onExit,
+  onSaved,
 }: Bridge): () => void {
   mounted.get(parentElement)?.();
   const view = readView(data.scope);
+  if (initialView && view.mapUid !== initialView.uid)
+    useSavedView(view, initialView);
   memory.set(data.scope, view);
   view.mapUid ??= crypto.randomUUID();
   view.mapName ??= "Mi esfera de estudio";
@@ -98,6 +108,8 @@ export default function render({
       view.acknowledged === confirmingId
     ) {
       if (data.result.status === "saved") vault.complete(acknowledgedDraft);
+      if (data.result.status === "saved" && onSaved)
+        queueMicrotask(() => onSaved(data.result!, acknowledgedDraft));
       if (acknowledgedDraft.goalId && data.result.key) {
         const goal = view.goals.find((g) => g.id === acknowledgedDraft.goalId);
         if (goal) {
@@ -107,6 +119,13 @@ export default function render({
         }
       }
     }
+  }
+  if (initialDraft && !view.pending && !view.draft) {
+    const existing = initialDraft.id ? vault.get(initialDraft.id) : undefined;
+    view.draft =
+      existing && !existing.completed
+        ? existing
+        : structuredClone(initialDraft);
   }
   if (view.pending && data.result?.operation_id !== view.pending.operation_id)
     view.status = {
@@ -267,6 +286,7 @@ export default function render({
     };
     refresh();
     canvas.focus();
+    onExit?.();
   }
   function showEditor(): void {
     if (!view.draft) return;
@@ -279,11 +299,13 @@ export default function render({
     header.append(
       element(
         "h2",
-        draft.action === "edit"
-          ? "Editar concepto"
-          : draft.action === "connect"
-            ? "Conectar conceptos"
-            : "Escribir concepto",
+        draft.action === "save_note"
+          ? "Escribir nota de trabajo"
+          : draft.action === "edit"
+            ? "Editar concepto"
+            : draft.action === "connect"
+              ? "Conectar conceptos"
+              : "Escribir concepto",
       ),
     );
     const close = button("Conservar borrador y volver", keepAndClose, header);
@@ -301,17 +323,22 @@ export default function render({
     });
     name.required = draft.action !== "connect";
     name.maxLength = 500;
-    if (draft.action !== "edit" && draft.action !== "connect") {
-      selector(
-        meta,
-        "Source administrada",
-        data.sources.map((s) => ({ value: s.id, text: s.name })),
-        draft.source,
-        (value) => {
-          draft.source = value;
-          save();
-        },
-      );
+    if (
+      draft.action !== "edit" &&
+      draft.action !== "connect" &&
+      draft.action !== "save_note"
+    ) {
+      if (draft.action !== "publish_note")
+        selector(
+          meta,
+          "Source administrada",
+          data.sources.map((s) => ({ value: s.id, text: s.name })),
+          draft.source,
+          (value) => {
+            draft.source = value;
+            save();
+          },
+        );
       selector(
         meta,
         "Tipo de concepto",
@@ -355,7 +382,11 @@ export default function render({
       relationFields(form, draft);
     const controls = element("div", "", "editor-actions");
     form.append(controls);
-    const submit = element("button", "Guardar concepto", "primary");
+    const submit = element(
+      "button",
+      draft.action === "save_note" ? "Guardar nota" : "Guardar concepto",
+      "primary",
+    );
     submit.type = "submit";
     submit.disabled =
       !!view.pending ||
