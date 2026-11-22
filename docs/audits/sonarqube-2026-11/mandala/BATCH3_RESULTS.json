@@ -1,0 +1,169 @@
+{
+  "revision": "bbf8eba44cbb5b27db90ca7b219a7bd2862b4907",
+  "ce": {
+    "task": {
+      "id": "8ab0363c-8702-427e-9188-1019e433421c",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "6707a6ca-73e4-4754-98bb-890f0221b408",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-22T01:09:34+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-22T01:09:34+0000",
+      "executedAt": "2026-11-22T01:09:37+0000",
+      "executionTimeMs": 3030,
+      "hasScannerContext": true,
+      "warningCount": 0,
+      "warnings": [],
+      "infoMessages": []
+    }
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "85.5"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.0"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "70.6",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "17710"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.5",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "49551"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "14478",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "19175",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "97123"
+        },
+        {
+          "metric": "files",
+          "value": "318"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "70.8",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "reports": {
+    "evidence/sonar/coverage.xml": {
+      "sha256": "6a9bd5e370d348d8611796a8dbd43a36e10ecc89b164478f2a485d0a3e12d141",
+      "archive": "evidence/sonar/mandala-2026-11/study-batch3-bibliography/coverage.xml"
+    },
+    "frontend/advanced-reader/coverage/lcov.info": {
+      "sha256": "31bb594222f37434a1f8c150f051659bb65c6ab91ae25317999e7d5d57c548d0",
+      "archive": "evidence/sonar/mandala-2026-11/study-batch3-bibliography/lcov.info"
+    },
+    "frontend/advanced-reader/coverage/coverage-summary.json": {
+      "sha256": "d0c17aaa1187807cb945950da176fcf719e3c346463292f98277f401c6defb01",
+      "archive": "evidence/sonar/mandala-2026-11/study-batch3-bibliography/coverage-summary.json"
+    }
+  },
+  "profile_configuration_unchanged_from_batch2": true,
+  "profile_comparison_excluded_runtime_fields": [
+    "lastUsed"
+  ]
+}

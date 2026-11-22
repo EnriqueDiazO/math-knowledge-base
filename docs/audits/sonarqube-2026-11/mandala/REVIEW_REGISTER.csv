@@ -1,0 +1,1023 @@
+path,kind,lines,review_status,decision
+mathmongo/advanced_reader/static/knowledge_map/index-C-wr06sE.js,generated,56581,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/editor_streamlit.py,maintained,5714,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+frontend/advanced-reader/package-lock.json,resource,5109,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+poetry.lock,resource,4648,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/cuaderno_page.py,maintained,4122,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+visualizations/grafoconocimiento.py,maintained,3670,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/utils/db_import.py,maintained,2904,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/utils/db_update.py,maintained,2242,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+quarto_book_build/_book/site_libs/bootstrap/bootstrap-icons.css,generated,2106,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/reading_annotations/service.py,maintained,1686,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+mathmongo/source_catalog_migration/bootstrap.py,maintained,1635,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/cornell/streamlit_page.py,maintained,1634,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+docs/PHASE_S0_SOURCE_DOCUMENT_READER_AUDIT.md,documentation,1610,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/knowledge_map/THIRD_PARTY_LICENSES.txt,generated,1504,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/cpi/streamlit_page.py,maintained,1485,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+tests/test_source_catalog_backup.py,test,1422,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_concept_linking_ui.py,test,1385,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_migration_bootstrap.py,test,1325,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/e2e-runner.mjs,test,1302,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+quarto_book_build/_book/site_libs/quarto-search/quarto-search.js,generated,1290,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/concept_linking/linking_wizard.py,maintained,1264,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/reading_space/reader_page.py,maintained,1241,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+tests/test_reading_annotations_ui.py,test,1240,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/knowledge-map/component.ts,maintained,1236,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+frontend/advanced-reader/src/app/App.tsx,maintained,1227,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/source_catalog/edit_source_page.py,maintained,1192,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+mathmongo/source_catalog_migration/apply_safety.py,maintained,1186,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+tests/test_source_catalog_migration_production_gate.py,test,1128,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/source_catalog_migration_fakes.py,test,1126,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_catalog_migration/manifest.py,maintained,1122,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+editor/pdf_export.py,maintained,1115,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+tests/test_database_update.py,test,1087,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_migration_cli_live.py,test,1077,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/utils/knowledge_graph_sync.py,maintained,1076,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+tests/test_reading_space_ui.py,test,1058,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+exporters_latex/latex_validation.py,maintained,1046,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+docs/audits/sonarqube-2026-11/replaced-assets.json,resource,1024,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/reading_annotations/repository.py,maintained,1010,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+tests/test_reading_annotations_portability.py,test,1010,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/styles/reader.css,maintained,1008,revisado_con_pendientes,Decisión individual en LARGE_FILES.md; no cerrar por Gate OK
+mathmongo/source_catalog_migration/reference_planner.py,maintained,976,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_edit_analysis.py,test,971,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/utils/db_export.py,maintained,965,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/INVENTORY.csv,resource,903,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/run_local_runtime_e2e.py,test,896,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_catalog/repository.py,maintained,868,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/renderer.py,maintained,865,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_reading_annotations_core.py,test,862,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/knowledge-map.test.ts,test,847,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+quarto_book_build/_book/site_libs/quarto-html/quarto.js,generated,847,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/source_catalog/service.py,maintained,831,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_annotations/annotation_panel.py,maintained,828,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/interactive_graph.py,maintained,820,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cornell_renderer.py,test,816,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_reading_space_core.py,test,816,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/source_catalog/document_ui.py,maintained,797,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/knowledge-map/style.css,maintained,789,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_migration_planner.py,test,787,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/cpi/renderer.py,maintained,779,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/bibtex.py,maintained,775,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+GUI_README.md,documentation,751,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/knowledge-map/canvas.ts,maintained,746,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/models.py,maintained,740,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/cli.py,maintained,731,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/zip_reader.py,maintained,730,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/reading_space/repository.py,maintained,726,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_EDIT_CONCEPT_SOURCE_LINK_AUDIT.md,documentation,724,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+scripts/install_cuaderno_mode.py,maintained,722,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/reading_annotations/models.py,maintained,704,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_documents_core.py,test,704,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/diary_note_ui.py,maintained,687,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/PdfJsController.test.ts,test,687,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/reading_space/service.py,maintained,687,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/project_export.py,maintained,681,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/routes.py,maintained,652,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_SOURCE_ADD_CONCEPT_INTEGRATION_AUDIT.md,documentation,639,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/document_page_maps/service.py,maintained,631,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/run_advanced_reader_e2e.py,test,616,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/diary_note_models.py,maintained,612,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_concept_linking_wizard.py,test,608,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-runtime-NA7SF2lh.js,generated,604,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+tests/test_source_catalog_migration_apply_safety.py,test,596,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_catalog_migration/backup_safety.py,maintained,595,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_migration_cli_apply.py,test,595,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_migration_zip.py,test,593,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_advanced_reader_streamlit_link.py,test,590,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/pdf/PdfJsController.ts,maintained,589,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cornell_project_export.py,test,588,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_concept_linking_apptest.py,test,587,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+README.md,documentation,586,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_visual_annotations_core.py,test,584,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_cornell_streamlit_helpers.py,test,581,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_repository.py,test,581,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_edit_concept_identity_preservation.py,test,579,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathdatabase/mathmongo.py,maintained,573,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_documents_portability.py,test,573,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/latex_tools.py,maintained,571,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/layout.py,maintained,570,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/ADVANCED_READER_S5A.md,documentation,565,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_add_concept_reference_import_ui.py,test,563,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/document_builder.py,maintained,561,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/diary_note_latex.py,maintained,556,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/source_catalog/reference_form.py,maintained,554,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/seed_cocid_drive_docs_tutorial.py,maintained,550,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_document_page_maps_portability.py,test,547,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/user-guide/GUIA_READING_SPACE_MATHMONGO.md,documentation,545,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_advanced_reader_api.py,test,542,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+exporters_latex/unified_document.py,maintained,539,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_legacy_concept_source_link_service.py,test,538,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_documents_ui.py,test,536,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_documents/service.py,maintained,530,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_annotations/forms.py,maintained,529,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_advanced_reader_visual_annotations.py,test,529,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/utils/cleanup_exports.py,maintained,524,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_reference_ui.py,test,505,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/knowledge-map/document-editor.ts,maintained,503,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/db/concept_edit_service.py,maintained,501,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_document_page_maps_core.py,test,498,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/cpi/layout.py,maintained,495,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/concept_routes.py,maintained,488,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/db/concept_source_link_service.py,maintained,487,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cpi_renderer.py,test,487,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/utils/media_assets.py,maintained,481,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_S1C2A_CATALOG_BOOTSTRAP_ENGINE.md,documentation,478,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+exporters_latex/latex_compile.py,maintained,474,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_S1B_SOURCE_CATALOG_UI.md,documentation,473,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/PHASE_MANAGED_SOURCE_WORKFLOW_COMPATIBILITY_REAUDIT.md,documentation,467,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/cornell/models.py,maintained,462,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/backup.py,maintained,462,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/database_import_page.py,maintained,461,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_ui_state.py,test,459,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_xdg_media_paths.py,test,455,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/local_runtime/launcher.py,maintained,454,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/concept_reference_form.py,maintained,453,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_local_runtime_launcher.py,test,453,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_migration_manifest.py,test,452,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/source_catalog/bibtex_ui.py,maintained,451,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/duplicates.py,maintained,451,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/local_runtime/state.py,maintained,449,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_reading_space_portability.py,test,448,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/latex_bundle.py,maintained,445,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/decisions.py,maintained,445,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_space/state.py,maintained,432,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_advanced_reader_concept_linking.py,test,430,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/study-sphere-browser.mjs,test,427,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/note_branding.py,maintained,426,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_S1C1_LEGACY_SOURCE_CATALOG_PLANNER.md,documentation,425,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/streamlit_link.py,maintained,422,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_MANAGED_SOURCE_WORKFLOW_COMPATIBILITY_AUDIT.md,documentation,421,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/ADVANCED_READER_SECURITY.md,documentation,418,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+exporters_quarto/quarto_exporter.py,maintained,418,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/concept_evidence.py,maintained,414,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/knowledge-map/bibliography.ts,maintained,413,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+editor/source_catalog/shared.py,maintained,410,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_models.py,test,406,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_catalog_migration/models.py,maintained,405,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/content_blocks.py,maintained,403,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/knowledge_map/service.py,maintained,401,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_pdf_preview.py,test,399,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/note_export.py,maintained,397,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_annotations/evidence_panel.py,maintained,397,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/report.py,maintained,397,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/knowledge-map/model.ts,maintained,396,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/live_compare.py,maintained,396,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/academic_cli/catalog.py,maintained,395,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/visualAnnotationsApp.test.tsx,test,393,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/README.md,documentation,392,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_edit_concept_update_feedback.py,test,392,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/knowledge-map/document.ts,maintained,391,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/legacy.py,maintained,390,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cpi_project_export.py,test,386,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/mongodb_service.py,maintained,385,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/ADVANCED_READER_EVENT_CONTRACT.md,documentation,384,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/components/VisualAnnotationsPanel.tsx,maintained,383,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_diary_note_latex.py,test,383,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_mathmongo_cli.py,test,383,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_catalog/normalization.py,maintained,377,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/local_runtime/processes.py,maintained,375,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_ui_scope.py,test,373,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_fresh_database_lifecycle_e2e.py,test,371,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_bibliography_lookup.py,test,369,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/cli.py,maintained,364,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/api/client.ts,maintained,361,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_legacy_repository.py,test,361,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_note_export.py,test,359,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/reading_annotations/indexes.py,maintained,356,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_service.py,test,356,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/reading_annotations/note_panel.py,maintained,354,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_space/page_map_panel.py,maintained,354,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/planner.py,maintained,350,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_migration_decisions.py,test,349,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/COCID_DRIVE_DOCS_TUTORIAL_IMPLEMENTATION.md,documentation,346,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/tests/ThumbnailManager.test.ts,test,346,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_knowledge_map_service.py,test,346,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_advanced_reader_packaging.py,test,345,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+scripts/sonar.py,maintained,342,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/migrate_xdg.py,maintained,340,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/app.py,maintained,337,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/CONCEPT_LINKING_UX_S4_3.md,documentation,335,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/source_documents/models.py,maintained,335,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_xdg_mutable_guards.py,test,335,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/doctor.py,maintained,333,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/apply_result.py,maintained,331,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cornell_images.py,test,329,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/document_page_maps/models.py,maintained,326,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_diary_note_editor_export.py,test,326,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/advanced_reader/document_access.py,maintained,325,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book_build/_book/site_libs/quarto-nav/quarto-nav.js,generated,325,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/cpi/project_export.py,maintained,324,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_note_branding.py,test,317,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_cornell_service.py,test,316,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/VERSION_CLOSURE_MANAGED_SOURCE_WORKFLOW.md,documentation,315,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/run_study_sphere_e2e.py,test,315,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_local_runtime_models.py,test,315,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/concept_linking/panel.py,maintained,314,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/ui/editable_text.py,maintained,314,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/ui/theme.py,maintained,314,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_annotations/state.py,maintained,312,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_documents/storage.py,maintained,312,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/concept_linking/document_concepts.py,maintained,310,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_bibliography_capture.py,test,310,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/local_runtime_browser_probe.mjs,test,306,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+scripts/build_reading_space_guide.sh,maintained,302,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_sonar_execution.py,test,302,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/closure/RESULTS.json,resource,301,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_mongodb_service.py,test,301,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/pdf_preview.py,maintained,300,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/App.test.tsx,test,298,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_cpi_persistence.py,test,298,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/local_runtime/control.py,maintained,297,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_advanced_reader_launcher.py,test,297,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+templates_latex/notes.sty,resource,293,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/source_catalog/add_source_page.py,maintained,292,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/concept_linking/page_concepts.py,maintained,291,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/schemas.py,maintained,291,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/events.test.tsx,test,290,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/bibliography_lookup/adapters.py,maintained,290,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+frontend/advanced-reader/tests/conceptLinkingApp.test.tsx,test,287,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/bibliography_lookup/service.py,maintained,287,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+scripts/build_cocid_drive_docs_tutorial_assets.py,maintained,287,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/generate_diary_note_acceptance.py,maintained,286,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/inventory.py,maintained,285,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_document_page_map_ui.py,test,285,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_add_concept_managed_source_selection.py,test,284,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/cornell/service.py,maintained,282,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/knowledge_map/study_resources.py,maintained,279,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/scripts/publish-build.mjs,maintained,277,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/annotations/VisualAnnotationLayer.ts,maintained,277,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/media.py,maintained,276,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cornell_content_blocks.py,test,273,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_READING_SPACE_GUIDE_REFRESH.md,documentation,272,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/source_catalog/legacy_repository.py,maintained,271,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_S1C2P_MATHV0_CATALOG_BOOTSTRAP.md,documentation,269,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/followup/RESULTS.json,resource,267,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_local_runtime_control.py,test,267,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/desktop.py,maintained,266,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_legacy_curve_migration.py,test,266,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/reading_annotations/concept_picker.py,maintained,265,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cpi_streamlit_helpers.py,test,265,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/cpi/models.py,maintained,264,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_FRESH_DATABASE_LIFECYCLE_E2E.md,documentation,262,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/types/api.ts,maintained,261,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/bibliographic_reference.py,maintained,260,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+exporters_latex/exportadorlatex.py,maintained,259,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/scripts/prepare-pdf-worker.mjs,maintained,258,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/config.py,maintained,256,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/source_catalog/state.py,maintained,254,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+parsers/markdownparser.py,maintained,253,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_documents/repository.py,maintained,251,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book/styles/miestilo.sty,resource,251,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book_build/styles/miestilo.sty,generated,251,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/READING_WORKSPACE_UX_S4_1.md,documentation,250,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/reading_space/models.py,maintained,250,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_advanced_reader_ranges.py,test,250,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/pdf/ThumbnailManager.ts,maintained,248,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cuaderno_cornell_install.py,test,248,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/concept_linking/state.py,maintained,247,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/paths.py,maintained,247,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/components/Toolbar.tsx,maintained,246,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_add_ui.py,test,245,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_latex_tools.py,test,244,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_mathmongo_migrate_xdg.py,test,244,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_cpi_service.py,test,243,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/source_catalog/lookup_ui.py,maintained,240,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+docs/VISUAL_ANNOTATIONS_S5B.md,documentation,238,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/annotations/geometry.ts,maintained,238,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_quality_lifecycle.py,test,238,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+templates_latex/miestilo.sty,resource,237,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_latex_bundle.py,test,237,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+quarto_book_build/_book/site_libs/quarto-html/quarto-syntax-highlighting-587c61ba64f3a5504c4d52d930310e48.css,generated,236,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+schemas/schemas.py,maintained,236,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_concept_reference_bibliography.py,test,235,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/legacy_curve_migration.py,maintained,234,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/indexes.py,maintained,233,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/study-bibliography.test.ts,test,230,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/concepts/ConceptLinkWizard.tsx,maintained,229,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cpi/media.py,maintained,225,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_cocid_tutorial_seed.py,test,225,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/SONARQUBE.md,documentation,224,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_database_update_e2e.py,test,224,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_xdg_write_safety.py,test,224,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_study_resources.py,test,223,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/visualAnnotationGeometry.test.ts,test,221,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/concept_linking/concept_search.py,maintained,219,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_generated_pdf_preview_flows.py,test,219,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/sphere/FINAL.md,documentation,217,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/cornell/latex_compat.py,maintained,217,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/VisualAnnotationLayer.test.ts,test,215,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_diary_note_edit_persistence_integration.py,test,215,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/fixtures.ts,test,214,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_cornell_persistence.py,test,209,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/source_catalog/source_form.py,maintained,206,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/document_page_maps/repository.py,maintained,206,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_advanced_reader_security.py,test,206,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_hybrid_compact_templates.py,test,206,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/concept_linking/unlinked_items.py,maintained,205,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+CHANGELOG.md,documentation,203,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_source_catalog_bibtex.py,test,203,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_EDIT_CONCEPT_IDENTITY_PRESERVATION.md,documentation,202,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/PHASE_ADD_CONCEPT_REFERENCE_IMPORT.md,documentation,199,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/launcher.py,maintained,199,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_MANAGED_SOURCE_WORKFLOW_COMPATIBILITY_FIXES.md,documentation,198,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/selection/captureSelection.ts,maintained,198,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/document_page_maps/indexes.py,maintained,198,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_diary_note_ui_state.py,test,198,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_sonar_http_contracts.py,test,197,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+Makefile,configuration,196,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/source_catalog/presentation.py,maintained,196,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_JBIG2,generated,196,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+tests/test_cuaderno_managed_source_promotion.py,test,196,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_legacy_concept_source_link_e2e.py,test,196,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_diary_note_color_palette.py,test,195,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_mathmongo_launcher.py,test,195,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/source_catalog_migration/locator.py,maintained,193,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_edit_concept_legacy_source_link_ui.py,test,193,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_mathmongo_desktop.py,test,193,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/reading_space/indexes.py,maintained,192,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/READING_ANNOTATIONS_S4.md,documentation,191,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_reading_space_polish_s4_2.py,test,189,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/academic_cli/common.py,maintained,187,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/edit_concept_feedback.py,maintained,186,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/academic_cli/documents.py,maintained,186,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_mathmongo_paths.py,test,186,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_diary_note_persistence.py,test,185,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/MANAGED_SOURCE_WORKFLOW.md,documentation,182,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/concepts/ConceptPanels.tsx,maintained,180,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/third-party/pdfjs-LICENSE.txt,generated,177,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/launcher.py,maintained,176,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+TODO.md,documentation,175,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/ADVANCED_READER_CONCEPT_LINKING_S5C.md,documentation,174,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/READING_SPACE_S3.md,documentation,174,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_mathmongo_config.py,test,174,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/concept_linking/concept_cards.py,maintained,173,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/concept_search.py,maintained,173,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/followup/FINAL.md,documentation,171,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_knowledge_graph_database_scope.py,test,167,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/source_catalog/data_quality.py,maintained,166,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_desktop_launch.py,test,166,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/types/events.ts,maintained,165,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/study-layout.test.ts,test,164,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_document_builder_database_scope.py,test,163,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_S1A_SOURCE_CATALOG_CORE.md,documentation,161,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/RELEASE_NOTES_v0.13.0_MANAGED_SOURCE_WORKFLOW.md,documentation,161,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/concept_schemas.py,maintained,160,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/desktop_launch.py,maintained,159,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+.gitignore,configuration,157,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+exporters_latex/concept_ordering.py,maintained,156,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/source_catalog/workflows.py,maintained,154,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/export_quarto_book.py,maintained,154,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_academic_cli_foundation.py,test,154,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_concept_source_link_contract.py,test,153,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_S1C2P_GUARDED_PRODUCTION_AND_PORTABILITY.md,documentation,152,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/local_runtime/models.py,maintained,152,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/analysis-summary.json,resource,151,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+exporters_latex/exportar_qmd_desde_mongo.py,maintained,151,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_editable_text_area.py,test,150,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_source_catalog_ui_workflows.py,test,150,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_LINK_LEGACY_CONCEPT_TO_MANAGED_SOURCE.md,documentation,149,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/dependencies.py,maintained,149,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/test_cornell_renderer.py,test,148,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_active_database_labels.py,test,148,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/bibliography_lookup/transport.py,maintained,146,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+docs/UNIFIED_LOCAL_RUNTIME_S5B_1.md,documentation,145,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+interface.py,maintained,145,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book_build/_book/site_libs/quarto-html/axe/axe-check.js,generated,145,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/concept_linking/view_models.py,maintained,144,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/ui_helpers.py,maintained,143,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/interface.py,maintained,143,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/DIARIO_REFERENCES_PAGE_LAYOUT.md,documentation,142,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_diary_note_models.py,test,142,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/sphere/RESULTS.json,resource,137,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_space/document_picker.py,maintained,137,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book_build/chapters/definicion/estado-del-controlador-bluetooth-id-bluez-001.qmd,generated,136,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/GUIA_READING_SPACE_MATHMONGO_BUILD.md,documentation,133,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/mandala/BATCH2_RESULTS.json,resource,132,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_database_import_page_ui.py,test,132,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_verified_backup.py,test,131,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/closure/CHECKPOINT.md,documentation,129,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/cornell/identity.py,maintained,128,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/study-document.test.ts,test,128,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+scripts/validate_latex_concepts.py,maintained,128,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/PHASE_EDIT_CONCEPT_UPDATE_FEEDBACK.md,documentation,127,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/bibliography_lookup/capture.py,maintained,127,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+tests/run_knowledge_map_e2e.py,test,126,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/sonar_http_support.py,test,125,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/local_runtime/health.py,maintained,124,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_audit_data_safety.py,test,124,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_audit_mongo_regressions.py,test,124,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/selection.test.ts,test,123,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/THIRD_PARTY_ADVANCED_READER.md,documentation,122,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/components/VisualAnnotationConfirmation.tsx,maintained,121,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_internal_pdf_preview_static.py,test,121,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/knowledge_map/views.py,maintained,120,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cpi/service.py,maintained,119,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathkb_config.py,maintained,119,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/source_catalog/legacy_concepts.py,maintained,118,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/security.py,maintained,117,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/iccs/LICENSE,generated,116,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+tests/test_cpi_region_interactions.py,test,116,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/LOCAL_RUNTIME.md,documentation,115,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_source_catalog_streamlit_forms.py,test,114,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/cpi/identity.py,maintained,112,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/citations.py,maintained,111,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+tests/test_doctor.py,test,111,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_L2_XDG_PATHS_AND_SAFE_MIGRATION.md,documentation,110,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/concept_linking/context.py,maintained,110,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_space/filters.py,maintained,110,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_local_runtime_makefile.py,test,110,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/db/concept_repository.py,maintained,109,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/AUDIO_NOTES_FEASIBILITY.md,documentation,108,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/READING_SPACE_POLISH_S4_2.md,documentation,108,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/knowledge-map/document-citation.ts,maintained,108,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+docs/PHASE_L1_5_DESKTOP_LAUNCHER_ICON.md,documentation,107,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/followup/CLARIFICATIONS.md,documentation,107,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/tests/knowledge-map-browser.mjs,test,107,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/database_scope.py,maintained,106,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/components/SelectionActionToolbar.tsx,maintained,103,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/knowledge-map/math.ts,maintained,103,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_source_catalog_import_safety.py,test,103,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/utils/db_portability.py,maintained,102,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_graph_script_serialization.py,test,102,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_note_editor_streamlit_compat.py,test,102,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_ADD_CONCEPT_MANAGED_SOURCE_SELECTION.md,documentation,101,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/DEPENDENCIES.md,documentation,101,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/FINDINGS.md,documentation,101,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LICENSE_LIBERATION,generated,101,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/releases/v0.14.0-teaching-rc1.md,documentation,100,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/tests/canvasPaint.test.ts,test,99,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+pyproject.toml,configuration,99,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/COMMITS.md,documentation,98,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/advanced_reader_test_support.py,test,96,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_audit_production_guards.py,test,96,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+quarto_book_build/_book/site_libs/quarto-html/tabsets/tabsets.js,generated,95,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/PDF_PREVIEW_CORNELL_CPI_AUDIT.md,documentation,94,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/followup/DIAGNOSIS.md,documentation,93,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+scripts/quality_mongo.py,maintained,93,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_database_connection_bootstrap.py,test,93,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/INSTALLATION.md,documentation,92,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/closure/README.md,documentation,92,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/knowledge-map/drafts.ts,maintained,91,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/knowledge-map/layout.ts,maintained,91,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/LOCAL_INSTALLER_FEASIBILITY_AUDIT.md,documentation,90,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/source_catalog_migration/source_planner.py,maintained,90,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+parsers/yaml_latex_parser.py,maintained,90,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/mandala/README.md,documentation,89,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/PHASE_L1_INSTALLABLE_ENTRYPOINT.md,documentation,88,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book/styles/coloredtheorem.sty,resource,88,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book_build/styles/coloredtheorem.sty,generated,88,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+templates_latex/coloredtheorem.sty,resource,88,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_audit_legacy_parsers.py,test,88,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/SIMPLIFIED_READING_WORKFLOW.md,documentation,87,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/diary_note_editor_export.py,maintained,87,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/closure/SONAR_REVIEW.csv,resource,86,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_latex_toolbar_consumers.py,test,86,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/closure/ENVIRONMENT.md,documentation,85,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_knowledge_map_bridge.py,test,85,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/SONAR_ISSUES.csv,resource,84,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_local_runtime_health.py,test,84,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/user-guide/DATABASE_IMPORT.md,documentation,83,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/pdf/canvasPaint.ts,maintained,83,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/run_theme_draft_e2e.py,test,83,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/knowledge-map/reader.ts,maintained,82,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/range_requests.py,maintained,82,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/canonical.py,maintained,82,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book_build/_book/search.json,generated,82,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+frontend/advanced-reader/vite.config.ts,maintained,81,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/study-reader.test.ts,test,80,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/legacy_concept_aliases.py,maintained,80,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/SOURCE_DOCUMENTS_S2.md,documentation,78,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/test_concept_reference_schema.py,test,78,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/annotations/ui.ts,maintained,77,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_teaching_ui_polish.py,test,77,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/study-drafts.test.ts,test,75,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/COMPARISON.md,documentation,74,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/pdf/types.ts,maintained,74,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_latex_tools_export_compile.py,test,74,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/helpers/managed_source_selection.py,maintained,73,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/mandala/LARGE_FILES.md,documentation,72,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/components/DocumentInspector.tsx,maintained,72,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/knowledge-map/geometry.ts,maintained,72,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_latex_algorithm_environment.py,test,72,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/PHASE_SOURCE_LINK_CONTRACT.md,documentation,71,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_annotations/panel_utils.py,maintained,71,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_documents/indexes.py,maintained,71,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_mathmongo_theme_apptest.py,test,71,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/cornell/persistence.py,maintained,70,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cpi/persistence.py,maintained,70,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/cocid_tutorial_streamlit_validation.py,maintained,70,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/quality.py,maintained,70,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/sphere/REPEAT.md,documentation,69,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+exporters_latex/actualizar_quarto_yml.py,maintained,69,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+scripts/repository_inventory.py,maintained,69,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+.streamlit/config.toml,configuration,68,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/README.md,documentation,68,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+scripts/export_quarto_from_mongo.py,maintained,67,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+templates_latex/cpi_landscape_letter_v1.tex,resource,67,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/source_catalog/reference_actions.py,maintained,66,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/components/SelectionInspector.tsx,maintained,66,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_light_theme_contrast.py,test,66,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/closure/PYTHON_ADVISORIES.csv,resource,65,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/followup/PYTHON_ADVISORIES.csv,resource,65,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/knowledge-map/areas.ts,maintained,64,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/legacy_curves_migration_2026-07-28.md,documentation,63,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/tests/pdfViewportFixture.ts,test,63,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+scripts/install_quarto.sh,maintained,62,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_audit_export_integrity.py,test,62,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/CLI_GUI_PARITY.md,documentation,60,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/mandala/BIBLIOGRAPHY_ANNEX.md,documentation,60,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+scripts/install_chktex.sh,maintained,60,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/cornell/__init__.py,maintained,59,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/package.json,resource,59,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/knowledge-map/ui.ts,maintained,59,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_audit_regex_boundaries.py,test,59,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_bibliography_lookup_ui.py,test,59,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+editor/database_connections.py,maintained,58,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/study-math.test.ts,test,57,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/legacy_curves_resolution_2026-07-28.md,documentation,56,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/knowledge_map.py,maintained,56,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_sonar_tooling.py,test,56,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/tests/study-keyboard.test.ts,test,55,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_migration_plan_identity.py,test,55,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/BACKUP_AND_RECOVERY.md,documentation,54,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/knowledge-map/keyboard.ts,maintained,54,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/followup/REGRESSIONS.md,documentation,53,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/validators/concept_validator.py,maintained,53,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/runtime-notices.test.ts,test,53,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_streamlit_width_deprecation.py,test,53,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/RUFF.md,documentation,52,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/closure/INVENTORY_ADDENDUM.csv,resource,51,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/followup/NEW_COVERAGE.md,documentation,51,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_space/recent_reads.py,maintained,51,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/bibliography_lookup/identifiers.py,maintained,51,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+frontend/advanced-reader/src/annotations/types.ts,maintained,49,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog/__init__.py,maintained,49,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+ruff.toml,configuration,48,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/FINAL_CHECKS.md,documentation,45,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/eslint.config.js,maintained,45,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/scripts/runtime-notices.mjs,maintained,45,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/local_runtime/__init__.py,maintained,45,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+infra/sonarqube/compose.yaml,configuration,44,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+scripts/export_knowledge_graph.py,maintained,43,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/api.test.ts,test,42,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/user-guide/images/SCREENSHOT_PLAN.md,documentation,40,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/concept_linking/navigation.py,maintained,40,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/reading_annotations/navigation.py,maintained,40,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/ui/latex_toolbar.py,maintained,39,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_OPENJPEG,generated,39,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/reading_annotations/__init__.py,maintained,39,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_audit_input_boundaries.py,test,39,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/DELETIONS.md,documentation,38,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/COVERAGE.csv,resource,37,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/diary_note_persistence.py,maintained,36,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/pdf.worker.min-DlJYs1MF.mjs,generated,36,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/LICENSE,generated,36,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/source_catalog/quality.py,maintained,36,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/db/concept_repository_class.py,maintained,34,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/enums.py,maintained,34,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_pdf_export_diagnostics.py,test,34,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/document_page_maps/__init__.py,maintained,33,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/DOCTOR_AND_BOOTSTRAP.md,documentation,32,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/mandala/INTERFACE_DECISION.md,documentation,32,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/COMPATIBILITY_MATRIX.md,documentation,31,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/RUFF.csv,resource,31,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/00_source_pdf_concepto.svg,resource,31,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/closure/COVERAGE.csv,resource,30,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/mandala/DEPENDENCIES.md,documentation,30,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/data/formato_ejemplo.md,documentation,30,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/altText_spinner-BKF_PYl9.svg,generated,30,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+tests/test_legacy_utc_clock.py,test,30,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/reading_space/__init__.py,maintained,29,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book/_quarto.yml,configuration,29,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_space/source_entrypoints.py,maintained,28,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/streamlit_compat.py,maintained,28,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book_build/_quarto.yml,generated,28,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+scripts/sonar_persist_host.sh,maintained,28,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/data/formato_definicion.md,documentation,27,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/data/formato_proposicion.md,documentation,27,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LICENSE_FOXIT,generated,27,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/data/formato_corolario.md,documentation,26,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/data/formato_lema.md,documentation,26,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/data/formato_teorema.md,documentation,26,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/__init__.py,maintained,26,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+constraints/teaching-2026.txt,documentation,25,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/document_page_maps/errors.py,maintained,25,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/reading_annotations/errors.py,maintained,25,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/reading_space/errors.py,maintained,25,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_documents/__init__.py,maintained,25,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_audit_schema_contracts.py,test,25,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_teaching_environment_files.py,test,25,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_repository_inventory.py,test,24,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/audits/sonarqube-2026-11/sphere/INVENTORY.csv,resource,23,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/scripts/text-normalization.mjs,maintained,23,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/source_catalog_migration/__init__.py,maintained,23,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+tests/test_audit_tool_environment.py,test,23,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+.coveragerc,configuration,22,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+assets/icons/mathmongo.svg,resource,22,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/02_mapa_decision.svg,resource,22,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/tsconfig.app.json,resource,22,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_OPENJPEG,generated,22,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_QCMS,generated,22,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/audits/sonarqube-2026-11/closure/COMMITS.md,documentation,21,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/instruccion_latex_imagenes.md,documentation,21,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/cpi/__init__.py,maintained,21,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/setup.ts,test,21,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_QCMS,generated,21,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/third-party/react-LICENSE.txt,generated,21,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/third-party/react-dom-LICENSE.txt,generated,21,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+tests/test_audit_graph_style.py,test,21,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+tests/test_cpi_images.py,test,21,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+app/main.py,maintained,20,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/playwright.config.ts,maintained,20,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/concepts/labels.ts,maintained,20,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/text-normalization.test.ts,test,20,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+frontend/advanced-reader/src/knowledge-map/theme.ts,maintained,19,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/index.html,generated,19,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/audits/sonarqube-2026-11/followup/NEW_COVERAGE.csv,resource,18,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/components/ReaderStatus.tsx,maintained,18,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/vite.map.config.ts,maintained,18,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+docs/audits/sonarqube-2026-11/followup/SONAR_BUGS.csv,resource,17,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/reading_annotations/__init__.py,maintained,17,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/openjpeg_nowasm_fallback.js,generated,17,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+docs/TEACHING_RELEASE_CHECKLIST.md,documentation,15,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/helpers/concept_builders.py,maintained,15,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/index.html,maintained,15,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tsconfig.node.json,resource,15,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/jbig2_nowasm_fallback.js,generated,15,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+constraints/security-2026-11.txt,documentation,14,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/COMMITS.md,documentation,14,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/tests/study-sphere-playwright.config.mjs,test,14,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/time.py,maintained,14,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/src/main.tsx,maintained,13,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/LICENSE_PDFJS_JBIG2,generated,13,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+templates_latex/notes.cls,resource,13,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book_build/_book/site_libs/bootstrap/bootstrap-41f439ca147b692b25f8da8cb301bfdc.min.css,generated,12,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+requirements-dev.txt,documentation,12,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/source_catalog/__init__.py,maintained,11,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tests/knowledge-map-playwright.config.mjs,test,11,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+mathmongo/advanced_reader/static/advanced_reader/third-party/THIRD_PARTY_NOTICES.txt,generated,11,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+sonar-project.properties,configuration,11,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+templates_latex/mathmongo-macros.sty,resource,10,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/conftest.py,test,10,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+docs/user-guide/images/start-flows/01_tres_rutas.svg,resource,9,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/pdf/search.ts,maintained,9,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/react-runtime-DydpthbT.js,generated,9,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/quarto-html/anchor.min.js,generated,9,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/quarto-search/fuse.min.js,generated,9,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+scripts/make_desktop_shortcut.sh,maintained,9,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/ui/study_theme.json,resource,8,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/src/selection/types.ts,maintained,8,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/cursor-editorTextHighlight-kG3uUOwL.svg,generated,8,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/migrate_source_catalog.py,maintained,8,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/pyproject.toml,configuration,8,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/concept_linking/__init__.py,maintained,7,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/tsconfig.json,resource,7,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/pages_selected-DQo9a_mV.svg,generated,7,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/bootstrap/bootstrap.min.js,generated,7,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/clipboard/clipboard.min.js,generated,7,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/quarto-nav/headroom.min.js,generated,7,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+run_gui.py,maintained,7,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/__init__.py,maintained,6,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/cursor-editorFreeHighlight-BI0yQOTG.svg,generated,6,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-editorHighlight-bItQ7VY1.svg,generated,6,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/quarto-html/popper.min.js,generated,6,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/references.bib,generated,6,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/reading_space/__init__.py,maintained,5,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/scripts/runtime-notices.d.mts,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/__main__.py,maintained,5,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/__main__.py,maintained,5,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/checkmark-CyXp43xT.svg,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/comment-popup-editButton-D-4IaIn1.svg,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/editor-toolbar-delete-CGB-4l9Z.svg,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/local_runtime/__main__.py,maintained,5,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book/atlas/README.qmd,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book/atlas/contra_ejemplos/README.qmd,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book/atlas/ejemplos/README.qmd,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book/atlas/notas/README.qmd,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book/chapters/README.qmd,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book/index.qmd,resource,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book_build/atlas/README.qmd,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/atlas/contra_ejemplos/README.qmd,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/atlas/ejemplos/README.qmd,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/atlas/notas/README.qmd,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/chapters/README.qmd,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/index.qmd,generated,5,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+requirements.txt,documentation,5,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+tests/fixtures/bibliography/muskhelishvili_minimal.bib,test,5,conservar_cohortes,Ejecución no equivale a revisión manual integral; grandes: LARGE_FILES.md
+.env.example,resource,4,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+frontend/advanced-reader/public/favicon.svg,resource,4,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+infra/sonarqube/reference.json,resource,4,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/cursor-editorInk-C-PrvEJz.svg,generated,4,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/favicon.svg,generated,4,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/helpers/tipo_aplicacion.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_contexto.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_formalidad.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_presentacion.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_referencia.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_relacion.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_simbolico.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+editor/helpers/tipo_titulo.py,maintained,3,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+infra/sonarqube/.env.example,resource,3,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/advanced_reader/static/advanced_reader/assets/altText_add-CYwmDL6q.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/altText_disclaimer-DcZPQdl4.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/altText_done-D9Xg6iEJ.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/altText_warning-CPikiX5E.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/comment-closeButton-DsQsb5FG.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/cursor-editorFreeText-BOTPtuCf.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/editor-toolbar-edit-11XljVsw.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/messageBar_closingButton-Dd2kZ18g.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/messageBar_info-BqKyMOLe.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/messageBar_warning-73G-PEsH.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pages_closeButton-ZZSii4X0.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pages_viewArrow-BwnEskTK.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pages_viewButton-BMgsh7oE.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-currentOutlineItem-xW5Z3jZi.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-menuArrow-Cn3Nr6Th.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-pageDown-DSyabJL_.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-viewAttachments-DTdbbZKS.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-viewLayers-Uaho0pei.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-viewOutline-CXTnmCCT.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/toolbarButton-zoomIn-C20GIgva.svg,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+media/images/.gitignore,configuration,3,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book_build/_book/site_libs/quarto-search/autocomplete.umd.js,generated,3,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+editor/ui/__init__.py,maintained,2,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+frontend/advanced-reader/scripts/text-normalization.d.mts,resource,2,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+mathmongo/academic_cli/__init__.py,maintained,2,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/knowledge_map/index-_hash_.css,generated,2,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/.gitignore,generated,2,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+quarto_book_build/_book/site_libs/quarto-html/tippy.umd.min.js,generated,2,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/index-DlPmOMxI.js,generated,1,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/index-PbTTNh-R.css,generated,1,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-runtime-CEKqoi4j.css,generated,1,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/treeitem-collapsed-DXRI_Bty.svg,generated,1,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/treeitem-expanded-twNeHY0Y.svg,generated,1,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/bibliography_lookup/__init__.py,maintained,1,revisado_en_este_lote,"Conservar; pruebas offline, persistencia y UI según BIBLIOGRAPHY_ANNEX.md"
+mathmongo/knowledge_map/__init__.py,maintained,1,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+media/images/.gitkeep,resource,1,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+quarto_book_build/_book/site_libs/quarto-html/tippy.css,generated,1,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+scripts/__init__.py,maintained,1,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+assets/icons/mathmongo-256.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/02-created.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/03-edited.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/04-reloaded.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/05-flat.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/06-narrow-editor.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/06-narrow.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/audits/sonarqube-2026-11/sphere/images/07-performance.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/evidence/cocid_drive_docs_tutorial/branding_controls.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/evidence/cocid_drive_docs_tutorial/cornell_editor.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/evidence/cocid_drive_docs_tutorial/cornell_pdf_page_1.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/evidence/cocid_drive_docs_tutorial/cornell_pdf_page_2.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/evidence/cocid_drive_docs_tutorial/cpi_editor.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/evidence/cocid_drive_docs_tutorial/cpi_pdf.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/GUIA_READING_SPACE_MATHMONGO.pdf,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/02_biblioteca.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/02b_biblioteca_tarjetas.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/03_leer.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/04_nota_rapida.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/05_visor_alternativo.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/06_configuracion.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/07_page_map.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/08_lector_completo.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/09_toolbar.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/10_miniaturas.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/11_texto_seleccionado.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/12_confirmar_highlight.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/13_highlight_guardado.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/14_asociar_concepto.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/15_buscar_concepto.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/16_concepto_seleccionado.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/17_concepto_asociado.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/18_underline_guardado.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/19_marcas_lector.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/20_conocimiento_lector.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/21_cuaderno.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/21b_cuaderno_marca.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/21c_cuaderno_notas.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/22_conocimiento.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/22b_conocimiento_pendientes.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/23_mantenimiento.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/24_diagnosticos.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/01_active_database.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/02_add_source.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/03_source_details.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/04_add_concept.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/05_reading_space.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/06_advanced_reader.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/07_evidence_link.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/08_cuaderno.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/09_cuaderno_promote.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/10_edit_concept.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/11_legacy_link.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/reading-space-v013/12_document_builder_or_graph.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/00_source_pdf_concepto.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/01_tres_rutas.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/02_mapa_decision.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case1_04_add_pdf.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case1_06_biblioteca.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case1_07_asociacion_final.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case2_02_highlight_sin_concepto.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case2_03_marcas_sin_concepto.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case2_05_asociacion_final.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case2_06_concepto_pagina.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case3_02_documents_vacio.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case3_03_add_pdf.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case3_04_pdf_biblioteca.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case3_05_busqueda_pdf.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+docs/user-guide/images/start-flows/case3_06_asociacion_final.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+editor/__init__.py,maintained,0,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+exporters_latex/__init__.py,maintained,0,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathdatabase/__init__.py,maintained,0,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+mathmongo/advanced_reader/static/advanced_reader/assets/loading-icon-B-k8Vcu3.gif,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78ms-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/78ms-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/83pv-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/90ms-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/90ms-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/90msp-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/90msp-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/90pv-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/90pv-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Add-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Add-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Add-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Add-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-0.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-1.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-3.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-4.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-5.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-6.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-CNS1-UCS2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-0.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-1.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-3.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-4.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-5.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-GB1-UCS2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-0.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-1.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-3.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-4.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-5.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-6.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Japan1-UCS2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Korea1-0.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Korea1-1.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Korea1-2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Adobe-Korea1-UCS2.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/B5pc-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/B5pc-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/CNS-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/CNS-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/CNS1-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/CNS1-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/CNS2-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/CNS2-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/ETHK-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/ETHK-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/ETen-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/ETen-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/ETenms-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/ETenms-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Ext-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Ext-RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Ext-RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Ext-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GB-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GB-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GB-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GB-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBK-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBK-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBK2K-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBK2K-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBKp-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBKp-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBT-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBT-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBT-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBT-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBTpc-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBTpc-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBpc-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/GBpc-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKdla-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKdla-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKdlb-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKdlb-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKgccs-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKgccs-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKm314-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKm314-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKm471-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKm471-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKscs-B5-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/HKscs-B5-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Hankaku.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Hiragana.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSC-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSC-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSC-Johab-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSC-Johab-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSCms-UHC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSCms-UHC-HW-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSCms-UHC-HW-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSCms-UHC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSCpc-EUC-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/KSCpc-EUC-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Katakana.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/NWP-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/NWP-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/RKSJ-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/RKSJ-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/Roman.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UCS2-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UCS2-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UTF16-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UTF16-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UTF8-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniCNS-UTF8-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UCS2-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UCS2-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UTF16-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UTF16-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UTF8-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniGB-UTF8-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UCS2-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UCS2-HW-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UCS2-HW-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UCS2-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UTF16-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UTF16-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UTF8-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS-UTF8-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS2004-UTF16-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS2004-UTF16-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS2004-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS2004-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS2004-UTF8-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJIS2004-UTF8-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISPro-UCS2-HW-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISPro-UCS2-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISPro-UTF8-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISX0213-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISX0213-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISX02132004-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniJISX02132004-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UCS2-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UCS2-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UTF16-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UTF16-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UTF32-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UTF32-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UTF8-H.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/UniKS-UTF8-V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/V.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/cmaps/WP-Symbol.bcmap,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/iccs/CGATS001Compat-v2-micro.icc,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitDingbats.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitFixed.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitFixedBold.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitFixedBoldItalic.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitFixedItalic.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitSerif.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitSerifBold.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitSerifBoldItalic.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitSerifItalic.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/FoxitSymbol.pfb,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LiberationSans-Bold.ttf,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LiberationSans-BoldItalic.ttf,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LiberationSans-Italic.ttf,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/standard_fonts/LiberationSans-Regular.ttf,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/jbig2.wasm,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/openjpeg.wasm,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+mathmongo/advanced_reader/static/advanced_reader/assets/pdfjs-6.2.108/wasm/qcms_bg.wasm,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+parsers/__init__.py,maintained,0,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+quarto_book_build/_book/site_libs/bootstrap/bootstrap-icons.woff,generated,,revisar_fuente_y_build,No refactorizar el bundle ni contar su regeneración como eliminación
+schemas/__init__.py,maintained,0,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
+templates_latex/lineas.png,resource,,clasificado,Conservar recursos/documentos/configuración; revisar consumidores antes de retirar
+visualizations/__init__.py,maintained,0,pendiente_cotejo_manual,"Reutilizar hallazgos anteriores; priorizar integridad, seguridad y consumidores"
