@@ -260,7 +260,7 @@ def render(context):
             st.session_state.edit_autocontenible = meta.get('es_autocontenible', True)
             st.session_state.edit_presentacion = meta.get('tipo_presentacion', 'expositivo')
             st.session_state.edit_simbolico = meta.get('nivel_simbolico', 'bajo')
-            st.session_state.edit_aplicacion = meta.get('tipo_aplicacion', [])
+            st.session_state.edit_aplicacion = meta.get('tipo_aplicacion') or []
 
             # Initialize algorithm fields in session state
             st.session_state.edit_algoritmo = selected_concept.get("es_algoritmo", False)
