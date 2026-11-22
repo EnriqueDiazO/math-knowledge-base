@@ -1201,6 +1201,7 @@ nav_options = [
     "📥 Importar base",
     "🧰 Mantenimiento",
     "⚙️ Configuración",
+    "Diagnóstico",
 ]
 if _cuaderno_is_installed(db):
     nav_options[1:1] = ["📝 Cuaderno", "🟩 Cornell", CPI_NAV_LABEL]
@@ -1252,6 +1253,13 @@ elif page == EDIT_SOURCE_NAV_LABEL:
         )
     else:
         render_edit_source_page(catalog_context)
+
+elif page == 'Diagnóstico':
+    if catalog_context is None:
+        st.error('Conecta una biblioteca desde Ajustes para comprobar su estado.')
+    else:
+        from editor.reading_space.diagnostics import render_reading_diagnostics
+        render_reading_diagnostics(catalog_context)
 
 elif page == READING_SPACE_NAV_LABEL:
     if catalog_context is None:

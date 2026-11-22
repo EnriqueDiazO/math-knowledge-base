@@ -102,6 +102,9 @@ class FakeUI:
     def write(self, value: object) -> None:
         self._message("write", value)
 
+    def text(self, value: object) -> None:
+        self._message("text", value)
+
     def divider(self) -> None:
         return None
 
@@ -671,13 +674,15 @@ def test_add_source_only_reading_note_uses_plain_text_values() -> None:
 
 def test_source_only_note_remains_visible_beside_current_document() -> None:
     source_only = _note(document_id=None, note_id="note-source-only")
+    source_only.body = 'Nota exclusiva de la fuente'
     ui = FakeUI()
     bound_notes = tuple(_note(note_id=f"note-{index}") for index in range(50))
     service = FakeService(notes=bound_notes, source_notes=(source_only,))
 
     _render(ui, service)
 
-    assert any(row.get("note_id") == "note-source-only" for table in ui.rows for row in table)
+    assert ('text', 'Nota exclusiva de la fuente') in ui.messages
+    assert not ui.rows
     assert service.source_note_list_kwargs["source_only"] is True
 
 

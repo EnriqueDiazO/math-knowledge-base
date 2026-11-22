@@ -53,13 +53,17 @@ def _render_index_status(
     try:
         statuses = tuple(manager.status())
         plan = manager.plan()
-    except Exception as exc:
-        ui.error(f"Could not inspect Notes & Evidence indexes: {safe_error_message(exc)}")
+    except Exception:
+        ui.error("No se pudo comprobar si las notas y subrayados están disponibles. El borrador se conserva; vuelve a comprobar en Lectura o abre Ajustes → Diagnóstico.")
         return False
     initialized = bool(getattr(plan, "initialized", False))
     conflicts = tuple(getattr(plan, "conflicts", ()))
+    if not maintenance:
+        if not initialized:
+            ui.caption("Para escribir notas y subrayados, abre Lectura y pulsa «Preparar notas y subrayados». Puedes seguir consultando el contenido existente.")
+        return initialized
     if initialized:
-        ui.success(f"✅ Notes & Evidence ready on {context.database_name}.")
+        ui.success(f"Notas y subrayados preparados en {context.database_name}.")
     elif conflicts:
         ui.error("Notes & Evidence index conflicts require Maintenance.")
     else:
@@ -92,14 +96,14 @@ def _render_index_status(
                 ui.warning("Initialization requires the exact database name and confirmation.")
             else:
                 try:
-                    applied = manager.apply()
+                    manager.apply()
                 except Exception as exc:
                     ui.error(
                         "Could not initialize Notes & Evidence indexes: "
                         f"{safe_error_message(exc)}"
                     )
                 else:
-                    initialized = bool(getattr(applied, "initialized", True))
+                    initialized = bool(getattr(manager.plan(), "initialized", False))
                     if initialized:
                         ui.success("Notes & Evidence indexes initialized.")
     return initialized
@@ -213,7 +217,9 @@ def _render_annotation_card(
     status = enum_value(item.status)
     visual = is_visual_annotation(item)
     visual_prefix = "Marca visual · " if visual else ""
-    title = f"{visual_prefix}{enum_value(item.kind)} · {status} · {item.annotation_id}"
+    kinds = {'highlight': 'Resaltado', 'underline': 'Subrayado', 'comment': 'Comentario', 'bookmark': 'Marcador', 'question': 'Pregunta'}
+    excerpt = ' '.join(str(item.quote_text or item.body or '').split())[:100]
+    title = f"{visual_prefix}{kinds.get(enum_value(item.kind), 'Anotación')} · {excerpt}"
     with ui.expander(title, expanded=False):
         if visual:
             badge = getattr(ui, "badge", None)
@@ -221,19 +227,12 @@ def _render_annotation_card(
                 badge("Marca visual", color="violet")
             else:
                 ui.caption("🟣 Marca visual")
-        ui.write(
-            {
-                "quote_text": item.quote_text,
-                "body": item.body,
-                "page_label": item.page_label,
-                "color_label": item.color_label,
-                "tags": item.tags,
-                "status": status,
-            }
-        )
-        if visual:
-            with ui.expander("Detalles técnicos de la marca visual", expanded=False):
-                ui.write(visual_annotation_details(item))
+        if item.quote_text:
+            ui.text(item.quote_text)
+        if item.body:
+            ui.text(item.body)
+        details = [str(item.page_label or ''), ', '.join(item.tags), 'Archivada' if status == 'archived' else 'Activa']
+        ui.caption(' · '.join(value for value in details if value))
         render_open_document(
             ui,
             source_id=item.source_id,
@@ -559,7 +558,7 @@ def render_workspace_notes_panel(
     ui.subheader("Notes & Evidence")
     _render_workspace_counts(ui, service, document.document_id)
     if not initialized:
-        ui.caption("Writes require Notes & Evidence initialization in Maintenance.")
+        ui.caption("Para guardar, pulsa «Preparar notas y subrayados» en Lectura. Tu borrador se conserva.")
     _render_annotations(
         ui,
         context.database,
@@ -769,7 +768,7 @@ def render_notes_and_evidence_panel(
     writable = s4_initialized and document_active
     if not s4_initialized:
         ui.caption(
-            "Existing Notes & Evidence remain readable; writes require initialized S4 indexes."
+            "Puedes leer las notas y marcas existentes. Para escribir, utiliza «Preparar notas y subrayados» en Lectura."
         )
     elif not document_active:
         ui.caption(

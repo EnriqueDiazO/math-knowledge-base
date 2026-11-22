@@ -89,10 +89,13 @@ def render_note_panel(
     if not show_quick and not show_list:
         return
     document_id = document.document_id
-    ui.subheader("Reading Notes")
+    ui.subheader("Notas de lectura")
+    feedback = ui.session_state.pop(state_key('note_saved_notice', document_id), None)
+    if feedback:
+        ui.success(feedback)
     if show_quick:
-        with ui.expander("Quick Reading Note", expanded=quick_expanded):
-            ui.caption("Capture a compact plain-text note for this Document or its Source.")
+        with ui.expander("Escribir una nota de lectura", expanded=quick_expanded):
+            ui.caption("Anota una idea sobre este documento o su fuente. Sólo se publica al guardar.")
             draft = (
                 render_quick_note_form(
                     ui,
@@ -127,7 +130,8 @@ def render_note_panel(
                     page_end=draft.page_end,
                     tags=draft.tags,
                 )
-                if render_result(ui, result, success="Reading Note added."):
+                if render_result(ui, result, success="Nota guardada."):
+                    ui.session_state[state_key('note_saved_notice', document_id)] = 'Nota guardada. Tu texto ya está en esta biblioteca.'
                     queue_draft_clear(
                         ui.session_state,
                         form_key="quick_note",
@@ -210,12 +214,6 @@ def render_note_panel(
                 "Notas del documento" if label == "Document Notes" else "Notas de la fuente"
             )
             ui.caption(f"{visible_label if review_only else label} · {len(values)}")
-            if not review_only:
-                ui.dataframe(
-                    note_rows(values, page_labeler=page_labeler),
-                    width="stretch",
-                    hide_index=True,
-                )
     for item in (*document_notes, *source_notes):
         status = enum_value(item.status)
         note_write_enabled = actions_enabled and (item.document_id is None or document_active)
@@ -241,18 +239,11 @@ def render_note_panel(
                 )
             continue
         with ui.expander(card_title):
-            ui.write(
-                {
-                    "title": item.title,
-                    "body": item.body,
-                    "note_type": enum_value(item.note_type),
-                    "page_start": item.page_start,
-                    "page_end": item.page_end,
-                    "tags": item.tags,
-                    "reference_id": item.reference_id,
-                    "status": status,
-                }
-            )
+            ui.text(item.body)
+            if pages:
+                ui.caption(pages)
+            if item.tags:
+                ui.caption(' · '.join(item.tags))
             render_open_document(
                 ui,
                 source_id=item.source_id,
@@ -314,7 +305,8 @@ def render_note_panel(
                         page_end=draft.page_end,
                         tags=draft.tags,
                     )
-                    if render_result(ui, updated, success="Reading Note updated."):
+                    if render_result(ui, updated, success="Nota actualizada."):
+                        ui.session_state[state_key('note_saved_notice', document_id)] = 'Nota actualizada.'
                         queue_draft_clear(
                             ui.session_state,
                             form_key=f"edit_note_{item.note_id}",

@@ -377,11 +377,15 @@ class FakeService:
         )
 
 
+class MetadataDatabase(dict):
+    name = "isolated_s3_ui"
+
+
 def _context(source: Source) -> SimpleNamespace:
     return SimpleNamespace(
         connection_label="isolated",
         database_name="isolated_s3_ui",
-        database=object(),
+        database=SimpleNamespace(name="isolated_s3_ui"),
         source_repository=FakeRepository((source,)),
         reference_repository=FakeRepository(()),
     )
@@ -725,7 +729,8 @@ def test_full_page_filters_and_lists_without_loading_pdf() -> None:
     assert ui.tab_calls[0][0] == ("Biblioteca", "Leer", "Cuaderno", "Conocimiento")
     assert "Page Map" not in ui.tab_calls[0][0]
     assert "Maintenance" not in ui.tab_calls[0][0]
-    assert ("popover", "⚙️ Configuración") in ui.layout_events
+    assert ("popover", "⚙️ Configuración") not in ui.layout_events
+    assert not ui.rows
     assert document.document_id not in rendered
     assert not any(label in {"Change Document", "Recent Documents"} for label, _ in ui.expanders)
     assert ("container", state_key("workspace")) not in ui.layout_events
@@ -775,7 +780,7 @@ def test_selected_document_uses_split_workspace_and_compact_top_bar(
         }
     )
     context = _context(source)
-    context.database = {}
+    context.database = MetadataDatabase()
     s4_calls: list[str] = []
     monkeypatch.setattr(
         reading_page_module,
@@ -825,7 +830,7 @@ def test_selected_document_can_use_stacked_layout_without_split_columns(
         }
     )
     context = _context(source)
-    context.database = {}
+    context.database = MetadataDatabase()
     s4_calls: list[str] = []
     monkeypatch.setattr(
         reading_page_module,
