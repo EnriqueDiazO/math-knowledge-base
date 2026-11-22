@@ -10,6 +10,7 @@ import type {
 } from "./model";
 import { freshView, draftFor } from "./model";
 import { emptyLocator } from "./bibliography";
+import { compareKeys } from "./geometry";
 export type Workspace = {
   uid: string;
   revision: string;
@@ -72,7 +73,7 @@ export function sharedConcepts(
   if (!first || !second) return [];
   const left = memberKeys(data, first),
     right = memberKeys(data, second);
-  return [...left].filter((key) => right.has(key)).sort();
+  return [...left].filter((key) => right.has(key)).sort(compareKeys);
 }
 export function roomPose(x: number, y: number): [number, number] {
   return [Math.max(0.1, Math.min(0.9, x)), Math.max(0.15, Math.min(0.85, y))];

@@ -56393,8 +56393,8 @@ function WB(e, t) {
 }
 function GB(e, t, n) {
 	if (!t || !n) return [];
-	let r = WB(e, t), i = WB(e, n);
-	return [...r].filter((e) => i.has(e)).sort();
+	let r = WB(e, t), a = WB(e, n);
+	return [...r].filter((e) => a.has(e)).sort(i);
 }
 function KB(e, t) {
 	return [Math.max(.1, Math.min(.9, e)), Math.max(.15, Math.min(.85, t))];
