@@ -1,6 +1,7 @@
 /** Ship the installed runtime dependency notices with the offline editor bundle. */
 import fs from "node:fs";
 import path from "node:path";
+import { normalizeRedistributedLicense } from "./text-normalization.mjs";
 const root = path.resolve(import.meta.dirname, "..");
 export function runtimeNotices(directory = root) {
   return {
@@ -37,7 +38,7 @@ export function runtimeNotices(directory = root) {
       this.emitFile({
         type: "asset",
         fileName: "THIRD_PARTY_LICENSES.txt",
-        source: sections.join("\n") + "\n",
+        source: normalizeRedistributedLicense(sections.join("\n")),
       });
     },
   };

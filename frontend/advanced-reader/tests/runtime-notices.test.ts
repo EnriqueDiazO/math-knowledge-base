@@ -22,7 +22,7 @@ it("ships installed runtime licenses, skips development/absent platform packages
   const runtime = pkg("runtime", { license: "MIT" });
   writeFileSync(
     join(runtime, "LICENSE.txt"),
-    "Copyright actual owner\nPermission granted",
+    "Copyright actual owner  \nPermission granted\n\n",
   );
   mkdirSync(join(runtime, "NOTICE"));
   pkg("shared-reader", {});
@@ -45,7 +45,8 @@ it("ships installed runtime licenses, skips development/absent platform packages
   const artifact = emitFile.mock.calls[0][0];
   expect(artifact.fileName).toBe("THIRD_PARTY_LICENSES.txt");
   expect(artifact.source).toContain("runtime 1.0.0 (MIT)");
-  expect(artifact.source).toContain("Copyright actual owner");
+  expect(artifact.source).toContain("Copyright actual owner\nPermission granted");
+  expect(artifact.source.endsWith("\n\n")).toBe(false);
   expect(artifact.source).toContain("shared-reader 1.0.0 (BSD-3-Clause)");
   expect(artifact.source).not.toContain("dev-only");
   expect(artifact.source).not.toContain("absent-platform");
