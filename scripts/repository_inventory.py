@@ -60,7 +60,7 @@ def main() -> None:
     """Write one explicit CSV to stdout; never modify sources or user data."""
     import sys
 
-    writer = csv.DictWriter(sys.stdout, fieldnames=['path', 'lines', 'kind', 'bytes', 'sha256', 'classification_reason'])
+    writer = csv.DictWriter(sys.stdout, lineterminator='\n', fieldnames=['path', 'lines', 'kind', 'bytes', 'sha256', 'classification_reason'])
     writer.writeheader()
     writer.writerows(inventory(ROOT))
 

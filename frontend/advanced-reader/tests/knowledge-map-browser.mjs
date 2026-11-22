@@ -24,7 +24,7 @@ async function navigate(label) {
 }
 try {
   await progress('start'); await page.goto(url); await progress('loaded'); await navigate('🗺️ Grafo de conocimiento');
-  await expect(page.getByRole('heading', { name: 'Tu conocimiento, conectado' })).toBeVisible({ timeout: 30000 });
+  await expect(page.getByRole('region', { name: 'Mapa de conocimiento editable', exact: true })).toBeVisible({ timeout: 30000 });
   if (mode === 'performance') {
     const canvas = page.locator('.knowledge-map canvas');
     await canvas.scrollIntoViewIfNeeded(); await canvas.focus();

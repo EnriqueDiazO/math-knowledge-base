@@ -30,7 +30,8 @@ def free_port() -> int:
 
 def main() -> None:
     """Verify the real application and remove only the resources owned here."""
-    evidence = ROOT / 'evidence/sonar/sphere-2026-11'
+    performance_only = '--performance-only' in sys.argv
+    evidence = ROOT / ('evidence/sonar/mandala-2026-11/room-performance' if performance_only else 'evidence/sonar/sphere-2026-11')
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix='mathmongo-map-browser-') as directory:
         work = Path(directory)
@@ -76,21 +77,29 @@ def main() -> None:
                         time.sleep(.1)
                 browser_env = dict(env, MATHMONGO_MAP_TEST_URL=url, MATHMONGO_MAP_TEST_EVIDENCE=str(evidence))
                 browser_command = ['node', 'node_modules/@playwright/test/cli.js', 'test', '--config=tests/knowledge-map-playwright.config.mjs']
-                result = subprocess.run(browser_command, cwd=ROOT / 'frontend/advanced-reader', env=browser_env, text=True, capture_output=True, timeout=180)
-                (evidence / 'browser.log').write_text(result.stdout + result.stderr)
-                if result.returncode:
-                    raise RuntimeError('Browser verification failed; see private browser.log')
-                created = database.concepts.find_one({'titulo': 'Grupo editado desde la esfera'})
-                assert created is not None
-                content = database.latex_documents.find_one({'id': created['id'], 'source': created['source']})
-                assert content['contenido_latex'] == r'$G \times G \to G$; edición persistida.'
-                assert database.relations.count_documents({}) == 2
-                seed = database.concepts.find_one({'id': 'nota:semilla'})
-                assert seed['image_ids'] == ['shared-test'] and seed['custom'] == {'preserve': True}
-                summary = {'ok': True, 'concepts': database.concepts.count_documents({}), 'relations': database.relations.count_documents({}), 'persisted_content': True, 'extra_metadata_preserved': True, 'database_was_owned': True}
-                (evidence / 'persistence.json').write_text(json.dumps(summary, indent=2) + '\n')
-                print(result.stdout.strip())
-                print(json.dumps(summary))
+                if performance_only:
+                    # Same three seed nodes/two edges as the historical benchmark;
+                    # interaction acceptance is covered by run_study_sphere_e2e.
+                    for cid, title in [('nota:grupo', 'Grupo editado desde la esfera'), ('nota:subgrupo', 'Subgrupo conectado')]:
+                        database.concepts.insert_one({'id': cid, 'source': source.name, 'tipo': 'nota', 'titulo': title, 'categorias': []})
+                        database.latex_documents.insert_one({'id': cid, 'source': source.name, 'contenido_latex': '$G$'})
+                    database.relations.insert_many([{'desde': 'nota:semilla@'+source.name, 'hasta': cid+'@'+source.name, 'tipo': 'implica'} for cid in ['nota:grupo', 'nota:subgrupo']])
+                else:
+                    result = subprocess.run(browser_command, cwd=ROOT / 'frontend/advanced-reader', env=browser_env, text=True, capture_output=True, timeout=180)
+                    (evidence / 'browser.log').write_text(result.stdout + result.stderr)
+                    if result.returncode:
+                        raise RuntimeError('Browser verification failed; see private browser.log')
+                    created = database.concepts.find_one({'titulo': 'Grupo editado desde la esfera'})
+                    assert created is not None
+                    content = database.latex_documents.find_one({'id': created['id'], 'source': created['source']})
+                    assert content['contenido_latex'] == r'$G \times G \to G$; edición persistida.'
+                    assert database.relations.count_documents({}) == 2
+                    seed = database.concepts.find_one({'id': 'nota:semilla'})
+                    assert seed['image_ids'] == ['shared-test'] and seed['custom'] == {'preserve': True}
+                    summary = {'ok': True, 'concepts': database.concepts.count_documents({}), 'relations': database.relations.count_documents({}), 'persisted_content': True, 'extra_metadata_preserved': True, 'database_was_owned': True}
+                    (evidence / 'persistence.json').write_text(json.dumps(summary, indent=2) + '\n')
+                    print(result.stdout.strip())
+                    print(json.dumps(summary))
                 concepts = [{'id': f'nota:perf_{i}', 'source': source.name, 'tipo': 'nota', 'titulo': f'Concepto temporal {i}', 'categorias': []} for i in range(1000)]
                 database.concepts.insert_many(concepts)
                 database.latex_documents.insert_many([{'id': d['id'], 'source': source.name, 'contenido_latex': '$x$'} for d in concepts])

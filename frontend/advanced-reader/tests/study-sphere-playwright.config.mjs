@@ -2,7 +2,7 @@ import { defineConfig } from "@playwright/test";
 import path from "node:path";
 export default defineConfig({
   testDir: ".",
-  testMatch: "study-sphere-browser.mjs",
+  testMatch: process.env.MATHMONGO_STUDY_SCENARIO === "room" ? "study-room-browser.mjs" : "study-sphere-browser.mjs",
   workers: 1,
   retries: 0,
   timeout: 210000,
