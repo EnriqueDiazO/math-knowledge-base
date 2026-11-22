@@ -57,7 +57,163 @@
     "line_coverage": "74.3"
   },
   "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
-  "active_issues": [
+  "active_issues": [],
+  "frontend_browser_merge": {
+    "unit": {
+      "lines": {
+        "total": 5265,
+        "covered": 3877,
+        "pct": 73.64
+      },
+      "branches": {
+        "total": 3633,
+        "covered": 2194,
+        "pct": 60.39
+      }
+    },
+    "combined": {
+      "lines": {
+        "total": 5265,
+        "covered": 4109,
+        "pct": 78.04
+      },
+      "branches": {
+        "total": 3633,
+        "covered": 2331,
+        "pct": 64.16
+      }
+    },
+    "additional_lines": 232,
+    "additional_branches": 137,
+    "browser_files": [
+      "src/knowledge-map/geometry.ts",
+      "src/knowledge-map/layout.ts",
+      "src/knowledge-map/areas.ts",
+      "src/knowledge-map/canvas.ts",
+      "src/knowledge-map/document-citation.ts",
+      "src/knowledge-map/provenance.ts",
+      "src/knowledge-map/document-dialog.ts",
+      "src/knowledge-map/reader.ts",
+      "src/knowledge-map/room-state.ts",
+      "src/knowledge-map/room.ts",
+      "src/knowledge-map/map-filters.ts",
+      "src/knowledge-map/component.ts",
+      "src/study/ConceptRelations.tsx",
+      "src/study/ConceptPages.tsx",
+      "src/study/ConceptTypeBadge.tsx",
+      "src/study/ConceptWorkspace.tsx",
+      "src/knowledge-map/math.ts",
+      "src/knowledge-map/keyboard.ts",
+      "src/knowledge-map/document.ts",
+      "src/knowledge-map/document-editor.ts",
+      "src/study/DocumentSurface.tsx",
+      "src/study/NoteWorkspace.tsx",
+      "src/study/NotePages.tsx",
+      "src/annotations/ui.ts",
+      "src/concepts/labels.ts",
+      "src/concepts/ConceptLinkWizard.tsx",
+      "src/concepts/ConceptPanels.tsx",
+      "src/components/ReaderStatus.tsx",
+      "src/components/SelectionActionToolbar.tsx",
+      "src/components/SelectionInspector.tsx",
+      "src/components/Toolbar.tsx",
+      "src/components/VisualAnnotationConfirmation.tsx",
+      "src/components/VisualAnnotationsPanel.tsx",
+      "src/pdf/search.ts",
+      "src/app/App.tsx",
+      "src/annotations/geometry.ts",
+      "src/annotations/types.ts",
+      "src/annotations/VisualAnnotationLayer.ts",
+      "src/selection/captureSelection.ts",
+      "src/pdf/canvasPaint.ts",
+      "src/pdf/ThumbnailManager.ts",
+      "src/pdf/PdfJsController.ts",
+      "src/app/ReaderEntry.tsx",
+      "src/study/ReadingPage.tsx",
+      "src/study/SourceForms.tsx",
+      "src/knowledge-map/ui.ts",
+      "src/knowledge-map/bibliography.ts",
+      "src/api/client.ts",
+      "src/knowledge-map/concept-types.ts",
+      "src/knowledge-map/theme.ts",
+      "src/study-reader-theme.ts",
+      "src/study/api.ts",
+      "src/study/navigation.ts",
+      "src/study/StudyLink.tsx",
+      "src/study/useLocalForm.ts",
+      "src/study/useOperationScope.ts",
+      "src/study/AuthoringPreparation.tsx",
+      "src/study/ReferenceForm.tsx",
+      "src/study/DocumentForm.tsx",
+      "src/study/document-links.ts",
+      "src/study/LibraryPages.tsx",
+      "src/knowledge-map/drafts.ts",
+      "src/study/drafts.ts",
+      "src/study/StudyApp.tsx",
+      "src/StudyEntry.tsx",
+      "src/main.tsx",
+      "src/knowledge-map/model.ts"
+    ],
+    "executed_assets": [
+      {
+        "file": "index-h6JkToC_.js",
+        "sha256": "fb2fe8ecbf8e0e992bd1737379febc17f9811c7a834fd374fe0bffbf8edcde95"
+      },
+      {
+        "file": "react-runtime-DydpthbT.js",
+        "sha256": "904c18555d72008115bb03c72c1718b4e7e11560a3eb2e98f438175843c15848"
+      },
+      {
+        "file": "pdfjs-runtime-F8NMAkdw.js",
+        "sha256": "ac79ba45e75f869d57ae2c39347d960cd58cedd80c685d5ee4c9b65c969a9d99"
+      },
+      {
+        "file": "client-YNM-R8bA.js",
+        "sha256": "1b4f94bad62095f2d6adac8c787ed327dc35c24be9e69b61c838d5b2f7859045"
+      },
+      {
+        "file": "ReadingPage-DfNeFlPN.js",
+        "sha256": "bc9f93f89e08f1960ecf91108925805b9199a36436a73865a24b50595b66bacd"
+      },
+      {
+        "file": "ReaderEntry-Dc1UG7Qo.js",
+        "sha256": "f0f4e484226f97754198a1ec6211df4d00a5741d5dc42cd407a753e85358fbcc"
+      },
+      {
+        "file": "model-BTRgm6bT.js",
+        "sha256": "8a906348d16c19474cecd45bd60ec4f21b6a7b1b3fdd22a09259f4881f00eb50"
+      },
+      {
+        "file": "NotePages-Cs3JioYA.js",
+        "sha256": "157b9136898f54b55a7985b8db9ee709ddfd6ef779de58cdfcbfd75621a40ea4"
+      },
+      {
+        "file": "DocumentSurface-BvuZP0VU.js",
+        "sha256": "bfdba079b306a9134e6e08e37e3ffdf985a0aeb15873f441eefc2e04a4cb1685"
+      },
+      {
+        "file": "bibliography-3gukyMLO.js",
+        "sha256": "e1c3c94574f096899c498ff302c49919b0c64776ca91e240f41ccf35c45f692d"
+      },
+      {
+        "file": "ConceptTypeBadge-CiA-H2Ga.js",
+        "sha256": "fea3b8faf27067894e0558b7c5732950b2f15d0a2e177fbdbe8327bbed3d8c21"
+      },
+      {
+        "file": "ConceptPages-Bh64lSyp.js",
+        "sha256": "abbd2338c83ea022da394f881c423506d176ccbb7b05e5821a0569fb37b4ddb0"
+      },
+      {
+        "file": "SourceForms-D48RllaG.js",
+        "sha256": "b93110bbee9bb884808c54b81bce208e63a936286143fb2e64f1f67f9ae9f217"
+      },
+      {
+        "file": "ConceptWorkspace-DTZyCgtl.js",
+        "sha256": "6a5c6e925798bfceda8d271e37ba9e43ba16f3e06bf64e08fa8feab9cdd7e582"
+      }
+    ]
+  },
+  "resolved_reviewed_issues": [
     {
       "key": "1e3753f2-221a-4d5c-b754-dc01c5b6d331",
       "rule": "python:S5332",
@@ -1477,160 +1633,5 @@
       "internalTags": [],
       "linkedTicketStatus": "NOT_LINKED"
     }
-  ],
-  "frontend_browser_merge": {
-    "unit": {
-      "lines": {
-        "total": 5265,
-        "covered": 3877,
-        "pct": 73.64
-      },
-      "branches": {
-        "total": 3633,
-        "covered": 2194,
-        "pct": 60.39
-      }
-    },
-    "combined": {
-      "lines": {
-        "total": 5265,
-        "covered": 4109,
-        "pct": 78.04
-      },
-      "branches": {
-        "total": 3633,
-        "covered": 2331,
-        "pct": 64.16
-      }
-    },
-    "additional_lines": 232,
-    "additional_branches": 137,
-    "browser_files": [
-      "src/knowledge-map/geometry.ts",
-      "src/knowledge-map/layout.ts",
-      "src/knowledge-map/areas.ts",
-      "src/knowledge-map/canvas.ts",
-      "src/knowledge-map/document-citation.ts",
-      "src/knowledge-map/provenance.ts",
-      "src/knowledge-map/document-dialog.ts",
-      "src/knowledge-map/reader.ts",
-      "src/knowledge-map/room-state.ts",
-      "src/knowledge-map/room.ts",
-      "src/knowledge-map/map-filters.ts",
-      "src/knowledge-map/component.ts",
-      "src/study/ConceptRelations.tsx",
-      "src/study/ConceptPages.tsx",
-      "src/study/ConceptTypeBadge.tsx",
-      "src/study/ConceptWorkspace.tsx",
-      "src/knowledge-map/math.ts",
-      "src/knowledge-map/keyboard.ts",
-      "src/knowledge-map/document.ts",
-      "src/knowledge-map/document-editor.ts",
-      "src/study/DocumentSurface.tsx",
-      "src/study/NoteWorkspace.tsx",
-      "src/study/NotePages.tsx",
-      "src/annotations/ui.ts",
-      "src/concepts/labels.ts",
-      "src/concepts/ConceptLinkWizard.tsx",
-      "src/concepts/ConceptPanels.tsx",
-      "src/components/ReaderStatus.tsx",
-      "src/components/SelectionActionToolbar.tsx",
-      "src/components/SelectionInspector.tsx",
-      "src/components/Toolbar.tsx",
-      "src/components/VisualAnnotationConfirmation.tsx",
-      "src/components/VisualAnnotationsPanel.tsx",
-      "src/pdf/search.ts",
-      "src/app/App.tsx",
-      "src/annotations/geometry.ts",
-      "src/annotations/types.ts",
-      "src/annotations/VisualAnnotationLayer.ts",
-      "src/selection/captureSelection.ts",
-      "src/pdf/canvasPaint.ts",
-      "src/pdf/ThumbnailManager.ts",
-      "src/pdf/PdfJsController.ts",
-      "src/app/ReaderEntry.tsx",
-      "src/study/ReadingPage.tsx",
-      "src/study/SourceForms.tsx",
-      "src/knowledge-map/ui.ts",
-      "src/knowledge-map/bibliography.ts",
-      "src/api/client.ts",
-      "src/knowledge-map/concept-types.ts",
-      "src/knowledge-map/theme.ts",
-      "src/study-reader-theme.ts",
-      "src/study/api.ts",
-      "src/study/navigation.ts",
-      "src/study/StudyLink.tsx",
-      "src/study/useLocalForm.ts",
-      "src/study/useOperationScope.ts",
-      "src/study/AuthoringPreparation.tsx",
-      "src/study/ReferenceForm.tsx",
-      "src/study/DocumentForm.tsx",
-      "src/study/document-links.ts",
-      "src/study/LibraryPages.tsx",
-      "src/knowledge-map/drafts.ts",
-      "src/study/drafts.ts",
-      "src/study/StudyApp.tsx",
-      "src/StudyEntry.tsx",
-      "src/main.tsx",
-      "src/knowledge-map/model.ts"
-    ],
-    "executed_assets": [
-      {
-        "file": "index-h6JkToC_.js",
-        "sha256": "fb2fe8ecbf8e0e992bd1737379febc17f9811c7a834fd374fe0bffbf8edcde95"
-      },
-      {
-        "file": "react-runtime-DydpthbT.js",
-        "sha256": "904c18555d72008115bb03c72c1718b4e7e11560a3eb2e98f438175843c15848"
-      },
-      {
-        "file": "pdfjs-runtime-F8NMAkdw.js",
-        "sha256": "ac79ba45e75f869d57ae2c39347d960cd58cedd80c685d5ee4c9b65c969a9d99"
-      },
-      {
-        "file": "client-YNM-R8bA.js",
-        "sha256": "1b4f94bad62095f2d6adac8c787ed327dc35c24be9e69b61c838d5b2f7859045"
-      },
-      {
-        "file": "ReadingPage-DfNeFlPN.js",
-        "sha256": "bc9f93f89e08f1960ecf91108925805b9199a36436a73865a24b50595b66bacd"
-      },
-      {
-        "file": "ReaderEntry-Dc1UG7Qo.js",
-        "sha256": "f0f4e484226f97754198a1ec6211df4d00a5741d5dc42cd407a753e85358fbcc"
-      },
-      {
-        "file": "model-BTRgm6bT.js",
-        "sha256": "8a906348d16c19474cecd45bd60ec4f21b6a7b1b3fdd22a09259f4881f00eb50"
-      },
-      {
-        "file": "NotePages-Cs3JioYA.js",
-        "sha256": "157b9136898f54b55a7985b8db9ee709ddfd6ef779de58cdfcbfd75621a40ea4"
-      },
-      {
-        "file": "DocumentSurface-BvuZP0VU.js",
-        "sha256": "bfdba079b306a9134e6e08e37e3ffdf985a0aeb15873f441eefc2e04a4cb1685"
-      },
-      {
-        "file": "bibliography-3gukyMLO.js",
-        "sha256": "e1c3c94574f096899c498ff302c49919b0c64776ca91e240f41ccf35c45f692d"
-      },
-      {
-        "file": "ConceptTypeBadge-CiA-H2Ga.js",
-        "sha256": "fea3b8faf27067894e0558b7c5732950b2f15d0a2e177fbdbe8327bbed3d8c21"
-      },
-      {
-        "file": "ConceptPages-Bh64lSyp.js",
-        "sha256": "abbd2338c83ea022da394f881c423506d176ccbb7b05e5821a0569fb37b4ddb0"
-      },
-      {
-        "file": "SourceForms-D48RllaG.js",
-        "sha256": "b93110bbee9bb884808c54b81bce208e63a936286143fb2e64f1f67f9ae9f217"
-      },
-      {
-        "file": "ConceptWorkspace-DTZyCgtl.js",
-        "sha256": "6a5c6e925798bfceda8d271e37ba9e43ba16f3e06bf64e08fa8feab9cdd7e582"
-      }
-    ]
-  }
+  ]
 }
