@@ -126,3 +126,50 @@ describe("canonical document compatibility", () => {
     ).toBe("50\\% de a\\_b \\& c\\#\n\n");
   });
 });
+
+it.each([
+  "definition",
+  "theorem",
+  "lemma",
+  "corollary",
+  "proposition",
+  "example",
+  "remark",
+])(
+  "keeps the first body character out of the required %s title argument",
+  (environment) => {
+    const text = serialize({
+      type: "doc",
+      content: [
+        {
+          type: "resultBlock",
+          attrs: { environment },
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "Prosa completa" }],
+            },
+          ],
+        },
+      ],
+    });
+    expect(text).toBe(
+      `\\begin{${environment}}{}\nProsa completa\n\n\n\\end{${environment}}`,
+    );
+  },
+);
+it("keeps proof's separate no-title-argument contract and legacy bytes", () => {
+  const text = serialize({
+    type: "resultBlock",
+    attrs: { environment: "proof" },
+    content: [
+      {
+        type: "paragraph",
+        content: [{ type: "text", text: "Demostración íntegra" }],
+      },
+    ],
+  });
+  expect(text).toContain("\\begin{proof}\nDemostración íntegra");
+  const old = "\\begin{definition}Texto legado\\end{definition}";
+  expect(serialize(parseDocument(old))).toBe(old);
+});

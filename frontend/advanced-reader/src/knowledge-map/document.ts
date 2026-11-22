@@ -1,5 +1,6 @@
 /** Lossless, bounded LaTeX adapter. Original blocks survive unless edited.
- * Uses the optional {title} environment contract of Cornell/Diario. HTML is an
+ * New result boxes supply the mandatory {title} argument of miestilo; proof
+ * has a separate contract. Existing blocks retain their original delimiters. HTML is an
  * internal view only; MongoDB and the exporters continue to receive LaTeX.
  */
 import type { JSONContent } from "@tiptap/core";
@@ -351,11 +352,13 @@ export function serialize(node: JSONContent): string {
     case "sourceBlock":
     case "sourceAtom":
       return String(node.attrs?.source ?? "");
-    case "resultBlock":
+    case "resultBlock": {
+      const environment = String(node.attrs?.environment ?? "remark");
+      const title = environment === "proof" ? "" : "{" + escapeText(String(node.attrs?.title ?? "")) + "}";
       return (
         String(
           node.attrs?.before ??
-            "\\begin{" + String(node.attrs?.environment ?? "remark") + "}\n",
+            "\\begin{" + environment + "}" + title + "\n",
         ) +
         body +
         String(
@@ -363,6 +366,7 @@ export function serialize(node: JSONContent): string {
             "\n\\end{" + String(node.attrs?.environment ?? "remark") + "}",
         )
       );
+    }
     case "heading":
       return (
         "\\" +
