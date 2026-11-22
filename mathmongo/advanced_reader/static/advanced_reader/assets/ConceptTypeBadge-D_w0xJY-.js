@@ -1,1 +1,0 @@
-import{t as e}from"./react-runtime-DydpthbT.js";import{m as t,p as n}from"./index-nf1mF6WV.js";var r=e();function i({type:e}){let i=t(e);return(0,r.jsxs)(`span`,{className:`concept-type-badge`,"data-concept-type":n(e),children:[i&&(0,r.jsx)(`b`,{"aria-hidden":`true`,children:i.symbol}),i?.label??e]})}export{i as t};
