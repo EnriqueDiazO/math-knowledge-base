@@ -5,8 +5,10 @@ El cambio principal es **migrar la navegación y los recorridos al cliente**, y
 convertir las intenciones hoy transportadas por CCv2 en contratos HTTP. No hace
 falta iniciar un segundo proyecto frontend ni sustituir MongoDB.
 
-Esta revisión perfila el encargo; los endpoints, comandos y pantallas descritos
-como propuestos no se presentan como implementados.
+Esta revisión conserva la decisión de partida. La implementación y las
+verificaciones actuales se registran en [MIGRATION_CHECKPOINT.md](MIGRATION_CHECKPOINT.md),
+incluida la matriz que distingue implementado, autónomo verificado y listo para
+retirar. Las propuestas pendientes de este documento no se dan por implementadas.
 
 ## Evidencia de partida
 
@@ -148,16 +150,16 @@ El primer recorrido es un checkpoint, no el cierre de toda la migración.
 
 | Capacidad | Existente | Aplicación independiente completa |
 |---|---|---|
-| PDF, selección, subrayados, posición y evidencia | React + HTTP con pruebas existentes | Reutilizable; falta integración con navegación global. |
-| Editor visual, teclado, contenido legado y citas | Tiptap/MathLive en TS con pruebas | Adaptación de transporte y montaje pendiente. |
-| Notas, publicación explícita y procedencia | Servicios canónicos + habitación CCv2 | Exposición HTTP y recorrido autónomo pendientes. |
-| Esferas, disposiciones y conceptos compartidos | TS/Canvas + servicios y archivos existentes | Desacoplar Bridge y navegación pendiente. |
-| Biblioteca completa y creación de fuentes | Servicios + formularios actuales | Pantallas y contratos de consulta pendientes. |
+| PDF, selección, subrayados, posición y evidencia | React + HTTP integrados con navegación global | Recorrido autónomo comprobado; foco de anotación/otra versión y todos los atajos pendientes. |
+| Editor visual, teclado, contenido legado y citas | Tiptap/MathLive montado en página amplia | Chrome/Firefox, fórmulas, recarga y tamaños comprobados; transferencia entre orígenes y paridad bibliográfica pendientes. |
+| Notas, publicación explícita y procedencia | Servicios canónicos expuestos por HTTP | Primer recorrido autónomo comprobado; completar revisión de conflictos antes de retirar legado. |
+| Esferas, disposiciones y conceptos compartidos | TS/Canvas montado desde React con API canónica | Selección, lectura, tipo/área y retorno comprobados; paridad de todas las acciones pendiente. |
+| Biblioteca completa y creación de fuentes | Consulta React paginada sobre servicios existentes | Búsqueda bibliográfica y fuente exacta verificadas; creación/importación/gestión completa pendientes. |
 | Cuaderno, tareas, revisiones, entregables | Modelos y páginas vigentes | Migración por capacidad pendiente. |
 | Cornell/CPI y exportaciones | Modelos y exportadores propios | Paridad pendiente; no autorizan retirada todavía. |
-| Preparación compatible de Lectura | Servicio probado y UI en commits separados | Reutilización HTTP pendiente. |
+| Preparación compatible de Lectura | Servicio reutilizado por HTTP y React | Preparación explícita y confirmación backend verificadas; selector React entre conexiones pendiente. |
 | Diagnóstico/Conexiones/respaldos | Herramientas existentes | Ajustes React pendiente; no reconstruirlos como pantalla de inicio. |
-| Borrado unificado de conceptos | Divergencia identificada en código | Reproducción completada con datos temporales; contrato común y corrección pendientes antes de conectar el borrado nuevo. |
+| Borrado unificado de conceptos | Servicio compartido y dos páginas de compatibilidad corregidos | Relaciones, evidencia, medios y recuperación verificados en Mongo temporal; aún no se expone en React. |
 | AppImage | Pendiente anterior | Continúa pendiente. |
 
 ## Cifras y límites del checkpoint

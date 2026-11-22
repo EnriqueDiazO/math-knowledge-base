@@ -330,3 +330,52 @@ mapas mide 1381 y sigue pendiente de migración. Ruff: **2161 avisos**, incluido
 1437 E101 del literal JS heredado; la revisión del resto del repositorio sigue
 abierta. AppImage permanece pendiente. Todos los commits son locales, sin push
 ni merge.
+
+## Checkpoint autónomo React e identidad original de MathMongo
+
+[MIGRATION_CHECKPOINT.md](MIGRATION_CHECKPOINT.md) actualiza la implementación,
+los commits, contratos, matriz de paridad y pendientes concretos.
+[VISUAL_IDENTITY.md](VISUAL_IDENTITY.md) contrasta el `miestilo.sty` de
+`templates_latex` indicado por el usuario, documenta la conversión xcolor y
+sus variantes oscuras, alias y capturas. Las plantillas/exportación permanecen
+intactas: `remark` es Nota y `purple` original es #BF0040, no CSS purple.
+
+La aplicación React/FastAPI ya permite Biblioteca → PDF/pasaje → editor visual
+amplio → nota guardada y recuperada → publicación explícita → concepto → esfera
+→ pasaje original, **sin arrancar Streamlit**. Chrome y Firefox verifican
+pérdida de respuesta, reintento idempotente, fórmulas, teclado MathLive, foco,
+recarga, 100 % de zoom y 1440/390 px en recursos temporales propios. La inspección
+estrecha detectó y corrigió el solapamiento de Guardar con el documento; sus
+aserciones geométricas y capturas posteriores quedan conservadas.
+
+El borrado compartido sustituye el pendiente del corte anterior: evidencia y
+pertenencia a esfera bloquean; ambas direcciones de relación se eliminan por
+instantánea, y sólo se compensa una inserción propia inalterada. Las notas,
+fuentes, referencias y bytes compartidos permanecen. Edición y Exploración
+reutilizan el contrato; todavía no se expone un borrado nuevo en React. Se
+corrigieron además la doble lectura de revisión/contenido y el nullable de
+metadatos de la edición heredada, con regresiones de concurrencia y UI.
+
+La integral fue **2106 aprobadas / 9 omitidas / 0 fallidas (2115 casos)**.
+Las nueve opt-in pasan en Mongo propio; dos regresiones posteriores elevan el
+conjunto conciliado a **2117 IDs distintos verificados**. Los lotes afectados
+de 57 y 167 casos no se suman como si fueran casos nuevos. Los 50 históricos
+del ZIP privado pasan; no hay bloqueo por ese corpus. Frontend: **224 aprobadas**,
+typecheck/build y ESLint correctos. Ruff: **2156 avisos heredados**, mismas reglas.
+
+Sonar final, CE SUCCESS, análisis `7bfb0b4c-d4cd-4de8-a534-807e97244eab`, revisión
+`8dbd6234944e6f39cbadf91b59c44b1fb3173ead`: **73,0 % general / 69,7 % nueva**
+frente a **71,2 / 63,6 %** tras la extracción. **Gate ERROR**, sólo por
+cobertura nueva < 80; duplicación nueva 0,14364 ≤ 3, incidencias nuevas 0.
+Se conserva la misma referencia PREVIOUS_VERSION y el hash de configuración.
+XML y LCOV importados sin avisos; cotejo exacto en 26 módulos Python. El CSV
+desglosa los 153 archivos que contribuyen al código nuevo. Los E2E de navegador
+no se convierten artificialmente en hits V8; el déficit y la instrumentación
+pendiente están delimitados en el checkpoint.
+
+Inventario actual: **393 fuentes propias, 218 archivos de prueba, veinte fuentes
+de más de mil líneas**, con responsabilidades y decisiones individuales
+actualizadas. Entry Streamlit: **21 líneas**, páginas extraídas también contadas.
+Los generados, el código trasladado y las adiciones se distinguen en el delta.
+La migración completa, AppImage y la revisión de mantenibilidad siguen abiertas;
+no se retiran flujos por haber completado este primer recorrido.

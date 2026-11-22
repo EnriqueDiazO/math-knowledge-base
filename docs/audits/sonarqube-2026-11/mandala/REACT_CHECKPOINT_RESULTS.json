@@ -1,0 +1,594 @@
+{
+  "source_revision": "8dbd6234944e6f39cbadf91b59c44b1fb3173ead",
+  "analysis_id": "7bfb0b4c-d4cd-4de8-a534-807e97244eab",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "69.7"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.14364"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "73.0",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "18702"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.5",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "51583"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "13623",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "19658",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "102092"
+        },
+        {
+          "metric": "files",
+          "value": "392"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "73.6",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "baseline": {
+    "revision": "203dd6cd108b31e8b26e8166dbf70218d8d87ba4",
+    "ce": {
+      "task": {
+        "id": "a753a84f-9e93-4482-9192-3842857c6549",
+        "type": "REPORT",
+        "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+        "componentKey": "mathmongo-local",
+        "componentName": "MathMongo local",
+        "componentQualifier": "TRK",
+        "analysisId": "0aa030c7-75e7-4ccb-91eb-f21d04ef7949",
+        "status": "SUCCESS",
+        "submittedAt": "2026-11-22T03:43:17+0000",
+        "submitterLogin": "admin",
+        "startedAt": "2026-11-22T03:43:19+0000",
+        "executedAt": "2026-11-22T03:43:21+0000",
+        "executionTimeMs": 2321,
+        "hasScannerContext": true,
+        "warningCount": 0,
+        "warnings": [],
+        "infoMessages": []
+      }
+    },
+    "gate": {
+      "projectStatus": {
+        "status": "ERROR",
+        "conditions": [
+          {
+            "status": "ERROR",
+            "metricKey": "new_coverage",
+            "comparator": "LT",
+            "errorThreshold": "80",
+            "actualValue": "63.6"
+          },
+          {
+            "status": "OK",
+            "metricKey": "new_duplicated_lines_density",
+            "comparator": "GT",
+            "errorThreshold": "3",
+            "actualValue": "0.17408"
+          },
+          {
+            "status": "OK",
+            "metricKey": "new_violations",
+            "comparator": "GT",
+            "errorThreshold": "0",
+            "actualValue": "0"
+          }
+        ],
+        "ignoredConditions": false,
+        "period": {
+          "mode": "PREVIOUS_VERSION",
+          "date": "2026-11-21T16:46:16+0000"
+        },
+        "caycStatus": "compliant"
+      }
+    },
+    "measures": {
+      "component": {
+        "key": "mathmongo-local",
+        "name": "MathMongo local",
+        "qualifier": "TRK",
+        "measures": [
+          {
+            "metric": "coverage",
+            "value": "71.2",
+            "bestValue": false
+          },
+          {
+            "metric": "complexity",
+            "value": "18281"
+          },
+          {
+            "metric": "duplicated_lines_density",
+            "value": "1.5",
+            "bestValue": false
+          },
+          {
+            "metric": "code_smells",
+            "value": "0",
+            "bestValue": true
+          },
+          {
+            "metric": "security_issues",
+            "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+          },
+          {
+            "metric": "maintainability_issues",
+            "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+          },
+          {
+            "metric": "security_hotspots",
+            "value": "0",
+            "bestValue": true
+          },
+          {
+            "metric": "sqale_index",
+            "value": "0",
+            "bestValue": true
+          },
+          {
+            "metric": "bugs",
+            "value": "0",
+            "bestValue": true
+          },
+          {
+            "metric": "lines_to_cover",
+            "value": "50786"
+          },
+          {
+            "metric": "uncovered_lines",
+            "value": "14486",
+            "bestValue": false
+          },
+          {
+            "metric": "cognitive_complexity",
+            "value": "19404",
+            "bestValue": false
+          },
+          {
+            "metric": "duplicated_blocks",
+            "value": "70",
+            "bestValue": false
+          },
+          {
+            "metric": "ncloc",
+            "value": "99275"
+          },
+          {
+            "metric": "files",
+            "value": "361"
+          },
+          {
+            "metric": "vulnerabilities",
+            "value": "0",
+            "bestValue": true
+          },
+          {
+            "metric": "reliability_issues",
+            "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+          },
+          {
+            "metric": "line_coverage",
+            "value": "71.5",
+            "bestValue": false
+          }
+        ]
+      }
+    },
+    "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6"
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "same_configuration": true,
+  "python_local": {
+    "covered": 33958,
+    "measurable": 46465,
+    "percentage": 73.08296567308727,
+    "branch_collection": false
+  },
+  "javascript_v8": {
+    "lines": {
+      "total": 4817,
+      "covered": 3681,
+      "skipped": 0,
+      "pct": 76.41
+    },
+    "statements": {
+      "total": 5289,
+      "covered": 3940,
+      "skipped": 0,
+      "pct": 74.49
+    },
+    "functions": {
+      "total": 1195,
+      "covered": 851,
+      "skipped": 0,
+      "pct": 71.21
+    },
+    "branches": {
+      "total": 3149,
+      "covered": 1995,
+      "skipped": 0,
+      "pct": 63.35
+    },
+    "branchesTrue": {
+      "total": 0,
+      "covered": 0,
+      "skipped": 0,
+      "pct": 100
+    }
+  },
+  "pytest_runs": {
+    "pytest.xml": {
+      "tests": "2115",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "9"
+    },
+    "pytest-targeted.xml": {
+      "tests": "57",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    },
+    "pytest-reader-targeted.xml": {
+      "tests": "167",
+      "failures": "0",
+      "errors": "0",
+      "skipped": "0"
+    }
+  },
+  "pytest_distinct_ids": 2117,
+  "pytest_distinct_before_opt_in": {
+    "passed": 2108,
+    "skipped": 9
+  },
+  "opt_in_mongo": {
+    "passed": 9,
+    "corresponds_to_general_skips": true
+  },
+  "pytest_distinct_after_opt_in": {
+    "passed": 2117,
+    "skipped": 0,
+    "failed": 0
+  },
+  "ruff": {
+    "total": 2156,
+    "by_rule": {
+      "D205": 14,
+      "D212": 33,
+      "E402": 1,
+      "F403": 1,
+      "D104": 6,
+      "UP038": 46,
+      "D415": 12,
+      "UP035": 15,
+      "UP006": 119,
+      "UP007": 74,
+      "E712": 4,
+      "W293": 115,
+      "D100": 25,
+      "D103": 106,
+      "I001": 9,
+      "D107": 9,
+      "D102": 23,
+      "W292": 3,
+      "D200": 8,
+      "W291": 48,
+      "F541": 1,
+      "UP015": 3,
+      "B904": 1,
+      "D202": 3,
+      "UP009": 2,
+      "D301": 1,
+      "D101": 28,
+      "F401": 1,
+      "E721": 6,
+      "E702": 2,
+      "E101": 1437
+    },
+    "inherited_schema_findings_unchanged": true
+  },
+  "browser_results": {
+    "chrome": {
+      "functional": {
+        "browser": "chrome",
+        "version": "158.0.8127.36",
+        "errors": [],
+        "outside": [],
+        "passed": true
+      },
+      "palette": {
+        "browser": "chrome",
+        "version": "158.0.8127.36",
+        "zoom": 1,
+        "deviceScaleFactor": 1,
+        "viewports": [
+          [
+            1440,
+            1080
+          ],
+          [
+            390,
+            844
+          ]
+        ],
+        "reducedMotion": "reduce",
+        "keyboardFocus": true,
+        "narrowLayout": {
+          "toolbarHeight": 58.125,
+          "surfaceBottom": 1069.609375,
+          "actionsTop": 1085.609375
+        },
+        "formulas": true,
+        "unpublishedDraftRecovered": true,
+        "draftUrl": "/study/write",
+        "colors": {
+          "definicion": {
+            "title": "rgb(138, 190, 255)",
+            "background": "rgb(16, 42, 66)"
+          },
+          "teorema": {
+            "title": "rgb(255, 155, 155)",
+            "background": "rgb(41, 42, 56)"
+          },
+          "corolario": {
+            "title": "rgb(147, 221, 165)",
+            "background": "rgb(20, 46, 50)"
+          },
+          "lema": {
+            "title": "rgb(237, 154, 187)",
+            "background": "rgb(44, 37, 57)"
+          },
+          "proposicion": {
+            "title": "rgb(240, 194, 155)",
+            "background": "rgb(37, 44, 51)"
+          },
+          "ejemplo": {
+            "title": "rgb(255, 171, 88)",
+            "background": "rgb(44, 43, 46)"
+          },
+          "nota": {
+            "title": "rgb(233, 216, 121)",
+            "background": "rgb(39, 45, 44)"
+          },
+          "observacion": {
+            "title": "rgb(126, 214, 208)",
+            "background": "rgb(18, 46, 57)"
+          }
+        },
+        "errors": [],
+        "external": []
+      },
+      "persistence": {
+        "notes": [
+          {
+            "document_id": "doc_ab23ffe6-ffdd-4066-bdea-998840cb6f09",
+            "title": "Una nota desde el frontend independiente",
+            "body": "Una idea matemática que permanece después de recargar.$\\frac{1}{2}$",
+            "tags": [
+              "study-annotation:ann_f1fc7a04-a4c9-4626-ac1e-b860c4a80827"
+            ]
+          }
+        ],
+        "concepts": 1,
+        "annotations": 1,
+        "evidence_links": 2,
+        "streamlit_started": false
+      },
+      "ownership": {
+        "backend": "FastAPI",
+        "streamlit_imported": false
+      }
+    },
+    "firefox": {
+      "functional": {
+        "browser": "firefox",
+        "version": "151.0",
+        "errors": [],
+        "outside": [],
+        "passed": true
+      },
+      "palette": {
+        "browser": "firefox",
+        "version": "151.0",
+        "zoom": 1,
+        "deviceScaleFactor": 1,
+        "viewports": [
+          [
+            1440,
+            1080
+          ],
+          [
+            390,
+            844
+          ]
+        ],
+        "reducedMotion": "reduce",
+        "keyboardFocus": true,
+        "narrowLayout": {
+          "toolbarHeight": 58.16667175292969,
+          "surfaceBottom": 1069.816650390625,
+          "actionsTop": 1085.816650390625
+        },
+        "formulas": true,
+        "unpublishedDraftRecovered": true,
+        "draftUrl": "/study/write",
+        "colors": {
+          "definicion": {
+            "title": "rgb(138, 190, 255)",
+            "background": "rgb(16, 42, 66)"
+          },
+          "teorema": {
+            "title": "rgb(255, 155, 155)",
+            "background": "rgb(41, 42, 56)"
+          },
+          "corolario": {
+            "title": "rgb(147, 221, 165)",
+            "background": "rgb(20, 46, 50)"
+          },
+          "lema": {
+            "title": "rgb(237, 154, 187)",
+            "background": "rgb(44, 37, 57)"
+          },
+          "proposicion": {
+            "title": "rgb(240, 194, 155)",
+            "background": "rgb(37, 44, 51)"
+          },
+          "ejemplo": {
+            "title": "rgb(255, 171, 88)",
+            "background": "rgb(44, 43, 46)"
+          },
+          "nota": {
+            "title": "rgb(233, 216, 121)",
+            "background": "rgb(39, 45, 44)"
+          },
+          "observacion": {
+            "title": "rgb(126, 214, 208)",
+            "background": "rgb(18, 46, 57)"
+          }
+        },
+        "errors": [],
+        "external": []
+      },
+      "persistence": {
+        "notes": [
+          {
+            "document_id": "doc_9641f799-fc39-4a16-a3b3-0aa70f71dc44",
+            "title": "Una nota desde el frontend independiente",
+            "body": "Una idea matemática que permanece después de recargar.$\\frac{1}{2}$",
+            "tags": [
+              "study-annotation:ann_602ae66b-c022-4e5b-8763-dd9ce8b1a069"
+            ]
+          }
+        ],
+        "concepts": 1,
+        "annotations": 1,
+        "evidence_links": 2,
+        "streamlit_started": false
+      },
+      "ownership": {
+        "backend": "FastAPI",
+        "streamlit_imported": false
+      }
+    }
+  },
+  "report_inputs": {
+    "revision": "8dbd6234944e6f39cbadf91b59c44b1fb3173ead",
+    "reports": {
+      "evidence/sonar/coverage.xml": "8d27cfef91bf69e71e07440fb3918c10462779e7e8bb4c0edae030848274d3f7",
+      "frontend/advanced-reader/coverage/lcov.info": "324ffd842a61baab56e5c4fb575b4f3615c94e4f666b61cae0d8a240b89eac35",
+      "evidence/sonar/pytest.xml": "7e789fd0b15c0ee90ef7283f3186724d72d8fd2ac271521f97e3b5d813dbb2e2",
+      "evidence/sonar/pytest-targeted.xml": "1cb0d4b80623956c74e9cce85794b897b771789530100d417eb8bd5f5042011b",
+      "evidence/sonar/pytest-reader-targeted.xml": "cf7e8959cc3bb28509e123457b6e0daefc6136cb5d31843f669873c60a58c43e"
+    },
+    "configuration": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+    "label_changes_version": false
+  },
+  "limitations": [
+    "Browser execution is not V8 coverage: the imported LCOV is from Vitest; do not count screenshots as covered lines.",
+    "Twenty large own files retain explicit manual-review decisions despite zero new Sonar issues.",
+    "Migration is not ready for retiring Streamlit or CCv2."
+  ]
+}
