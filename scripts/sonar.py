@@ -295,7 +295,7 @@ def scan(label: str) -> int:
     javascript_report = ROOT / "frontend/advanced-reader/coverage/lcov.info"
     for report in (python_report, javascript_report):
         report.unlink(missing_ok=True)
-    subprocess.run([sys.executable, str(ROOT / "scripts/quality.py"), "--with-mongo"], cwd=ROOT, check=True)
+    subprocess.run([sys.executable, str(ROOT / "scripts/quality.py"), "--with-mongo", "--with-study-browser"], cwd=ROOT, check=True)
     subprocess.run(["npm", "run", "test:coverage"], cwd=ROOT / "frontend/advanced-reader", check=True)
     check_generated_reports(python_report, javascript_report)
     install_scanner()

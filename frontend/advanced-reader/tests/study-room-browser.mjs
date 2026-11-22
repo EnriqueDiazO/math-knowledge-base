@@ -134,6 +134,22 @@ test('owned real study room, canonical reader, annotation and recoverable note',
     await page.getByRole('button',{name:'Volver a la habitación de estudio',exact:true}).click();
     await expect(map.getByRole('heading',{name:'Concepto desde la nota',exact:true})).toBeVisible();
     await progress('concept-canonical-evidence-returns-to-exact-page');
+    await map.getByRole('button',{name:'Editar ficha',exact:true}).click();
+    await expect(editor).toBeVisible();await editor.getByRole('button',{name:'Volver al párrafo',exact:true}).click();
+    await expect.poll(()=>editor.getByRole('textbox',{name:'Documento visual',exact:true}).evaluate(el=>el.matches(':focus'))).toBe(true);
+    await page.keyboard.type('Contenido compartido corregido desde Analisis.');
+    await expect(editor.getByRole('textbox',{name:'Documento visual',exact:true})).toContainText('Contenido compartido corregido desde Analisis.');
+    await editor.getByRole('button',{name:'Guardar concepto',exact:true}).click();await expect(editor).toHaveCount(0);
+    await expect(map.getByRole('status')).toHaveAttribute('data-state','saved');
+    await expect(map.getByRole('combobox',{name:'Seleccionar concepto',exact:true})).toHaveValue(publishedKey);
+    await map.getByRole('button',{name:'Volver a la habitación',exact:true}).click();
+    await room.getByRole('button',{name:'Contrastes',exact:true}).click();
+    await map.getByRole('combobox',{name:'Seleccionar concepto',exact:true}).selectOption(publishedKey);
+    await map.getByRole('button',{name:'Leer concepto',exact:true}).click();
+    await expect(page.locator('.reader-dialog')).toContainText('Contenido compartido corregido desde Analisis.');
+    await page.getByRole('button',{name:'Cerrar lectura',exact:true}).click();
+    await progress('one-canonical-edit-visible-from-both-spheres');
+
     expect(errors).toEqual([]);await writeFile(`${evidence}/room-browser.json`,JSON.stringify({browser:await browser.version(),errors,reader:true,noteRecovery:true,compareNarrow:true},null,2));
   }catch(error){await page.screenshot({path:`${evidence}/room-failure.png`,fullPage:true});console.error(await page.locator('body').innerText());throw error;}
   finally{await browser.close();}

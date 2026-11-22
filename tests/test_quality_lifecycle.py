@@ -236,3 +236,31 @@ def test_remaining_test_database_is_an_error_and_still_releases_only_owned_resou
     assert owned_mongo.client.closed
     assert owned_mongo.process.actions == ["terminate", ("wait", 20)]
     assert all(not path.exists() for path in owned_mongo.created)
+
+
+@pytest.mark.parametrize("unit_status,browser_status,expected_calls", [(4,0,1),(0,6,2),(0,0,4)])
+def test_study_browser_coverage_is_owned_and_failures_cannot_publish_xml(tmp_path, monkeypatch, unit_status, browser_status, expected_calls):
+    """Browser coverage must capture subprocesses and combine only successful runs."""
+    monkeypatch.setattr(quality, 'ROOT', tmp_path)
+    monkeypatch.setattr(quality.sys, 'argv', ['quality.py','--with-study-browser','-q'])
+    (tmp_path/'.coveragerc').write_text('[run]\nrelative_files=True\nsource=.\nomit=tests/*\npatch=subprocess\n')
+    calls=[]
+    def run(command, **kwargs):
+        calls.append((command,kwargs))
+        if 'pytest' in command:
+            (tmp_path/'evidence/sonar/coverage.xml').write_text('unit report')
+            return SimpleNamespace(returncode=unit_status)
+        if 'run' in command:
+            assert command[-3:] == ['tests/run_study_sphere_e2e.py','--room','--browser=chrome']
+            assert '--parallel-mode' in command
+            return SimpleNamespace(returncode=browser_status)
+        return SimpleNamespace(returncode=0)
+    monkeypatch.setattr(quality.subprocess,'run',run)
+    assert quality.main()==(unit_status or browser_status)
+    assert len(calls)==expected_calls
+    assert '--with-study-browser' not in calls[0][0]
+    configuration=configparser.ConfigParser();configuration.read(tmp_path/'evidence/sonar/coverage-runtime.ini')
+    assert configuration.getboolean('run','sigterm')
+    assert configuration.get('run','patch')=='subprocess'
+    assert configuration.get('run','omit')==str(tmp_path/'tests/*')
+    assert all(not Path(kwargs['env']['XDG_DATA_HOME']).parent.exists() for _,kwargs in calls)

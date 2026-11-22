@@ -344,6 +344,7 @@ runpy.run_path(""" + repr(str(ROOT / 'editor/editor_streamlit.py')) + """, run_n
                     concept=db.concepts.find_one({'titulo':'Concepto desde la nota'})
                     assert concept is not None and db.concepts.count_documents({'titulo':'Concepto desde la nota'})==1
                     key=concept['id']+'@'+concept['source']
+                    assert 'Contenido compartido corregido desde Analisis.' in db.latex_documents.find_one({'id':concept['id'],'source':concept['source']})['contenido_latex']
                     assert sum(key in v['study_view']['members'] for v in db.knowledge_graph_maps.find({'study_view.version':1}))==2
                     assert sum(g.get('conceptKey')==key for v in db.knowledge_graph_maps.find({'study_view.version':1}) for g in v['study_view'].get('goals',[]))==1
                     assert note['reference_locator']['printed_page']=='xii' and note['reference_locator']['pdf_page']==2
