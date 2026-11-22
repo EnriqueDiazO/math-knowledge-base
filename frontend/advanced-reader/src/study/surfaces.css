@@ -1,0 +1,76 @@
+/* Application surfaces use study tokens, never mathematical type colors. */
+.study-navigation {
+  box-shadow: 8px 0 36px #030d162b;
+}
+.study-app .study-navigation nav a {
+  transition:
+    background 140ms ease,
+    box-shadow 140ms ease;
+}
+.study-navigation nav a:hover {
+  background: var(--mm-hover);
+}
+.study-app :is(button, .study-home-actions a) {
+  transition:
+    background 140ms ease,
+    border-color 140ms ease,
+    box-shadow 140ms ease;
+}
+.study-app .primary-button {
+  box-shadow: 0 3px 12px #030d1638;
+}
+.study-app .primary-button:hover {
+  background: var(--mm-hover);
+  box-shadow: 0 4px 16px #030d1659;
+}
+.study-app .reading-document {
+  border: 1px solid var(--mm-line);
+  box-shadow: 0 10px 35px #030d162b;
+  line-height: 1.8;
+}
+.mathematical-document math-field {
+  color: var(--mm-text);
+  background: transparent;
+  border: 0;
+}
+.study-document-viewport {
+  box-shadow: 0 8px 32px #030d1638;
+}
+.study-document-viewport .visual-document {
+  border: 0;
+  margin-top: 0;
+  resize: none;
+}
+.study-app [role="alert"] {
+  background: var(--mm-error-bg);
+  border: 1px solid var(--mm-error);
+  border-left-width: 4px;
+  padding: 0.75rem 1rem;
+  border-radius: 6px;
+}
+.study-app [role="alert"]::before {
+  content: "⚠ ";
+}
+.study-home {
+  background: radial-gradient(ellipse at 80% 20%, #16374770, transparent 65%);
+}
+.study-home-actions a {
+  box-shadow: 0 6px 20px #030d162b;
+}
+.study-home-actions a:hover {
+  border-color: var(--mm-selected-border);
+}
+.study-sphere {
+  border: 1px solid var(--mm-line);
+  border-radius: 14px;
+  box-shadow: 0 10px 40px #030d1640;
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-app *,
+  .study-app *::before,
+  .study-app *::after {
+    transition: none !important;
+    animation: none !important;
+    scroll-behavior: auto !important;
+  }
+}

@@ -18,7 +18,7 @@ body:has(.study-boot) {
   font-family: system-ui, sans-serif;
 }
 .study-app {
-  --study-line: #2a4a5b;
+  --study-line: var(--mm-line);
   display: grid;
   grid-template-columns: 240px minmax(0, 1fr);
   min-height: 100dvh;
@@ -33,13 +33,13 @@ body:has(.study-boot) {
   text-underline-offset: 0.2em;
 }
 .study-app a:hover {
-  color: #d1f6ed;
+  color: var(--mm-focus);
 }
 .study-app :is(button, input, select, textarea) {
   font: inherit;
-  color: #e7f1f5;
-  background: #132c3c;
-  border: 1px solid #6d8c9f;
+  color: var(--mm-text);
+  background: var(--mm-control);
+  border: 1px solid var(--mm-border);
   border-radius: 8px;
   padding: 0.6rem 0.9rem;
 }
@@ -47,14 +47,14 @@ body:has(.study-boot) {
   cursor: pointer;
 }
 .study-app button:hover {
-  background: #204353;
+  background: var(--mm-hover);
 }
 .study-app button:disabled {
   opacity: 0.65;
   cursor: default;
 }
 .study-app :is(a, button, input, select, textarea):focus-visible {
-  outline: 3px solid #d1f6ed;
+  outline: 3px solid var(--mm-focus);
   outline-offset: 3px;
 }
 .study-app label {
@@ -71,12 +71,12 @@ body:has(.study-boot) {
   font-size: 1.35rem;
 }
 .study-app :is(h1, h2, h3) {
-  color: #e7f1f5;
+  color: var(--mm-text);
 }
 .study-navigation {
   border-right: 1px solid var(--study-line);
   padding: 28px 20px;
-  background: #102737;
+  background: var(--mm-panel);
   position: sticky;
   top: 0;
   height: 100dvh;
@@ -89,7 +89,7 @@ body:has(.study-boot) {
 }
 .study-library-label {
   font-size: 0.8rem;
-  color: #a9c2cf;
+  color: var(--mm-muted);
   overflow-wrap: anywhere;
 }
 .study-navigation nav {
@@ -102,11 +102,11 @@ body:has(.study-boot) {
   padding: 0.7rem 1rem;
   border-radius: 0.5rem;
   text-decoration: none;
-  color: #e7f1f5;
+  color: var(--mm-text);
 }
 .study-navigation [aria-current="page"] a {
-  background: #215b61;
-  box-shadow: inset 3px 0 #77d4c4;
+  background: var(--mm-selected-bg);
+  box-shadow: inset 3px 0 var(--mm-selected-border);
 }
 .study-main {
   min-width: 0;
@@ -119,7 +119,7 @@ body:has(.study-boot) {
   max-width: 85ch;
 }
 .study-app .eyebrow {
-  color: #72d4c0;
+  color: var(--mm-turquoise);
   letter-spacing: 0.06em;
   font-size: 0.85rem;
   text-transform: uppercase;
@@ -138,7 +138,7 @@ body:has(.study-boot) {
 .study-home-actions a {
   display: block;
   padding: 1.2rem 1.7rem;
-  background: #102737;
+  background: var(--mm-panel);
   border: 1px solid var(--study-line);
   border-radius: 12px;
 }
@@ -165,7 +165,7 @@ body:has(.study-boot) {
   margin-top: 0;
 }
 .study-main article p {
-  color: #a9c2cf;
+  color: var(--mm-muted);
 }
 .study-main nav[aria-label="Páginas de biblioteca"] {
   display: flex;
@@ -186,16 +186,16 @@ body:has(.study-boot) {
   margin-left: 1rem;
 }
 .study-notice {
-  border-left: 3px solid #72d4c0;
-  background: #102737;
+  border-left: 3px solid var(--mm-turquoise);
+  background: var(--mm-panel);
   padding: 1rem;
 }
 .study-app [role="alert"] {
-  color: #ff9292;
+  color: var(--mm-error);
 }
 .study-passage {
-  border-left: 3px solid #78b7ec;
-  background: #102737;
+  border-left: 3px solid var(--mm-sky);
+  background: var(--mm-panel);
   padding: 0.8rem 1rem;
   margin-block: 1.2rem;
 }
@@ -205,10 +205,10 @@ body:has(.study-boot) {
 .study-document-viewport {
   height: max(520px, 64dvh);
   overflow: auto;
-  border: 1px solid #6d8c9f;
+  border: 1px solid var(--mm-border);
   border-radius: 12px;
   position: relative;
-  background: #102737;
+  background: var(--mm-panel);
 }
 .study-document-viewport .visual-document {
   min-height: 450px;
@@ -220,7 +220,7 @@ body:has(.study-boot) {
   position: sticky;
   top: 0;
   z-index: 2;
-  background: #132c3c;
+  background: var(--mm-control);
 }
 .study-document-viewport .document-toolbar button {
   padding: 0.45rem 0.7rem;
@@ -230,27 +230,27 @@ body:has(.study-boot) {
   position: sticky;
   bottom: 0;
   z-index: 5;
-  background: #102737;
+  background: var(--mm-panel);
 }
 .study-document-actions {
   position: sticky;
   bottom: 0;
-  background: #091a27;
+  background: var(--mm-bg);
   padding-block: 0.7rem;
   z-index: 3;
   border-top: 1px solid var(--study-line);
 }
 .study-app .primary-button {
-  background: #215b61;
-  border-color: #77d4c4;
+  background: var(--mm-selected-bg);
+  border-color: var(--mm-selected-border);
   font-weight: 650;
 }
 .study-sphere {
   min-height: 70dvh;
 }
 .study-app .reading-document {
-  background: #102737;
-  color: #e7f1f5;
+  background: var(--mm-panel);
+  color: var(--mm-text);
   border-radius: 12px;
   padding: 2rem;
   margin-block: 1.5rem;

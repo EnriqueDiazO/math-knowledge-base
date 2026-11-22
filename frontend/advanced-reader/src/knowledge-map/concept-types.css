@@ -1,0 +1,110 @@
+/* Mathematical families are independent of note/CPI zones and application alerts. */
+[data-concept-type] {
+  --concept-accent: var(--mm-text);
+  --concept-background: var(--mm-panel);
+  --concept-border: var(--mm-line);
+}
+[data-concept-type="definicion"] {
+  --concept-accent: var(--concept-definicion-accent);
+  --concept-background: var(--concept-definicion-background);
+  --concept-border: var(--concept-definicion-border);
+}
+[data-concept-type="teorema"] {
+  --concept-accent: var(--concept-teorema-accent);
+  --concept-background: var(--concept-teorema-background);
+  --concept-border: var(--concept-teorema-border);
+}
+[data-concept-type="corolario"] {
+  --concept-accent: var(--concept-corolario-accent);
+  --concept-background: var(--concept-corolario-background);
+  --concept-border: var(--concept-corolario-border);
+}
+[data-concept-type="lema"] {
+  --concept-accent: var(--concept-lema-accent);
+  --concept-background: var(--concept-lema-background);
+  --concept-border: var(--concept-lema-border);
+}
+[data-concept-type="proposicion"] {
+  --concept-accent: var(--concept-proposicion-accent);
+  --concept-background: var(--concept-proposicion-background);
+  --concept-border: var(--concept-proposicion-border);
+}
+[data-concept-type="ejemplo"] {
+  --concept-accent: var(--concept-ejemplo-accent);
+  --concept-background: var(--concept-ejemplo-background);
+  --concept-border: var(--concept-ejemplo-border);
+}
+[data-concept-type="nota"] {
+  --concept-accent: var(--concept-nota-accent);
+  --concept-background: var(--concept-nota-background);
+  --concept-border: var(--concept-nota-border);
+}
+[data-concept-type="observacion"] {
+  --concept-accent: var(--concept-observacion-accent);
+  --concept-background: var(--concept-observacion-background);
+  --concept-border: var(--concept-observacion-border);
+}
+:is(.document-composer, .reading-document, .document-dialog)
+  section[data-result][data-concept-type] {
+  color: var(--mm-text);
+  background: transparent;
+  border: 1px solid var(--concept-border, var(--mm-line));
+  border-left: 3px solid var(--concept-accent, var(--mm-muted));
+  border-radius: 3px 9px 9px 3px;
+  margin-block: 1.5rem;
+  padding: 0;
+}
+:is(.document-composer, .reading-document, .document-dialog)
+  section[data-result][data-concept-type]
+  > header {
+  color: var(--concept-accent, var(--mm-text));
+  background: var(--concept-background, var(--mm-panel));
+  font-weight: 650;
+  font-size: 0.95em;
+  letter-spacing: 0.01em;
+  padding: 0.65rem 1.1rem;
+}
+section[data-result] > header::before {
+  content: attr(data-type-symbol);
+  display: inline-grid;
+  place-items: center;
+  border: 1px solid currentColor;
+  width: 1.4em;
+  height: 1.4em;
+  margin-right: 0.7em;
+  font-size: 0.75em;
+  border-radius: 3px;
+}
+section[data-result="proof"] > header::before {
+  display: none;
+}
+:is(.document-composer, .reading-document, .document-dialog)
+  section[data-result]
+  > div {
+  padding: 0.4rem 1.1rem;
+}
+[data-concept-type="proposicion"] section[data-result],
+section[data-result][data-concept-type="proposicion"] {
+  border-left-style: double;
+  border-left-width: 5px;
+}
+.concept-type-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45em;
+  color: var(--concept-accent);
+  background: var(--concept-background);
+  border: 1px solid var(--concept-border);
+  border-radius: 5px;
+  padding: 0.18em 0.65em;
+  font-size: 0.8rem;
+  font-weight: 650;
+  letter-spacing: 0;
+  text-transform: none;
+}
+.concept-type-badge b {
+  font-size: 0.8em;
+  border: 1px solid currentColor;
+  padding: 0 0.3em;
+  border-radius: 2px;
+}

@@ -8,6 +8,9 @@ import { newStudyDraft, studyVault } from "./drafts";
 import { useStudyRoute } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import "./study.css";
+import "./surfaces.css";
+
+const AppearancePage = lazy(() => import("./AppearancePage"));
 
 const ReadingPage = lazy(() => import("./ReadingPage"));
 const NotesPage = lazy(() =>
@@ -173,11 +176,14 @@ export function StudyApp() {
         />
       </section>
     );
+  else if (section === "settings" && identity === "appearance")
+    content = <AppearancePage />;
   else if (section === "settings")
     content = (
       <section>
         <h1>Ajustes</h1>
         <h2>Biblioteca activa</h2>
+        <StudyLink to="/study/settings/appearance" navigate={navigate}>Ver los tipos matemáticos y su paleta</StudyLink>
         <p>{context.name}</p>
         <p>
           La conexión se configura en el backend local. Las credenciales

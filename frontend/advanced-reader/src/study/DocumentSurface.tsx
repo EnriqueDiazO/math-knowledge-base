@@ -1,5 +1,6 @@
 /** Mount the existing mathematical editor/reader in a wide, owned page surface. */
 import { useEffect, useRef } from "react";
+import "../knowledge-map/style.css";
 import {
   DocumentEditor,
   renderDocument,

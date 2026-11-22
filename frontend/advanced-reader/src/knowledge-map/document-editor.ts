@@ -5,6 +5,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { TextSelection } from "@tiptap/pm/state";
 import { makeMath, mathErrors } from "./math";
 import { mountMathKeyboard } from "./keyboard";
+import { conceptKind, conceptType, resultChoices } from "./concept-types";
+import "./document-tools.css";
 import {
   normalizedOriginals,
   parseDocument,
@@ -87,12 +89,13 @@ const ResultBlock = TiptapNode.create({
       "section",
       {
         "data-result": String(node.attrs.environment),
+        "data-concept-type": conceptKind(String(node.attrs.environment)) ?? "proof",
         "aria-label":
           resultNames[String(node.attrs.environment)] ?? "Resultado",
       },
       [
         "header",
-        { contenteditable: "false" },
+        { contenteditable: "false", "data-type-symbol": conceptType(String(node.attrs.environment))?.symbol ?? "" },
         `${resultNames[String(node.attrs.environment)] ?? "Resultado"}${node.attrs.title ? ": " + String(node.attrs.title) : ""}`,
       ],
       ["div", 0],
@@ -294,6 +297,15 @@ export class DocumentEditor {
     const toolbar = dom("div");
     toolbar.className = "document-toolbar";
     toolbar.setAttribute("aria-label", "Herramientas del documento");
+    const toolGroup = (label: string) => {
+      const group = dom("div");
+      group.className = "document-tool-group";
+      group.setAttribute("role", "group");
+      group.setAttribute("aria-label", label);
+      toolbar.append(group);
+      return group;
+    };
+    let tools = toolGroup("Texto y estructura");
     this.visual = dom("div");
     this.visual.className = "visual-document";
     this.visual.addEventListener("focusin", (event) => {
@@ -345,7 +357,7 @@ export class DocumentEditor {
         { emitUpdate: false },
       );
     const format = (name: string, action: () => void) =>
-      control(toolbar, name, action);
+      control(tools, name, action);
     format("Negrita", () => this.editor.chain().focus().toggleBold().run());
     format("Énfasis", () => this.editor.chain().focus().toggleItalic().run());
     format("Encabezado", () =>
@@ -356,13 +368,14 @@ export class DocumentEditor {
       this.editor.chain().focus().toggleOrderedList().run(),
     );
     format("Código", () => this.editor.chain().focus().toggleCodeBlock().run());
+    tools = toolGroup("Historial del texto");
     format("Deshacer texto", () => this.editor.chain().focus().undo().run());
     format("Rehacer texto", () => this.editor.chain().focus().redo().run());
     const results = dom("select");
     results.setAttribute("aria-label", "Insertar bloque de resultado");
     results.append(new Option("Bloque de resultado…", ""));
-    Object.entries(resultNames).forEach(([value, label]) =>
-      results.append(new Option(label, value)),
+    resultChoices.forEach((value) =>
+      results.append(new Option(resultNames[value], value)),
     );
     results.onchange = () => {
       if (results.value)
@@ -377,7 +390,9 @@ export class DocumentEditor {
           .run();
       results.value = "";
     };
-    toolbar.append(results);
+    tools = toolGroup("Resultados matemáticos");
+    tools.append(results);
+    tools = toolGroup("Fórmulas y plantillas");
     format("Insertar fórmula en línea", () => this.insertFormula(false));
     format("Insertar fórmula en bloque", () => this.insertFormula(true));
     const templates: Record<string, string> = {
@@ -402,6 +417,7 @@ export class DocumentEditor {
       this.editor.commands.insertContent({ type: "paragraph" });
       this.editor.view.focus();
     });
+    tools = toolGroup("Representación del documento");
     format("Fuente LaTeX", () => this.toggleSource());
     format("Vista previa", () => {
       this.preview.hidden = !this.preview.hidden;

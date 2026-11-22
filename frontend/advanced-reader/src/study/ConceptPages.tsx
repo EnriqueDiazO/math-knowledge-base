@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import renderMap from "../knowledge-map/component";
 import type { Data, Intent } from "../knowledge-map/model";
 import { DocumentContent } from "./DocumentSurface";
+import { ConceptTypeBadge } from "./ConceptTypeBadge";
 import { executeStudy } from "./api";
 import type { ConceptDetail, StudyContext } from "./api";
 import { useStudyResource } from "./navigation";
@@ -55,7 +56,7 @@ export function ConceptsPage({
               </StudyLink>
             </h2>
             <p>
-              {node.tipo} · {node.source}
+              <ConceptTypeBadge type={node.tipo} /> · {node.source}
             </p>
           </article>
         ))}
@@ -90,7 +91,7 @@ export function ConceptPage({
       </StudyLink>
       <header>
         <p className="eyebrow">
-          {concept.tipo} · {concept.source}
+          <ConceptTypeBadge type={concept.tipo} /> · {concept.source}
         </p>
         <h1>{concept.titulo}</h1>
         <StudyLink

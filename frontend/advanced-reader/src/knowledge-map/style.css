@@ -715,7 +715,8 @@
   background: var(--mm-error-bg);
   color: var(--mm-error);
 }
-.document-dialog {
+.document-dialog,
+.study-document-viewport {
   --keyboard-background: var(--mm-bg);
   --keyboard-border: var(--mm-border);
   --keycap-background: var(--mm-control);

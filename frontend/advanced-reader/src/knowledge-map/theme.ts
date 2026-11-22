@@ -1,6 +1,9 @@
 import tokens from "../../../../editor/ui/study_theme.json";
+import { applyConceptTheme } from "./concept-types";
+import "./concept-types.css";
 export const studyTheme = tokens;
 export function applyStudyTheme(root: HTMLElement): void {
+  applyConceptTheme(root);
   Object.entries(tokens).forEach(([name, value]) =>
     root.style.setProperty("--mm-" + name, value),
   );
