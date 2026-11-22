@@ -1,3 +1,4 @@
+import { browserCoverage } from "./browser-coverage.mjs";
 import { chromium, firefox, expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
 import test from "node:test";
@@ -20,6 +21,8 @@ await test(
       reducedMotion: "reduce",
     });
     const page = await context.newPage();
+    const coverage = await browserCoverage(page, name, "reading");
+    let passed = false;
     page.setDefaultTimeout(20000);
     const evidence = process.env.MATHMONGO_INDEPENDENT_EVIDENCE,
       base = process.env.MATHMONGO_INDEPENDENT_URL;
@@ -37,7 +40,7 @@ await test(
     const progress = async (value) =>
       writeFile(evidence + "/progress.log", value + "\n", { flag: "a" });
     try {
-      await page.goto(base + "/study/library");
+      await coverage.goto(base + "/study/library");
       await expect(
         page.getByRole("heading", { name: "Tu biblioteca" }),
       ).toBeVisible();
@@ -115,7 +118,7 @@ await test(
         .getByRole("button", { name: "Ocultar teclado matemático" })
         .click();
       await page.screenshot({ path: evidence + "/note-editor.png" });
-      await page.reload();
+      await coverage.reload();
       await expect(
         page.getByLabel("Nombre de la nota", { exact: true }),
       ).toHaveValue("Una nota desde el frontend independiente");
@@ -147,7 +150,7 @@ await test(
         page.getByRole("status").filter({ hasText: "Nota guardada." }).first(),
       ).toBeVisible();
       await expect(page).toHaveURL(/\/study\/notes\/note_/);
-      await page.reload();
+      await coverage.reload();
       await expect(
         page.getByRole("heading", { name: "Editar nota" }),
       ).toBeVisible();
@@ -206,6 +209,7 @@ await test(
           2,
         ),
       );
+      passed = true;
     } catch (error) {
       await writeFile(
         evidence + "/failure.txt",
@@ -219,6 +223,7 @@ await test(
       });
       throw error;
     } finally {
+      await coverage.finish(passed);
       await context.close();
       await browser.close();
     }

@@ -4,6 +4,9 @@ import { defineConfig } from "vitest/config";
 import { stripAsciiLineEnds } from "./scripts/text-normalization.mjs";
 import { runtimeNotices } from './scripts/runtime-notices.mjs';
 
+// Optional private maps for measuring the exact published build in owned E2E.
+const browserCoverage = process.env.MATHMONGO_BROWSER_COVERAGE === "1";
+
 function normalizeGeneratedSvgWhitespace(): Plugin {
   return {
     name: "mathmongo-normalize-generated-svg-whitespace",
@@ -44,12 +47,12 @@ export default defineConfig({
     },
   },
   build: {
-    outDir: "dist",
+    outDir: browserCoverage ? "coverage/browser-build" : "dist",
     emptyOutDir: true,
     assetsDir: "assets",
     assetsInlineLimit: 0,
     chunkSizeWarningLimit: 1400,
-    sourcemap: false,
+    sourcemap: browserCoverage ? "hidden" : false,
     rollupOptions: {
       output: {
         entryFileNames: "assets/[name]-[hash].js",
@@ -70,7 +73,7 @@ export default defineConfig({
   test: {
     coverage: {
       provider: "v8",
-      reporter: ["text", "lcov", "json-summary"],
+      reporter: ["text", "lcov", "json-summary", "json"],
       include: ["src/**/*.{ts,tsx}", "scripts/**/*.mjs"],
     },
     environment: "jsdom",
