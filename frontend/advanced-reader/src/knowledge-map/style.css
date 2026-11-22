@@ -731,7 +731,59 @@
   --keycap-text-hover: var(--mm-text);
   --keyboard-toolbar-background: var(--mm-panel);
   --keyboard-toolbar-text: var(--mm-text);
+  --variant-panel-background: var(--mm-panel);
+  --variant-keycap-text: var(--mm-text);
+  --variant-keycap-text-active: var(--mm-selected-text);
+  --variant-keycap-background-active: var(--mm-selected-bg);
 }
 .math-keyboard-host [role='button'] {
   border: 1px solid var(--mm-border);
+}
+/* MathLive's public parts keep the field compact without reaching into its DOM. */
+.visual-document math-field:not([readonly]) {
+  border: 1px solid var(--mm-border);
+  border-radius: 10px;
+  padding: 3px 6px;
+  min-height: 40px;
+  --primary: var(--mm-turquoise);
+  --placeholder-opacity: 0.85;
+}
+.visual-document math-field:not([readonly]):focus-within {
+  border-color: var(--mm-turquoise);
+  outline: 2px solid var(--mm-focus);
+  outline-offset: 2px;
+}
+.visual-document math-field::part(container) { padding: 0; }
+.visual-document math-field::part(content) { padding: 4px; }
+.visual-document math-field::part(virtual-keyboard-toggle),
+.visual-document math-field::part(menu-toggle) {
+  color: var(--mm-sky);
+  border-radius: 6px;
+  margin-inline: 3px;
+}
+.visual-document math-field[readonly] {
+  background: transparent;
+  border: 0;
+  padding: 0;
+}
+.document-toolbar button {
+  min-height: 34px;
+  padding: 5px 9px;
+  border-radius: 7px;
+}
+.document-toolbar button[aria-label='Negrita'] { font-weight: 800; }
+.document-toolbar button[aria-label='Énfasis'] { font-style: italic; }
+.math-keyboard-host {
+  border: 1px solid var(--mm-border);
+  border-radius: 12px 12px 0 0;
+  overflow: hidden;
+  background: var(--mm-bg);
+  box-shadow: 0 -8px 32px #0004;
+  --keycap-border-radius: 7px;
+}
+.math-keyboard-host > button {
+  justify-self: end;
+  margin: 5px 10px;
+  font-size: 13px;
+  min-height: 30px;
 }

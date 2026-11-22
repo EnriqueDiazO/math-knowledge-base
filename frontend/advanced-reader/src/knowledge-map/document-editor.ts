@@ -21,7 +21,19 @@ function control(
   text: string,
   action: () => void,
 ): HTMLButtonElement {
-  const button = dom("button", text);
+  const glyphs: Record<string, string> = {
+    Negrita: "B",
+    Énfasis: "I",
+    Encabezado: "H₂",
+    Lista: "• ≡",
+    "Lista numerada": "1. ≡",
+    Código: "</>",
+    "Deshacer texto": "↶",
+    "Rehacer texto": "↷",
+  };
+  const button = dom("button", glyphs[text] ?? text);
+  if (glyphs[text]) button.setAttribute("aria-label", text);
+  button.title = text;
   button.type = "button";
   button.onmousedown = (event) => event.preventDefault();
   button.onclick = action;

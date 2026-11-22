@@ -7,10 +7,12 @@ const keyboardSheets = new Set<CSSStyleSheet>();
 export function mountMathKeyboard(container: HTMLElement): () => void {
   const keyboard = window.mathVirtualKeyboard;
   if (!keyboard) return () => {};
+  const previousLayouts = keyboard.layouts;
+  keyboard.layouts = ["numeric", "symbols", "alphabetic", "greek"];
   const host = document.createElement("div");
   host.className = "math-keyboard-host";
   host.style.cssText =
-    "position:sticky;bottom:0;height:min(36dvh,320px);width:100%;z-index:10;grid-template-rows:auto minmax(0,1fr);--keycap-height:min(5dvh,44px);--keycap-font-size:22px;display:none";
+    "position:sticky;bottom:0;height:min(43dvh,380px);width:100%;z-index:10;grid-template-rows:auto minmax(0,1fr);--keycap-height:min(4dvh,36px);--keycap-font-size:22px;display:none";
   host.hidden = true;
   const close = document.createElement("button");
   close.type = "button";
@@ -46,6 +48,7 @@ export function mountMathKeyboard(container: HTMLElement): () => void {
     keyboard.removeEventListener?.("before-virtual-keyboard-toggle", prepare);
     keyboard.removeEventListener?.("virtual-keyboard-toggle", adopt);
     if (keyboard.container === frame) keyboard.container = document.body;
+    keyboard.layouts = previousLayouts;
     host.remove();
   };
 }

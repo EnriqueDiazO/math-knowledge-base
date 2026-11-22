@@ -42,6 +42,9 @@ export function makeMath(latex: string, editable: boolean): MathfieldElement {
   field.mathVirtualKeyboardPolicy = "manual";
   field.readOnly = !editable;
   field.value = latex;
+  field.title = editable
+    ? "Escribe aquí o abre el teclado: números, símbolos, letras y griego"
+    : "Expresión matemática";
   field.setAttribute(
     "aria-label",
     editable ? "Fórmula editable" : "Expresión matemática",
