@@ -41,7 +41,6 @@ def test_theme_control_and_navigation_are_rendered_in_the_sidebar() -> None:
 
 def test_chart_theming_uses_the_shared_plotly_helper() -> None:
     """Dashboard charts must not fall back to unthemed light/dark containers."""
-    app = STREAMLIT_APP.read_text(encoding="utf-8")
     theme_module = (ROOT / "editor" / "ui" / "theme.py").read_text(encoding="utf-8")
 
     assert "def apply_chart_theme" in theme_module

@@ -15,7 +15,6 @@ from editor.source_catalog.shared import inspect_catalog_status
 from editor.source_catalog.shared import render_catalog_status
 from editor.source_catalog.state import ADD_SOURCE_NAV_LABEL
 from editor.source_catalog.state import EDIT_SOURCE_NAV_LABEL
-from editor.source_catalog.state import NAVIGATION_WIDGET
 from editor.source_catalog.state import add_source_catalog_navigation
 from mathmongo.source_catalog.indexes import SourceCatalogIndexManager
 
