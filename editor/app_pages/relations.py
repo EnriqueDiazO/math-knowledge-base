@@ -193,7 +193,7 @@ def render(context):
             # Checklist
             st.markdown("### ✅ Verification Checklist")
 
-            RELATION_CHECKLIST = {
+            relation_checklist = {
                 "equivalente": {
                     "definition": "Two concepts are equivalent when they define the same object/statement under compatible hypotheses, typically via A⇒B and B⇒A.",
             "essential": [
@@ -273,7 +273,7 @@ def render(context):
         "You can provide a short intuition of why the claim fails and what it teaches.",
     ], },
     }
-            spec = RELATION_CHECKLIST.get(tipo_relacion, None)
+            spec = relation_checklist.get(tipo_relacion, None)
             if spec:
                 st.info(spec["definition"])
                 tutor_key = f"rel_tutor::{a_key}::{b_key}::{tipo_relacion}"
