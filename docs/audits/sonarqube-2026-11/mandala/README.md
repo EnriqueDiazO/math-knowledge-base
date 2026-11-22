@@ -1,5 +1,10 @@
 # Editor visual y esfera de estudio — continuación
 
+Decisión vigente: **frontend React independiente**, según
+[INTERFACE_DECISION.md](INTERFACE_DECISION.md). La revisión concreta del encargo
+y los checkpoints están en [FRONTEND_MIGRATION_REVIEW.md](FRONTEND_MIGRATION_REVIEW.md).
+Las decisiones anteriores de esta bitácora se conservan como historia del trabajo.
+
 Partida comprobada: `cf1ffc9c`, rama `feature/knowledge-sphere-2026-11`, árbol
 limpio. Se conserva el checkpoint y la auditoría previa; no se reinicia su revisión.
 
@@ -253,3 +258,124 @@ En el grupo del coordinador, 1236 líneas previas pasan a **1457** al contar
 927 + 398 + 132: hay 221 líneas netas añadidas en ese grupo. El beneficio es
 separar ciclo de documento y controles de visibilidad; no una reducción cosmética
 ni una eliminación de 309 líneas de producto.
+
+### Lectura, extracción y cambio a frontend independiente
+
+Se mantienen rama `feature/knowledge-sphere-2026-11`, instalación y commits.
+`1b8e8ead` implementa preparación S3/S4 explícita y no destructiva, con estados
+separados de pendiente compatible, permisos/conexión no comprobables y conflicto.
+Reutiliza los managers aprobados y vuelve a leer sus planes antes de habilitar
+escritura. `08dd5d96` la integra en Lectura, retiene el borrador al fallar el
+guardado y permite leer PDF verificado sin registrar posición cuando no se puede
+escribir. Abrir Lectura o Diagnóstico no aplica ese mantenimiento. La inspección
+de MathV0 fue exclusivamente de lectura; no se preparó la base habitual.
+
+El análisis de ese lote, `14fc0f8a-09c7-41ba-8fe3-d6fd44c9ff0b`, terminó en
+CE SUCCESS / Gate OK, **71,1 % general / 82,6 % nueva**. Las cinco pruebas
+AppTest cubren preparación, permisos, incompatibilidad, diagnóstico sin cambios y
+guardado fallido con reintento que conserva texto y confirma un registro real.
+
+El encargo posterior sustituye Streamlit por React como interfaz principal.
+Ya existen React/Vite, FastAPI y el lector HTTP; la habitación conserva TS/CCv2.
+La revisión documenta su desacoplamiento, contratos de contexto/revisión/
+idempotencia, transferencia explícita de borradores entre orígenes y el primer
+recorrido fuente → pasaje → nota → concepto → esfera → origen. La aplicación
+independiente completa todavía está pendiente. No se construye una segunda
+navegación completa en Streamlit ni se presenta una maqueta como migración.
+
+`203dd6cd` conserva la extracción iniciada: **5744 → 29 líneas** en el entry;
+**6134 en el conjunto relacionado**, 390 netas añadidas al contar las ubicaciones
+extraídas. Veinte páginas y siete grupos de helpers se conservan, con contexto
+explícito, importación de la página activa y sin renderizar al importarse.
+No se retiraron flujos avanzados ni modelos Cornell/CPI. Se eliminó una variable
+intermedia sin consumidores locales y bindings de imports sobrantes tras separar
+dependencias; no se eliminaron validaciones ni pruebas. `42ff4eb5` limpia dos
+bindings obsoletos de los tests adaptados.
+
+La integral de este corte dio **2068 aprobadas / 9 omitidas / 1 fallida** de
+2078 casos. El único fallo era el destino de una comprobación estática de gráficos
+(tres en Inicio y uno en Relaciones); corregido, sus cinco casos pasan. Las nueve
+omitidas pasan en el Mongo propio. Cinco regresiones nuevas de dispatch/contexto
+e importación también pasan. Se reconcilian **2083 IDs Python distintos**
+verificados; no se afirma otra integral monolítica posterior. La última repetición
+de los contratos afectados da **13 aprobadas**. Chrome recorre el editor y la
+habitación tras extraer; las verificaciones frontend previas siguen válidas para
+su código intacto, sin sustituir el futuro recorrido React autónomo.
+
+Sonar de la extracción: [NAVIGATION_RESULTS.json](NAVIGATION_RESULTS.json),
+análisis `0aa030c7-75e7-4ccb-91eb-f21d04ef7949`, fuente `203dd6cd`, CE SUCCESS,
+**Gate ERROR** sólo por cobertura nueva **63,6 % < 80**. General **71,2 %**,
+duplicación nueva **0,17408 % ≤ 3**, incidencias nuevas **0**. Misma referencia
+PREVIOUS_VERSION `2026-11-21T16:46:16+0000`, perfiles y exclusiones intactos.
+No se utiliza el Gate anterior como si hubiese validado las nuevas ubicaciones.
+
+Los archivos trasladados entran completos en código nuevo. Aportan 3145 líneas
+medibles, 2420 sin cubrir. Se cotejó el XML con Sonar en los 32 módulos y coincide
+exactamente: **0 líneas faltantes por importación demostradas** en ese conjunto.
+El déficit corresponde a flujos heredados poco ejercitados, sobre todo mapas,
+relaciones y formularios de conceptos. Véanse [NAVIGATION_COVERAGE.csv](NAVIGATION_COVERAGE.csv)
+y [NAVIGATION_REPORT_IMPORT.json](NAVIGATION_REPORT_IMPORT.json). No se cambia
+periodo, umbral ni alcance. Python local: 32537/46156 = **70,49 %**.
+
+La reproducción aislada [DELETION_BEFORE.json](DELETION_BEFORE.json) ejecuta las
+sentencias reales de borrado extraídas, sin simular su confirmación visual.
+Edición deja 0 relaciones y exploración 1; ambas dejan 1 evidencia al concepto
+eliminado. Referencia, medio compartido y otro concepto se conservan. El servicio
+común, sus fallos parciales y la confirmación ligada a contexto/revisión quedan
+pendientes antes de exponer el borrado en React; no se anuncia una corrección.
+
+Inventario actualizado: 363 archivos mantenidos, 203 de pruebas, veinte propios
+de más de mil líneas con decisiones conservadas. El nuevo módulo histórico de
+mapas mide 1381 y sigue pendiente de migración. Ruff: **2161 avisos**, incluidos
+1437 E101 del literal JS heredado; la revisión del resto del repositorio sigue
+abierta. AppImage permanece pendiente. Todos los commits son locales, sin push
+ni merge.
+
+## Checkpoint autónomo React e identidad original de MathMongo
+
+[MIGRATION_CHECKPOINT.md](MIGRATION_CHECKPOINT.md) actualiza la implementación,
+los commits, contratos, matriz de paridad y pendientes concretos.
+[VISUAL_IDENTITY.md](VISUAL_IDENTITY.md) contrasta el `miestilo.sty` de
+`templates_latex` indicado por el usuario, documenta la conversión xcolor y
+sus variantes oscuras, alias y capturas. Las plantillas/exportación permanecen
+intactas: `remark` es Nota y `purple` original es #BF0040, no CSS purple.
+
+La aplicación React/FastAPI ya permite Biblioteca → PDF/pasaje → editor visual
+amplio → nota guardada y recuperada → publicación explícita → concepto → esfera
+→ pasaje original, **sin arrancar Streamlit**. Chrome y Firefox verifican
+pérdida de respuesta, reintento idempotente, fórmulas, teclado MathLive, foco,
+recarga, 100 % de zoom y 1440/390 px en recursos temporales propios. La inspección
+estrecha detectó y corrigió el solapamiento de Guardar con el documento; sus
+aserciones geométricas y capturas posteriores quedan conservadas.
+
+El borrado compartido sustituye el pendiente del corte anterior: evidencia y
+pertenencia a esfera bloquean; ambas direcciones de relación se eliminan por
+instantánea, y sólo se compensa una inserción propia inalterada. Las notas,
+fuentes, referencias y bytes compartidos permanecen. Edición y Exploración
+reutilizan el contrato; todavía no se expone un borrado nuevo en React. Se
+corrigieron además la doble lectura de revisión/contenido y el nullable de
+metadatos de la edición heredada, con regresiones de concurrencia y UI.
+
+La integral fue **2106 aprobadas / 9 omitidas / 0 fallidas (2115 casos)**.
+Las nueve opt-in pasan en Mongo propio; dos regresiones posteriores elevan el
+conjunto conciliado a **2117 IDs distintos verificados**. Los lotes afectados
+de 57 y 167 casos no se suman como si fueran casos nuevos. Los 50 históricos
+del ZIP privado pasan; no hay bloqueo por ese corpus. Frontend: **224 aprobadas**,
+typecheck/build y ESLint correctos. Ruff: **2156 avisos heredados**, mismas reglas.
+
+Sonar final, CE SUCCESS, análisis `7bfb0b4c-d4cd-4de8-a534-807e97244eab`, revisión
+`8dbd6234944e6f39cbadf91b59c44b1fb3173ead`: **73,0 % general / 69,7 % nueva**
+frente a **71,2 / 63,6 %** tras la extracción. **Gate ERROR**, sólo por
+cobertura nueva < 80; duplicación nueva 0,14364 ≤ 3, incidencias nuevas 0.
+Se conserva la misma referencia PREVIOUS_VERSION y el hash de configuración.
+XML y LCOV importados sin avisos; cotejo exacto en 26 módulos Python. El CSV
+desglosa los 153 archivos que contribuyen al código nuevo. Los E2E de navegador
+no se convierten artificialmente en hits V8; el déficit y la instrumentación
+pendiente están delimitados en el checkpoint.
+
+Inventario actual: **393 fuentes propias, 218 archivos de prueba, veinte fuentes
+de más de mil líneas**, con responsabilidades y decisiones individuales
+actualizadas. Entry Streamlit: **21 líneas**, páginas extraídas también contadas.
+Los generados, el código trasladado y las adiciones se distinguen en el delta.
+La migración completa, AppImage y la revisión de mantenibilidad siguen abiertas;
+no se retiran flujos por haber completado este primer recorrido.

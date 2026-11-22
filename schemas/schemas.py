@@ -134,7 +134,7 @@ class ConceptoBase(BaseModel):
     Modelo general para conceptos matemáticos: definiciones, teoremas, ejemplos, etc.
     """
     id: str
-    tipo: Literal["definicion", "proposicion", "teorema", "corolario", "ejemplo", "lema", "nota"]
+    tipo: Literal["definicion", "proposicion", "teorema", "corolario", "ejemplo", "lema", "nota", "observacion"]
 
     titulo: Optional[str] = Field(None, description="Título o encabezado del concepto, si existe")
     tipo_titulo: TipoTitulo = Field(default="ninguno", description="Tipo de título: canonico, descripcion, generado, ninguno")

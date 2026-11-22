@@ -13,7 +13,7 @@ from editor.document_builder import _concepts_for_keys
 
 ROOT = Path(__file__).resolve().parents[1]
 BUILDER_SOURCE = ROOT / "editor" / "document_builder.py"
-APP_SOURCE = ROOT / "editor" / "editor_streamlit.py"
+APP_SOURCE = ROOT / "editor" / "app_pages" / "documents.py"
 
 
 class _ReadOnlyCollection:

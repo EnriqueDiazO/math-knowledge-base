@@ -13,15 +13,7 @@ import type { Data, View, Node, Edge } from "./model";
 import { dragSurface } from "./layout";
 import { studyTheme as theme } from "./theme";
 import { areaColor, regions } from "./areas";
-export const colors: Record<string, string> = {
-  definicion: theme.turquoise,
-  teorema: theme.sky,
-  proposicion: theme.amber,
-  corolario: theme.sky,
-  lema: theme.turquoise,
-  ejemplo: theme.amber,
-  nota: theme.muted,
-};
+import { conceptType } from "./concept-types";
 type Path = { edge: Edge; lane: number; points: Vec[] };
 type Drag = {
   startX: number;
@@ -613,15 +605,22 @@ export class MapCanvas {
       active = selected || node.key === this.hover || endpoint;
     ctx.globalAlpha =
       p.z < 0 ? 0.22 : this.view.focusedEdge && !active ? 0.2 : 0.8 + 0.2 * p.z;
-    ctx.fillStyle = colors[node.tipo] ?? "#bfccd9";
+    const type = conceptType(node.tipo);
+    ctx.fillStyle = type?.accent ?? theme.muted;
     ctx.beginPath();
     const radius = active ? 7 : 5;
-    if (node.tipo === "teorema") {
+    if (type?.shape === "triangle") {
       ctx.moveTo(p.x, p.y - radius);
       ctx.lineTo(p.x + radius, p.y + radius);
       ctx.lineTo(p.x - radius, p.y + radius);
       ctx.closePath();
-    } else if (node.tipo === "definicion")
+    } else if (type?.shape === "diamond") {
+      ctx.moveTo(p.x, p.y - radius);
+      ctx.lineTo(p.x + radius, p.y);
+      ctx.lineTo(p.x, p.y + radius);
+      ctx.lineTo(p.x - radius, p.y);
+      ctx.closePath();
+    } else if (type?.shape === "square")
       ctx.rect(p.x - radius, p.y - radius, radius * 2, radius * 2);
     else ctx.arc(p.x, p.y, radius, 0, Math.PI * 2);
     ctx.fill();
@@ -654,7 +653,8 @@ export class MapCanvas {
       this.priority.has(node.key) ||
       (this.nodes.length < 25 && p.z > 0.15)
     ) {
-      const box = this.labelBox(ctx, node.titulo, p);
+      const label = type ? `${type.symbol} · ${node.titulo}` : node.titulo;
+      const box = this.labelBox(ctx, label, p);
       if (
         !active &&
         this.boxes.some(
@@ -671,7 +671,7 @@ export class MapCanvas {
       ctx.fillStyle = theme.bg;
       ctx.fillRect(box.x - 4, box.y - 18, box.width + 8, 23);
       ctx.fillStyle = theme.text;
-      ctx.fillText(node.titulo, box.x, box.y, box.width);
+      ctx.fillText(label, box.x, box.y, box.width);
     }
   }
   private drawGoals(ctx: CanvasRenderingContext2D): void {

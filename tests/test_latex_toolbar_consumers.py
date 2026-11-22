@@ -56,9 +56,10 @@ def test_cpi_create_and_edit_converge_on_toolbar_enabled_editor() -> None:
 
 
 def test_concepts_create_and_edit_have_distinct_instances_of_same_toolbar() -> None:
-    module = _module("editor/editor_streamlit.py")
+    modules = [_module(path) for path in ("editor/app_pages/concept_create.py", "editor/app_pages/concept_edit.py")]
     calls = [
         call
+        for module in modules
         for call in ast.walk(module)
         if isinstance(call, ast.Call)
         and isinstance(call.func, ast.Name)
@@ -79,7 +80,8 @@ def test_active_consumers_do_not_redeclare_canonical_snippets() -> None:
         "editor/cuaderno_page.py",
         "editor/cornell/streamlit_page.py",
         "editor/cpi/streamlit_page.py",
-        "editor/editor_streamlit.py",
+        "editor/app_pages/concept_create.py",
+        "editor/app_pages/concept_edit.py",
     ):
         source = (PROJECT_ROOT / path).read_text(encoding="utf-8")
         assert r"\begin{definition}" not in source

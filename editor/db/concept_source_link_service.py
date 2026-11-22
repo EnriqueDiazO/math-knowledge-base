@@ -94,6 +94,10 @@ def _preflight(
 ) -> _Preflight | ConceptSourceLinkResult:
     identity = {"id": concept_id, "source": source}
     concept = _find_one(database.concepts, identity, session)
+    if concept is not None and concept.get('_delete_operation'):
+        return _result(ConceptSourceLinkStatus.STALE_IDENTITY,
+            'El concepto tiene una eliminación pendiente. No se modifica su fuente.',
+            transaction_used=session is not None)
     if concept is None:
         return _result(
             ConceptSourceLinkStatus.CONCEPT_NOT_FOUND,

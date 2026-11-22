@@ -1,0 +1,24 @@
+{
+  "method": "Actual deletion AST statements from existing pages; interface confirmation not simulated",
+  "isolation": "Owned standalone MongoDB, checked PID, temporary dbpath, random database names, all dropped",
+  "cases": [
+    {
+      "route": "concept_edit",
+      "concept_deleted": true,
+      "remaining_relations": 0,
+      "remaining_evidence_to_deleted_concept": 1,
+      "shared_reference_preserved": true,
+      "other_concept_preserved": true,
+      "shared_media_preserved": true
+    },
+    {
+      "route": "concepts",
+      "concept_deleted": true,
+      "remaining_relations": 1,
+      "remaining_evidence_to_deleted_concept": 1,
+      "shared_reference_preserved": true,
+      "other_concept_preserved": true,
+      "shared_media_preserved": true
+    }
+  ]
+}

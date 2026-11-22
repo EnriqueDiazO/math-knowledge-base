@@ -1,0 +1,90 @@
+{
+  "definicion": {
+    "label": "Definición",
+    "symbol": "D",
+    "shape": "square",
+    "latex": "blue",
+    "original": "#0000FF",
+    "accent": "#8ABEFF",
+    "background": "#102A42",
+    "border": "#426A96",
+    "aliases": ["definition", "definicion", "cthdefinicion"]
+  },
+  "teorema": {
+    "label": "Teorema",
+    "symbol": "T",
+    "shape": "triangle",
+    "latex": "red",
+    "original": "#FF0000",
+    "accent": "#FF9B9B",
+    "background": "#292A38",
+    "border": "#89505D",
+    "aliases": ["theorem", "teorema", "cthteorema"]
+  },
+  "corolario": {
+    "label": "Corolario",
+    "symbol": "C",
+    "shape": "circle",
+    "latex": "green",
+    "original": "#00FF00",
+    "accent": "#93DDA5",
+    "background": "#142E32",
+    "border": "#42785D",
+    "aliases": ["corollary", "corolario", "cthcorolario"]
+  },
+  "lema": {
+    "label": "Lema",
+    "symbol": "L",
+    "shape": "circle",
+    "latex": "purple",
+    "original": "#BF0040",
+    "accent": "#ED9ABB",
+    "background": "#2C2539",
+    "border": "#87516D",
+    "aliases": ["lemma", "lema", "cthlema"]
+  },
+  "proposicion": {
+    "label": "Proposición",
+    "symbol": "P",
+    "shape": "diamond",
+    "latex": "orange",
+    "original": "#FF8000",
+    "accent": "#F0C29B",
+    "background": "#252C33",
+    "border": "#8A7662",
+    "aliases": ["proposition", "proposicion", "cthproposicion"]
+  },
+  "ejemplo": {
+    "label": "Ejemplo",
+    "symbol": "E",
+    "shape": "square",
+    "latex": "orange",
+    "original": "#FF8000",
+    "accent": "#FFAB58",
+    "background": "#2C2B2E",
+    "border": "#9A663E",
+    "aliases": ["example", "ejemplo", "cthejemplo"]
+  },
+  "nota": {
+    "label": "Nota",
+    "symbol": "N",
+    "shape": "circle",
+    "latex": "yellow",
+    "original": "#FFFF00",
+    "accent": "#E9D879",
+    "background": "#272D2C",
+    "border": "#817844",
+    "aliases": ["remark", "note", "nota", "cthnota"]
+  },
+  "observacion": {
+    "label": "Observación",
+    "symbol": "O",
+    "shape": "circle",
+    "latex": "teal",
+    "original": "#008080",
+    "accent": "#7ED6D0",
+    "background": "#122E39",
+    "border": "#387E80",
+    "aliases": ["observation", "observacion", "cthobservacion"]
+  }
+}

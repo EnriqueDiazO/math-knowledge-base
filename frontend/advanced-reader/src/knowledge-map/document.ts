@@ -4,16 +4,8 @@
  * internal view only; MongoDB and the exporters continue to receive LaTeX.
  */
 import type { JSONContent } from "@tiptap/core";
-export const resultNames: Record<string, string> = {
-  definition: "Definición",
-  theorem: "Teorema",
-  proposition: "Proposición",
-  proof: "Demostración",
-  remark: "Observación",
-  lemma: "Lema",
-  corollary: "Corolario",
-  example: "Ejemplo",
-};
+import { resultNames } from "./concept-types";
+export { resultNames } from "./concept-types";
 type Group = { value: string; end: number };
 export function group(text: string, start: number): Group | undefined {
   if (text[start] !== "{") return;
@@ -78,7 +70,11 @@ export function inline(text: string): JSONContent[] {
   const result: JSONContent[] = [];
   let buffer = "";
   const flush = () => {
-    if (buffer) result.push(plain(buffer));
+    // A single source newline is whitespace in LaTeX, not a visual hard break.
+    // Literal LFs in DOM text nodes can become <br> during MathLive focus and
+    // ProseMirror reconciliation. Keep the display stable; provenance retains
+    // the exact original source, including its line wrapping.
+    if (buffer) result.push(plain(buffer.replace(/\r?\n/gu, " ")));
     buffer = "";
   };
   for (let i = 0; i < text.length;) {
@@ -197,7 +193,15 @@ export function parseDocument(source: string): JSONContent {
       env = environment(source, cursor);
     if (env) {
       const raw = source.slice(start, env.end);
-      if (resultNames[env.name])
+      // Explicit tcolorbox options belong to the document. The bounded visual
+      // adapter cannot interpret arbitrary TeX styles; preserve the whole box
+      // through the existing source block rather than replacing its colors.
+      if (resultNames[env.name] && /^\s*\[/u.test(env.body))
+        blocks.push(original({
+          type: "sourceBlock",
+          attrs: { source: raw, reason: "Estilo personalizado conservado en fuente y exportación PDF." },
+        }, raw));
+      else if (resultNames[env.name])
         blocks.push(
           original(
             {

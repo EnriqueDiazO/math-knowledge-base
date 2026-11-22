@@ -3,6 +3,8 @@ import { studyTheme } from "./theme";
 import { unit } from "./geometry";
 import type { Vec } from "./geometry";
 export function areaColor(name: string): string {
+  // Thematic regions use the study-space palette and dashed outlines. Never
+  // derive their color from a member's mathematical type; membership is separate.
   let hash = 0;
   for (const char of name) hash = (hash * 31 + char.codePointAt(0)!) >>> 0;
   return [studyTheme.turquoise, studyTheme.sky, studyTheme.amber][hash % 3];

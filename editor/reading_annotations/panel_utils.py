@@ -37,8 +37,15 @@ def render_result(ui: Any, result: Any, *, success: str) -> bool:
     ok = result_ok(result)
     status = enum_value(getattr(result, "status", "error"))
     message = safe_error_message(getattr(result, "message", "") or success)
+    translations = {
+        'Could not persist the Reading Note.': 'No se pudo guardar la nota. El borrador se conserva; comprueba la conexión y vuelve a pulsar Guardar nota.',
+        'Could not inspect Notes & Evidence indexes.': 'No se pudo comprobar si puedes guardar notas y subrayados. El borrador se conserva; pulsa Volver a comprobar en Lectura.',
+        'Initialize the approved Notes & Evidence indexes before writing.': 'Antes de guardar, pulsa Preparar notas y subrayados en Lectura. El borrador se conserva.',
+        'Notes & Evidence index definitions conflict with the approved plan.': 'No se puede guardar con la configuración actual. El borrador se conserva; abre Ajustes → Diagnóstico para revisar la incompatibilidad.',
+    }
+    message = translations.get(message, message)
     if ok:
-        ui.success(message)
+        ui.success(success)
     elif status in {"not_found", "archived"}:
         ui.warning(message)
     else:

@@ -3,7 +3,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { normalizeRedistributedLicense } from "./text-normalization.mjs";
 const root = path.resolve(import.meta.dirname, "..");
-export function runtimeNotices(directory = root) {
+export function runtimeNotices(directory = root, outputName = "THIRD_PARTY_LICENSES.txt") {
   return {
     name: "mathmongo-runtime-notices",
     generateBundle() {
@@ -37,7 +37,7 @@ export function runtimeNotices(directory = root) {
       }
       this.emitFile({
         type: "asset",
-        fileName: "THIRD_PARTY_LICENSES.txt",
+        fileName: outputName,
         source: normalizeRedistributedLicense(sections.join("\n")),
       });
     },

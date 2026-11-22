@@ -14,7 +14,7 @@ import pytest
 import editor.concept_reference_form as reference_form
 
 ROOT = Path(__file__).resolve().parents[1]
-APP = ROOT / "editor" / "editor_streamlit.py"
+APP = ROOT / "editor" / "app_pages" / "concept_create.py"
 FORM = ROOT / "editor" / "concept_reference_form.py"
 FIXTURE = (
     ROOT
@@ -538,9 +538,7 @@ def test_form_module_has_no_mongodb_write_or_managed_source_mutation_path() -> N
 
 def test_add_concept_uses_component_and_persists_the_confirmed_reference_contract() -> None:
     source = APP.read_text(encoding="utf-8")
-    start = source.index('elif page == "💡 Nuevo concepto":')
-    end = source.index('\nelif page == "🖊️ Editar concepto":', start)
-    branch = source[start:end]
+    branch = source
 
     assert "render_concept_reference_form(" in branch
     assert "concept_reference_has_content(reference_data)" in branch
@@ -552,9 +550,7 @@ def test_add_concept_uses_component_and_persists_the_confirmed_reference_contrac
 
 def test_add_concept_import_does_not_change_managed_source_contract() -> None:
     source = APP.read_text(encoding="utf-8")
-    start = source.index('elif page == "💡 Nuevo concepto":')
-    end = source.index('\nelif page == "🖊️ Editar concepto":', start)
-    branch = source[start:end]
+    branch = source
 
     assert '"source": source' in branch
     assert '"source_id": source_id' in branch

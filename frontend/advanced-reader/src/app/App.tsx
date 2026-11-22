@@ -69,6 +69,8 @@ export interface AdvancedReaderAppProps {
   controllerFactory: PdfReaderControllerFactory;
   search?: string;
   onEvent?: (event: AdvancedReaderEventV1) => void;
+  onCreateNote?: (metadata: DocumentMetadata, passage?: CreateVisualAnnotation) => void;
+  initialPdfPage?: number;
 }
 
 const PUBLIC_ERROR_CODES = new Set<PublicReaderErrorCode>([
@@ -248,6 +250,8 @@ export function AdvancedReaderApp({
   controllerFactory,
   search = window.location.search,
   onEvent,
+  onCreateNote,
+  initialPdfPage,
 }: AdvancedReaderAppProps) {
   const documentId = useMemo(() => documentIdFromSearch(search), [search]);
   const [retryKey, setRetryKey] = useState(0);
@@ -369,7 +373,7 @@ export function AdvancedReaderApp({
             setSidebarOpen(false);
           }
           setMetadata(value);
-          const initialPage = value.reading_state.current_page ?? 1;
+          const initialPage = initialPdfPage ?? value.reading_state.current_page ?? 1;
           currentPageRef.current = initialPage;
           setCurrentPage(initialPage);
           setPageLabel(value.page_label ?? fallbackPageLabel(initialPage));
@@ -391,7 +395,7 @@ export function AdvancedReaderApp({
         }
       });
     return () => abortController.abort();
-  }, [api, documentId, emitEvent, retryKey]);
+  }, [api, documentId, emitEvent, retryKey, initialPdfPage]);
 
   useEffect(() => {
     if (
@@ -496,7 +500,7 @@ export function AdvancedReaderApp({
       pdfUrl: api.pdfUrl(metadata.document_id),
       documentId: metadata.document_id,
       versionId: metadata.version.version_id,
-      initialPage: metadata.reading_state.current_page ?? 1,
+      initialPage: initialPdfPage ?? metadata.reading_state.current_page ?? 1,
       handlers: {
         onReady(pages) {
           const safePages = safeTotalPageCount(pages);
@@ -508,7 +512,7 @@ export function AdvancedReaderApp({
             document_id: metadata.document_id,
             version_id: metadata.version.version_id,
             total_pages: safePages,
-            initial_pdf_page: safePdfPage(metadata.reading_state.current_page, safePages),
+            initial_pdf_page: safePdfPage(initialPdfPage ?? metadata.reading_state.current_page, safePages),
           });
         },
         onPageRendered(pdfPage) {
@@ -625,7 +629,7 @@ export function AdvancedReaderApp({
       controller.destroy();
       if (controllerRef.current === controller) controllerRef.current = null;
     };
-  }, [api, controllerFactory, emitEvent, metadata]);
+  }, [api, controllerFactory, emitEvent, metadata, initialPdfPage]);
 
   useEffect(() => {
     controllerRef.current?.setVisualAnnotations(
@@ -721,6 +725,19 @@ export function AdvancedReaderApp({
   }, [api, conceptListPage, conceptReloadKey, currentPage, metadata]);
 
   const ready = phase === "ready" || phase === "page_render_failed";
+  const startStudyNote = () => {
+    if (!onCreateNote || !metadata) { setQuickNoteOpen(true); return; }
+    const selected = selectionRef.current;
+    if (!isPersistableSelection(selected)) { onCreateNote(metadata); return; }
+    const rects = controllerRef.current?.canonicalizeSelection(selected.pdf_page, selected.rects_normalized);
+    if (!rects?.length) return;
+    onCreateNote(metadata, {
+      annotation_id: "ann_" + crypto.randomUUID(), version_id: metadata.version.version_id,
+      document_sha256: metadata.version.sha256, pdf_page: selected.pdf_page,
+      kind: "highlight", quote_text: selected.selected_text, rects,
+      capture_rotation: selected.rotation, color_label: "yellow", body: "", tags: [],
+    });
+  };
   const executeSearch = (direction: SearchDirection, again: boolean) => {
     if (metadata === null) return;
     const query = normalizeSearchQuery(searchQuery);
@@ -1123,6 +1140,7 @@ export function AdvancedReaderApp({
               onCancel={cancelVisualDraft}
             />
           ) : selection !== null ? (
+            <>
             <SelectionInspector
               selection={selection}
               pageLabel={selectionPageLabel}
@@ -1130,6 +1148,8 @@ export function AdvancedReaderApp({
               onChoose={beginVisualAnnotation}
               onClear={() => controllerRef.current?.clearSelection("user")}
             />
+            {onCreateNote && <button type="button" className="primary-button" onMouseDown={event => event.preventDefault()} onClick={startStudyNote}>Escribir nota desde este pasaje</button>}
+            </>
           ) : quickNoteOpen ? (
             <section className="inspector-card quick-note" aria-labelledby="quick-note-heading">
               <div className="eyebrow">Nota rápida</div>
@@ -1209,7 +1229,7 @@ export function AdvancedReaderApp({
               <h2 id="reading-context-heading">{pageLabel.display_label}</h2>
               <p>{activePageMarks.length} marcas · {pageConceptCount} conceptos</p>
               <div className="button-row">
-                <button type="button" className="primary-button" onClick={() => setQuickNoteOpen(true)}>
+                <button type="button" className="primary-button" onClick={startStudyNote}>
                   Nota rápida
                 </button>
                 <button type="button" onClick={() => { setReviewMode("marks"); setReviewOpen(true); }}>

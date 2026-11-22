@@ -2,6 +2,7 @@ import { createHash } from "node:crypto";
 import { cp, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
+import { offlineInspectionText } from './offline-validation.mjs';
 
 const projectRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(projectRoot, "../..");
@@ -152,7 +153,7 @@ async function validateTree(directory, root = directory) {
       !path.startsWith(`${join(root, "third-party")}/`) &&
       textualExtensions.has(extname(entry.name))
     ) {
-      const content = (await readFile(path, "utf8")).toLowerCase();
+      const content = offlineInspectionText(await readFile(path, "utf8")).toLowerCase();
       for (const fragment of forbiddenRuntimeFragments) {
         if (content.includes(fragment)) {
           throw new Error(`Forbidden runtime content in ${entry.name}: ${fragment}`);

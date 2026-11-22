@@ -256,10 +256,7 @@ def test_cpi_identity_state_and_inputs_use_cpi_keys(monkeypatch) -> None:
 
 
 def test_editor_navigation_shows_cpi_icon_but_routes_to_cpi() -> None:
-    source = (Path(__file__).resolve().parents[1] / "editor" / "editor_streamlit.py").read_text(
-        encoding="utf-8",
-    )
-
-    assert 'CPI_NAV_LABEL = "🟥 CPI"' in source
-    assert 'page = "CPI" if selected_page == CPI_NAV_LABEL else selected_page' in source
-    assert 'elif page == "CPI":' in source
+    from editor.application_navigation import PAGES
+    assert PAGES["🟥 CPI"] == "cpi"
+    source = (Path(__file__).resolve().parents[1] / "editor/app_pages/cpi.py").read_text()
+    assert "render_cpi_page(db)" in source

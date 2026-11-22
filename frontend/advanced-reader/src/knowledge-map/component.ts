@@ -1,6 +1,7 @@
 import "./style.css";
 import { applyStudyTheme } from "./theme";
-import { MapCanvas, colors } from "./canvas";
+import { MapCanvas } from "./canvas";
+import { conceptTypes, conceptType } from "./concept-types";
 import { positions, unrotate, unit } from "./geometry";
 import type { Vec } from "./geometry";
 import {
@@ -34,6 +35,7 @@ export type Bridge = {
   draftMapUid?: string;
   expandOnMount?: boolean;
   onSaved?: (result: Result, draft: Draft) => void;
+  onOpenDocument?: (key: string, edit?: boolean) => void;
 };
 const memory = new Map<string, View>();
 const mounted = new WeakMap<HTMLElement, () => void>();
@@ -70,6 +72,7 @@ export function renderMap({
   selectionKey,
   draftMapUid,
   expandOnMount,
+  onOpenDocument,
 }: Bridge): () => void {
   mounted.get(parentElement)?.();
   const view = readView(data.scope);
@@ -238,9 +241,10 @@ export function renderMap({
   const legend = element("details", "", "legend-details");
   legend.append(element("summary", "Leyenda y ayuda"));
   const legendItems = element("div", "", "legend");
-  Object.entries(colors).forEach(([type, color]) => {
-    const item = element("span", type);
-    item.style.setProperty("--node-color", color);
+  Object.values(conceptTypes).forEach((type) => {
+    const item = element("span", `${type.symbol} · ${type.label}`);
+    item.dataset.nodeShape = type.shape;
+    item.style.setProperty("--node-color", type.accent);
     legendItems.append(item);
   });
   legend.append(
@@ -451,7 +455,7 @@ export function renderMap({
     }
     aside.append(
       element("h3", node.titulo, "selected-title"),
-      element("p", `${node.tipo} · ${node.source}`, "hint"),
+      element("p", `${conceptType(node.tipo)?.label ?? node.tipo} · ${node.source}`, "hint"),
     );
     const memberships = (view.areas ?? []).filter((a) =>
       node.categorias.includes(a),
@@ -470,6 +474,7 @@ export function renderMap({
     button(
       "Leer concepto",
       () => {
+        if (onOpenDocument) { onOpenDocument(node.key); return; }
         view.auto = false;
         readingDispose?.();
         view.reader = node.key;
@@ -490,7 +495,7 @@ export function renderMap({
       actions,
       true,
     );
-    button("Editar ficha", () => start("edit"), actions);
+    button("Editar ficha", () => onOpenDocument ? onOpenDocument(node.key, true) : start("edit"), actions);
     button(
       "Crear conectado",
       () => start("create_connected", view.points[node.key]),

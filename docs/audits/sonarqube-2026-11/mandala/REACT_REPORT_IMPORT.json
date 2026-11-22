@@ -1,0 +1,187 @@
+{
+  "files": [
+    {
+      "path": "editor/app_pages/__init__.py",
+      "xml_lines": 0,
+      "xml_uncovered": 0,
+      "sonar_lines": 0,
+      "sonar_uncovered": 0
+    },
+    {
+      "path": "mathmongo/study/__init__.py",
+      "xml_lines": 0,
+      "xml_uncovered": 0,
+      "sonar_lines": 0,
+      "sonar_uncovered": 0
+    },
+    {
+      "path": "mathmongo/study/application.py",
+      "xml_lines": 73,
+      "xml_uncovered": 7,
+      "sonar_lines": 73,
+      "sonar_uncovered": 7
+    },
+    {
+      "path": "editor/app_pages/concept_create.py",
+      "xml_lines": 245,
+      "xml_uncovered": 48,
+      "sonar_lines": 245,
+      "sonar_uncovered": 48
+    },
+    {
+      "path": "editor/app_pages/concept_edit.py",
+      "xml_lines": 366,
+      "xml_uncovered": 101,
+      "sonar_lines": 366,
+      "sonar_uncovered": 101
+    },
+    {
+      "path": "editor/app_pages/concepts.py",
+      "xml_lines": 161,
+      "xml_uncovered": 97,
+      "sonar_lines": 161,
+      "sonar_uncovered": 97
+    },
+    {
+      "path": "editor/app_pages/cornell.py",
+      "xml_lines": 5,
+      "xml_uncovered": 3,
+      "sonar_lines": 5,
+      "sonar_uncovered": 3
+    },
+    {
+      "path": "editor/app_pages/cpi.py",
+      "xml_lines": 5,
+      "xml_uncovered": 3,
+      "sonar_lines": 5,
+      "sonar_uncovered": 3
+    },
+    {
+      "path": "editor/app_pages/database_export.py",
+      "xml_lines": 23,
+      "xml_uncovered": 15,
+      "sonar_lines": 23,
+      "sonar_uncovered": 15
+    },
+    {
+      "path": "editor/app_pages/database_import.py",
+      "xml_lines": 6,
+      "xml_uncovered": 2,
+      "sonar_lines": 6,
+      "sonar_uncovered": 2
+    },
+    {
+      "path": "mathmongo/concepts/deletion.py",
+      "xml_lines": 106,
+      "xml_uncovered": 12,
+      "sonar_lines": 106,
+      "sonar_uncovered": 12
+    },
+    {
+      "path": "editor/app_pages/diagnosis.py",
+      "xml_lines": 8,
+      "xml_uncovered": 5,
+      "sonar_lines": 8,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/documents.py",
+      "xml_lines": 8,
+      "xml_uncovered": 5,
+      "sonar_lines": 8,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/export.py",
+      "xml_lines": 96,
+      "xml_uncovered": 87,
+      "sonar_lines": 96,
+      "sonar_uncovered": 87
+    },
+    {
+      "path": "editor/app_pages/home.py",
+      "xml_lines": 299,
+      "xml_uncovered": 272,
+      "sonar_lines": 299,
+      "sonar_uncovered": 272
+    },
+    {
+      "path": "editor/app_pages/knowledge_graph.py",
+      "xml_lines": 714,
+      "xml_uncovered": 286,
+      "sonar_lines": 714,
+      "sonar_uncovered": 286
+    },
+    {
+      "path": "editor/app_pages/maintenance.py",
+      "xml_lines": 4,
+      "xml_uncovered": 1,
+      "sonar_lines": 4,
+      "sonar_uncovered": 1
+    },
+    {
+      "path": "editor/app_pages/notebook.py",
+      "xml_lines": 6,
+      "xml_uncovered": 3,
+      "sonar_lines": 6,
+      "sonar_uncovered": 3
+    },
+    {
+      "path": "editor/app_pages/reading.py",
+      "xml_lines": 15,
+      "xml_uncovered": 1,
+      "sonar_lines": 15,
+      "sonar_uncovered": 1
+    },
+    {
+      "path": "editor/app_pages/relations.py",
+      "xml_lines": 411,
+      "xml_uncovered": 402,
+      "sonar_lines": 411,
+      "sonar_uncovered": 402
+    },
+    {
+      "path": "mathmongo/study/routes.py",
+      "xml_lines": 65,
+      "xml_uncovered": 1,
+      "sonar_lines": 65,
+      "sonar_uncovered": 1
+    },
+    {
+      "path": "mathmongo/knowledge_map/service.py",
+      "xml_lines": 308,
+      "xml_uncovered": 19,
+      "sonar_lines": 308,
+      "sonar_uncovered": 19
+    },
+    {
+      "path": "editor/app_pages/settings.py",
+      "xml_lines": 40,
+      "xml_uncovered": 36,
+      "sonar_lines": 40,
+      "sonar_uncovered": 36
+    },
+    {
+      "path": "editor/app_pages/source_create.py",
+      "xml_lines": 9,
+      "xml_uncovered": 5,
+      "sonar_lines": 9,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/source_edit.py",
+      "xml_lines": 9,
+      "xml_uncovered": 5,
+      "sonar_lines": 9,
+      "sonar_uncovered": 5
+    },
+    {
+      "path": "editor/app_pages/study_room.py",
+      "xml_lines": 9,
+      "xml_uncovered": 1,
+      "sonar_lines": 9,
+      "sonar_uncovered": 1
+    }
+  ],
+  "mismatches": []
+}

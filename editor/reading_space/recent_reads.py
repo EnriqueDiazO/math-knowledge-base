@@ -41,7 +41,7 @@ def render_recent_documents(
             if ui.button(
                 "Continuar",
                 key=state_key("open_recent", document.document_id),
-                disabled=status == "archived" or not actions_enabled,
+                disabled=status == "archived",
                 type="primary",
             ):
                 on_open(item)

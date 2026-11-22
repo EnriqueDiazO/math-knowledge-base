@@ -109,7 +109,7 @@ def render_document_picker(
             if ui.button(
                 "Continuar" if reading is not None else "Leer",
                 key=state_key("open", document.document_id),
-                disabled=archived or not actions_enabled,
+                disabled=archived,
                 type="primary",
             ):
                 on_open(item)

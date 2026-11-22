@@ -1,0 +1,151 @@
+{
+  "revision": "203dd6cd108b31e8b26e8166dbf70218d8d87ba4",
+  "ce": {
+    "task": {
+      "id": "a753a84f-9e93-4482-9192-3842857c6549",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "0aa030c7-75e7-4ccb-91eb-f21d04ef7949",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-22T03:43:17+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-22T03:43:19+0000",
+      "executedAt": "2026-11-22T03:43:21+0000",
+      "executionTimeMs": 2321,
+      "hasScannerContext": true,
+      "warningCount": 0,
+      "warnings": [],
+      "infoMessages": []
+    }
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "63.6"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.17408"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "71.2",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "18281"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.5",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "50786"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "14486",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "19404",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "99275"
+        },
+        {
+          "metric": "files",
+          "value": "361"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "71.5",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6"
+}

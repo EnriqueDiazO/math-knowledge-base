@@ -10,7 +10,7 @@ from pathlib import Path
 import editor.database_connections as database_connections
 
 ROOT = Path(__file__).resolve().parents[1]
-STREAMLIT_APP = ROOT / "editor" / "editor_streamlit.py"
+STREAMLIT_APP = ROOT / "editor" / "app_pages" / "concept_create.py"
 
 
 class _ReadOnlyDatabase:

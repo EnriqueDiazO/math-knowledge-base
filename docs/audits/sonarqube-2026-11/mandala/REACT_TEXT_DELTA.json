@@ -1,0 +1,27 @@
+{
+  "base_revision": "6132704a",
+  "source_revision": "8dbd6234944e6f39cbadf91b59c44b1fb3173ead",
+  "method": "Git text additions/deletions without rename detection; not semantic removal counts",
+  "classifications": {
+    "maintained": {
+      "added": 3108,
+      "deleted": 144,
+      "files": 56
+    },
+    "resource": {
+      "added": 92,
+      "deleted": 1,
+      "files": 3
+    },
+    "test": {
+      "added": 2197,
+      "deleted": 1,
+      "files": 16
+    },
+    "generated": {
+      "added": 62896,
+      "deleted": 57836,
+      "files": 23
+    }
+  }
+}

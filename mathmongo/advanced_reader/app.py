@@ -23,6 +23,7 @@ from mathmongo.advanced_reader.schemas import ApiErrorResponse
 from mathmongo.advanced_reader.security import LOOPBACK_HOSTS
 from mathmongo.advanced_reader.security import SECURITY_HEADERS
 from mathmongo.advanced_reader.security import redacted_request_path
+from mathmongo.study.routes import build_study_router
 
 LOGGER = logging.getLogger("mathmongo.advanced_reader")
 MAX_VISUAL_ANNOTATION_REQUEST_BYTES = 64 * 1024
@@ -30,6 +31,8 @@ MAX_VISUAL_ANNOTATION_REQUEST_BYTES = 64 * 1024
 
 def _is_bounded_reader_write(request: Request) -> bool:
     path = request.url.path
+    if path.startswith('/api/study/v1/'):
+        return request.method in {'POST', 'PUT', 'PATCH', 'DELETE'}
     if request.method == "PATCH":
         return path.startswith("/api/advanced-reader/visual-annotations/")
     if request.method != "POST":
@@ -134,6 +137,9 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
 
     @app.exception_handler(RequestValidationError)
     async def validation_error(request: Request, _error: RequestValidationError) -> JSONResponse:
+        if request.url.path.startswith('/api/study/v1/'):
+            return _error_response(request, code='invalid_study_request',
+                message='Revisa los campos y el tamaño del documento. El borrador se conserva.', status_code=422)
         concept_request = (
             "/concept-evidence" in request.url.path
             or "/concepts/" in request.url.path
@@ -170,13 +176,15 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
         return _error_response(
             request,
             code="internal_error",
-            message="The Advanced Reader could not complete the request.",
+            message=('No se pudo completar la operación en la biblioteca. Conserva el borrador y reintenta.'
+                     if request.url.path.startswith('/api/study/v1/') else 'The Advanced Reader could not complete the request.'),
             status_code=500,
         )
 
     @app.middleware("http")
     async def local_security(request: Request, call_next):
         started = time.monotonic()
+        body_limit = 1024 * 1024 if request.url.path.startswith('/api/study/v1/') else MAX_VISUAL_ANNOTATION_REQUEST_BYTES
         request.state.request_id = uuid4().hex
         try:
             host_header = request.headers.get("host", "")
@@ -236,7 +244,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
                                 declared_length = -1
                             if declared_length is not None and (
                                 declared_length < 0
-                                or declared_length > MAX_VISUAL_ANNOTATION_REQUEST_BYTES
+                                or declared_length > body_limit
                             ):
                                 response = _error_response(
                                     request,
@@ -248,7 +256,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
                                 body = await request.body()
                                 if (
                                     declared_length is not None and declared_length != len(body)
-                                ) or len(body) > MAX_VISUAL_ANNOTATION_REQUEST_BYTES:
+                                ) or len(body) > body_limit:
                                     response = _error_response(
                                         request,
                                         code="request_too_large",
@@ -296,6 +304,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
         return response
 
     app.include_router(build_api_router())
+    app.include_router(build_study_router())
 
     def serve_index(request: Request) -> FileResponse:
         index = dependencies.frontend_root / "index.html"
@@ -309,6 +318,8 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
 
     app.add_api_route("/", serve_index, methods=["GET"], include_in_schema=False)
     app.add_api_route("/reader", serve_index, methods=["GET"], include_in_schema=False)
+    app.add_api_route('/study', serve_index, methods=['GET'], include_in_schema=False)
+    app.add_api_route('/study/{page:path}', serve_index, methods=['GET'], include_in_schema=False)
 
     def serve_favicon(request: Request) -> FileResponse:
         favicon = dependencies.frontend_root / "favicon.svg"

@@ -18,7 +18,9 @@ from editor.pdf_preview import store_pdf_preview
 from editor.reading_annotations import render_evidence_tab  # noqa: F401  # Test seam.
 from editor.reading_annotations import render_notebook_tab
 from editor.reading_annotations import render_notes_and_evidence_panel as _render_s4_panel
-from editor.reading_annotations import render_notes_evidence_maintenance
+from editor.reading_annotations import (
+    render_notes_evidence_maintenance,  # noqa: F401  # Legacy test seam; diagnostics now has its own page.
+)
 from editor.reading_annotations import render_workspace_notes_panel
 from editor.reading_annotations.state import apply_pending_page_suggestion
 from editor.reading_annotations.state import sync_database_context as sync_s4_database_context
@@ -27,9 +29,9 @@ from editor.reading_space.filters import Choice
 from editor.reading_space.filters import render_filters
 from editor.reading_space.page_map_panel import current_book_page
 from editor.reading_space.page_map_panel import page_labeler
-from editor.reading_space.page_map_panel import render_page_map_maintenance
 from editor.reading_space.page_map_panel import render_page_map_panel
 from editor.reading_space.page_map_panel import set_current_as_book_page_one
+from editor.reading_space.preparation_ui import render_reading_preparation
 from editor.reading_space.recent_reads import render_recent_documents
 from editor.reading_space.state import CONFIRMED_WEB_DOCUMENT_ID
 from editor.reading_space.state import PDF_PREVIEW_NAMESPACE
@@ -63,6 +65,7 @@ from mathmongo.advanced_reader.streamlit_link import probe_advanced_reader_docum
 from mathmongo.config import resolve_config
 from mathmongo.document_page_maps.service import DocumentPageMapService
 from mathmongo.reading_annotations.service import ReadingAnnotationService
+from mathmongo.reading_space.preparation import ReadingPreparation
 from mathmongo.reading_space.service import ReaderContext
 from mathmongo.reading_space.service import ReadingOperationStatus
 from mathmongo.reading_space.service import ReadingServiceResult
@@ -243,11 +246,11 @@ def _render_index_status(
         ui.warning("La inicialización requiere el nombre exacto de la base y confirmación.")
         return False
     try:
-        applied = service.index_manager.apply()
+        service.index_manager.apply()
     except Exception as exc:
         ui.error(f"No se pudieron inicializar los índices: {safe_error_message(exc)}")
         return False
-    initialized = bool(getattr(applied, "initialized", True))
+    initialized = bool(getattr(service.index_manager.plan(), "initialized", False))
     if initialized:
         ui.success("Reading Space indexes initialized.")
     return initialized
@@ -289,9 +292,12 @@ def _open_pdf(
     context: CatalogUIContext,
     service: ReadingSpaceService,
     document_id: str,
+    *,
+    persist_reading: bool = True,
 ) -> ReaderContext | None:
     clear_reader_preview(ui.session_state)
-    result = service.open_document(document_id, user_scope=USER_SCOPE)
+    result = (service.open_document(document_id, user_scope=USER_SCOPE) if persist_reading
+              else service.preview_document(document_id, user_scope=USER_SCOPE))
     if not _result_ok(result) or result.value is None:
         _render_result(ui, result, success="PDF abierto.")
         return None
@@ -606,9 +612,9 @@ def _render_pdf_reader(
     if ui.button(
         "Abrir visor integrado",
         key=state_key("reader_open_pdf", document.document_id),
-        disabled=not actions_enabled or document.status == DocumentStatus.ARCHIVED,
+        disabled=document.status == DocumentStatus.ARCHIVED,
     ):
-        opened = _open_pdf(ui, context, service, document.document_id)
+        opened = _open_pdf(ui, context, service, document.document_id, persist_reading=actions_enabled)
         if opened is not None:
             subject = ui.session_state.get(READER_SUBJECT)
     if isinstance(subject, dict):
@@ -663,6 +669,8 @@ def _render_web_reader(
         result = service.open_document(document.document_id, user_scope=USER_SCOPE)
         if _run_state_action(ui, result, success="Apertura registrada."):
             ui.session_state[CONFIRMED_WEB_DOCUMENT_ID] = document.document_id
+    if not actions_enabled and document.status == DocumentStatus.ACTIVE:
+        ui.link_button('Leer página web sin registrar apertura', web.url_normalized, width='content')
     if ui.session_state.get(CONFIRMED_WEB_DOCUMENT_ID) == document.document_id:
         ui.link_button(
             "Abrir recurso externo",
@@ -881,7 +889,7 @@ def _render_document_browser(
             select_source(ui.session_state, document.source_id)
             select_document(ui.session_state, document.document_id)
             if document.kind == DocumentKind.PDF:
-                _open_pdf(ui, context, service, document.document_id)
+                _open_pdf(ui, context, service, document.document_id, persist_reading=actions_enabled)
             ui.rerun()
 
         def complete_item(item: Any) -> None:
@@ -947,7 +955,7 @@ def _render_recent_reads(
         select_source(ui.session_state, document.source_id)
         select_document(ui.session_state, document.document_id)
         if document.kind == DocumentKind.PDF:
-            _open_pdf(ui, context, service, document.document_id)
+            _open_pdf(ui, context, service, document.document_id, persist_reading=actions_enabled)
         ui.rerun()
 
     render_recent_documents(
@@ -1043,45 +1051,14 @@ def _render_configuration(
     page_map_actions_enabled: bool,
 ) -> None:
     """Keep administrative and diagnostic tools outside primary reading navigation."""
-    with ui.popover("⚙️ Configuración", width="stretch"):
-        ui.subheader("Configuración")
-        destination_key = state_key("configuration_destination")
-        for label in ("Page Map", "Mantenimiento", "Diagnósticos avanzados"):
-            if ui.button(label, key=state_key("configuration_open", label)):
-                ui.session_state[destination_key] = label
-        destination = ui.session_state.get(destination_key)
-        if destination == "Page Map":
-            if reader is None or reader.document.kind != DocumentKind.PDF:
-                ui.info("Elige un PDF para configurar sus páginas impresas.")
-            elif page_map_service is not None:
-                current_page = int(
-                    ui.session_state.get(
-                        state_key("current_page", reader.document.document_id),
-                        getattr(reader.reading_state, "current_page", None) or 1,
-                    )
-                )
-                render_page_map_panel(
-                    ui,
-                    page_map_service,
-                    document=reader.document,
-                    current_pdf_page=current_page,
-                    book_page_label=current_book_page(
-                        page_map_service,
-                        reader.document.document_id,
-                        current_page,
-                    ),
-                    actions_enabled=(
-                        page_map_actions_enabled and reader.document.status == DocumentStatus.ACTIVE
-                    ),
-                )
-        elif destination == "Mantenimiento":
-            ui.caption("Inicialización y lifecycle administrativo.")
-            if annotation_service is not None:
-                render_notes_evidence_maintenance(context, ui=ui, service=annotation_service)
-            if page_map_service is not None:
-                render_page_map_maintenance(ui, context, page_map_service)
-        elif destination == "Diagnósticos avanzados":
-            _render_index_status(ui, context, reading_service, maintenance=True)
+    if reader is not None and reader.document.kind == DocumentKind.PDF and page_map_service is not None:
+        with ui.popover("Numeración del documento", width="content"):
+            current_page = int(ui.session_state.get(state_key("current_page", reader.document.document_id),
+                getattr(reader.reading_state, "current_page", None) or 1))
+            render_page_map_panel(ui, page_map_service, document=reader.document,
+                current_pdf_page=current_page,
+                book_page_label=current_book_page(page_map_service, reader.document.document_id, current_page),
+                actions_enabled=page_map_actions_enabled and reader.document.status == DocumentStatus.ACTIVE)
 
 
 def render_reading_space_page(
@@ -1133,16 +1110,19 @@ def render_reading_space_page(
     apply_pending_current_page_value(ui.session_state)
     migrate_legacy_workspace_tab(ui.session_state)
     apply_pending_workspace_tab(ui.session_state)
-    actions_enabled = _manager_ready(reading_service.index_manager)
+    managers = [('reading', reading_service.index_manager)]
+    if annotation_service is not None:
+        managers.append(('notes', annotation_service.index_manager))
+    preparation = ReadingPreparation(context.database, connection_label=context.connection_label, managers=managers)
+    readiness = render_reading_preparation(ui, context, preparation=preparation)
+    actions_enabled = readiness.capability_ready('reading')
     page_map_actions_enabled = bool(
         page_map_service is not None and _manager_ready(page_map_service.index_manager)
     )
-    if target is not None and target["kind"] == "pdf" and actions_enabled:
-        _open_pdf(ui, context, reading_service, target["document_id"])
+    if target is not None and target["kind"] == "pdf":
+        _open_pdf(ui, context, reading_service, target["document_id"], persist_reading=actions_enabled)
     reader = _load_selected_reader(ui, reading_service)
     _render_compact_header(ui, reader, page_map_service)
-    if not actions_enabled:
-        ui.warning("Guardar no está disponible. Revisa la configuración.")
 
     _render_configuration(
         ui,

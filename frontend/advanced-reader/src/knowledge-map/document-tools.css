@@ -1,0 +1,54 @@
+.document-toolbar .document-tool-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 5px;
+  border-right: 1px solid var(--mm-line);
+  padding-right: 9px;
+}
+.document-toolbar .document-tool-group:last-child {
+  border-right: 0;
+}
+.document-composer .document-toolbar {
+  gap: 9px;
+  box-shadow: 0 4px 14px #030e1826;
+}
+.document-composer .document-toolbar :is(button, select):focus-visible {
+  outline: 2px solid var(--mm-focus);
+  outline-offset: 2px;
+}
+.document-composer .visual-document {
+  background: var(--mm-panel);
+  color: var(--mm-text);
+  border-color: var(--mm-line);
+  line-height: 1.75;
+}
+.document-composer .visual-document math-field:not([readonly]) {
+  color: var(--mm-text);
+  background: var(--mm-control);
+  --selection-background-color: var(--mm-selected-bg);
+}
+.legend [data-node-shape="triangle"]::before {
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+  border-radius: 0;
+}
+.legend [data-node-shape="square"]::before {
+  border-radius: 1px;
+}
+.legend [data-node-shape="diamond"]::before {
+  border-radius: 0;
+  transform: rotate(45deg);
+}
+@media (max-width: 600px) {
+  .document-composer .document-toolbar {
+    position: sticky;
+    top: 0;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+  .document-toolbar .document-tool-group {
+    flex-wrap: nowrap;
+    flex-shrink: 0;
+    max-width: none;
+  }
+}

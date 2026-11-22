@@ -1,0 +1,27 @@
+.concept-palette {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.study-app .concept-palette article {
+  border: 1px solid var(--mm-line);
+  border-radius: 9px;
+  padding: 1rem;
+  background: var(--mm-panel);
+}
+.concept-palette p {
+  font-size: 0.8rem;
+  margin-bottom: 0;
+}
+.color-swatch {
+  display: inline-block;
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 2px;
+  border: 1px solid var(--mm-border);
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+.study-appearance .reading-document {
+  max-width: 95ch;
+}

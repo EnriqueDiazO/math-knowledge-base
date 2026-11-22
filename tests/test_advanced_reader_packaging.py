@@ -315,7 +315,16 @@ def test_packaged_static_tree_excludes_development_user_and_sensitive_artifacts(
     for item in runtime_files:
         if item.suffix.casefold() not in {".html", ".js", ".mjs", ".css", ".txt"}:
             continue
-        content = item.read_text(encoding="utf-8", errors="ignore").casefold()
+        raw = item.read_text(encoding="utf-8", errors="ignore")
+        # Reviewed MathLive 0.111.4 expression: a hostname comparison used to
+        # normalize the current script URL, not a CDN destination. Accept only
+        # this exact expression; retain every other occurrence for the checks.
+        raw = re.sub(
+            r'''new URL\(([a-zA-Z_$][\w$]*)\)\.hostname===(['"`])cdn\.jsdelivr\.net\2&&\(\1\+=(['"`])/\3\)''',
+            'false /* reviewed hostname comparison */',
+            raw,
+        )
+        content = raw.casefold()
         for forbidden in forbidden_fragments:
             assert (
                 forbidden not in content

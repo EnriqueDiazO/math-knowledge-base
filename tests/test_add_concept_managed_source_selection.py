@@ -100,12 +100,7 @@ class _SourceRepository:
 
 
 def _add_concept_branch() -> str:
-    source = (
-        Path(__file__).resolve().parents[1] / "editor" / "editor_streamlit.py"
-    ).read_text(encoding="utf-8")
-    start = source.index('elif page == "💡 Nuevo concepto":')
-    end = source.index('\nelif page == "🖊️ Editar concepto":', start)
-    return source[start:end]
+    return (Path(__file__).resolve().parents[1] / "editor/app_pages/concept_create.py").read_text(encoding="utf-8")
 
 
 def test_lists_only_active_sources_from_the_managed_catalog() -> None:
