@@ -97,6 +97,8 @@ test('owned real study room, canonical reader, annotation and recoverable note',
     await map.getByText('Más acciones',{exact:true}).click();
     await map.getByRole('button',{name:'Deshacer reubicación',exact:true}).click();
     expect((await views())['Análisis'].points[publishedKey]).toEqual(beforeViews['Análisis'].points[publishedKey]);
+    await map.getByText('Más acciones',{exact:true}).click();
+    await map.getByText('Reubicar y fijar nodo',{exact:true}).click();
     await map.getByRole('button',{name:'Mover nodo a la derecha',exact:true}).click();
     await canvas.screenshot({path:`${evidence}/room-node-moved.png`});
 
