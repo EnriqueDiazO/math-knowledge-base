@@ -1,0 +1,214 @@
+{
+  "analysis": "7ffbfd1f-af4a-4c9b-b5d1-fc49cfaa7588",
+  "revision": "79ed65609e450bac84e70ef46d7fb2726384a83b",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "72.7"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.12858"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "metrics": {
+    "coverage": "73.7",
+    "complexity": "19221",
+    "duplicated_lines_density": "1.4",
+    "code_smells": "0",
+    "security_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "maintainability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "security_hotspots": "0",
+    "sqale_index": "0",
+    "bugs": "0",
+    "lines_to_cover": "52398",
+    "uncovered_lines": "13456",
+    "cognitive_complexity": "20041",
+    "duplicated_blocks": "70",
+    "ncloc": "104233",
+    "files": "408",
+    "vulnerabilities": "0",
+    "reliability_issues": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}",
+    "line_coverage": "74.3"
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "active_issues": [],
+  "frontend_browser_merge": {
+    "unit": {
+      "lines": {
+        "total": 5297,
+        "covered": 3896,
+        "pct": 73.55
+      },
+      "branches": {
+        "total": 3716,
+        "covered": 2234,
+        "pct": 60.12
+      }
+    },
+    "combined": {
+      "lines": {
+        "total": 5297,
+        "covered": 4153,
+        "pct": 78.4
+      },
+      "branches": {
+        "total": 3716,
+        "covered": 2405,
+        "pct": 64.72
+      }
+    },
+    "additional_lines": 257,
+    "additional_branches": 171,
+    "browser_files": [
+      "src/knowledge-map/geometry.ts",
+      "src/knowledge-map/layout.ts",
+      "src/knowledge-map/areas.ts",
+      "src/knowledge-map/canvas.ts",
+      "src/knowledge-map/document-citation.ts",
+      "src/knowledge-map/provenance.ts",
+      "src/knowledge-map/document-dialog.ts",
+      "src/knowledge-map/reader.ts",
+      "src/knowledge-map/room-state.ts",
+      "src/knowledge-map/room.ts",
+      "src/knowledge-map/map-filters.ts",
+      "src/knowledge-map/component.ts",
+      "src/study/ConceptRelations.tsx",
+      "src/study/ConceptPages.tsx",
+      "src/study/ConceptTypeBadge.tsx",
+      "src/study/ConceptWorkspace.tsx",
+      "src/knowledge-map/math.ts",
+      "src/knowledge-map/keyboard.ts",
+      "src/knowledge-map/document.ts",
+      "src/knowledge-map/document-editor.ts",
+      "src/study/DocumentSurface.tsx",
+      "src/study/NoteCitation.tsx",
+      "src/study/NoteWorkspace.tsx",
+      "src/study/NotePages.tsx",
+      "src/annotations/ui.ts",
+      "src/concepts/labels.ts",
+      "src/concepts/ConceptLinkWizard.tsx",
+      "src/concepts/ConceptPanels.tsx",
+      "src/components/ReaderStatus.tsx",
+      "src/components/SelectionActionToolbar.tsx",
+      "src/components/SelectionInspector.tsx",
+      "src/components/Toolbar.tsx",
+      "src/components/VisualAnnotationConfirmation.tsx",
+      "src/components/VisualAnnotationsPanel.tsx",
+      "src/pdf/search.ts",
+      "src/app/App.tsx",
+      "src/annotations/geometry.ts",
+      "src/annotations/types.ts",
+      "src/annotations/VisualAnnotationLayer.ts",
+      "src/selection/captureSelection.ts",
+      "src/pdf/canvasPaint.ts",
+      "src/pdf/ThumbnailManager.ts",
+      "src/pdf/PdfJsController.ts",
+      "src/app/ReaderEntry.tsx",
+      "src/study/ReadingPage.tsx",
+      "src/study/SourceForms.tsx",
+      "src/knowledge-map/model.ts",
+      "src/knowledge-map/ui.ts",
+      "src/knowledge-map/bibliography.ts",
+      "src/study/SourcePicker.tsx",
+      "src/api/client.ts",
+      "src/knowledge-map/concept-types.ts",
+      "src/knowledge-map/theme.ts",
+      "src/study-reader-theme.ts",
+      "src/study/api.ts",
+      "src/study/navigation.ts",
+      "src/study/StudyLink.tsx",
+      "src/study/useLocalForm.ts",
+      "src/study/useOperationScope.ts",
+      "src/study/AuthoringPreparation.tsx",
+      "src/study/ReferenceForm.tsx",
+      "src/study/DocumentForm.tsx",
+      "src/study/document-links.ts",
+      "src/study/LibraryPages.tsx",
+      "src/knowledge-map/drafts.ts",
+      "src/study/drafts.ts",
+      "src/study/StudyApp.tsx",
+      "src/StudyEntry.tsx",
+      "src/main.tsx"
+    ],
+    "executed_assets": [
+      {
+        "file": "index-DTGOQ-oa.js",
+        "sha256": "34799bcf119033f0647e0687659bbd26152f4ab012204ce90c153e15bbc74a27"
+      },
+      {
+        "file": "react-runtime-DydpthbT.js",
+        "sha256": "904c18555d72008115bb03c72c1718b4e7e11560a3eb2e98f438175843c15848"
+      },
+      {
+        "file": "pdfjs-runtime-F8NMAkdw.js",
+        "sha256": "ac79ba45e75f869d57ae2c39347d960cd58cedd80c685d5ee4c9b65c969a9d99"
+      },
+      {
+        "file": "ReadingPage-DfNeFlPN.js",
+        "sha256": "bc9f93f89e08f1960ecf91108925805b9199a36436a73865a24b50595b66bacd"
+      },
+      {
+        "file": "client-YNM-R8bA.js",
+        "sha256": "1b4f94bad62095f2d6adac8c787ed327dc35c24be9e69b61c838d5b2f7859045"
+      },
+      {
+        "file": "ReaderEntry-Dc1UG7Qo.js",
+        "sha256": "f0f4e484226f97754198a1ec6211df4d00a5741d5dc42cd407a753e85358fbcc"
+      },
+      {
+        "file": "NotePages-VqN04P8I.js",
+        "sha256": "ba3ee0530bc65f21d88dbcb5de04a17738155770cc54b2052490e27cd255212e"
+      },
+      {
+        "file": "SourcePicker-C5wckgFs.js",
+        "sha256": "41ac4cc18a310b57beaf3629c4ff28981e07d193bcc08854060c4a89a0e2af9e"
+      },
+      {
+        "file": "DocumentSurface-B-0VSvLN.js",
+        "sha256": "28477ffc7ee9d1c6b60dc34cb5a9409ef4f9bf1b9195e9fdfc6ee79a38259a70"
+      },
+      {
+        "file": "ConceptTypeBadge-CvDrH3Pb.js",
+        "sha256": "cf2ea1004d0efdf9aa4197379279bbf8138117514afbbc0dd9af5c731ce413bc"
+      },
+      {
+        "file": "ConceptPages-OooXHAd2.js",
+        "sha256": "51d1dbf39a7cd357e1c1e15f4a6f72f03eb3d4e0783df87745a01763081d3d31"
+      },
+      {
+        "file": "SourceForms-DWCekk_q.js",
+        "sha256": "4f0907b48a4fed1169b922e18712168e0f6556771f40ffc3e90543076066049b"
+      },
+      {
+        "file": "ConceptWorkspace-DQ3W--KW.js",
+        "sha256": "c9ea0a1d362ea9be9129d2078305f65f9b46c1d84b9003496b90fee49215e277"
+      }
+    ]
+  }
+}

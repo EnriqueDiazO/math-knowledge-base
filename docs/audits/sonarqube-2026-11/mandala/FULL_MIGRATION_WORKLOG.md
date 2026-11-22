@@ -117,3 +117,47 @@ déficit por archivo en `AUTHORING_A_RESULTS.json` y `AUTHORING_A_COVERAGE.csv`.
 El aumento Sonar incluye pruebas y código nuevo además de instrumentación;
 no debe confundirse con los 232/137 éxitos de tooling cuantificados arriba.
 B–E y AppImage no se dan por terminados con este checkpoint.
+
+## B — notas, citas y revisión coherente
+
+`7e62d95e` conserva exactamente el cuerpo LaTeX de ReadingNote: tanto el modelo
+como la operación recortaban espacios/saltos exteriores. La regresión falló
+antes y pasa después; conserva la validación de contenido no vacío, tamaño y
+NUL. La búsqueda de notas filtra título/fuente/documento antes de paginar y
+proyecta sólo metadatos, sin enviar el cuerpo completo en navegación.
+
+`133067bf` añade Crear nota, fuente seleccionable y registro de fuente con
+retorno al borrador, referencias/localizadores, búsqueda paginada y accesos a
+notas de fuente/documento. SourcePicker compartido permite buscar y recorrer
+más de cien fuentes; sustituye la lista truncada del filtro de conceptos y
+el selector duplicado de ConceptWorkspace. Las fuentes mantienen su identidad.
+
+La regresión de concurrencia también fallaba antes: una escritura entre el ACK
+y el GET de lectura podía hacer que el editor asociara su cuerpo viejo con una
+revisión nueva. Ahora compara cuerpo, título, fuente e identidad; conserva su
+borrador y revisión, bloquea el envío y ofrece abrir la versión guardada
+explícitamente. El rechazo CAS tiene la misma salida y sobrevive a recarga.
+No aparece éxito basado únicamente en terminar una llamada. Las evidencias
+anteriores están en `fundamental-authoring/note-{latex,readback}-before.log`.
+
+Verificación afectada: **137 casos Python aprobados**, incluyendo modelos,
+portabilidad, servicios y HTTP de lectura/notas, catálogo y CAS. Cobertura
+anexada a la integral válida. **235 pruebas frontend aprobadas**, typecheck,
+ESLint y build correctos. Ruff de todos los Python afectados sin avisos.
+Chrome/Firefox vuelven a comprobar A y el recorrido de pasaje; además crean una
+nota independiente, citan página 23, recuperan borrador, pierden una respuesta,
+reintentan la misma operación y producen una modificación concurrente real vía
+el adaptador canónico. El MongoDB temporal exige exactamente dos notas, cita
+persistida y texto del segundo escritor intacto. `note-concurrent-readback.png`
+y `notes-browser.json` conservan el resultado. MathV0 permanece fuera del ensayo.
+
+Sonar B: análisis `7ffbfd1f-af4a-4c9b-b5d1-fc49cfaa7588`, revisión
+`79ed65609e450bac84e70ef46d7fb2726384a83b`. General **73,7 %**, nueva **72,7 %**.
+Gate ERROR sólo por 72,7 < 80; duplicación nueva 0,12858 ≤ 3, incidencias nuevas
+0, ninguna activa. Misma referencia/perfiles/exclusiones. Los recorridos aportan
+257 líneas y 171 condiciones cubiertas adicionales sobre 5297/3716 del alcance
+unitario; son totales de instrumentación acumulada, no incremento exclusivo de B.
+`NOTES_B_RESULTS.json` y `NOTES_B_COVERAGE.csv` permiten localizar el déficit.
+No se retiran flujos legados. Exportación de notas, vinculación adicional y las
+capacidades de E siguen pendientes de paridad, aunque el recorrido de lectura,
+nota, incorporación explícita, esfera y retorno ya se verifica sin Streamlit.
