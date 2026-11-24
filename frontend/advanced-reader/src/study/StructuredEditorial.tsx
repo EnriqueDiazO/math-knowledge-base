@@ -30,7 +30,11 @@ function Position({
   return (
     <label>
       {label}
-      <select value={value} onChange={(event) => change(event.target.value)}>
+      <select
+        aria-label={label}
+        value={value}
+        onChange={(event) => change(event.target.value)}
+      >
         <option value="center">Centro</option>
         <option value="bottom_right">Abajo a la derecha</option>
         <option value="top_right">Arriba a la derecha</option>
@@ -78,6 +82,7 @@ export function StructuredEditorial({
         <label>
           Contenido del pie
           <select
+            aria-label="Contenido del pie"
             value={footer.mode || "auto"}
             onChange={(event) =>
               patch("attribution", "mode", event.target.value)
