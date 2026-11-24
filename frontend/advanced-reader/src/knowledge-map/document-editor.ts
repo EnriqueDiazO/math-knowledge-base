@@ -5,6 +5,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { TextSelection } from "@tiptap/pm/state";
 import { makeMath, mathErrors } from "./math";
 import { mountMathKeyboard } from "./keyboard";
+import { mountFormulaTools } from "./formula-tools";
 import { AcademicLink } from "./document-link";
 import { SemanticBlock, studyBlocks } from "./document-blocks";
 import { SourceBlock, editProtectedSource } from "./document-source";
@@ -414,8 +415,8 @@ export class DocumentEditor {
     format("Insertar fórmula en bloque", () => this.insertFormula(true));
     const templates: Record<string, string> = {
       Fracción: "\\frac{#0}{#?}",
-      Exponente: "x^{#0}",
-      Subíndice: "x_{#0}",
+      Exponente: "#0^{#?}",
+      Subíndice: "#0_{#?}",
       Raíz: "\\sqrt{#0}",
       Integral: "\\int_{0}^{1}#0\\,dx",
       "Matriz 2×2": "\\begin{pmatrix}1&0\\\\0&1\\end{pmatrix}",
@@ -424,6 +425,10 @@ export class DocumentEditor {
     Object.entries(templates).forEach(([name, template]) =>
       format(name, () => this.insertTemplate(template)),
     );
+    mountFormulaTools(tools, {
+      insert: (template) => this.insertTemplate(template),
+      active: () => this.editableMath(),
+    });
     format("Volver al párrafo", () => {
       this.visual
         .querySelectorAll("math-field")
@@ -570,28 +575,44 @@ export class DocumentEditor {
     this.activeMath = field as ReturnType<typeof makeMath> | undefined;
     (field as HTMLElement | undefined)?.focus();
   }
-  insertTemplate(template: string): void {
+  private editableMath(): ReturnType<typeof makeMath> | undefined {
+    if (this.sourceMode) return;
     const active =
       this.visual.getRootNode() instanceof ShadowRoot
         ? (this.visual.getRootNode() as ShadowRoot).activeElement
         : document.activeElement;
     const fields = Array.from(this.visual.querySelectorAll("math-field"));
-    let math =
-      (this.activeMath?.isConnected ? this.activeMath : undefined) ??
-      fields.find((field) => field === active) ??
-      fields.at(-1);
+    return (
+      (this.activeMath?.isConnected && !this.activeMath.readOnly
+        ? this.activeMath
+        : undefined) ??
+      (fields.find(
+        (field) =>
+          field === active && !(field as ReturnType<typeof makeMath>).readOnly,
+      ) as ReturnType<typeof makeMath> | undefined) ??
+      (fields
+        .filter((field) => !(field as ReturnType<typeof makeMath>).readOnly)
+        .at(-1) as ReturnType<typeof makeMath> | undefined)
+    );
+  }
+  insertTemplate(template: string): boolean {
+    if (this.sourceMode) return false;
+    let math = this.editableMath();
     if (!math) {
       this.insertFormula(true);
-      math = this.visual.querySelector("math-field") ?? undefined;
+      math = this.editableMath();
     }
     if (math && "insert" in math) {
-      (math as ReturnType<typeof makeMath>).insert(template, {
-        insertionMode: "replaceAll",
+      const inserted = (math as ReturnType<typeof makeMath>).insert(template, {
+        insertionMode: "replaceSelection",
         selectionMode: "placeholder",
       });
+      if (!inserted) return false;
       math.dispatchEvent(new InputEvent("input", { bubbles: true }));
       (math as unknown as HTMLElement).focus();
+      return true;
     }
+    return false;
   }
   destroy(): void {
     this.disposeKeyboard();

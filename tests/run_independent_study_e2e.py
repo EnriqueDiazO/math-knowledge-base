@@ -282,6 +282,20 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.latex_notes.find_one({"_id":"historical-diary"})==historical
                 assert not json.loads((evidence/"ownership.json").read_text())["streamlit_imported"]
                 print(json.dumps({"browser":browser,"notebook":"passed","exact_historical_source":True,"MathV0_writes":0}))
+            if "--structured" in sys.argv:
+                subprocess.run(["node", "tests/structured-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=300)
+                proof = json.loads((evidence / "structured-browser.json").read_text())
+                assert proof["passed"] and len(proof["cases"]) == 2
+                for case in proof["cases"]:
+                    note = db.latex_notes.find_one({"_id": case["noteId"]})
+                    assert note["title"] == case["title"] == "Versión de otra ventana"
+                    assert note[case["family"]]["template_id"] == case["template"]
+                    assert len(note[case["family"]]["pages"]) == 1
+                    assert case["protectedLatex"] in note["latex_body"]
+                assert not json.loads((evidence / "ownership.json").read_text())["streamlit_imported"]
+                print(json.dumps({"browser": browser, "structured": "passed", "MathV0_writes": 0}))
+            if "--math-tools" in sys.argv:
+                subprocess.run(["node", "tests/math-tools-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.

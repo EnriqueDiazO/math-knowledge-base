@@ -9,6 +9,26 @@
 .document-toolbar .document-tool-group:last-child {
   border-right: 0;
 }
+.formula-tools-panel {
+  display: grid;
+  gap: 0.65rem;
+  width: min(720px, 72vw);
+  padding: 0.8rem;
+  border: 1px solid var(--mm-line);
+  background: var(--mm-panel);
+}
+.formula-tools-panel :is([role="group"], fieldset) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+.formula-tools-panel label {
+  display: grid;
+  gap: 0.3rem;
+}
+.formula-tools-panel input[type="number"] {
+  max-width: 6rem;
+}
 .document-composer .document-toolbar {
   gap: 9px;
   box-shadow: 0 4px 14px #030e1826;
