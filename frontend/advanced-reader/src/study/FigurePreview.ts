@@ -1,6 +1,7 @@
 /** Disposable UI for one explicitly requested figure; rendering never starts TeX. */
 import { studyBinary, studyRequest, type StudyContext } from "./api";
 import { downloadDocument } from "./api";
+import { pngDataUri } from "./image-data";
 type Preview = {
   state: string;
   preview_id?: string;
@@ -15,7 +16,6 @@ const element = <K extends keyof HTMLElementTagNameMap>(tag: K, text = "") => {
 };
 export class FigurePreview {
   private readonly controller = new AbortController();
-  private readonly urls = new Set<string>();
   private readonly dialogs = new Set<HTMLDialogElement>();
   private active = true;
   constructor(
@@ -23,7 +23,11 @@ export class FigurePreview {
   ) {}
   show = (source: string, host: HTMLElement) => {
     if (!this.active) return;
-    host.querySelector(".figure-preview")?.remove();
+    const existing = host.querySelector<HTMLElement>(".figure-preview");
+    if (existing) {
+      existing.scrollIntoView({ block: "nearest" });
+      return;
+    }
     const panel = element("section");
     panel.className = "figure-preview";
     const status = element("p");
@@ -46,7 +50,22 @@ export class FigurePreview {
     diagnostics.append(summary, log);
     let identifier = "",
       busy = false,
-      currentUrl = "";
+      currentUrl = "",
+      confirmedMessage = "";
+    image.onload = () => {
+      if (!this.active || !panel.isConnected) return;
+      if (image.naturalWidth > 0) {
+        zoom.disabled = false;
+        status.textContent = confirmedMessage;
+      }
+    };
+    image.onerror = () => {
+      if (this.active && panel.isConnected) {
+        zoom.disabled = true;
+        status.textContent =
+          "No pudimos mostrar la figura. El código y el PDF se conservan; reintenta la vista previa.";
+      }
+    };
     const load = async (force: boolean) => {
       if (busy) return;
       busy = true;
@@ -64,6 +83,7 @@ export class FigurePreview {
           this.controller.signal,
         );
         if (!this.active || !panel.isConnected) return;
+        confirmedMessage = result.message;
         status.textContent = result.message;
         if (result.state !== "ready" || !result.preview_id) {
           log.textContent = result.diagnostic || "";
@@ -78,15 +98,11 @@ export class FigurePreview {
           this.controller.signal,
         );
         if (!this.active || !panel.isConnected) return;
-        if (currentUrl) {
-          URL.revokeObjectURL(currentUrl);
-          this.urls.delete(currentUrl);
-        }
-        currentUrl = URL.createObjectURL(blob);
-        this.urls.add(currentUrl);
+        currentUrl = await pngDataUri(blob);
+        if (!this.active || !panel.isConnected) return;
+        status.textContent = "Mostrando la figura compilada…";
         image.src = currentUrl;
         image.hidden = false;
-        zoom.disabled = false;
         pdf.disabled = false;
       } catch (error) {
         if (this.active && panel.isConnected)
@@ -135,9 +151,7 @@ export class FigurePreview {
   destroy() {
     this.active = false;
     this.controller.abort();
-    this.urls.forEach((url) => URL.revokeObjectURL(url));
     this.dialogs.forEach((dialog) => dialog.remove());
-    this.urls.clear();
     this.dialogs.clear();
   }
 }

@@ -150,7 +150,7 @@ await test(
         }),
       ).toBeVisible();
       await expect(block.getByRole("img")).toHaveJSProperty("complete", true);
-    expect(await block.getByRole("img").evaluate(image=>image.naturalWidth)).toBeGreaterThan(0);
+      await expect.poll(() => block.getByRole("img").evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
       await block
         .getByRole("button", { name: "Ampliar figura", exact: true })
         .click();
