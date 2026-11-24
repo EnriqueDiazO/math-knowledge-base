@@ -86,11 +86,24 @@ def restart_owned_package(app, command, work, environment, log, database, eviden
                 note = json.load(response)
             assert note["latex_body"] == record.get("latex_body", "")
             recovered.append(str(record["_id"]))
+        recovered_concepts = []
+        for record in database.concepts.find():
+            body = database.latex_documents.find_one({"id": record["id"], "source": record["source"]})
+            if body is None:
+                continue
+            key = str(record["id"]) + "@" + record["source"]
+            from urllib.parse import urlencode
+            request = Request(base + "/api/study/v1/concepts/detail?" + urlencode({"key": key}),
+                              headers={"X-MathMongo-Library": context["library_id"]})
+            with urlopen(request, timeout=5) as response:
+                current = json.load(response)
+            assert current["contenido_latex"] == body["contenido_latex"]
+            recovered_concepts.append(key)
         after = state_hash()
         assert before == after
         (evidence / "package-restart.json").write_text(json.dumps({
             "passed": True, "previous_pid": previous_pid, "restarted_pid": restarted.pid,
-            "persistent_state_sha256": after, "recovered_notes": recovered,
+            "persistent_state_sha256": after, "recovered_notes": recovered, "recovered_concepts": recovered_concepts,
             "MathV0_writes": 0, "only_owned_processes_restarted": True,
         }, indent=2) + "\n")
         return restarted
@@ -263,6 +276,8 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 + "\n"
             )
             print(json.dumps({"browser": browser, "status": "passed", "streamlit_started": False}))
+            if "--clone-drafts" in sys.argv:
+                subprocess.run(["node", "tests/concept-cloned-window-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=180)
             if "--authoring" in sys.argv:
                 if "--needs-preparation" in sys.argv:
                     # Simulate a compatible unprepared library only inside this
@@ -393,9 +408,43 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.concepts.count_documents({}) == 9
                 assert db.reading_notes.count_documents({}) == 1
                 print(json.dumps({"browser": browser, "palette": "passed", "temporary_concepts": 9}))
-            if appimage:
+            if "--latex-parity" in sys.argv:
+                from tests.latex_parity_corpus import freeze_corpus
+                manifest = freeze_corpus(work / "corpus")
+                for item in manifest:
+                    raw_source = item["provenance"].get("source", "Corpus propio")
+                    existing = db.sources.find_one({"name": raw_source})
+                    if existing is None:
+                        related = Source(name=raw_source)
+                        db.sources.insert_one(related.model_dump(mode="python"))
+                        source_id = related.source_id
+                    else:
+                        source_id = existing["source_id"]
+                    concept_id = "parity-case-" + str(item["case"])
+                    identity = {"id": concept_id, "source": raw_source}
+                    db.concepts.insert_one({**identity, "source_id": source_id,
+                                            "titulo": item["title"], "tipo": "definicion",
+                                            "categorias": ["Corpus LaTeX"], "comentario": "",
+                                            "opaque_metadata": {"keep": [1,"á"]}})
+                    db.latex_documents.insert_one({**identity, "contenido_latex": Path(item["path"]).read_bytes().decode("utf-8")})
+                    item["key"] = concept_id + "@" + raw_source
+                corpus_manifest = work / "corpus-browser.json"
+                corpus_manifest.write_text(json.dumps(manifest, ensure_ascii=False))
+                environment["MATHMONGO_LATEX_CORPUS"] = str(corpus_manifest)
+            if "--latex-parity" in sys.argv:
+                subprocess.run(["node", "tests/latex-parity-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=600)
+                proof = json.loads((evidence / "latex-parity-browser.json").read_text())
+                assert proof["passed"] and len(proof["cases"]) == 10
+                for item in manifest:
+                    concept_id, legacy = item["key"].rsplit("@", 1)
+                    metadata = db.concepts.find_one({"id": concept_id, "source": legacy})
+                    assert metadata["opaque_metadata"] == {"keep": [1,"á"]}
+                assert_no_streamlit(evidence)
+            if appimage or "--latex-parity" in sys.argv:
                 app = restart_owned_package(app, command, work, environment, log, db, evidence)
-                print(json.dumps({"browser": browser, "packaged_restart": "passed", "MathV0_writes": 0}))
+                print(json.dumps({"browser": browser, "backend_restart": "passed", "packaged": bool(appimage), "MathV0_writes": 0}))
+                if "--latex-parity" in sys.argv:
+                    subprocess.run(["node", "tests/latex-parity-recovery-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=180)
         finally:
             if app is not None:
                 if app.poll() is None:
