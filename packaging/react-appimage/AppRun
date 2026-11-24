@@ -1,0 +1,4 @@
+#!/bin/sh
+set -eu
+bundle_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
+exec "$bundle_dir/python/bin/python3.13" -I -B "$bundle_dir/bootstrap.py" "$@"

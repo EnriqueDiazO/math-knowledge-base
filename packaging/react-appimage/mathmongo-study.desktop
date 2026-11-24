@@ -1,0 +1,8 @@
+[Desktop Entry]
+Type=Application
+Name=MathMongo Estudio (experimental)
+Comment=Aplicación React local; requiere una conexión MongoDB instalada
+Exec=AppRun
+Icon=mathmongo-study
+Terminal=true
+Categories=Education;Science;

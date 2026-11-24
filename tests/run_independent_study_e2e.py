@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+import signal
 import shutil
 import socket
 import subprocess
@@ -37,7 +38,8 @@ def free_port():
 def main():
     """Exercise the autonomous build with real persistence and strict ownership."""
     browser = "firefox" if "--browser=firefox" in sys.argv else "chrome"
-    evidence = ROOT / "evidence/sonar/independent-study" / browser
+    appimage = next((Path(arg.partition("=")[2]).resolve(strict=True) for arg in sys.argv if arg.startswith("--appimage=")), None)
+    evidence = ROOT / "evidence/sonar" / ("packaged-study" if appimage else "independent-study") / browser
     evidence.mkdir(parents=True, exist_ok=True, mode=0o700)
     with tempfile.TemporaryDirectory(prefix="mathmongo-independent-") as temporary:
         work = Path(temporary)
@@ -135,12 +137,17 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 + """,access_log=False)
 """
             )
+            command = ([str(appimage), "--appimage-extract-and-run", "--port", str(app_port),
+                        "--database", name] if appimage else [sys.executable, str(wrapper)])
+            if appimage:
+                environment.pop("PYTHONPATH", None)
             app = subprocess.Popen(
-                [sys.executable, str(wrapper)],
-                cwd=ROOT,
+                command,
+                cwd=work if appimage else ROOT,
                 env=environment,
                 stdout=log,
                 stderr=subprocess.STDOUT,
+                start_new_session=True,
             )
             for _ in range(100):
                 assert app.poll() is None
@@ -277,11 +284,12 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 print(json.dumps({"browser": browser, "palette": "passed", "temporary_concepts": 9}))
         finally:
             if app is not None:
-                app.terminate()
+                if app.poll() is None:
+                    os.killpg(app.pid, signal.SIGTERM)
                 try:
                     app.wait(timeout=15)
                 except subprocess.TimeoutExpired:
-                    app.kill()
+                    os.killpg(app.pid, signal.SIGKILL)
                     app.wait(timeout=5)
             log.close()
             client.drop_database(name)
