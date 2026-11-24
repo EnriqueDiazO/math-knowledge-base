@@ -9,6 +9,7 @@ import streamlit.components.v1 as components
 from editor.helpers.tipo_relacion import TipoRelacion
 from editor.ui.theme import THEME_TOKENS
 from editor.ui.theme import apply_chart_theme
+from mathmongo.concurrency import digest
 from visualizations.grafoconocimiento import GrafoConocimiento
 
 
@@ -579,7 +580,8 @@ def render(context):
         if edit_relations:
             st.write(f"**Found {len(edit_relations)} relations to edit:**")
 
-            for i, rel in enumerate(edit_relations):
+            for rel in edit_relations:
+                row_key = digest({"scope": context.active_database_scope or current_database_label, "relation": rel["_id"]})
                 with st.expander(f"Edit: {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}", expanded=False):
                     st.write(f"**Current Relation:** {rel['desde']} --[{rel['tipo']}]--> {rel['hasta']}")
 
@@ -624,18 +626,18 @@ def render(context):
                             "Relation Type",
                             [t.value for t in TipoRelacion],
                             index=[t.value for t in TipoRelacion].index(rel['tipo']),
-                            key=f"edit_type_{i}")
+                            key=f"edit_type_{row_key}")
                     with col2:
                         new_desc = st.text_area(
                             "Description",
                             value=rel.get('descripcion', ''),
-                            key=f"edit_desc_{i}")
+                            key=f"edit_desc_{row_key}")
 
                     # Action buttons
                     col1, col2, col3 = st.columns(3)
 
                     with col1:
-                        if st.button("💾 Update Relation", key=f"update_rel_{i}"):
+                        if st.button("💾 Update Relation", key=f"update_rel_{row_key}"):
                             try:
                                 # Update the relation
                                 db.relations.update_one(
@@ -652,13 +654,13 @@ def render(context):
                                 st.error(f"❌ Error updating relation: {e}")
 
                     with col2:
-                        if st.button("🔄 Reset", key=f"reset_rel_{i}"):
+                        if st.button("🔄 Reset", key=f"reset_rel_{row_key}"):
                             st.rerun()
 
                     with col3:
-                        delete_btn_key = f"delete_btn_{i}"
-                        confirm_state_key = f"confirm_delete_state_{i}"
-                        confirm_btn_key = f"confirm_delete_btn_{i}"
+                        delete_btn_key = f"delete_btn_{row_key}"
+                        confirm_state_key = f"confirm_delete_state_{row_key}"
+                        confirm_btn_key = f"confirm_delete_btn_{row_key}"
 
 
 

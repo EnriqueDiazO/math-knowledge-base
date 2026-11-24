@@ -162,7 +162,7 @@ def render(context):
                     concepts_root / source,
                     allowed_root=concepts_root,
                 )
-                exportador.exportar_todos_de_source(db.client, source, salida=str(bulk_dir))
+                exportador.exportar_todos_de_source(db.db, source, salida=str(bulk_dir))
                 progress_bar.progress((i + 1) / len(sources))
 
             status_text.text("✅ Bulk export completed!")
