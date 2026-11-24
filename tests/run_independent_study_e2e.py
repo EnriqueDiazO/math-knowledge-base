@@ -35,6 +35,13 @@ def free_port():
         return sock.getsockname()[1]
 
 
+def assert_no_streamlit(evidence):
+    """Distinguish the source wrapper's import observation from the isolated package probe."""
+    proof = json.loads((evidence / "ownership.json").read_text())
+    key = "streamlit_imported" if "streamlit_imported" in proof else "streamlit_available"
+    assert proof[key] is False
+
+
 def restart_owned_package(app, command, work, environment, log, database, evidence):
     """Restart only this test-owned process group and recover real persisted academic notes."""
     import hashlib
@@ -200,6 +207,12 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                         "--database", name] if appimage else [sys.executable, str(wrapper)])
             if appimage:
                 environment.pop("PYTHONPATH", None)
+                probe = subprocess.run([str(appimage), "--appimage-extract-and-run", "--bundle-check"],
+                                       cwd=work, env=environment, capture_output=True,
+                                       text=True, check=True, timeout=30)
+                package_proof = json.loads(probe.stdout)
+                assert package_proof["streamlit_available"] is False
+                (evidence / "ownership.json").write_text(json.dumps(package_proof, indent=2) + "\n")
             app = subprocess.Popen(
                 command,
                 cwd=work if appimage else ROOT,
@@ -339,7 +352,7 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert proof["protectedLatex"] in note["latex_body"]
                 assert db.latex_notes.count_documents({})==2
                 assert db.latex_notes.find_one({"_id":"historical-diary"})==historical
-                assert not json.loads((evidence/"ownership.json").read_text())["streamlit_imported"]
+                assert_no_streamlit(evidence)
                 print(json.dumps({"browser":browser,"notebook":"passed","exact_historical_source":True,"MathV0_writes":0}))
             if "--structured" in sys.argv:
                 subprocess.run(["node", "tests/structured-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=300)
@@ -351,7 +364,7 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                     assert note[case["family"]]["template_id"] == case["template"]
                     assert len(note[case["family"]]["pages"]) == 1
                     assert case["protectedLatex"] in note["latex_body"]
-                assert not json.loads((evidence / "ownership.json").read_text())["streamlit_imported"]
+                assert_no_streamlit(evidence)
                 print(json.dumps({"browser": browser, "structured": "passed", "MathV0_writes": 0}))
             if "--math-tools" in sys.argv:
                 subprocess.run(["node", "tests/math-tools-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
