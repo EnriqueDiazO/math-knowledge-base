@@ -164,7 +164,7 @@ class StudyResources:
                 note_type=current.note_type,
                 document_id=current.document_id,
                 reference_id=intent.reference_id or current.reference_id,
-                reference_locator=citation.get("reference_locator"),
+                reference_locator=citation.get("reference_locator", current.reference_locator),
                 page_start=current.page_start,
                 page_end=current.page_end,
                 tags=current.tags,

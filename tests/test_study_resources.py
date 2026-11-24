@@ -19,6 +19,7 @@ from mathmongo.source_documents.repository import SourceDocumentRepository
 owned_client = _owned_client
 service = _map_service
 
+
 def save_view(api, *, uid=None, **state):
     """Prepare a presentation operation, without hidden resource creation."""
     return {
@@ -226,17 +227,37 @@ def test_stale_note_and_whole_document_race_keep_foreign_body(reading, monkeypat
 def test_room_goal_requires_the_actual_saved_view_and_marker(service):
     """The room stores a real study question reference, never a fabricated title match."""
     goal_id = str(uuid4())
-    view = save_view(service, goals=[{'id':goal_id,'label':'Pregunta real','point':[0.,0.,1.]}])
-    assert service.execute(view)['status'] == 'saved'
-    state = {'version':1,'name':'Pregunta de estudio','spheres':[{'view_uid':view['map_uid'],'position':[.3,.5]}],
-        'goal_view_uid':view['map_uid'],'goal_id':goal_id}
-    payload = {'operation_id':str(uuid4()),'action':'save_room','room_uid':str(uuid4()),'room_state':state}
+    view = save_view(
+        service, goals=[{"id": goal_id, "label": "Pregunta real", "point": [0.0, 0.0, 1.0]}]
+    )
+    assert service.execute(view)["status"] == "saved"
+    state = {
+        "version": 1,
+        "name": "Pregunta de estudio",
+        "spheres": [{"view_uid": view["map_uid"], "position": [0.3, 0.5]}],
+        "goal_view_uid": view["map_uid"],
+        "goal_id": goal_id,
+    }
+    payload = {
+        "operation_id": str(uuid4()),
+        "action": "save_room",
+        "room_uid": str(uuid4()),
+        "room_state": state,
+    }
     saved = service.execute(payload)
-    assert saved['status'] == 'saved'
+    assert saved["status"] == "saved"
     before = list(service.db.knowledge_graph_maps.find({}))
-    wrong = {**state,'goal_id':str(uuid4())}
-    assert service.execute({**payload,'operation_id':str(uuid4()),'room_state':wrong})['status'] == 'conflict'
-    assert service.execute({**payload,'operation_id':str(uuid4()),'room_state':{**state,'goal_view_uid':''}})['status'] == 'conflict'
+    wrong = {**state, "goal_id": str(uuid4())}
+    assert (
+        service.execute({**payload, "operation_id": str(uuid4()), "room_state": wrong})["status"]
+        == "conflict"
+    )
+    assert (
+        service.execute(
+            {**payload, "operation_id": str(uuid4()), "room_state": {**state, "goal_view_uid": ""}}
+        )["status"]
+        == "conflict"
+    )
     assert list(service.db.knowledge_graph_maps.find({})) == before
 
 
@@ -245,16 +266,57 @@ def test_note_noop_edit_retains_exact_canonical_latex_and_revision_contract(read
     api, notes, document, _mark = reading
     raw = "\n  " + r"\begin{context}Texto $x^2$\end{context}" + "\n\n"
     payload = {
-        "operation_id": str(uuid4()), "action": "save_note",
-        "source_id": document.source_id, "document_id": document.document_id,
-        "titulo": "Documento exacto", "contenido_latex": raw,
+        "operation_id": str(uuid4()),
+        "action": "save_note",
+        "source_id": document.source_id,
+        "document_id": document.document_id,
+        "titulo": "Documento exacto",
+        "contenido_latex": raw,
     }
     result = api.execute(payload)
     assert result["status"] == "saved"
     note = notes.get_note(result["note_id"]).value
     assert note.body == raw
-    saved = api.execute({**payload, "operation_id": str(uuid4()), "note_id": note.note_id,
-                         "revision": digest(note.model_dump())})
+    saved = api.execute(
+        {
+            **payload,
+            "operation_id": str(uuid4()),
+            "note_id": note.note_id,
+            "revision": digest(note.model_dump()),
+        }
+    )
     assert saved["status"] == "saved"
     assert notes.get_note(note.note_id).value.body == raw
     assert api.db.reading_notes.count_documents({}) == 1
+
+
+def test_edit_without_new_citation_preserves_the_existing_note_locator(reading):
+    """Compatibility consumers may omit unchanged citation fields on an edit."""
+    from mathmongo.source_catalog.citations import CitationLocator
+    from mathmongo.source_catalog.models import Reference
+
+    api, notes, document, _ = reading
+    reference = Reference(source_ids=[document.source_id], title="Referencia conservada")
+    api.db.references.insert_one(reference.model_dump(mode="python"))
+    note = notes.create_note(
+        source_id=document.source_id,
+        title="Nota citada",
+        body="Texto",
+        reference_id=reference.reference_id,
+        reference_locator=CitationLocator(printed_page="xii", pdf_page=15),
+    ).value
+    result = api.execute(
+        {
+            "operation_id": str(uuid4()),
+            "action": "save_note",
+            "note_id": note.note_id,
+            "source_id": document.source_id,
+            "titulo": note.title,
+            "contenido_latex": "Texto editado",
+            "revision": digest(note.model_dump()),
+        }
+    )
+    assert result["status"] == "saved", result
+    current = notes.get_note(note.note_id).value
+    assert current.reference_id == reference.reference_id
+    assert current.reference_locator == note.reference_locator
