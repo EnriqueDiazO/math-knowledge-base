@@ -1,3 +1,4 @@
+import { writeSource } from "./source-code-support";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { DocumentEditor } from "../src/knowledge-map/document-editor";
 import { mountMathKeyboard } from "../src/knowledge-map/keyboard";
@@ -132,9 +133,8 @@ it("compiles the current canonical snapshot from both visual and full source mod
   expect(compiled.mock.calls[0][0]).toBe(editor.value());
   expect(compiled.mock.calls[0][0]).toContain("Texto nuevo.");
   button("Fuente LaTeX").click();
-  const source = host.querySelector<HTMLTextAreaElement>('[aria-label="Fuente LaTeX"]')!;
   const full = String.raw`\documentclass{article}\newcommand{\foo}{Valor}\begin{document}\foo\end{document}`;
-  source.value = full; source.dispatchEvent(new Event("input"));
+  writeSource(host, full);
   button("Vista compilada").click();
   expect(compiled.mock.calls[1][0]).toBe(full);
   expect(editor.value()).toBe(full);

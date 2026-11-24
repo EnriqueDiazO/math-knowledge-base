@@ -1,3 +1,4 @@
+import { readSource, writeSource } from "./source-browser.mjs";
 /** Actual autonomous build and owned library; no UI snapshots or service mocks. */
 import { chromium, firefox, expect } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
@@ -102,9 +103,7 @@ await test(
       await page
         .getByRole("button", { name: "Fuente LaTeX", exact: true })
         .click();
-      await page
-        .getByRole("textbox", { name: "Fuente LaTeX", exact: true })
-        .fill(sample);
+      await writeSource(page, sample);
       await page
         .getByRole("button", { name: "Fuente LaTeX", exact: true })
         .click();
@@ -153,9 +152,7 @@ await test(
       await page
         .getByRole("button", { name: "Fuente LaTeX", exact: true })
         .click();
-      await expect(
-        page.getByRole("textbox", { name: "Fuente LaTeX", exact: true }),
-      ).toHaveValue(sample);
+      expect(await readSource(page)).toBe(sample);
       await page
         .getByRole("button", { name: "Fuente LaTeX", exact: true })
         .click();

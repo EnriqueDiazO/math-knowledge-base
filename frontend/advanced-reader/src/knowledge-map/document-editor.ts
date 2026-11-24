@@ -12,6 +12,8 @@ import { SourceBlock, editProtectedSource } from "./document-source";
 import type { PreviewFigure } from "./document-source";
 import { conceptKind, conceptType, resultChoices } from "./concept-types";
 import "./document-tools.css";
+import type { SourceSelection } from "../latex/source-editor";
+import { LatexSourceLoader } from "../latex/source-loader";
 import {
   normalizedOriginals,
   parseDocument,
@@ -259,12 +261,13 @@ export type EditorSnapshot = {
   selection: number;
   scroll: number;
   sourceMode: boolean;
+  sourceSelection?: SourceSelection;
   dialogScroll?: number;
   math?: { index: number; selection: MathSelection };
 };
 export class DocumentEditor {
   readonly editor: Editor;
-  private source: HTMLTextAreaElement;
+  private source: LatexSourceLoader;
   private visual: HTMLDivElement;
   private preview: HTMLDivElement;
   private sourceMode = false;
@@ -328,9 +331,8 @@ export class DocumentEditor {
       },
       true,
     );
-    this.source = dom("textarea");
-    this.source.setAttribute("aria-label", "Fuente LaTeX");
-    this.source.hidden = true;
+    const sourceHost = dom("section");
+    sourceHost.hidden = true;
     this.preview = dom("div");
     this.preview.className = "document-preview";
     this.preview.hidden = true;
@@ -448,22 +450,22 @@ export class DocumentEditor {
       this.preview.hidden = !this.preview.hidden;
       if (!this.preview.hidden) this.updatePreview();
     });
-    this.source.oninput = () => {
-      this.changed(this.source.value, this.snapshot());
-      this.updatePreview();
-    };
     const compiled = dom("div");
     compiled.className = "document-compiled-preview";
     if (surface?.compiled) {
       const compile = surface.compiled;
       format("Vista compilada", () => compile(this.value(), compiled));
     }
-    parent.append(toolbar, this.visual, this.source, this.preview, compiled);
-    this.source.value = latex;
+    parent.append(toolbar, this.visual, sourceHost, this.preview, compiled);
+    this.source = new LatexSourceLoader(sourceHost, latex, () => {
+      if (this.sourceMode) this.notify();
+    });
     if (snapshot) {
       this.sourceMode = snapshot.sourceMode;
       this.visual.hidden = this.sourceMode;
-      this.source.hidden = !this.sourceMode;
+      this.source.host.hidden = !this.sourceMode;
+      if (snapshot.sourceSelection)
+        this.source.restore(snapshot.sourceSelection);
       if (snapshot.math && !this.sourceMode) {
         const math = this.visual.querySelectorAll("math-field")[
           snapshot.math.index
@@ -481,6 +483,7 @@ export class DocumentEditor {
       this.visual.scrollTop = snapshot.scroll;
       this.restored = snapshot;
     }
+    this.reflectSourceMode();
   }
   restoreViewport(): void {
     const dialog = this.viewport;
@@ -537,6 +540,7 @@ export class DocumentEditor {
       selection: this.editor.state.selection.from,
       scroll: this.visual.scrollTop,
       sourceMode: this.sourceMode,
+      sourceSelection: this.source?.snapshot(),
       dialogScroll: this.viewport?.scrollTop,
       ...(math ? { math } : {}),
     };
@@ -560,8 +564,23 @@ export class DocumentEditor {
     } else this.source.value = this.value();
     this.sourceMode = !this.sourceMode;
     this.visual.hidden = this.sourceMode;
-    this.source.hidden = !this.sourceMode;
+    this.source.host.hidden = !this.sourceMode;
+    this.reflectSourceMode();
+    if (this.sourceMode) this.source.focus();
+    else this.editor.view.focus();
     this.notify();
+  }
+  private reflectSourceMode(): void {
+    for (const group of this.parent.querySelectorAll<HTMLElement>(
+      ".document-toolbar .document-tool-group",
+    )) {
+      if (group.getAttribute("aria-label") !== "Representación del documento")
+        group.inert = this.sourceMode;
+    }
+    const toggle = [
+      ...this.parent.querySelectorAll(".document-toolbar button"),
+    ].find((button) => button.textContent === "Fuente LaTeX");
+    toggle?.setAttribute("aria-pressed", String(this.sourceMode));
   }
   insertFormula(display: boolean): void {
     const before = new Set(this.visual.querySelectorAll("math-field"));
@@ -617,6 +636,7 @@ export class DocumentEditor {
   destroy(): void {
     this.disposeKeyboard();
     this.disposePreview?.();
+    this.source.destroy();
     this.editor.destroy();
   }
 }

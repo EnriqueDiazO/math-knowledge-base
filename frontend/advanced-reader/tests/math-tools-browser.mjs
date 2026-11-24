@@ -1,3 +1,4 @@
+import { readSource, writeSource } from "./source-browser.mjs";
 import test from "node:test";
 import { chromium, firefox, expect } from "@playwright/test";
 import { writeFile, readFile } from "node:fs/promises";
@@ -215,9 +216,7 @@ await test(
       expect(insertedAfterTikz).toContain(String.raw`\int`);
       await button("Volver al párrafo").click();
       await button("Fuente LaTeX").click();
-      const original = await page
-        .getByLabel("Fuente LaTeX", { exact: true })
-        .inputValue();
+      const original = await readSource(page);
       expect(original).toContain(source);
       expect(original).toContain(matrixSource);
       expect(original).toContain(nested);
@@ -225,7 +224,7 @@ await test(
       await button("Fuente LaTeX").click();
       await button("Fuente LaTeX").click();
       expect(
-        await page.getByLabel("Fuente LaTeX", { exact: true }).inputValue(),
+        await readSource(page),
       ).toBe(original);
       await button("Fuente LaTeX").click();
       await page.screenshot({
@@ -283,7 +282,7 @@ await test(
       ).toHaveValue("Herramientas matemáticas verificadas");
       await button("Fuente LaTeX").click();
       expect(
-        await page.getByLabel("Fuente LaTeX", { exact: true }).inputValue(),
+        await readSource(page),
       ).toBe(original);
       await button("Fuente LaTeX").click();
       const pending = page.waitForEvent("download", { timeout: 30000 });
@@ -317,11 +316,7 @@ await test(
           .getByRole("link", { name: "Editar concepto", exact: true })
           .click();
         await button("Fuente LaTeX").click();
-        const source = page.getByRole("textbox", {
-          name: "Fuente LaTeX",
-          exact: true,
-        });
-        await expect(source).toHaveValue(before.contenido_latex);
+        expect(await readSource(page)).toBe(before.contenido_latex);
         const expression = /(?<!\\)\$(?!\$)([^$\n]+)(?<!\\)\$/u.exec(
           before.contenido_latex,
         );
@@ -331,7 +326,7 @@ await test(
           expression[0].slice(0, -1) +
           "+0$" +
           before.contenido_latex.slice(expression.index + expression[0].length);
-        await source.fill(expected);
+        await writeSource(page, expected);
         await button("Guardar concepto").click();
         await expect(
           page.getByRole("heading", { name: item.title, exact: true }),

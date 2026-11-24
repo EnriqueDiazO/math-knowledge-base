@@ -1,3 +1,4 @@
+import { readSource, writeSource } from "./source-code-support";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import {
   fireEvent,
@@ -110,7 +111,8 @@ function input(name: string, value: string): void {
     click("Fuente LaTeX");
     name = "Fuente LaTeX";
   }
-  fireEvent.input(getByLabelText(parent, name), { target: { value } });
+  if (name === "Fuente LaTeX") writeSource(parent, value);
+  else fireEvent.input(getByLabelText(parent, name), { target: { value } });
 }
 function choose(name: string, value: string): void {
   fireEvent.change(getByLabelText(parent, name), { target: { value } });
@@ -462,7 +464,7 @@ describe("editable map interaction", () => {
     mount(response);
     click("Editar ficha");
     click("Fuente LaTeX");
-    expect(getByLabelText(parent, "Fuente LaTeX")).toHaveValue(
+    expect(readSource(parent)).toBe(
       payload.nodes[0].contenido_latex,
     );
     click("Fuente LaTeX");
@@ -677,7 +679,7 @@ describe("study presentation and recoverable goals", () => {
     input("Contenido (texto o LaTeX)", "Explicación con $x$.");
     click("Conservar borrador y volver");
     click("En elaboración: ¿Por qué?");
-    expect(getByLabelText(parent, "Fuente LaTeX")).toHaveValue(
+    expect(readSource(parent)).toBe(
       "Explicación con $x$.",
     );
     submit();
@@ -930,7 +932,7 @@ it("recovers the math selection and outer document scroll with its lossless draf
   ).toBe(150);
   click("Fuente LaTeX");
   expect(
-    (getByLabelText(parent, "Fuente LaTeX") as HTMLTextAreaElement).value,
+    readSource(parent),
   ).toBe(payload.nodes[0].contenido_latex);
 });
 

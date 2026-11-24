@@ -1,3 +1,4 @@
+import { readSource } from "./source-browser.mjs";
 import test from "node:test";
 import { chromium, firefox, expect } from "@playwright/test";
 import { readFile, writeFile } from "node:fs/promises";
@@ -80,9 +81,7 @@ await test(
         await page
           .getByRole("button", { name: "Fuente LaTeX", exact: true })
           .click();
-        await expect(
-          page.getByRole("textbox", { name: "Fuente LaTeX", exact: true }),
-        ).toHaveValue(before.contenido_latex);
+        expect(await readSource(page)).toBe(before.contenido_latex);
         await page
           .getByRole("button", { name: "Guardar concepto", exact: true })
           .click();

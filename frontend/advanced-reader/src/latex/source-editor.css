@@ -1,0 +1,92 @@
+.latex-source {
+  --mm-code-command: var(--mm-sky);
+  --mm-code-comment: var(--mm-muted);
+  --mm-code-value: var(--mm-turquoise);
+  min-width: 0;
+  border: 1px solid var(--mm-line);
+  border-radius: 6px;
+  background: var(--mm-panel);
+  color: var(--mm-text);
+}
+.latex-source[hidden] {
+  display: none;
+}
+.latex-source-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.65rem;
+  border-bottom: 1px solid var(--mm-line);
+}
+.latex-source-tools label {
+  display: flex;
+  gap: 0.4rem;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.latex-source-tools input {
+  width: 5rem;
+}
+.latex-source-viewport {
+  height: 28rem;
+  min-height: 12rem;
+  max-height: 80dvh;
+  resize: vertical;
+  overflow: auto;
+}
+.latex-source .cm-editor {
+  min-width: 0;
+  font-size: 0.95rem;
+}
+.latex-source .cm-gutters {
+  background: var(--mm-control);
+  color: var(--mm-muted);
+  border-right-color: var(--mm-line);
+}
+.latex-source .cm-activeLineGutter,
+.latex-source .cm-activeLine {
+  background: var(--mm-selected-bg);
+}
+.latex-source .cm-cursor {
+  border-left-color: var(--mm-text);
+}
+.latex-source .cm-selectionBackground,
+.latex-source .cm-focused .cm-selectionBackground {
+  background: var(--mm-selected-bg);
+}
+.latex-source .cm-panel,
+.latex-source .cm-tooltip {
+  background: var(--mm-control);
+  color: var(--mm-text);
+  border-color: var(--mm-line);
+}
+.latex-source .cm-search {
+  white-space: normal;
+}
+.latex-source .cm-search label {
+  display: inline-flex;
+  gap: 0.25rem;
+}
+.latex-source .cm-search input {
+  max-width: 12rem;
+  background: var(--mm-panel);
+  color: var(--mm-text);
+}
+.latex-source .cm-focused {
+  outline: 2px solid var(--mm-focus);
+  outline-offset: -2px;
+}
+.latex-source-hint {
+  margin: 0.5rem 0.7rem;
+  color: var(--mm-muted);
+  font-size: 0.8rem;
+}
+@media (max-width: 600px) {
+  .latex-source .cm-search input {
+    max-width: 9rem;
+  }
+  .latex-source-tools {
+    gap: 0.3rem;
+  }
+}
