@@ -5,7 +5,7 @@ import type { EditorSnapshot } from "../src/knowledge-map/document-editor";
 import { NewSourcePage } from "../src/study/SourceForms";
 import { ConceptEditorPage } from "../src/study/ConceptWorkspace";
 import type { StudyContext } from "../src/study/api";
-import { documentLink } from "../src/study/document-links";
+import { documentLink } from "../src/security/document-links";
 
 vi.mock("../src/study/DocumentSurface", async () => {
   const React = await import("react");

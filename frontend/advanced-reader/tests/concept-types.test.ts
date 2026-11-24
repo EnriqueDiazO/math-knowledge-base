@@ -97,7 +97,8 @@ Texto con $\frac{a}{b}$.
     expect(root.querySelector('[data-concept-type="teorema"]')).toBeNull();
     expect(root.textContent).toContain("Estilo personalizado conservado");
     const groups = root.querySelectorAll('[role="group"]');
-    expect(groups).toHaveLength(5);
+    expect(groups).toHaveLength(6);
+    expect(root.querySelector('[aria-label="Insertar bloque de estudio"]')).not.toBeNull();
     expect(
       root.querySelector("select")?.querySelectorAll("option"),
     ).toHaveLength(10);

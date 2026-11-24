@@ -28,6 +28,20 @@ function paragraphs(doc: JSONContent): JSONContent[] {
   return [doc, ...(doc.content ?? []).flatMap(paragraphs)];
 }
 describe("canonical document compatibility", () => {
+  it("preserves real note environments and changes only the editable content of a mixed document",()=>{
+    const raw=String.raw`\begin{context}
+\begin{definition}{Idea}
+Contenido visual $x$.
+\end{definition}
+\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}
+\end{context}
+`;
+    const doc=parseDocument(raw);expect(serialize(doc)).toBe(raw);
+    const nodes=paragraphs(doc);expect(nodes.some(n=>n.type==='semanticBlock')).toBe(true);
+    const text=nodes.find(n=>n.type==='text'&&n.text?.includes('Contenido visual'))!;text.text='Contenido corregido.';
+    expect(serialize(doc)).toContain('Contenido corregido.');
+    expect(serialize(doc)).toContain(String.raw`\begin{tikzpicture}\draw (0,0)--(1,1);\end{tikzpicture}`);
+  });
   it.each([
     "",
     "Prosa normal con acentos y $x^2$.\n\nSegundo párrafo.",

@@ -215,6 +215,38 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.references.find_one({"reference_id": note["reference_id"]})["source_ids"] == [proof["sourceId"]]
                 assert db.reading_notes.count_documents({}) == 2
                 print(json.dumps({"browser": browser, "notes": "passed", "temporary_notes": 2}))
+            if "--document-export" in sys.argv:
+                assert "--authoring" in sys.argv, "Document authoring needs the UI-created Source"
+                subprocess.run(["node", "tests/document-export-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
+                proof = json.loads((evidence / "document-export-browser.json").read_text())
+                key = proof["key"]
+                concept_id, legacy_source = key.rsplit("@",1)
+                body = db.latex_documents.find_one({"id":concept_id,"source":legacy_source})["contenido_latex"]
+                assert "Contexto corregido visualmente." in body and r"\begin{tikzpicture}" in body
+                assert db.concepts.count_documents({"source_id":proof["sourceId"]}) == 3
+                print(json.dumps({"browser":browser,"document_export":"passed","canonical_LaTeX":True}))
+            if "--legacy" in sys.argv:
+                import hashlib
+                from bson import json_util
+
+                copied = json_util.loads((ROOT / "evidence/sonar/fundamental-authoring/legacy-fixtures.json").read_text())
+                manifest = []
+                for item in copied:
+                    identity = {key: item["metadata"][key] for key in ("id", "source")}
+                    assert db.concepts.find_one(identity) is None
+                    db.concepts.insert_one(item["metadata"].copy())
+                    db.latex_documents.insert_one(item["latex"].copy())
+                    manifest.append({"case":item["case"], "key":str(identity["id"])+"@"+identity["source"], "title":item["metadata"].get("titulo") or str(identity["id"]), "sha256":hashlib.sha256(item["latex"]["contenido_latex"].encode()).hexdigest()})
+                manifest_path = work / "legacy-cases.json"
+                manifest_path.write_text(json.dumps(manifest))
+                environment["MATHMONGO_LEGACY_CASES"] = str(manifest_path)
+                subprocess.run(["node", "tests/legacy-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
+                for item in copied:
+                    identity = {key:item["metadata"][key] for key in ("id", "source")}
+                    assert db.latex_documents.find_one(identity)["contenido_latex"] == item["latex"]["contenido_latex"]
+                    current = db.concepts.find_one(identity)
+                    assert all(current[key] == value for key,value in item["metadata"].items() if key not in {"ultima_actualizacion"})
+                print(json.dumps({"browser":browser,"legacy":"passed","real_copies":len(copied),"MathV0_writes":0}))
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.
