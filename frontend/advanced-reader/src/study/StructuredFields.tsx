@@ -38,7 +38,7 @@ export function StructuredFields({
   ) => void;
   select: (index: number, key: string) => void;
   document: (value: StructuredDocument) => void;
-  citation: (latex: string) => void;
+  citation: (latex: string) => boolean;
 }) {
   const classic =
     family === "cornell"
@@ -205,6 +205,7 @@ export function StructuredFields({
         />
       </label>
       <StructuredReferences
+        key={values.keys[page] + ":" + page + ":" + region}
         context={context}
         family={family}
         insert={citation}

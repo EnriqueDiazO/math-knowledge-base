@@ -12,7 +12,7 @@ export function StructuredReferences({
 }: {
   context: StudyContext;
   family: Family;
-  insert: (latex: string) => void;
+  insert: (latex: string) => boolean;
 }) {
   const [source, setSource] = useState(""),
     [reference, setReference] = useState(""),
@@ -26,51 +26,56 @@ export function StructuredReferences({
         La cita se incorpora a la región seleccionada como LaTeX editable. El
         catálogo compartido se conserva.
       </p>
-      <SourcePicker
-        context={context}
-        value={source}
-        choose={(id) => {
-          setSource(id);
-          setReference("");
-        }}
-      />
-      {source && (
-        <ReferencePicker
-          key={source}
+      <fieldset disabled={busy}>
+        <SourcePicker
           context={context}
-          sourceId={source}
-          value={reference}
-          changed={setReference}
+          value={source}
+          choose={(id) => {
+            setSource(id);
+            setReference("");
+          }}
         />
-      )}
-      <button
-        type="button"
-        disabled={!reference || busy}
-        onClick={async () => {
-          setBusy(true);
-          try {
-            const result = await studyRequest<{ latex: string }>(
-              "/structured/" +
-                family +
-                "/references/" +
-                encodeURIComponent(reference),
-              context,
-            );
-            if (scope.active) {
-              insert(result.latex);
-              setMessage(
-                "Cita incorporada al borrador; guarda para conservarla en la biblioteca.",
+        {source && (
+          <ReferencePicker
+            key={source}
+            context={context}
+            sourceId={source}
+            value={reference}
+            changed={setReference}
+          />
+        )}
+        <button
+          type="button"
+          disabled={!reference || busy}
+          onClick={async () => {
+            setBusy(true);
+            setMessage("Recuperando la cita para esta región…");
+            try {
+              const result = await studyRequest<{ latex: string }>(
+                "/structured/" +
+                  family +
+                  "/references/" +
+                  encodeURIComponent(reference),
+                context,
               );
+              if (scope.active) {
+                const inserted = insert(result.latex);
+                setMessage(
+                  inserted
+                    ? "Cita incorporada al borrador; guarda para conservarla en la biblioteca."
+                    : "No se incorporó la cita. Completa la fórmula de esta región y vuelve a intentarlo; el borrador se conserva.",
+                );
+              }
+            } catch (error) {
+              if (scope.active) setMessage((error as Error).message);
+            } finally {
+              if (scope.active) setBusy(false);
             }
-          } catch (error) {
-            if (scope.active) setMessage((error as Error).message);
-          } finally {
-            if (scope.active) setBusy(false);
-          }
-        }}
-      >
-        Insertar cita en esta región
-      </button>
+          }}
+        >
+          Insertar cita en esta región
+        </button>
+      </fieldset>
       <p role="status">{message}</p>
     </details>
   );

@@ -318,7 +318,7 @@ export function StructuredWorkspace({
               })
             }
             citation={(latex) => {
-              if (!flush()) return;
+              if (!flush()) return false;
               const value = structuredValues(current.current, family),
                 key = value.keys[page] + ":" + region;
               value.document.pages[page][region] = {
@@ -335,6 +335,7 @@ export function StructuredWorkspace({
                 snapshots: JSON.stringify(value.snapshots),
               });
               activate(page, region);
+              return true;
             }}
           />
           {!problem && !form.problem && (

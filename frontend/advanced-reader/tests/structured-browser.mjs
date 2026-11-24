@@ -102,6 +102,66 @@ await test(
             field.dispatchEvent(new InputEvent("input", { bubbles: true }));
           });
         await button("Volver al párrafo").click();
+        const sourceId = process.env.MATHMONGO_PALETTE_SOURCE,
+          references = await request("/sources/" + sourceId + "/references"),
+          referenceId = references.items[0].reference_id;
+        const chooseCitation = async () => {
+          await page
+            .getByText("Insertar referencia bibliográfica", { exact: true })
+            .click();
+          await page
+            .getByRole("combobox", { name: "Fuente administrada", exact: true })
+            .selectOption(sourceId);
+          await page
+            .getByRole("combobox", {
+              name: "Referencia bibliográfica",
+              exact: true,
+            })
+            .selectOption(referenceId);
+        };
+        if (family === "cornell") {
+          await chooseCitation();
+          let release;
+          const refUrl =
+            "**/api/study/v1/structured/" +
+            family +
+            "/references/" +
+            referenceId;
+          await page.route(refUrl, async (route) => {
+            await new Promise((resolve) => {
+              release = resolve;
+            });
+            await route.continue();
+          });
+          await button("Insertar cita en esta región").click();
+          await expect.poll(() => !!release).toBe(true);
+          await button(labels[0]).click();
+          const response = page.waitForResponse((res) =>
+            res.url().endsWith("/references/" + referenceId),
+          );
+          release();
+          await (await response).finished();
+          await page.evaluate(() => new Promise(requestAnimationFrame));
+          await page.unroute(refUrl);
+          await expect(page.locator(".visual-document .tiptap")).toContainText(
+            "Pregunta conservada",
+          );
+          await button(labels[1]).click();
+          await expect(page.locator(".visual-document .tiptap")).toContainText(
+            "Desarrollo con fórmula",
+          );
+        }
+        await chooseCitation();
+        await button("Insertar cita en esta región").click();
+        await expect(
+          page.getByText(
+            "Cita incorporada al borrador; guarda para conservarla en la biblioteca.",
+            { exact: true },
+          ),
+        ).toBeVisible();
+        await expect(page.locator(".visual-document .tiptap")).toContainText(
+          "Lectura de álgebra",
+        );
         const protectedLatex = String.raw`\newcommand{\localStudy}[1]{#1^2}
 Texto protegido $\localStudy{x}$.
 \begin{tikzpicture}\draw[blue] (0,0)--(0.5,0)--(0.5,0.3);\end{tikzpicture}`;
@@ -152,6 +212,9 @@ Texto protegido $\localStudy{x}$.
         );
         expect(saved.document.pages[0][keys[1]].latex).toContain(
           protectedLatex,
+        );
+        expect(saved.document.pages[0][keys[1]].latex).toContain(
+          "Lectura de álgebra",
         );
         expect(saved.document.pages[0][keys[1]].latex).toContain(
           String.raw`\frac{x_i}{1+x^2}`,
