@@ -7,6 +7,7 @@ export type StudyDraft = Draft & {
   pending?: Intent;
   passage?: CreateVisualAnnotation;
   conflictNoteId?: string;
+  changedSinceSave?: boolean;
 };
 export const studyVault = (library: string) =>
   new DraftVault(library, "study-documents");
@@ -45,5 +46,6 @@ export function noteDraft(note: NoteDetail): StudyDraft {
     referenceId: note.reference_id ?? undefined,
     referenceLocator: note.reference_locator ?? undefined,
     revision: note.revision,
+    changedSinceSave: false,
   };
 }

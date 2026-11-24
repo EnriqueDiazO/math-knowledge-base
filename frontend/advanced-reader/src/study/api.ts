@@ -67,12 +67,12 @@ export class StudyApiError extends Error {
     super(message);
   }
 }
-export async function studyRequest<T>(
+async function studyResponse(
   path: string,
-  context?: StudyContext,
+  context?: Pick<StudyContext, "library_id">,
   body?: unknown,
   signal?: AbortSignal,
-): Promise<T> {
+): Promise<Response> {
   if (!path.startsWith("/") || path.startsWith("//"))
     throw new StudyApiError("Ruta de biblioteca no válida.");
   let response: Response;
@@ -96,14 +96,33 @@ export async function studyRequest<T>(
       "No se confirmó la conexión. El borrador se conserva; reintenta el mismo envío.",
     );
   }
-  const value = await response.json();
-  if (!response.ok)
+  if (!response.ok) {
+    const value = await response.json();
     throw new StudyApiError(
       value.error?.message ??
         "No se pudo completar la operación. Conserva el borrador.",
       value.error?.code,
     );
-  return value as T;
+  }
+  return response;
+}
+export async function studyRequest<T>(
+  path: string,
+  context?: Pick<StudyContext, "library_id">,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<T> {
+  return (
+    await studyResponse(path, context, body, signal)
+  ).json() as Promise<T>;
+}
+export async function studyBinary(
+  path: string,
+  context: Pick<StudyContext, "library_id">,
+  body?: unknown,
+  signal?: AbortSignal,
+): Promise<Blob> {
+  return (await studyResponse(path, context, body, signal)).blob();
 }
 export const executeStudy = (context: StudyContext, intent: Intent) =>
   studyRequest<Result>("/operations", context, intent);
@@ -115,4 +134,15 @@ export function bibliographyLabel(item?: Bibliography): string {
     ?.map((a) => a.literal || [a.given, a.family].filter(Boolean).join(" "))
     .join(", ");
   return [authors, item.year].filter(Boolean).join(" · ");
+}
+
+export function downloadDocument(blob: Blob, name: string) {
+  const url = URL.createObjectURL(blob),
+    link = document.createElement("a");
+  link.href = url;
+  link.download = name;
+  document.body.append(link);
+  link.click();
+  link.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 200);
 }

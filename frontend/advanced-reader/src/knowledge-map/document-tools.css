@@ -52,3 +52,41 @@
     max-width: none;
   }
 }
+
+[data-study-block] {
+  margin-block: 1rem;
+  padding: 1rem 1.25rem;
+  border: 1px solid var(--mm-line);
+  border-left: 3px solid var(--mm-muted);
+  border-radius: 6px;
+  background: var(--mm-panel);
+}
+[data-study-block] > header {
+  font-weight: 650;
+  color: var(--mm-muted);
+}
+.source-block-dialog {
+  width: min(820px, 92vw);
+  max-height: 85vh;
+  overflow: auto;
+  background: var(--mm-panel);
+  color: var(--mm-text);
+  border: 1px solid var(--mm-line);
+  border-radius: 12px;
+  padding: 1.5rem;
+}
+.source-block-dialog::backdrop {
+  background: #030e18b3;
+}
+.source-block-dialog label {
+  display: block;
+}
+.source-block-dialog textarea {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 18rem;
+  font-family: monospace;
+  background: var(--mm-control);
+  color: var(--mm-text);
+}

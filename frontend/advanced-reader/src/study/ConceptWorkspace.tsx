@@ -9,11 +9,7 @@ import { emptyLocator } from "../knowledge-map/bibliography";
 import { conceptTypes } from "../knowledge-map/concept-types";
 import { DocumentSurface } from "./DocumentSurface";
 import { executeStudy } from "./api";
-import type {
-  StudyContext,
-  ConceptDetail,
-  SourceDetail,
-} from "./api";
+import type { StudyContext, ConceptDetail, SourceDetail } from "./api";
 import { useStudyResource } from "./navigation";
 import type { Navigate } from "./navigation";
 import { StudyLink } from "./StudyLink";
@@ -141,7 +137,8 @@ function ConceptWorkspace({
         document: composer.current.snapshot(),
       };
       const payload = intention(current, crypto.randomUUID());
-      if(concept&&current.categories===concept.categorias.join(", "))payload.categorias=structuredClone(concept.categorias);
+      if (concept && current.categories === concept.categorias.join(", "))
+        payload.categorias = structuredClone(concept.categorias);
       if (
         concept &&
         current.referenceId === (concept.reference_id || undefined) &&
@@ -229,7 +226,19 @@ function ConceptWorkspace({
           </p>
         ) : (
           <>
-            <SourcePicker context={context} value={draft.source} selectedName={bibliography.data?.name} choose={source => remember({...value.current,source,referenceId:undefined,referenceLocator:undefined})}/>
+            <SourcePicker
+              context={context}
+              value={draft.source}
+              selectedName={bibliography.data?.name}
+              choose={(source) =>
+                remember({
+                  ...value.current,
+                  source,
+                  referenceId: undefined,
+                  referenceLocator: undefined,
+                })
+              }
+            />
             <StudyLink
               to={"/study/sources/new?" + new URLSearchParams({ return: back })}
               navigate={navigate}
@@ -262,6 +271,7 @@ function ConceptWorkspace({
           <label>
             Localizador de página
             <input
+              disabled={!draft.referenceId}
               value={draft.referenceLocator?.printed_page || ""}
               onChange={(event) =>
                 remember({
@@ -297,6 +307,7 @@ function ConceptWorkspace({
       </fieldset>
       <div inert={!!draft.pending}>
         <DocumentSurface
+          context={context}
           initial={initial.content}
           snapshot={initial.snapshot}
           editorRef={composer}

@@ -5,6 +5,10 @@ import StarterKit from "@tiptap/starter-kit";
 import { TextSelection } from "@tiptap/pm/state";
 import { makeMath, mathErrors } from "./math";
 import { mountMathKeyboard } from "./keyboard";
+import { AcademicLink } from "./document-link";
+import { SemanticBlock, studyBlocks } from "./document-blocks";
+import { SourceBlock, editProtectedSource } from "./document-source";
+import type { PreviewFigure } from "./document-source";
 import { conceptKind, conceptType, resultChoices } from "./concept-types";
 import "./document-tools.css";
 import {
@@ -57,6 +61,7 @@ const Provenance = Extension.create({
           "codeBlock",
           "blockquote",
           "resultBlock",
+          "semanticBlock",
           "formula",
           "sourceBlock",
         ],
@@ -89,13 +94,18 @@ const ResultBlock = TiptapNode.create({
       "section",
       {
         "data-result": String(node.attrs.environment),
-        "data-concept-type": conceptKind(String(node.attrs.environment)) ?? "proof",
+        "data-concept-type":
+          conceptKind(String(node.attrs.environment)) ?? "proof",
         "aria-label":
           resultNames[String(node.attrs.environment)] ?? "Resultado",
       },
       [
         "header",
-        { contenteditable: "false", "data-type-symbol": conceptType(String(node.attrs.environment))?.symbol ?? "" },
+        {
+          contenteditable: "false",
+          "data-type-symbol":
+            conceptType(String(node.attrs.environment))?.symbol ?? "",
+        },
         `${resultNames[String(node.attrs.environment)] ?? "Resultado"}${node.attrs.title ? ": " + String(node.attrs.title) : ""}`,
       ],
       ["div", 0],
@@ -123,28 +133,6 @@ const SourceAtom = TiptapNode.create({
         contenteditable: "false",
       },
       String(node.attrs.source),
-    ];
-  },
-});
-const SourceBlock = TiptapNode.create({
-  name: "sourceBlock",
-  group: "block",
-  atom: true,
-  addAttributes() {
-    return {
-      source: { default: "" },
-      reason: { default: "Fragmento original protegido" },
-    };
-  },
-  parseHTML() {
-    return [{ tag: "details[data-source-block]" }];
-  },
-  renderHTML({ node }) {
-    return [
-      "details",
-      { "data-source-block": "", class: "protected-block" },
-      ["summary", {}, String(node.attrs.reason)],
-      ["pre", {}, ["code", {}, String(node.attrs.source)]],
     ];
   },
 });
@@ -255,13 +243,15 @@ const Formula = TiptapNode.create({
     };
   },
 });
-export const documentExtensions = () => [
+export const documentExtensions = (preview?: PreviewFigure) => [
   StarterKit.configure({ link: false, underline: false, trailingNode: false }),
   Provenance,
+  AcademicLink,
+  SemanticBlock,
   ResultBlock,
   Formula,
   SourceAtom,
-  SourceBlock,
+  SourceBlock.configure({ onPreview: preview }),
 ];
 export type EditorSnapshot = {
   json: JSONContent;
@@ -287,13 +277,18 @@ export class DocumentEditor {
     latex: string,
     private changed: (latex: string, snapshot: EditorSnapshot) => void,
     snapshot?: EditorSnapshot,
-    surface?: { keyboardContainer: HTMLElement; viewport: HTMLElement },
+    surface?: {
+      keyboardContainer: HTMLElement;
+      viewport: HTMLElement;
+      preview?: PreviewFigure;
+    },
   ) {
     this.restored = snapshot;
     parent.classList.add("document-composer");
     this.viewport = surface?.viewport ?? parent.closest("dialog");
     const keyboardContainer = surface?.keyboardContainer ?? this.viewport;
-    if (keyboardContainer) this.disposeKeyboard = mountMathKeyboard(keyboardContainer);
+    if (keyboardContainer)
+      this.disposeKeyboard = mountMathKeyboard(keyboardContainer);
     const toolbar = dom("div");
     toolbar.className = "document-toolbar";
     toolbar.setAttribute("aria-label", "Herramientas del documento");
@@ -339,7 +334,7 @@ export class DocumentEditor {
     this.preview.hidden = true;
     this.editor = new Editor({
       element: this.visual,
-      extensions: documentExtensions(),
+      extensions: documentExtensions(surface?.preview),
       content: snapshot?.json ?? parseDocument(latex),
       editorProps: {
         attributes: {
@@ -392,6 +387,27 @@ export class DocumentEditor {
     };
     tools = toolGroup("Resultados matemáticos");
     tools.append(results);
+    tools = toolGroup("Estructura de estudio");
+    const structures = dom("select");
+    structures.setAttribute("aria-label", "Insertar bloque de estudio");
+    structures.append(new Option("Bloque de estudio…", ""));
+    Object.entries(studyBlocks).forEach(([value, block]) =>
+      structures.append(new Option(block.label, value)),
+    );
+    structures.onchange = () => {
+      if (structures.value)
+        this.editor
+          .chain()
+          .focus()
+          .insertContent({
+            type: "semanticBlock",
+            attrs: { environment: structures.value },
+            content: [{ type: "paragraph" }],
+          })
+          .run();
+      structures.value = "";
+    };
+    tools.append(structures);
     tools = toolGroup("Fórmulas y plantillas");
     format("Insertar fórmula en línea", () => this.insertFormula(false));
     format("Insertar fórmula en bloque", () => this.insertFormula(true));
@@ -418,6 +434,9 @@ export class DocumentEditor {
       this.editor.view.focus();
     });
     tools = toolGroup("Representación del documento");
+    format("Bloque LaTeX avanzado", () =>
+      editProtectedSource(this.editor, document.body),
+    );
     format("Fuente LaTeX", () => this.toggleSource());
     format("Vista previa", () => {
       this.preview.hidden = !this.preview.hidden;
@@ -574,10 +593,14 @@ export class DocumentEditor {
   }
 }
 /** Preview, reader and editor share exactly the same parser and node views. */
-export function renderDocument(parent: HTMLElement, latex: string): () => void {
+export function renderDocument(
+  parent: HTMLElement,
+  latex: string,
+  preview?: PreviewFigure,
+): () => void {
   const reader = new Editor({
     element: parent,
-    extensions: documentExtensions(),
+    extensions: documentExtensions(preview),
     editable: false,
     content: parseDocument(latex),
     editorProps: { attributes: { class: "mathematical-document" } },

@@ -6,7 +6,7 @@ import { StudyLink } from "./StudyLink";
 import type { Navigate } from "./navigation";
 import { ReferenceForm } from "./ReferenceForm";
 import { DocumentForm } from "./DocumentForm";
-import { documentLink } from "./document-links";
+import { documentLink } from "../security/document-links";
 
 export function LibraryPage({
   context,

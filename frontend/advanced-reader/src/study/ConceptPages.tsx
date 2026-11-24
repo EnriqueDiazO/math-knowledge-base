@@ -7,6 +7,7 @@ import { executeStudy, getOverview } from "./api";
 import type { ConceptDetail, StudyContext, Page } from "./api";
 import { conceptTypes } from "../knowledge-map/concept-types";
 import { SourcePicker } from "./SourcePicker";
+import { ExportActions } from "./ExportActions";
 import { ConceptRelations } from "./ConceptRelations";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
@@ -20,6 +21,7 @@ export function ConceptsPage({
   navigate: Navigate;
 }) {
   const [query, setQuery] = useState("");
+  const [selected, setSelected] = useState<string[]>([]);
   const [kind, setKind] = useState(""),
     [source, setSource] = useState(""),
     [page, setPage] = useState(1);
@@ -80,7 +82,15 @@ export function ConceptsPage({
           ))}
         </select>
       </label>
-      <SourcePicker context={context} value={source} allowAll choose={value=>{setSource(value);setPage(1);}}/>
+      <SourcePicker
+        context={context}
+        value={source}
+        allowAll
+        choose={(value) => {
+          setSource(value);
+          setPage(1);
+        }}
+      />
       {resource.error && (
         <p role="alert">
           {resource.error} <button onClick={resource.retry}>Reintentar</button>
@@ -88,6 +98,20 @@ export function ConceptsPage({
       )}
       {resource.data?.items.map((node) => (
         <article key={node.key}>
+          <label>
+            <input
+              type="checkbox"
+              checked={selected.includes(node.key)}
+              onChange={(e) =>
+                setSelected(
+                  e.target.checked
+                    ? [...selected, node.key]
+                    : selected.filter((key) => key !== node.key),
+                )
+              }
+            />
+            Seleccionar {node.titulo}
+          </label>
           <h2>
             <StudyLink
               to={"/study/concepts/" + encodeURIComponent(node.key)}
@@ -101,6 +125,9 @@ export function ConceptsPage({
           </p>
         </article>
       ))}
+      {selected.length > 0 && (
+        <ExportActions context={context} conceptKeys={selected} />
+      )}
       <nav aria-label="Páginas de conceptos">
         <button
           type="button"
@@ -158,12 +185,16 @@ export function ConceptPage({
           >
             Editar concepto
           </StudyLink>
-          <StudyLink
-            to={"/study/sources/" + encodeURIComponent(concept.source_id)}
-            navigate={navigate}
-          >
-            Abrir fuente
-          </StudyLink>
+          {concept.source_id ? (
+            <StudyLink
+              to={"/study/sources/" + encodeURIComponent(concept.source_id)}
+              navigate={navigate}
+            >
+              Abrir fuente
+            </StudyLink>
+          ) : (
+            <span>Fuente histórica: {concept.source}</span>
+          )}
         </div>
         <StudyLink
           to={"/study/spaces?concept=" + encodeURIComponent(concept.key)}
@@ -172,7 +203,8 @@ export function ConceptPage({
           Ver en una esfera
         </StudyLink>
       </header>
-      <DocumentContent content={concept.contenido_latex} />
+      <ExportActions context={context} conceptKeys={[concept.key]} />
+      <DocumentContent content={concept.contenido_latex} context={context} />
       <ConceptRelations
         context={context}
         concept={concept}

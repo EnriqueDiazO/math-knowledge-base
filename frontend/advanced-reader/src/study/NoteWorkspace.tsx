@@ -13,6 +13,8 @@ import { useOperationScope } from "./useOperationScope";
 import { SourcePicker } from "./SourcePicker";
 import { NoteCitation } from "./NoteCitation";
 import { StudyLink } from "./StudyLink";
+import { noteMatchesIntent } from "./note-confirmation";
+import { ExportActions } from "./ExportActions";
 
 export function NoteWorkspace({
   context,
@@ -44,7 +46,9 @@ export function NoteWorkspace({
   const [pending, setPending] = useState(!!initialDraft.pending),
     [sending, setSending] = useState(false);
   const [stored, setStored] = useState(!!initialDraft.noteId);
-  const [dirty, setDirty] = useState(false),
+  const [dirty, setDirty] = useState(
+      !!initialDraft.noteId && initialDraft.changedSinceSave !== false,
+    ),
     [storageReady, setStorageReady] = useState(vault.available);
   const keep = () => {
     vault.put(draft.current);
@@ -67,8 +71,14 @@ export function NoteWorkspace({
       return;
     }
     if (!draft.current.pending) {
-      if (!draft.current.title.trim() || !draft.current.content.trim() || !draft.current.source) {
-        setStatus("Escribe un nombre y contenido y elige una fuente para la nota. El borrador se conserva.");
+      if (
+        !draft.current.title.trim() ||
+        !draft.current.content.trim() ||
+        !draft.current.source
+      ) {
+        setStatus(
+          "Escribe un nombre y contenido y elige una fuente para la nota. El borrador se conserva.",
+        );
         return;
       }
       if (!composer.current?.valid()) {
@@ -130,9 +140,7 @@ export function NoteWorkspace({
         );
         if (!scope.active) return;
         const sent = draft.current.pending!;
-        if (note.body !== sent.contenido_latex || note.title !== sent.titulo?.trim()
-          || note.source_id !== sent.source_id
-          || note.note_id !== result.note_id || (!!sent.note_id && note.note_id !== sent.note_id)) {
+        if (!noteMatchesIntent(note, sent, result.note_id)) {
           draft.current.noteId = note.note_id;
           draft.current.conflictNoteId = note.note_id;
           draft.current.pending = undefined;
@@ -140,13 +148,16 @@ export function NoteWorkspace({
           setConflict(note.note_id);
           setDirty(true);
           keep();
-          setStatus("La nota cambió después del envío. Tu borrador sigue intacto; abre la versión guardada antes de decidir qué conservar.");
+          setStatus(
+            "La nota cambió después del envío. Tu borrador sigue intacto; abre la versión guardada antes de decidir qué conservar.",
+          );
           return;
         }
         draft.current.noteId = note.note_id;
         draft.current.revision = note.revision;
         draft.current.pending = undefined;
         draft.current.submitted = false;
+        draft.current.changedSinceSave = false;
         setPending(false);
         setStored(true);
         setDirty(false);
@@ -191,13 +202,36 @@ export function NoteWorkspace({
           <p>Pasaje de origen · página PDF {draft.current.passage.pdf_page}</p>
         </aside>
       )}
-      {!stored && !draft.current.documentId && <fieldset disabled={pending || !!conflict}>
-        <SourcePicker context={context} value={draft.current.source} choose={source=>{
-          draft.current={...draft.current,source,referenceId:undefined,referenceLocator:undefined};
-          keep();refresh(v=>v+1);
-        }}/>
-        <StudyLink to={"/study/sources/new?"+new URLSearchParams({return:"/study/write?draft="+encodeURIComponent(draft.current.id!)})} navigate={navigate}>+ Registrar fuente y volver al borrador</StudyLink>
-      </fieldset>}
+      {!stored && !draft.current.documentId && (
+        <fieldset disabled={pending || !!conflict}>
+          <SourcePicker
+            context={context}
+            value={draft.current.source}
+            choose={(source) => {
+              draft.current = {
+                ...draft.current,
+                source,
+                referenceId: undefined,
+                referenceLocator: undefined,
+              };
+              keep();
+              refresh((v) => v + 1);
+            }}
+          />
+          <StudyLink
+            to={
+              "/study/sources/new?" +
+              new URLSearchParams({
+                return:
+                  "/study/write?draft=" + encodeURIComponent(draft.current.id!),
+              })
+            }
+            navigate={navigate}
+          >
+            + Registrar fuente y volver al borrador
+          </StudyLink>
+        </fieldset>
+      )}
       <label>
         Nombre de la nota
         <input
@@ -207,21 +241,38 @@ export function NoteWorkspace({
           onChange={(event) => {
             setTitle(event.target.value);
             draft.current.title = event.target.value;
+            draft.current.changedSinceSave = true;
             setDirty(true);
             keep();
           }}
         />
       </label>
-      <NoteCitation context={context} draft={draft.current} disabled={pending || !!conflict} changed={patch=>{
-        draft.current={...draft.current,...patch};setDirty(true);keep();refresh(v=>v+1);
-      }}/>
+      <NoteCitation
+        context={context}
+        draft={draft.current}
+        disabled={pending || !!conflict}
+        changed={(patch) => {
+          draft.current = {
+            ...draft.current,
+            ...patch,
+            changedSinceSave: true,
+          };
+          setDirty(true);
+          keep();
+          refresh((v) => v + 1);
+        }}
+      />
       <div className={pending ? "study-locked" : ""} inert={pending}>
         <DocumentSurface
+          context={context}
           initial={initial.content}
           snapshot={initial.snapshot}
           editorRef={composer}
           changed={(content, snapshot) => {
-            if (content !== draft.current.content) setDirty(true);
+            if (content !== draft.current.content) {
+              setDirty(true);
+              draft.current.changedSinceSave = true;
+            }
             draft.current.content = content;
             draft.current.document = snapshot;
             keep();
@@ -236,10 +287,21 @@ export function NoteWorkspace({
         >
           {pending ? "Reintentar el mismo envío" : "Guardar nota"}
         </button>
-        {conflict && <button onClick={() => {
-          capture();
-          if (vault.available) navigate("/study/notes/" + encodeURIComponent(conflict) + "?version=server");
-        }}>Abrir versión guardada; conservar mi borrador</button>}
+        {conflict && (
+          <button
+            onClick={() => {
+              capture();
+              if (vault.available)
+                navigate(
+                  "/study/notes/" +
+                    encodeURIComponent(conflict) +
+                    "?version=server",
+                );
+            }}
+          >
+            Abrir versión guardada; conservar mi borrador
+          </button>
+        )}
         {stored && !pending && !conflict && (
           <button disabled={dirty || sending} onClick={() => void submit(true)}>
             Incorporar como concepto
@@ -279,8 +341,14 @@ export function NoteWorkspace({
           Descargar borrador
         </button>
       </footer>
+      {stored && !dirty && !pending && !conflict && (
+        <ExportActions context={context} noteIds={[draft.current.noteId!]} />
+      )}
       <p role="status">
-        {status || (conflict ? "Existe una versión posterior. El borrador se conserva; abre la versión guardada antes de continuar." : "") ||
+        {status ||
+          (conflict
+            ? "Existe una versión posterior. El borrador se conserva; abre la versión guardada antes de continuar."
+            : "") ||
           (stored
             ? "Nota recuperada de la biblioteca."
             : "Borrador conservado en este navegador. Aún no es una nota guardada.")}

@@ -5,6 +5,8 @@
  */
 import type { JSONContent } from "@tiptap/core";
 import { resultNames } from "./concept-types";
+import { legacyTextCommand, latexLink } from "./latex-text";
+import { studyBlocks } from "./document-blocks";
 export { resultNames } from "./concept-types";
 type Group = { value: string; end: number };
 export function group(text: string, start: number): Group | undefined {
@@ -36,7 +38,7 @@ function clean(node: JSONContent): unknown {
     text: node.text,
     attrs,
     marks: (node.marks ?? [])
-      .map((m) => ({ type: m.type }))
+      .map((m) => ({ type: m.type, ...(m.attrs ? { attrs: m.attrs } : {}) }))
       .sort((a, b) => a.type.localeCompare(b.type)),
     content: (node.content ?? []).map(clean),
   };
@@ -77,7 +79,7 @@ export function inline(text: string): JSONContent[] {
     if (buffer) result.push(plain(buffer.replace(/\r?\n/gu, " ")));
     buffer = "";
   };
-  for (let i = 0; i < text.length;) {
+  for (let i = 0; i < text.length; ) {
     const open = text.startsWith("\\[", i)
       ? "\\["
       : text.startsWith("\\(", i)
@@ -123,24 +125,20 @@ export function inline(text: string): JSONContent[] {
       i += 2;
       continue;
     }
+    const textual = legacyTextCommand(text, i, group, inline);
+    if (textual) {
+      flush();
+      result.push(...textual.nodes);
+      i = textual.end;
+      continue;
+    }
     const match = /^\\([A-Za-z]+\*?)/u.exec(text.slice(i));
     if (!match) {
       buffer += text[i++];
       continue;
     }
-    const name = match[1],
-      arg = group(text, i + match[0].length);
     flush();
-    if (arg && ["textbf", "textit", "emph"].includes(name)) {
-      const mark = name === "textbf" ? "bold" : "italic";
-      result.push(
-        ...inline(arg.value).map((n) => ({
-          ...n,
-          marks: [...(n.marks ?? []), { type: mark }],
-        })),
-      );
-      i = arg.end;
-    } else {
+    {
       let end = i + match[0].length;
       while (text[end] === "{") {
         const next = group(text, end);
@@ -196,16 +194,28 @@ export function parseDocument(source: string): JSONContent {
       // Explicit tcolorbox options belong to the document. The bounded visual
       // adapter cannot interpret arbitrary TeX styles; preserve the whole box
       // through the existing source block rather than replacing its colors.
-      if (resultNames[env.name] && /^\s*\[/u.test(env.body))
-        blocks.push(original({
-          type: "sourceBlock",
-          attrs: { source: raw, reason: "Estilo personalizado conservado en fuente y exportación PDF." },
-        }, raw));
-      else if (resultNames[env.name])
+      if (
+        (resultNames[env.name] || studyBlocks[env.name]) &&
+        /^\s*\[/u.test(env.body)
+      )
         blocks.push(
           original(
             {
-              type: "resultBlock",
+              type: "sourceBlock",
+              attrs: {
+                source: raw,
+                reason:
+                  "Estilo personalizado conservado en fuente y exportación PDF.",
+              },
+            },
+            raw,
+          ),
+        );
+      else if (resultNames[env.name] || studyBlocks[env.name])
+        blocks.push(
+          original(
+            {
+              type: studyBlocks[env.name] ? "semanticBlock" : "resultBlock",
               attrs: {
                 environment: env.name,
                 before: before + env.prefix,
@@ -342,6 +352,8 @@ export function serialize(node: JSONContent): string {
     for (const mark of node.marks ?? []) {
       if (mark.type === "bold") text = "\\textbf{" + text + "}";
       if (mark.type === "italic") text = "\\emph{" + text + "}";
+      if (mark.type === "academicLink")
+        text = latexLink(String(mark.attrs?.href ?? ""), text);
     }
     return text;
   }
@@ -356,13 +368,16 @@ export function serialize(node: JSONContent): string {
     case "sourceBlock":
     case "sourceAtom":
       return String(node.attrs?.source ?? "");
+    case "semanticBlock":
     case "resultBlock": {
       const environment = String(node.attrs?.environment ?? "remark");
-      const title = environment === "proof" ? "" : "{" + escapeText(String(node.attrs?.title ?? "")) + "}";
+      const title =
+        environment === "proof" || studyBlocks[environment]
+          ? ""
+          : "{" + escapeText(String(node.attrs?.title ?? "")) + "}";
       return (
         String(
-          node.attrs?.before ??
-            "\\begin{" + environment + "}" + title + "\n",
+          node.attrs?.before ?? "\\begin{" + environment + "}" + title + "\n",
         ) +
         body +
         String(
