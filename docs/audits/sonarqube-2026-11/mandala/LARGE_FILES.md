@@ -282,3 +282,30 @@ bibliográficos recuperables otro; sus líneas también figuran en el inventario
 Los recursos estáticos regenerados siguen clasificados como generados. No se
 presentan cambios de hashes/minificación de esos recursos como código muerto.
 No se retira ninguna ruta de compatibilidad en esta fase.
+
+## Biblioteca y Cuaderno (24 de noviembre de 2026)
+
+El inventario actual registra **440 archivos mantenidos, 247 de pruebas y 315
+generados**, separados de recursos, configuración, documentos y dependencias.
+`LIBRARY_NOTEBOOK_INVENTORY.json` conserva los veinte mayores y los veinte
+mantenidos que superan mil líneas. **19 conservan la huella exacta** del corte
+anterior y sus decisiones de revisión siguen vigentes. `editor/pdf_export.py`
+pasa de 1052 a 1058 líneas: Streamlit se importa sólo en cuatro funciones UI.
+Se revisó su frontera de exportación al reutilizarla desde Diario, con pruebas
+del arranque independiente y consumidores de compatibilidad; no se retiraron
+funciones ni se trasladó el módulo completo. El entry permanece en **21 líneas**.
+
+`mathdatabase/mathmongo.py` añade enlace explícito a una base ya elegida y
+proyección/paginación opcionales al CRUD del Cuaderno, manteniendo los valores
+por defecto de los consumidores antiguos. El Diario nuevo reparte actividades
+HTTP, dominio, borrador, referencias y composición en módulos propios; no se
+expande cuaderno_page ni se crea un segundo editor o almacén.
+
+Fuera de la interfaz React se corrigieron la identidad de los widgets y de la
+confirmación de relaciones, y el paso de Database a la exportación masiva.
+Inicio, relaciones, mapas guardados, exploración y mantenimiento tienen nuevas
+pruebas de comportamiento con Mongo temporal real. No se declaran cerrados
+por ello los pendientes de modularización de mapas, importación, actualizaciones,
+Cuaderno histórico, migraciones, medios, Cornell/CPI ni el coordinador del lector.
+Las pruebas y los módulos extraídos/añadidos cuentan en el inventario; regenerar
+assets con otros hashes no se presenta como una eliminación de código propio.

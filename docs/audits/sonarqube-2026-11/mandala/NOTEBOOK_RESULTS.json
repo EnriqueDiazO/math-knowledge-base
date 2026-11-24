@@ -1,0 +1,155 @@
+{
+  "revision": "03ee4a3adf930eba3ad2239d7a53cec273428031",
+  "ce": {
+    "task": {
+      "id": "361996d7-3341-4009-93ca-4e934e645fc5",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "44934ef1-546e-490a-ad4f-e2da59ba897b",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-24T17:30:04+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-24T17:30:06+0000",
+      "executedAt": "2026-11-24T17:30:09+0000",
+      "executionTimeMs": 2554,
+      "hasScannerContext": true,
+      "warningCount": 3,
+      "warnings": [
+        "Missing blame information for 2 files. This may lead to some features not working correctly. Please check the analysis logs and refer to <a href=\"https://docs.sonarsource.com/sonarqube-community-build/analyzing-source-code/scm-integration/\" rel=\"noopener noreferrer\" target=\"_blank\">the documentation</a>.",
+        "Inconsistent highlighting data detected on file 'tests/test_compatibility_page_behaviors.py'. File source may have been modified while analysis was running.",
+        "Inconsistent symbol data detected on file 'tests/test_compatibility_page_behaviors.py'. File source may have been modified while analysis was running."
+      ],
+      "infoMessages": []
+    }
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "74.1"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.10136"
+        },
+        {
+          "status": "ERROR",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "1"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "74.1",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "20080"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.4",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "1",
+          "bestValue": false
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "54183"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "13732",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "20574",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "108708"
+        },
+        {
+          "metric": "files",
+          "value": "440"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":1,\"HIGH\":0,\"BLOCKER\":0,\"total\":1}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "74.7",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6"
+}
