@@ -13,6 +13,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from pathlib import Path
 
+from exporters_latex.compile_diagnostics import compilation_failure_message
 from exporters_latex.latex_compile import run_latex_command
 from exporters_latex.latex_compile import run_latex_until_stable
 
@@ -175,7 +176,7 @@ def compile_document(
             if result["status"] == "failed":
                 return CompiledDocument(
                     "failed",
-                    "No se pudo compilar este documento. Conserva el código y revisa las macros, los entornos o recursos indicados.",
+                    compilation_failure_message(result["log_excerpt"]),
                     diagnostic=result["log_excerpt"][-8000:],
                 )
             png = b""
