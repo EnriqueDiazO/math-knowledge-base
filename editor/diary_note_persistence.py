@@ -7,6 +7,7 @@ from typing import Any
 
 from editor.diary_note_models import DiaryNoteSettings
 from editor.diary_note_models import settings_persistence_set
+from mathmongo.concurrency import exact_document
 
 
 def persist_diary_note_update(
@@ -15,6 +16,7 @@ def persist_diary_note_update(
     *,
     ordinary_fields: Mapping[str, Any] | None = None,
     settings: DiaryNoteSettings | None = None,
+    compare_snapshot: bool = False,
 ) -> Any | None:
     """Update exactly one note with ordinary fields plus a minimal settings diff.
 
@@ -28,7 +30,7 @@ def persist_diary_note_update(
     if not set_fields:
         return None
     return collection.update_one(
-        {"_id": original_note.get("_id")},
+        exact_document(dict(original_note)) if compare_snapshot else {"_id": original_note.get("_id")},
         {"$set": set_fields},
     )
 

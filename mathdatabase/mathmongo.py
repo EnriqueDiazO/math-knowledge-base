@@ -99,6 +99,17 @@ CORE_IDENTITY_INDEXES = (
 
 
 class MathMongo:
+    @classmethod
+    def from_database(cls, database):
+        """Bind an already selected database without connections or index preparation."""
+        instance = cls.__new__(cls)
+        instance.client = database.client
+        instance.db = database
+        for name in ("concepts", "relations", "latex_documents", "knowledge_graph_maps"):
+            setattr(instance, name, database[name])
+        instance.media_assets = database[MEDIA_ASSETS_COLLECTION]
+        return instance
+
     def __init__(self, mongo_uri: str | None = None, db_name: str | None = None):
         settings = resolve_config()
         mongo_uri = mongo_uri or settings.mongo_uri
@@ -267,12 +278,15 @@ class MathMongo:
             upsert=False,
         )
 
-    def get_notebook_notes(self, query: Optional[dict] = None, limit: int = 100) -> list[dict]:
+    def get_notebook_notes(
+        self, query: Optional[dict] = None, limit: int = 100, *, projection=None, skip=0
+    ) -> list[dict]:
         """Return latex diary notes from the experimental Cuaderno module."""
         return list(
             self.db["latex_notes"]
-            .find(query or {})
+            .find(query or {}, projection)
             .sort([("date", -1), ("updated_at", -1)])
+            .skip(int(skip))
             .limit(int(limit))
         )
 

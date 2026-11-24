@@ -17,8 +17,6 @@ from pathlib import Path
 from typing import Dict
 from typing import Optional
 
-import streamlit as st
-
 from editor.diary_note_latex import build_diary_latex_fragments
 from editor.diary_note_latex import latex_escape_text
 from editor.utils.media_assets import copy_media_tree_for_latex
@@ -262,6 +260,8 @@ def render_pdf_export_error(
     fallback_stage: str = "Exportación PDF",
     fallback_operation: str = "Exportación",
 ) -> None:
+    import streamlit as st
+
     diagnostic = getattr(error, "diagnostic", None)
     if not isinstance(diagnostic, dict):
         diagnostic = _diagnostic_from_exception(
@@ -338,6 +338,8 @@ def _chktex_result_dict(result: object) -> dict:
 
 
 def render_chktex_result(result: object, *, expanded: bool = False) -> None:
+    import streamlit as st
+
     data = _chktex_result_dict(result)
     if not data:
         return
@@ -1013,6 +1015,8 @@ def _copiar_archivos_notas(destino: Path) -> None:
 
 def _generar_pdf_con_interfaz(generar_pdf_path: Callable[[], str]) -> bool:
     """Generate a PDF for legacy form consumers without opening a browser."""
+    import streamlit as st
+
     try:
         with st.spinner("🔄 Generando PDF..."):
             generar_pdf_path()
@@ -1037,6 +1041,8 @@ def generar_y_abrir_pdf_nota_latex_desde_formulario(
 
     The historical name is retained for compatibility with Cuaderno callers.
     """
+    import streamlit as st
+
     pdf_note = dict(note_data or {})
     pdf_note["title"] = str(pdf_note.get("title") or "Nota sin título").strip() or "Nota sin título"
 
