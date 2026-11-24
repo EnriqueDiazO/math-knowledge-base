@@ -372,6 +372,368 @@ for (const family of ["cornell", "cpi"] as const) {
       );
     },
   );
+  it(
+    family +
+      ": preserves metadata, template and region heading across draft recovery",
+    () => {
+      const view = render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          navigate={vi.fn()}
+        />,
+      );
+      fill("Título de la nota", "Metadatos recuperables");
+      fireEvent.click(screen.getByText("Fecha, proyecto y etiquetas"));
+      fill("Fecha de la nota", "2024-02-29");
+      fill("Proyecto", "Álgebra");
+      fill("Contexto", "investigación");
+      fill("Etiquetas (una por línea)", "coma, literal\nsegunda");
+      fill("Plantilla de la nota", family + "_hybrid_compact_v1");
+      fill("Título de la región", "Pregunta propia");
+      view.unmount();
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          navigate={vi.fn()}
+        />,
+      );
+      expect(screen.getByLabelText("Título de la región")).toHaveValue(
+        "Pregunta propia",
+      );
+      expect(screen.getByLabelText("Proyecto")).toHaveValue("Álgebra");
+      expect(screen.getByLabelText("Contexto")).toHaveValue("investigación");
+      expect(screen.getByLabelText("Fecha de la nota")).toHaveValue(
+        "2024-02-29",
+      );
+      expect(screen.getByLabelText("Etiquetas (una por línea)")).toHaveValue(
+        "coma, literal\nsegunda",
+      );
+      expect(screen.getByLabelText("Plantilla de la nota")).toHaveValue(
+        family + "_hybrid_compact_v1",
+      );
+    },
+  );
+  it(
+    family + ": searches literal text and returns to previous summary pages",
+    async () => {
+      const fetch = vi.fn(async (_path: unknown) =>
+        Response.json({ items: [{ note_id: "untitled" }], total: 21, page: 2 }),
+      );
+      vi.stubGlobal("fetch", fetch);
+      const navigate = vi.fn();
+      render(
+        <StructuredPages
+          context={context}
+          family={family}
+          identity=""
+          search="?page=2&q=anterior"
+          navigate={navigate}
+        />,
+      );
+      expect(
+        await screen.findByRole("link", { name: "Nota sin título" }),
+      ).toHaveAttribute("href", "/study/notebook/" + family + "/untitled");
+      expect(screen.getByRole("button", { name: "Siguientes" })).toBeDisabled();
+      expect(String(fetch.mock.calls[0]?.[0])).toContain("page=2");
+      click("Anteriores");
+      expect(navigate).toHaveBeenLastCalledWith(
+        "/study/notebook/" + family + "?page=1&q=anterior",
+      );
+      fill("Buscar notas " + title, "Texto [literal]");
+      click("Buscar notas");
+      const url = new URL(navigate.mock.calls.at(-1)![0], "http://localhost");
+      expect(url.searchParams.get("q")).toBe("Texto [literal]");
+      expect(url.searchParams.has("page")).toBe(false);
+    },
+  );
+  it(family + ": failed listing retries without creating a note", async () => {
+    let failed = true;
+    const fetch = vi.fn(async () =>
+      failed
+        ? Response.json(
+            { error: { message: "Consulta no disponible" } },
+            { status: 503 },
+          )
+        : Response.json({ items: [], total: 0, page: 1 }),
+    );
+    vi.stubGlobal("fetch", fetch);
+    render(
+      <StructuredPages
+        context={context}
+        family={family}
+        identity=""
+        search=""
+        navigate={vi.fn()}
+      />,
+    );
+    expect(await screen.findByRole("alert")).toHaveTextContent(
+      "Consulta no disponible",
+    );
+    failed = false;
+    click("Reintentar búsqueda");
+    await screen.findByText(/Todavía no hay notas/);
+    expect(fetch).toHaveBeenCalledTimes(2);
+    expect(screen.queryByLabelText("Título de la nota")).toBeNull();
+  });
+  it(
+    family +
+      ": refuses an incompatible detail until its explicit retry succeeds",
+    async () => {
+      const original = note(family);
+      let failed = true;
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async () =>
+          failed
+            ? Response.json(
+                { error: { message: "Esta nota pertenece a otra actividad" } },
+                { status: 409 },
+              )
+            : Response.json(original),
+        ),
+      );
+      render(
+        <StructuredPages
+          context={context}
+          family={family}
+          identity="saved"
+          search=""
+          navigate={vi.fn()}
+        />,
+      );
+      expect(await screen.findByRole("alert")).toHaveTextContent(
+        "otra actividad",
+      );
+      expect(screen.queryByLabelText("Título de la nota")).toBeNull();
+      failed = false;
+      click("Reintentar nota");
+      expect(await screen.findByLabelText("Título de la nota")).toHaveValue(
+        "Original",
+      );
+    },
+  );
+  it(
+    family +
+      ": archives an unreadable draft before restarting a new structured document",
+    () => {
+      const key = "mathmongo-structured-v1-owned-" + family + "-new",
+        corrupt = JSON.stringify({
+          ...structuredDraft(family),
+          document: "{}",
+        });
+      localStorage.setItem(key, corrupt);
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          navigate={vi.fn()}
+        />,
+      );
+      expect(screen.getByRole("alert")).toHaveTextContent(
+        "estructura del borrador no es válida",
+      );
+      expect(screen.queryByLabelText("Región de prueba")).toBeNull();
+      click("Reiniciar con copia");
+      expect(screen.getByLabelText("Región de prueba")).toHaveValue("");
+      const archive = Object.keys(localStorage).find((item) =>
+        item.startsWith(key + "-archive-"),
+      );
+      expect(archive).toBeDefined();
+      expect(localStorage.getItem(archive!)).toBe(corrupt);
+    },
+  );
+  it(
+    family +
+      ": storage failure preserves the in-memory draft and prevents an unprotected save",
+    () => {
+      const fetch = vi.fn();
+      vi.stubGlobal("fetch", fetch);
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          navigate={vi.fn()}
+        />,
+      );
+      const write = vi
+        .spyOn(Storage.prototype, "setItem")
+        .mockImplementation(() => {
+          throw new DOMException("quota", "QuotaExceededError");
+        });
+      try {
+        fill("Título de la nota", "Trabajo en memoria");
+        expect(screen.getByRole("alert")).toHaveTextContent(
+          "navegador no pudo conservar",
+        );
+        expect(screen.getByLabelText("Título de la nota")).toHaveValue(
+          "Trabajo en memoria",
+        );
+        expect(
+          screen.getByRole("button", { name: "Guardar nota " + title }),
+        ).toBeDisabled();
+        expect(fetch).not.toHaveBeenCalled();
+      } finally {
+        write.mockRestore();
+      }
+    },
+  );
+  it(
+    family +
+      ": a validation rejection unlocks correction and does not claim a saved note",
+    async () => {
+      const navigate = vi.fn(),
+        calls: Record<string, unknown>[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_path, options) => {
+          const body = JSON.parse(options.body);
+          calls.push(body);
+          return calls.length === 1
+            ? Response.json(
+                {
+                  error: {
+                    code: "invalid_study_request",
+                    message: "Revisa el título demasiado largo",
+                  },
+                },
+                { status: 422 },
+              )
+            : Response.json({
+                ...note(family),
+                metadata: body.metadata,
+                document: body.document,
+              });
+        }),
+      );
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          navigate={navigate}
+        />,
+      );
+      fill("Título de la nota", "x".repeat(501));
+      fill("Región de prueba", "Contenido conservado");
+      click("Guardar nota " + title);
+      await screen.findByText("Revisa el título demasiado largo");
+      expect(navigate).not.toHaveBeenCalled();
+      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
+        "Contenido conservado",
+      );
+      fill("Título de la nota", "Título corregido");
+      click("Guardar nota " + title);
+      await waitFor(() =>
+        expect(navigate).toHaveBeenCalledWith(
+          "/study/notebook/" + family + "/saved",
+        ),
+      );
+      expect(calls[0].request_id).toBe(calls[1].request_id);
+      expect(calls[0]).not.toEqual(calls[1]);
+    },
+  );
+  it(
+    family +
+      ": metadata editing preserves an explicit historical template and advances the observed revision",
+    async () => {
+      const original = note(family);
+      original.document.template_id = "personal-historical-template";
+      const calls: Record<string, unknown>[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_path, options) => {
+          const body = JSON.parse(options.body);
+          calls.push(body);
+          return Response.json({
+            ...original,
+            metadata: { ...original.metadata, ...body.metadata },
+            revision: "b".repeat(64),
+          });
+        }),
+      );
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          note={original}
+          navigate={vi.fn()}
+        />,
+      );
+      expect(screen.getByLabelText("Plantilla de la nota")).toHaveValue(
+        "personal-historical-template",
+      );
+      fill("Título de la nota", "Sólo el título");
+      click("Guardar nota " + title);
+      await screen.findByText("Nota guardada y confirmada en esta biblioteca.");
+      expect(calls[0].metadata).toEqual({ title: "Sólo el título" });
+      expect(calls[0].document).toEqual(original.document);
+      const saved = JSON.parse(
+        localStorage.getItem(
+          "mathmongo-structured-v1-owned-" + family + "-saved",
+        )!,
+      );
+      expect(saved.revision).toBe("b".repeat(64));
+      expect(saved.pending).toBe("");
+    },
+  );
+  it(
+    family + ": no-op historical saves do not invent a missing title or date",
+    async () => {
+      const original = note(family);
+      original.metadata = {};
+      const fetch = vi.fn(async (_path, options) => {
+        expect(JSON.parse(options.body).metadata).toEqual({});
+        return Response.json(original);
+      });
+      vi.stubGlobal("fetch", fetch);
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          note={original}
+          navigate={vi.fn()}
+        />,
+      );
+      click("Guardar nota " + title);
+      await screen.findByText("Nota guardada y confirmada en esta biblioteca.");
+      expect(fetch).toHaveBeenCalledTimes(1);
+      expect(screen.getByLabelText("Título de la nota")).toHaveValue("");
+    },
+  );
+  it(
+    family +
+      ": the page limit prevents adding or duplicating beyond the accepted document",
+    () => {
+      const original = note(family),
+        first = original.document.pages[0];
+      original.document.pages = Array.from({ length: 30 }, (_, index) => ({
+        ...structuredClone(first),
+        ...(family === "cornell"
+          ? { page_id: "page-" + index, order: index + 1 }
+          : { page_number: index + 1 }),
+      }));
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          note={original}
+          navigate={vi.fn()}
+        />,
+      );
+      expect(
+        screen.getByRole("button", { name: "Añadir página" }),
+      ).toBeDisabled();
+      expect(
+        screen.getByRole("button", { name: "Duplicar página" }),
+      ).toBeDisabled();
+      click("Añadir página");
+      click("Duplicar página");
+      expect(
+        screen.getAllByRole("button", { name: /^Página \d+$/ }),
+      ).toHaveLength(30);
+    },
+  );
 }
 it("rejects damaged nested drafts and compares JSON values independent of key order", () => {
   const draft = structuredDraft("cornell");

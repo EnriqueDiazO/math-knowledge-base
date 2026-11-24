@@ -52,25 +52,62 @@ afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
-it("a citation response for a region left behind cannot mutate either region", async () => {
-  let resolve!: (value: Response) => void;
+it.each([true, false])(
+  "a delayed citation result (%s) for a region left behind cannot mutate either region",
+  async (success) => {
+    let resolve!: (value: Response) => void;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(
+        () =>
+          new Promise<Response>((done) => {
+            resolve = done;
+          }),
+      ),
+    );
+    const previous = vi.fn(() => true),
+      next = vi.fn(() => true),
+      view = render(<StructuredFields {...props} citation={previous} />);
+    choose();
+    view.rerender(
+      <StructuredFields {...props} region="main" citation={next} />,
+    );
+    await act(async () =>
+      resolve(
+        success
+          ? Response.json({ latex: "Cita tardía" })
+          : Response.json(
+              { error: { message: "Error tardío" } },
+              { status: 503 },
+            ),
+      ),
+    );
+    expect(previous).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  },
+);
+it("failed lookup leaves the draft alone and permits a deliberate retry", async () => {
+  let failed = true;
   vi.stubGlobal(
     "fetch",
-    vi.fn(
-      () =>
-        new Promise<Response>((done) => {
-          resolve = done;
-        }),
-    ),
+    vi.fn(async () => {
+      if (failed) throw new Error("simulated connection loss");
+      return Response.json({ latex: "Cita recuperada" });
+    }),
   );
-  const previous = vi.fn(() => true),
-    next = vi.fn(() => true),
-    view = render(<StructuredFields {...props} citation={previous} />);
+  const insert = vi.fn(() => true);
+  render(<StructuredFields {...props} citation={insert} />);
   choose();
-  view.rerender(<StructuredFields {...props} region="main" citation={next} />);
-  await act(async () => resolve(Response.json({ latex: "Cita tardía" })));
-  expect(previous).not.toHaveBeenCalled();
-  expect(next).not.toHaveBeenCalled();
+  expect(
+    screen.getByRole("button", { name: "Elegir fuente de prueba" }),
+  ).toBeDisabled();
+  await screen.findByText(/No se confirmó la conexión/);
+  expect(insert).not.toHaveBeenCalled();
+  failed = false;
+  click("Insertar cita en esta región");
+  await screen.findByText(/Cita incorporada al borrador/);
+  expect(insert).toHaveBeenCalledTimes(1);
+  expect(insert).toHaveBeenCalledWith("Cita recuperada");
 });
 it("a rejected insertion cannot announce that a citation was incorporated", async () => {
   vi.stubGlobal(
