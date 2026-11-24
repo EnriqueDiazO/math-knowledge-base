@@ -13,6 +13,7 @@ export function ExportActions({
 }) {
   const scope = useOperationScope(context),
     [message, setMessage] = useState(""),
+    [includeIds, setIncludeIds] = useState(false),
     [busy, setBusy] = useState(false);
   const run = async (format: "pdf" | "tex") => {
     if (busy) return;
@@ -27,6 +28,7 @@ export function ExportActions({
         format,
         concept_keys: conceptKeys,
         note_ids: noteIds,
+        include_technical_ids: includeIds,
       });
       if (!scope.active) return;
       downloadDocument(
@@ -44,6 +46,7 @@ export function ExportActions({
   };
   return (
     <section className="study-export-actions" aria-label="Exportar documentos">
+      <label><input type="checkbox" checked={includeIds} disabled={busy} onChange={event => setIncludeIds(event.target.checked)} /> Incluir identificadores técnicos</label>
       <button
         type="button"
         disabled={busy || (!conceptKeys.length && !noteIds.length)}

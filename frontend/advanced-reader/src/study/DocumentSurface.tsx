@@ -39,8 +39,10 @@ export function DocumentSurface({
   changed,
   editorRef,
   context,
+  title = "Documento",
 }: {
   initial: string;
+  title?: string;
   snapshot?: EditorSnapshot;
   changed: (value: string, snapshot: EditorSnapshot) => void;
   editorRef: { current: DocumentEditor | null };
@@ -51,6 +53,8 @@ export function DocumentSurface({
   const library = context?.library_id,
     runtime = context?.runtime_id;
   const onChange = useRef(changed);
+  const currentTitle = useRef(title);
+  useEffect(() => { currentTitle.current = title; }, [title]);
   useEffect(() => {
     onChange.current = changed;
   }, [changed]);
@@ -69,6 +73,7 @@ export function DocumentSurface({
         viewport: viewport.current,
         keyboardContainer: viewport.current,
         preview: previews?.show,
+        compiled: previews ? (source, host) => previews.showDocument(source, host, currentTitle.current) : undefined,
       },
     );
     editorRef.current = editor;

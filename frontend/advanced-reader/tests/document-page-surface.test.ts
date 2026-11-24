@@ -120,3 +120,24 @@ describe("wide document editor lifecycle", () => {
     editor.destroy();
   });
 });
+
+it("compiles the current canonical snapshot from both visual and full source modes without saving", () => {
+  const host = document.createElement("div"), viewport = document.createElement("div");
+  document.body.append(viewport); viewport.append(host);
+  const compiled = vi.fn(), changed = vi.fn();
+  const editor = new DocumentEditor(host, "Original", changed, undefined, {keyboardContainer: viewport, viewport, compiled});
+  editor.editor.commands.insertContent("Texto nuevo. ");
+  const button = (name: string) => [...host.querySelectorAll("button")].find(b => b.textContent === name)!;
+  button("Vista compilada").click();
+  expect(compiled.mock.calls[0][0]).toBe(editor.value());
+  expect(compiled.mock.calls[0][0]).toContain("Texto nuevo.");
+  button("Fuente LaTeX").click();
+  const source = host.querySelector<HTMLTextAreaElement>('[aria-label="Fuente LaTeX"]')!;
+  const full = String.raw`\documentclass{article}\newcommand{\foo}{Valor}\begin{document}\foo\end{document}`;
+  source.value = full; source.dispatchEvent(new Event("input"));
+  button("Vista compilada").click();
+  expect(compiled.mock.calls[1][0]).toBe(full);
+  expect(editor.value()).toBe(full);
+  expect(changed.mock.calls.at(-1)![0]).toBe(full);
+  editor.destroy();
+});

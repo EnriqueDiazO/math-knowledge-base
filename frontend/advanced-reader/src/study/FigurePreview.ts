@@ -18,29 +18,37 @@ export class FigurePreview {
   private readonly controller = new AbortController();
   private readonly dialogs = new Set<HTMLDialogElement>();
   private active = true;
+  private readonly snapshots = new WeakMap<HTMLElement, string>();
   constructor(
     private readonly context: Pick<StudyContext, "library_id" | "runtime_id">,
   ) {}
-  show = (source: string, host: HTMLElement) => {
+  show = (source: string, host: HTMLElement) => this.render(source, host, "figure");
+  showDocument = (source: string, host: HTMLElement, title: string) =>
+    this.render(source, host, "document", title);
+  private render(source: string, host: HTMLElement, kind: "figure" | "document", title = "Documento") {
     if (!this.active) return;
+    const documentMode = kind === "document";
+    const signature = JSON.stringify([source, kind, title]);
     const existing = host.querySelector<HTMLElement>(".figure-preview");
-    if (existing) {
+    if (existing && this.snapshots.get(host) === signature) {
       existing.scrollIntoView({ block: "nearest" });
       return;
     }
+    existing?.remove();
+    this.snapshots.set(host, signature);
     const panel = element("section");
     panel.className = "figure-preview";
     const status = element("p");
     status.setAttribute("role", "status");
     const image = element("img");
-    image.alt = "Vista previa de la figura LaTeX";
+    image.alt = documentMode ? "Primera página del borrador compilado" : "Vista previa de la figura LaTeX";
     image.hidden = true;
     const refresh = element("button", "Actualizar vista previa");
     refresh.type = "button";
-    const zoom = element("button", "Ampliar figura");
+    const zoom = element("button", documentMode ? "Ampliar página" : "Ampliar figura");
     zoom.type = "button";
     zoom.disabled = true;
-    const pdf = element("button", "Descargar figura PDF");
+    const pdf = element("button", documentMode ? "Descargar borrador PDF" : "Descargar figura PDF");
     pdf.type = "button";
     pdf.disabled = true;
     const diagnostics = element("details"),
@@ -74,12 +82,12 @@ export class FigurePreview {
       pdf.disabled = true;
       image.hidden = true;
       diagnostics.hidden = true;
-      status.textContent = "Compilando esta figura con aislamiento…";
+      status.textContent = documentMode ? "Compilando el borrador actual sin guardarlo…" : "Compilando esta figura con aislamiento…";
       try {
         const result = await studyRequest<Preview>(
           "/document-previews",
           this.context,
-          { source, refresh: force },
+          { source, refresh: force, kind, title },
           this.controller.signal,
         );
         if (!this.active || !panel.isConnected) return;
@@ -100,7 +108,7 @@ export class FigurePreview {
         if (!this.active || !panel.isConnected) return;
         currentUrl = await pngDataUri(blob);
         if (!this.active || !panel.isConnected) return;
-        status.textContent = "Mostrando la figura compilada…";
+        status.textContent = "Mostrando la vista compilada…";
         image.src = currentUrl;
         image.hidden = false;
         pdf.disabled = false;
@@ -119,7 +127,7 @@ export class FigurePreview {
       const large = element("img");
       large.src = currentUrl;
       large.alt = image.alt;
-      const close = element("button", "Cerrar figura");
+      const close = element("button", documentMode ? "Cerrar página" : "Cerrar figura");
       close.type = "button";
       close.onclick = () => dialog.close();
       dialog.addEventListener("close", () => {
@@ -139,15 +147,16 @@ export class FigurePreview {
         this.controller.signal,
       )
         .then((blob) => {
-          if (this.active) downloadDocument(blob, "mathmongo-figura.pdf");
+          if (this.active && panel.isConnected) downloadDocument(blob, documentMode ? "mathmongo-borrador.pdf" : "mathmongo-figura.pdf");
         })
         .catch((error) => {
           if (this.active) status.textContent = error.message;
         });
+    if (documentMode) panel.append(element("p", "Primera página de la instantánea solicitada. Descarga el PDF para ver todas las páginas. Tras editar, pulsa Vista compilada de nuevo."));
     panel.append(status, image, refresh, zoom, pdf, diagnostics);
     host.append(panel);
     void load(false);
-  };
+  }
   destroy() {
     this.active = false;
     this.controller.abort();

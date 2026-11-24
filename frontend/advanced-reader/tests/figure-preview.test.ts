@@ -42,7 +42,7 @@ describe("CSP-compatible compiled raster preview", () => {
     expect(document.querySelector<HTMLImageElement>("dialog img")!.src).toBe(
       image.src,
     );
-    preview.show("same source", host);
+    preview.show("original TikZ", host);
     expect(studyRequest).toHaveBeenCalledTimes(1);
     preview.destroy();
     expect(document.querySelector("dialog")).toBeNull();
@@ -76,4 +76,19 @@ describe("CSP-compatible compiled raster preview", () => {
       pngDataUri(new Blob(["<script>bad()</script>"], { type: "text/html" })),
     ).toThrow(/PNG/u);
   });
+});
+
+it("replaces a compiled document snapshot after editing and retains the editor on compilation failure", async () => {
+  vi.mocked(studyRequest).mockResolvedValue({state:"failed", message:"Macro no disponible", diagnostic:"Undefined control sequence"});
+  const host = document.createElement("div"); document.body.append(host);
+  const preview = new FigurePreview({library_id:"library",runtime_id:"runtime"});
+  preview.showDocument("Primer borrador",host,"Título");
+  await waitFor(() => expect(host.textContent).toContain("Macro no disponible"));
+  expect(studyRequest).toHaveBeenLastCalledWith("/document-previews", expect.anything(), {source:"Primer borrador",title:"Título",kind:"document",refresh:false},expect.anything());
+  preview.showDocument("Segundo borrador",host,"Título nuevo");
+  await waitFor(() => expect(studyRequest).toHaveBeenCalledTimes(2));
+  expect(host.querySelectorAll(".figure-preview")).toHaveLength(1);
+  expect(studyRequest).toHaveBeenLastCalledWith("/document-previews", expect.anything(), {source:"Segundo borrador",title:"Título nuevo",kind:"document",refresh:false},expect.anything());
+  expect(host.textContent).toContain("Primera página");
+  preview.destroy();
 });

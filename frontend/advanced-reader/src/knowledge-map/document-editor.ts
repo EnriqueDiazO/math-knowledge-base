@@ -281,6 +281,7 @@ export class DocumentEditor {
       keyboardContainer: HTMLElement;
       viewport: HTMLElement;
       preview?: PreviewFigure;
+      compiled?: PreviewFigure;
     },
   ) {
     this.restored = snapshot;
@@ -446,7 +447,13 @@ export class DocumentEditor {
       this.changed(this.source.value, this.snapshot());
       this.updatePreview();
     };
-    parent.append(toolbar, this.visual, this.source, this.preview);
+    const compiled = dom("div");
+    compiled.className = "document-compiled-preview";
+    if (surface?.compiled) {
+      const compile = surface.compiled;
+      format("Vista compilada", () => compile(this.value(), compiled));
+    }
+    parent.append(toolbar, this.visual, this.source, this.preview, compiled);
     this.source.value = latex;
     if (snapshot) {
       this.sourceMode = snapshot.sourceMode;

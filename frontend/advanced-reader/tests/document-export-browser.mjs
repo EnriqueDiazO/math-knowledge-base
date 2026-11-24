@@ -109,6 +109,27 @@ await test(
         path: evidence + "/document-visual-structured-editor.png",
         fullPage: true,
       });
+      const writes = [];
+      const observeWrites = request => {
+        if (request.url().endsWith("/operations") && request.method() === "POST") writes.push(request.url());
+      };
+      page.on("request", observeWrites);
+      await page.getByRole("button", {name:"Vista compilada", exact:true}).click();
+      const compiledPage = page.getByRole("img", {name:"Primera página del borrador compilado", exact:true});
+      await expect(compiledPage).toBeVisible();
+      await expect.poll(() => compiledPage.evaluate(image => image.naturalWidth)).toBeGreaterThan(0);
+      const draftPdf = await download("Descargar borrador PDF", "document-unsaved-draft.pdf");
+      const draftText = spawnSync("pdftotext", [draftPdf, "-"], {encoding:"utf8"});
+      expect(draftText.status).toBe(0);
+      expect(draftText.stdout).toContain("Contexto creado visualmente");
+      expect(draftText.stdout).toContain("Texto avanzado protegido");
+      expect(writes).toEqual([]);
+      await page.screenshot({path:evidence + "/document-unsaved-compiled-wide.png",fullPage:true});
+      await page.setViewportSize({width:700,height:960});
+      expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth + 1)).toBe(true);
+      await page.screenshot({path:evidence + "/document-unsaved-compiled-narrow.png",fullPage:true});
+      await page.setViewportSize({width:1440,height:1080});
+      page.off("request", observeWrites);
       await page
         .getByRole("button", { name: "Guardar concepto", exact: true })
         .click();
@@ -135,6 +156,13 @@ await test(
       expect(text.status).toBe(0);
       expect(text.stdout).toContain("Contexto creado visualmente");
       expect(text.stdout).toContain("Texto avanzado protegido");
+      expect(text.stdout).not.toContain("ID del concepto:");
+      await page.getByRole("checkbox", {name:"Incluir identificadores técnicos",exact:true}).check();
+      const tracedPdf = await download("Exportar PDF", "document-traceability.pdf");
+      const tracedText = spawnSync("pdftotext", [tracedPdf, "-"], {encoding:"utf8"});
+      expect(tracedText.status).toBe(0);
+      expect(tracedText.stdout).toContain("ID del concepto:");
+      await page.getByRole("checkbox", {name:"Incluir identificadores técnicos",exact:true}).uncheck();
       const block = page
         .locator("[data-source-block]")
         .filter({ hasText: "tikzpicture" })
@@ -202,6 +230,9 @@ await test(
             key,
             sourceId: authoring.sourceId,
             visualPdf: true,
+            unsavedDraftCompiledWithoutWrite: true,
+            optionalTechnicalIds: true,
+            narrowViewport: 700,
             mixedProtectedLatexPreserved: true,
             errors,
           },

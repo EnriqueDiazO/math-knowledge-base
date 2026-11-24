@@ -265,6 +265,7 @@ export function NoteWorkspace({
       <div className={pending ? "study-locked" : ""} inert={pending}>
         <DocumentSurface
           context={context}
+          title={title}
           initial={initial.content}
           snapshot={initial.snapshot}
           editorRef={composer}

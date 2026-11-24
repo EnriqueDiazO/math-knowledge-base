@@ -24,6 +24,7 @@ it("keeps the live document and selection when preparation changes within the sa
     <DocumentSurface
       context={context}
       initial=""
+      title="Título inicial"
       changed={changed}
       editorRef={editorRef}
     />,
@@ -37,6 +38,7 @@ it("keeps the live document and selection when preparation changes within the sa
         ...context,
         preparation: { ...context.preparation, notes_ready: true },
       }}
+      title="Título cambiado"
       initial=""
       changed={changed}
       editorRef={editorRef}

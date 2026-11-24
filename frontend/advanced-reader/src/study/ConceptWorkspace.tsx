@@ -308,6 +308,7 @@ function ConceptWorkspace({
       <div inert={!!draft.pending}>
         <DocumentSurface
           context={context}
+          title={draft.title}
           initial={initial.content}
           snapshot={initial.snapshot}
           editorRef={composer}
