@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, expect, it, vi } from "vitest";
-import { discoverConceptDrafts } from "../src/study/ConceptDraftRecovery";
+import { discoverConceptDrafts } from "../src/study/concept-draft-discovery";
 import { DraftVault } from "../src/knowledge-map/drafts";
 import type { Draft } from "../src/knowledge-map/model";
 const copy = {
