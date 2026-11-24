@@ -72,3 +72,172 @@ it('creates a genuinely empty persisted view and adds its reference only after a
   expect(parent.querySelectorAll('.room-sphere')).toHaveLength(3);
   expect(data.nodes).toHaveLength(3);expect(parent.textContent).toContain('Vista no disponible');
 });
+it("switches recoverable local rooms and prevents duplicate references without changing saved spheres", () => {
+  const data = fixture(),
+    before = structuredClone(data),
+    original = data.rooms![0].uid;
+  mount(data);
+  choose("Añadir una vista guardada", data.views![0].uid);
+  click("Añadir esta esfera a la habitación");
+  expect(parent.querySelectorAll(".room-sphere")).toHaveLength(2);
+  click("Nueva habitación local");
+  expect(parent.querySelectorAll(".room-sphere")).toHaveLength(0);
+  choose("Añadir una vista guardada", data.views![1].uid);
+  click("Añadir esta esfera a la habitación");
+  expect(parent.querySelectorAll(".room-sphere")).toHaveLength(1);
+  choose("Abrir habitación", original);
+  expect(parent.querySelectorAll(".room-sphere")).toHaveLength(2);
+  expect(data).toEqual(before);
+  expect(trigger).not.toHaveBeenCalled();
+});
+it("reconciles the exact pending request and adopts a reviewed revision without replacing local work", () => {
+  const data = fixture();
+  mount(data);
+  fireEvent.input(getByLabelText(parent, "Nombre de la habitación"), {
+    target: { value: "Trabajo propio" },
+  });
+  click("Guardar habitación");
+  const intent = trigger.mock.calls.at(-1)![1] as Intent;
+  click("Reconciliar el mismo envío");
+  expect(trigger.mock.calls.at(-1)![1]).toEqual(intent);
+  const remote = {
+    ...data.rooms![0],
+    revision: "remote-revision",
+    state: { ...data.rooms![0].state, name: "Nombre remoto" },
+  };
+  mount({
+    ...data,
+    rooms: [remote],
+    result: {
+      operation_id: intent.operation_id,
+      status: "conflict",
+      message: "Otra ventana guardó la habitación.",
+    },
+  });
+  click("He revisado: conservar mi disposición y adoptar esta revisión");
+  click("Guardar habitación");
+  expect(trigger.mock.calls.at(-1)![1]).toMatchObject({
+    revision: "remote-revision",
+    room_state: { name: "Trabajo propio" },
+  });
+  expect(data.rooms![0].state.name).toBe("Habitación canónica");
+});
+it("keeps the saved note, citation and goal identity when opening a contextual concept publication", () => {
+  const data = fixture();
+  data.notes = [
+    {
+      note_id: "note-owned",
+      title: "Nota de trabajo",
+      body: "Cuerpo $x$",
+      source_id: "source",
+      document_id: "doc",
+      reference_id: "ref",
+      revision: "note-revision",
+      page_start: 18,
+      page_end: 18,
+      tags: [],
+    },
+  ];
+  data.rooms![0].state.note_id = "note-owned";
+  data.views![0].state.goals = [
+    {
+      id: "goal-owned",
+      label: "Pregunta propia",
+      point: [1, 0, 0],
+      state: "working",
+      draftId: "",
+      conceptKey: "",
+    },
+  ];
+  const before = structuredClone(data);
+  mount(data);
+  click("Abrir fuente de esta nota");
+  expect(trigger).toHaveBeenLastCalledWith("open_source", {
+    document_id: "doc",
+    note_id: "note-owned",
+  });
+  trigger.mockClear();
+  choose("Pregunta que completa esta nota (opcional)", "goal-owned");
+  click("Incorporar nota como concepto…");
+  const bridge = leaf.mock.calls.at(-1)![0];
+  expect(bridge.initialDraft).toMatchObject({
+    action: "publish_note",
+    noteId: "note-owned",
+    noteRevision: "note-revision",
+    goalId: "goal-owned",
+    point: [1, 0, 0],
+    content: "Cuerpo $x$",
+    referenceId: "ref",
+  });
+  bridge.onSaved?.(
+    { status: "saved", message: "Concepto incorporado" },
+    bridge.initialDraft!,
+  );
+  expect(parent.textContent).not.toContain("Disposición guardada");
+  expect(trigger).not.toHaveBeenCalled();
+  expect(data).toEqual(before);
+});
+it("opens unresolved questions as drafts and completed questions at their canonical concept", () => {
+  const data = fixture();
+  data.views![0].state.goals = [
+    {
+      id: "question",
+      label: "Por demostrar",
+      point: [0, 1, 0],
+      state: "pending",
+      draftId: "durable-goal-draft",
+      conceptKey: "",
+    },
+    {
+      id: "answered",
+      label: "Pregunta resuelta",
+      point: [0, 0, 1],
+      state: "reviewed",
+      draftId: "",
+      conceptKey: "a@Uno",
+    },
+  ];
+  const before = structuredClone(data);
+  mount(data);
+  click("Por demostrar · pending · Esfera Uno");
+  let bridge = leaf.mock.calls.at(-1)![0];
+  expect(bridge.initialDraft).toMatchObject({
+    action: "create",
+    id: "durable-goal-draft",
+    title: "Por demostrar",
+    goalId: "question",
+    point: [0, 1, 0],
+  });
+  bridge.onExit?.();
+  click("Pregunta resuelta · reviewed · Esfera Uno");
+  bridge = leaf.mock.calls.at(-1)![0];
+  expect(bridge.selectionKey).toBe("a@Uno");
+  expect(data).toEqual(before);
+  expect(trigger).not.toHaveBeenCalled();
+});
+it("keeps an unconfirmed note workspace open and never treats an invalid response as a saved note", async () => {
+  const data = fixture();
+  data.documents = [];
+  data.rooms![0].state.document_id = "";
+  mount(data);
+  click("Abrir libro de estudio");
+  expect(trigger).toHaveBeenLastCalledWith("open_library", {});
+  trigger.mockClear();
+  click("Escribir nota personal");
+  const bridge = leaf.mock.calls.at(-1)![0];
+  expect(parent.querySelector(".room-note-workspace")).not.toBeNull();
+  bridge.onSaved?.(
+    { status: "invalid", message: "No guardada" },
+    bridge.initialDraft!,
+  );
+  await Promise.resolve();
+  expect(parent.querySelector(".room-note-workspace")).not.toBeNull();
+  bridge.onSaved?.(
+    { status: "saved", message: "Nota confirmada", note_id: "confirmed-note" },
+    bridge.initialDraft!,
+  );
+  await Promise.resolve();
+  expect(parent.querySelector(".room-note-workspace")).toBeNull();
+  expect(parent.textContent).toContain("Nota confirmada");
+  expect(trigger).not.toHaveBeenCalled();
+});
