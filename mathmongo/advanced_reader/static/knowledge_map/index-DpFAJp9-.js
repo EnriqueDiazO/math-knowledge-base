@@ -55419,8 +55419,314 @@ function uB(e) {
 	};
 }
 //#endregion
+//#region src/security/document-links.ts
+function dB(e) {
+	if (!(!e || Array.from(e).some((e) => {
+		let t = e.codePointAt(0);
+		return t <= 32 || t === 127;
+	}))) try {
+		let t = new URL(e);
+		return !["https:", "http:"].includes(t.protocol) || t.username || t.password ? void 0 : t.href;
+	} catch {
+		return;
+	}
+}
+//#endregion
+//#region src/knowledge-map/document-link.ts
+var fB = Op.create({
+	name: "academicLink",
+	inclusive: !1,
+	addAttributes() {
+		return { href: { default: null } };
+	},
+	parseHTML() {
+		return [{
+			tag: "a[href]",
+			getAttrs: (e) => {
+				let t = dB(e.getAttribute("href") || "");
+				return t ? { href: t } : !1;
+			}
+		}];
+	},
+	renderHTML({ HTMLAttributes: e }) {
+		let t = dB(String(e.href || ""));
+		return t ? [
+			"a",
+			{
+				href: t,
+				target: "_blank",
+				rel: "noopener noreferrer"
+			},
+			0
+		] : [
+			"span",
+			{},
+			0
+		];
+	}
+}), pB = {
+	context: {
+		label: "Contexto",
+		arguments: 0,
+		package: "notes"
+	},
+	reading: {
+		label: "Lectura / Estudio",
+		arguments: 0,
+		package: "notes"
+	},
+	exploration: {
+		label: "Exploración",
+		arguments: 0,
+		package: "notes"
+	},
+	hypothesis: {
+		label: "Hipótesis",
+		arguments: 0,
+		package: "notes"
+	},
+	connections: {
+		label: "Conexiones",
+		arguments: 0,
+		package: "notes"
+	},
+	reflection: {
+		label: "Reflexión",
+		arguments: 0,
+		package: "notes"
+	},
+	decision: {
+		label: "Decisión",
+		arguments: 0,
+		package: "notes"
+	},
+	openquestions: {
+		label: "Preguntas abiertas",
+		arguments: 0,
+		package: "notes"
+	},
+	technical: {
+		label: "Técnica / Código",
+		arguments: 0,
+		package: "notes"
+	},
+	nextsteps: {
+		label: "Próximos pasos",
+		arguments: 0,
+		package: "notes"
+	}
+}, mB = im.create({
+	name: "semanticBlock",
+	group: "block",
+	content: "block+",
+	defining: !0,
+	addAttributes() {
+		return {
+			environment: { default: "context" },
+			before: { default: null },
+			after: { default: null }
+		};
+	},
+	parseHTML() {
+		return [{ tag: "section[data-study-block]" }];
+	},
+	renderHTML({ node: e }) {
+		return [
+			"section",
+			{ "data-study-block": String(e.attrs.environment) },
+			[
+				"header",
+				{ contenteditable: "false" },
+				pB[String(e.attrs.environment)]?.label || "Bloque de estudio"
+			],
+			["div", 0]
+		];
+	}
+});
+//#endregion
+//#region src/knowledge-map/document-source.ts
+function hB(e, t, n) {
+	let r = n === void 0 ? void 0 : e.state.doc.nodeAt(n), i = document.createElement("dialog");
+	i.className = "source-block-dialog";
+	let a = document.createElement("h2");
+	a.textContent = "Bloque LaTeX avanzado";
+	let o = document.createElement("label");
+	o.textContent = "Código LaTeX protegido";
+	let s = document.createElement("textarea");
+	s.value = String(r?.attrs.source ?? ""), s.maxLength = 2e5, o.append(s);
+	let c = document.createElement("p");
+	c.textContent = "El código se conserva literalmente para la exportación. Las macros y entornos deben estar definidos en las plantillas o en tus macros del documento.";
+	let l = document.createElement("p");
+	l.setAttribute("role", "alert");
+	let u = document.createElement("button");
+	u.type = "button", u.textContent = "Conservar bloque";
+	let d = document.createElement("button");
+	d.type = "button", d.textContent = "Cancelar";
+	let f = () => i.remove();
+	e.on("destroy", f);
+	let p = () => {
+		i.close(), i.remove(), e.off("destroy", f), e.isDestroyed || e.view.focus();
+	};
+	d.onclick = p, i.addEventListener("cancel", (e) => {
+		e.preventDefault(), p();
+	}), u.onclick = () => {
+		if (!s.value.trim() || s.value.includes("\0")) {
+			l.textContent = "Escribe el fragmento LaTeX. El documento no cambió.";
+			return;
+		}
+		if (n !== void 0) {
+			let t = e.state.doc.nodeAt(n);
+			if (!t || t.type.name !== "sourceBlock" || t.attrs.source !== r?.attrs.source) {
+				l.textContent = "El bloque cambió. Copia tu texto antes de volver a abrirlo.";
+				return;
+			}
+			e.view.dispatch(e.state.tr.setNodeMarkup(n, void 0, {
+				...t.attrs,
+				source: s.value
+			}));
+		} else e.chain().focus().insertContent({
+			type: "sourceBlock",
+			attrs: {
+				source: s.value,
+				reason: "LaTeX avanzado protegido"
+			}
+		}).run();
+		p();
+	}, i.append(a, c, o, l, u, d), t.append(i), i.showModal(), s.focus();
+}
+var gB = im.create({
+	name: "sourceBlock",
+	group: "block",
+	atom: !0,
+	addOptions() {
+		return { onPreview: void 0 };
+	},
+	addAttributes() {
+		return {
+			source: { default: "" },
+			reason: { default: "Fragmento original protegido" }
+		};
+	},
+	parseHTML() {
+		return [{ tag: "details[data-source-block]" }];
+	},
+	renderHTML({ node: e }) {
+		return [
+			"details",
+			{
+				"data-source-block": "",
+				class: "protected-block"
+			},
+			[
+				"summary",
+				{},
+				String(e.attrs.reason)
+			],
+			[
+				"pre",
+				{},
+				[
+					"code",
+					{},
+					String(e.attrs.source)
+				]
+			]
+		];
+	},
+	addNodeView() {
+		return ({ node: e, editor: t, getPos: n }) => {
+			let r = document.createElement("details");
+			r.dataset.sourceBlock = "", r.className = "protected-block";
+			let i = document.createElement("summary");
+			i.textContent = String(e.attrs.reason);
+			let a = document.createElement("pre"), o = document.createElement("code");
+			o.textContent = String(e.attrs.source), a.append(o), r.append(i, a);
+			let s = this.options.onPreview;
+			if (s && String(e.attrs.source).includes("\\begin{tikzpicture}")) {
+				let t = document.createElement("button");
+				t.type = "button", t.textContent = "Ver figura", t.onclick = () => s(String(e.attrs.source), r), r.append(t);
+			}
+			if (t.isEditable) {
+				let e = document.createElement("button");
+				e.type = "button", e.textContent = "Editar bloque LaTeX", e.onclick = () => {
+					let e = n();
+					typeof e == "number" && hB(t, document.body, e);
+				}, r.append(e);
+			}
+			return { dom: r };
+		};
+	}
+}), _B = {
+	"'": "́",
+	"`": "̀",
+	"\"": "̈",
+	"^": "̂",
+	"~": "̃",
+	"=": "̄",
+	".": "̇",
+	c: "̧",
+	v: "̌",
+	u: "̆",
+	H: "̋",
+	r: "̊",
+	k: "̨",
+	b: "̱"
+};
+function vB(e, t, n, r) {
+	let i = /^\\([A-Za-z]+|[^A-Za-z\s])/u.exec(e.slice(t));
+	if (!i) return;
+	let a = i[1], o = t + i[0].length;
+	for (; /\s/u.test(e[o] ?? "") && o < e.length;) o++;
+	let s = n(e, o);
+	if (_B[a]) {
+		let t = s?.value ?? e[o];
+		return !t || !/^\p{L}$/u.test(t) ? void 0 : {
+			nodes: [{
+				type: "text",
+				text: (t + _B[a]).normalize("NFC")
+			}],
+			end: s?.end ?? o + t.length
+		};
+	}
+	if (s && [
+		"textbf",
+		"textit",
+		"emph"
+	].includes(a)) {
+		let e = a === "textbf" ? "bold" : "italic";
+		return {
+			nodes: r(s.value).map((t) => ({
+				...t,
+				marks: [...t.marks ?? [], { type: e }]
+			})),
+			end: s.end
+		};
+	}
+	if (!s || !["href", "url"].includes(a)) return;
+	let c = dB(s.value.replace(/\\([%#_&{}])/gu, "$1"));
+	if (!c) return;
+	let l = a === "href" ? n(e, s.end) : s;
+	if (l) return {
+		nodes: (a === "href" ? r(l.value) : [{
+			type: "text",
+			text: c
+		}]).map((e) => ({
+			...e,
+			marks: [...e.marks ?? [], {
+				type: "academicLink",
+				attrs: { href: c }
+			}]
+		})),
+		end: l.end
+	};
+}
+function yB(e, t) {
+	let n = dB(e);
+	return n ? "\\href{" + n.replace(/[%#{}]/gu, (e) => "\\" + e) + "}{" + t + "}" : t;
+}
+//#endregion
 //#region src/knowledge-map/document.ts
-function dB(e, t) {
+function bB(e, t) {
 	if (e[t] !== "{") return;
 	let n = 1;
 	for (let r = t + 1; r < e.length; r++) {
@@ -55434,60 +55740,63 @@ function dB(e, t) {
 		};
 	}
 }
-function fB(e) {
+function xB(e) {
 	let t = Object.fromEntries(Object.entries(e.attrs ?? {}).filter(([e, t]) => !["raw", "signature"].includes(e) && t != null));
 	return {
 		type: e.type,
 		text: e.text,
 		attrs: t,
-		marks: (e.marks ?? []).map((e) => ({ type: e.type })).sort((e, t) => e.type.localeCompare(t.type)),
-		content: (e.content ?? []).map(fB)
+		marks: (e.marks ?? []).map((e) => ({
+			type: e.type,
+			...e.attrs ? { attrs: e.attrs } : {}
+		})).sort((e, t) => e.type.localeCompare(t.type)),
+		content: (e.content ?? []).map(xB)
 	};
 }
-function pB(e) {
+function SB(e) {
 	let t = {
 		...e,
-		content: e.content?.map(pB)
+		content: e.content?.map(SB)
 	};
 	return t.attrs?.raw !== void 0 && t.attrs.raw !== null && (t.attrs = {
 		...t.attrs,
-		signature: mB(t)
+		signature: CB(t)
 	}), t;
 }
-function mB(e) {
-	return JSON.stringify(fB(e));
+function CB(e) {
+	return JSON.stringify(xB(e));
 }
-function hB(e, t) {
+function wB(e, t) {
 	return e.attrs = {
 		...e.attrs,
 		raw: t,
-		signature: mB(e)
+		signature: CB(e)
 	}, e;
 }
-var gB = (e) => ({
+var TB = (e) => ({
 	type: "text",
 	text: e
-}), _B = (e) => ({
+}), EB = (e) => ({
 	type: "sourceAtom",
 	attrs: { source: e }
 });
-function vB(e, t, n) {
+function DB(e, t, n) {
 	for (let r = n; r < e.length; r++) {
 		if (e.startsWith(t, r)) return r;
 		e[r] === "\\" && r++;
 	}
 	return -1;
 }
-function yB(e) {
+function OB(e) {
 	let t = [], n = "", r = () => {
-		n && t.push(gB(n.replace(/\r?\n/gu, " "))), n = "";
+		n && t.push(TB(n.replace(/\r?\n/gu, " "))), n = "";
 	};
 	for (let i = 0; i < e.length;) {
 		let a = e.startsWith("\\[", i) ? "\\[" : e.startsWith("\\(", i) ? "\\(" : e.startsWith("$$", i) ? "$$" : e[i] === "$" ? "$" : "";
 		if (a) {
 			r();
-			let n = a === "\\[" ? "\\]" : a === "\\(" ? "\\)" : a, o = vB(e, n, i + a.length), s = o < 0 ? e.length : o;
-			t.push(hB({
+			let n = a === "\\[" ? "\\]" : a === "\\(" ? "\\)" : a, o = DB(e, n, i + a.length), s = o < 0 ? e.length : o;
+			t.push(wB({
 				type: "formula",
 				attrs: {
 					latex: e.slice(i + a.length, s),
@@ -55509,38 +55818,33 @@ function yB(e) {
 			r(), t.push({ type: "hardBreak" }), i += 2;
 			continue;
 		}
-		let o = /^\\([A-Za-z]+\*?)/u.exec(e.slice(i));
-		if (!o) {
+		let o = vB(e, i, bB, OB);
+		if (o) {
+			r(), t.push(...o.nodes), i = o.end;
+			continue;
+		}
+		let s = /^\\([A-Za-z]+\*?)/u.exec(e.slice(i));
+		if (!s) {
 			n += e[i++];
 			continue;
 		}
-		let s = o[1], c = dB(e, i + o[0].length);
-		if (r(), c && [
-			"textbf",
-			"textit",
-			"emph"
-		].includes(s)) {
-			let e = s === "textbf" ? "bold" : "italic";
-			t.push(...yB(c.value).map((t) => ({
-				...t,
-				marks: [...t.marks ?? [], { type: e }]
-			}))), i = c.end;
-		} else {
-			let n = i + o[0].length;
+		r();
+		{
+			let n = i + s[0].length;
 			for (; e[n] === "{";) {
-				let t = dB(e, n);
+				let t = bB(e, n);
 				if (!t) break;
 				n = t.end;
 			}
-			t.push(_B(e.slice(i, n))), i = n;
+			t.push(EB(e.slice(i, n))), i = n;
 		}
 	}
 	return r(), t;
 }
-function bB(e, t) {
+function kB(e, t) {
 	let n = /^\\begin\{([^}]+)\}/u.exec(e.slice(t));
 	if (!n) return;
-	let r = n[1], i = t + n[0].length, a = 1, o = dB(e, i);
+	let r = n[1], i = t + n[0].length, a = 1, o = bB(e, i);
 	o && s[r] && (i = o.end);
 	let c = i, l = /\\(begin|end)\{([^}]+)\}/gu;
 	l.lastIndex = i;
@@ -55552,44 +55856,44 @@ function bB(e, t) {
 		end: l.lastIndex
 	};
 }
-function xB(e) {
+function AB(e) {
 	let t = [], n = 0;
 	for (; n < e.length;) {
 		let r = n;
 		for (; /\s/u.test(e[n] ?? "") && n < e.length;) n++;
-		let i = e.slice(r, n), a = bB(e, n);
+		let i = e.slice(r, n), a = kB(e, n);
 		if (a) {
 			let o = e.slice(r, a.end);
-			if (s[a.name] && /^\s*\[/u.test(a.body)) t.push(hB({
+			if ((s[a.name] || pB[a.name]) && /^\s*\[/u.test(a.body)) t.push(wB({
 				type: "sourceBlock",
 				attrs: {
 					source: o,
 					reason: "Estilo personalizado conservado en fuente y exportación PDF."
 				}
 			}, o));
-			else if (s[a.name]) t.push(hB({
-				type: "resultBlock",
+			else if (s[a.name] || pB[a.name]) t.push(wB({
+				type: pB[a.name] ? "semanticBlock" : "resultBlock",
 				attrs: {
 					environment: a.name,
 					before: i + a.prefix,
 					after: a.suffix,
-					title: dB(a.prefix, a.prefix.indexOf("}") + 1)?.value ?? ""
+					title: bB(a.prefix, a.prefix.indexOf("}") + 1)?.value ?? ""
 				},
-				content: xB(a.body).content
+				content: AB(a.body).content
 			}, o));
 			else if (["itemize", "enumerate"].includes(a.name)) {
 				let e = a.body.split("\\item").slice(1);
-				t.push(hB({
+				t.push(wB({
 					type: a.name === "itemize" ? "bulletList" : "orderedList",
 					content: e.map((e) => ({
 						type: "listItem",
-						content: xB(e).content
+						content: AB(e).content
 					}))
 				}, o));
-			} else ["verbatim", "lstlisting"].includes(a.name) ? t.push(hB({
+			} else ["verbatim", "lstlisting"].includes(a.name) ? t.push(wB({
 				type: "codeBlock",
-				content: a.body ? [gB(a.body)] : []
-			}, o)) : t.push(hB({
+				content: a.body ? [TB(a.body)] : []
+			}, o)) : t.push(wB({
 				type: "sourceBlock",
 				attrs: {
 					source: o,
@@ -55599,12 +55903,12 @@ function xB(e) {
 			n = a.end;
 			continue;
 		}
-		let o = /^\\(section|subsection|subsubsection)\*?/u.exec(e.slice(n)), c = o && dB(e, n + o[0].length);
+		let o = /^\\(section|subsection|subsubsection)\*?/u.exec(e.slice(n)), c = o && bB(e, n + o[0].length);
 		if (o && c) {
-			t.push(hB({
+			t.push(wB({
 				type: "heading",
 				attrs: { level: o[1] === "section" ? 1 : o[1] === "subsection" ? 2 : 3 },
-				content: yB(c.value)
+				content: OB(c.value)
 			}, e.slice(r, c.end))), n = c.end;
 			continue;
 		}
@@ -55616,42 +55920,43 @@ function xB(e) {
 			}
 			let t = e.startsWith("\\[", l) ? "\\[" : e.startsWith("\\(", l) ? "\\(" : e.startsWith("$$", l) ? "$$" : e[l] === "$" ? "$" : "";
 			if (t) {
-				let n = t === "\\[" ? "\\]" : t === "\\(" ? "\\)" : t, r = vB(e, n, l + t.length);
+				let n = t === "\\[" ? "\\]" : t === "\\(" ? "\\)" : t, r = DB(e, n, l + t.length);
 				l = r < 0 ? e.length : r + n.length;
 			} else e[l] === "\\" && l++, l++;
 		}
-		l <= n && (l = e.length), t.push(hB({
+		l <= n && (l = e.length), t.push(wB({
 			type: "paragraph",
-			content: yB(e.slice(n, l))
+			content: OB(e.slice(n, l))
 		}, e.slice(r, l))), n = l;
 	}
 	return {
 		type: "doc",
-		content: t.length ? t : [hB({ type: "paragraph" }, "")]
+		content: t.length ? t : [wB({ type: "paragraph" }, "")]
 	};
 }
-function SB(e) {
+function jB(e) {
 	return e.replace(/[\\%$&#_{}~^]/gu, (e) => ({
 		"\\": "\\textbackslash{}",
 		"~": "\\textasciitilde{}",
 		"^": "\\textasciicircum{}"
 	})[e] ?? "\\" + e);
 }
-function CB(e) {
-	if (e.attrs?.raw !== void 0 && e.attrs?.raw !== null && e.attrs.signature === mB(e)) return String(e.attrs.raw);
+function MB(e) {
+	if (e.attrs?.raw !== void 0 && e.attrs?.raw !== null && e.attrs.signature === CB(e)) return String(e.attrs.raw);
 	if (e.type === "text") {
-		let t = SB(e.text ?? "");
-		for (let n of e.marks ?? []) n.type === "bold" && (t = "\\textbf{" + t + "}"), n.type === "italic" && (t = "\\emph{" + t + "}");
+		let t = jB(e.text ?? "");
+		for (let n of e.marks ?? []) n.type === "bold" && (t = "\\textbf{" + t + "}"), n.type === "italic" && (t = "\\emph{" + t + "}"), n.type === "academicLink" && (t = yB(String(n.attrs?.href ?? ""), t));
 		return t;
 	}
-	let t = (e.content ?? []).map(CB).join("");
+	let t = (e.content ?? []).map(MB).join("");
 	switch (e.type) {
 		case "doc": return t;
 		case "formula": return e.attrs?.display ? "\\[" + String(e.attrs.latex) + "\\]" : "$" + String(e.attrs?.latex ?? "") + "$";
 		case "sourceBlock":
 		case "sourceAtom": return String(e.attrs?.source ?? "");
+		case "semanticBlock":
 		case "resultBlock": {
-			let n = String(e.attrs?.environment ?? "remark"), r = n === "proof" ? "" : "{" + SB(String(e.attrs?.title ?? "")) + "}";
+			let n = String(e.attrs?.environment ?? "remark"), r = n === "proof" || pB[n] ? "" : "{" + jB(String(e.attrs?.title ?? "")) + "}";
 			return String(e.attrs?.before ?? "\\begin{" + n + "}" + r + "\n") + t + String(e.attrs?.after ?? "\n\\end{" + String(e.attrs?.environment ?? "remark") + "}");
 		}
 		case "heading": return "\\" + (e.attrs?.level === 1 ? "section" : "subsection") + "{" + t + "}\n";
@@ -55665,11 +55970,11 @@ function CB(e) {
 }
 //#endregion
 //#region src/knowledge-map/document-editor.ts
-var wB = (e, t = "") => {
+var NB = (e, t = "") => {
 	let n = document.createElement(e);
 	return n.textContent = t, n;
 };
-function TB(e, t, n) {
+function PB(e, t, n) {
 	let r = {
 		Negrita: "B",
 		Énfasis: "I",
@@ -55679,10 +55984,10 @@ function TB(e, t, n) {
 		Código: "</>",
 		"Deshacer texto": "↶",
 		"Rehacer texto": "↷"
-	}, i = wB("button", r[t] ?? t);
+	}, i = NB("button", r[t] ?? t);
 	return r[t] && i.setAttribute("aria-label", t), i.title = t, i.type = "button", i.onmousedown = (e) => e.preventDefault(), i.onclick = n, e.append(i), i;
 }
-var EB = Ip.create({
+var FB = Ip.create({
 	name: "originalSource",
 	addGlobalAttributes() {
 		return [{
@@ -55695,6 +56000,7 @@ var EB = Ip.create({
 				"codeBlock",
 				"blockquote",
 				"resultBlock",
+				"semanticBlock",
 				"formula",
 				"sourceBlock"
 			],
@@ -55710,7 +56016,7 @@ var EB = Ip.create({
 			}
 		}];
 	}
-}), DB = im.create({
+}), IB = im.create({
 	name: "resultBlock",
 	group: "block",
 	content: "block+",
@@ -55745,7 +56051,7 @@ var EB = Ip.create({
 			["div", 0]
 		];
 	}
-}), OB = im.create({
+}), LB = im.create({
 	name: "sourceAtom",
 	inline: !0,
 	group: "inline",
@@ -55768,43 +56074,7 @@ var EB = Ip.create({
 			String(e.attrs.source)
 		];
 	}
-}), kB = im.create({
-	name: "sourceBlock",
-	group: "block",
-	atom: !0,
-	addAttributes() {
-		return {
-			source: { default: "" },
-			reason: { default: "Fragmento original protegido" }
-		};
-	},
-	parseHTML() {
-		return [{ tag: "details[data-source-block]" }];
-	},
-	renderHTML({ node: e }) {
-		return [
-			"details",
-			{
-				"data-source-block": "",
-				class: "protected-block"
-			},
-			[
-				"summary",
-				{},
-				String(e.attrs.reason)
-			],
-			[
-				"pre",
-				{},
-				[
-					"code",
-					{},
-					String(e.attrs.source)
-				]
-			]
-		];
-	}
-}), AB = im.create({
+}), RB = im.create({
 	name: "formula",
 	inline: !0,
 	group: "inline",
@@ -55832,9 +56102,9 @@ var EB = Ip.create({
 	},
 	addNodeView() {
 		return ({ node: e, editor: t, getPos: n }) => {
-			let r = wB("span");
+			let r = NB("span");
 			r.className = e.attrs.display ? "formula-block" : "formula-inline";
-			let i = cB(String(e.attrs.latex)), a = !!(e.attrs.legacy && i.length), o = sB(String(e.attrs.latex), t.isEditable && !a), s = wB("span");
+			let i = cB(String(e.attrs.latex)), a = !!(e.attrs.legacy && i.length), o = sB(String(e.attrs.latex), t.isEditable && !a), s = NB("span");
 			s.className = "formula-warning", s.setAttribute("role", "status");
 			let c = () => {
 				let e = cB(o.value);
@@ -55853,8 +56123,8 @@ var EB = Ip.create({
 				let a = r.detail?.direction === "backward" ? i : i + e.nodeSize;
 				t.view.dispatch(t.state.tr.setSelection(A.near(t.state.doc.resolve(a)))), t.view.focus();
 			}), r.append(o, s), a) {
-				let t = wB("details");
-				t.append(wB("summary", "Ver fuente"), wB("code", String(e.attrs.latex))), r.append(t);
+				let t = NB("details");
+				t.append(NB("summary", "Ver fuente"), NB("code", String(e.attrs.latex))), r.append(t);
 			}
 			return c(), {
 				dom: r,
@@ -55869,18 +56139,20 @@ var EB = Ip.create({
 			};
 		};
 	}
-}), jB = () => [
+}), zB = (e) => [
 	hy.configure({
 		link: !1,
 		underline: !1,
 		trailingNode: !1
 	}),
-	EB,
-	DB,
-	AB,
-	OB,
-	kB
-], MB = class {
+	FB,
+	fB,
+	mB,
+	IB,
+	RB,
+	LB,
+	gB.configure({ onPreview: e })
+], BB = class {
 	parent;
 	changed;
 	editor;
@@ -55897,22 +56169,22 @@ var EB = Ip.create({
 		this.parent = e, this.changed = n, this.restored = r, e.classList.add("document-composer"), this.viewport = i?.viewport ?? e.closest("dialog");
 		let a = i?.keyboardContainer ?? this.viewport;
 		a && (this.disposeKeyboard = uB(a));
-		let c = wB("div");
+		let c = NB("div");
 		c.className = "document-toolbar", c.setAttribute("aria-label", "Herramientas del documento");
 		let l = (e) => {
-			let t = wB("div");
+			let t = NB("div");
 			return t.className = "document-tool-group", t.setAttribute("role", "group"), t.setAttribute("aria-label", e), c.append(t), t;
 		}, u = l("Texto y estructura");
-		this.visual = wB("div"), this.visual.className = "visual-document", this.visual.addEventListener("focusin", (e) => {
+		this.visual = NB("div"), this.visual.className = "visual-document", this.visual.addEventListener("focusin", (e) => {
 			let t = e.composedPath().find((e) => e instanceof HTMLElement && e.tagName === "MATH-FIELD");
 			this.activeMath = t;
 		}), this.visual.addEventListener("selection-change", (e) => {
 			let t = e.composedPath().find((e) => e instanceof HTMLElement && e.tagName === "MATH-FIELD");
 			t && (this.activeMath = t), this.editor && this.remember();
-		}, !0), this.source = wB("textarea"), this.source.setAttribute("aria-label", "Fuente LaTeX"), this.source.hidden = !0, this.preview = wB("div"), this.preview.className = "document-preview", this.preview.hidden = !0, this.editor = new $p({
+		}, !0), this.source = NB("textarea"), this.source.setAttribute("aria-label", "Fuente LaTeX"), this.source.hidden = !0, this.preview = NB("div"), this.preview.className = "document-preview", this.preview.hidden = !0, this.editor = new $p({
 			element: this.visual,
-			extensions: jB(),
-			content: r?.json ?? xB(t),
+			extensions: zB(i?.preview),
+			content: r?.json ?? AB(t),
 			editorProps: { attributes: {
 				role: "textbox",
 				"aria-label": "Documento visual",
@@ -55920,17 +56192,25 @@ var EB = Ip.create({
 			} },
 			onUpdate: () => this.notify(),
 			onSelectionUpdate: () => this.remember()
-		}), r || this.editor.commands.setContent(pB(this.editor.getJSON()), { emitUpdate: !1 });
-		let d = (e, t) => TB(u, e, t);
+		}), r || this.editor.commands.setContent(SB(this.editor.getJSON()), { emitUpdate: !1 });
+		let d = (e, t) => PB(u, e, t);
 		d("Negrita", () => this.editor.chain().focus().toggleBold().run()), d("Énfasis", () => this.editor.chain().focus().toggleItalic().run()), d("Encabezado", () => this.editor.chain().focus().toggleHeading({ level: 2 }).run()), d("Lista", () => this.editor.chain().focus().toggleBulletList().run()), d("Lista numerada", () => this.editor.chain().focus().toggleOrderedList().run()), d("Código", () => this.editor.chain().focus().toggleCodeBlock().run()), u = l("Historial del texto"), d("Deshacer texto", () => this.editor.chain().focus().undo().run()), d("Rehacer texto", () => this.editor.chain().focus().redo().run());
-		let f = wB("select");
-		if (f.setAttribute("aria-label", "Insertar bloque de resultado"), f.append(new Option("Bloque de resultado…", "")), o.forEach((e) => f.append(new Option(s[e], e))), f.onchange = () => {
+		let f = NB("select");
+		f.setAttribute("aria-label", "Insertar bloque de resultado"), f.append(new Option("Bloque de resultado…", "")), o.forEach((e) => f.append(new Option(s[e], e))), f.onchange = () => {
 			f.value && this.editor.chain().focus().insertContent({
 				type: "resultBlock",
 				attrs: { environment: f.value },
 				content: [{ type: "paragraph" }]
 			}).run(), f.value = "";
-		}, u = l("Resultados matemáticos"), u.append(f), u = l("Fórmulas y plantillas"), d("Insertar fórmula en línea", () => this.insertFormula(!1)), d("Insertar fórmula en bloque", () => this.insertFormula(!0)), Object.entries({
+		}, u = l("Resultados matemáticos"), u.append(f), u = l("Estructura de estudio");
+		let p = NB("select");
+		if (p.setAttribute("aria-label", "Insertar bloque de estudio"), p.append(new Option("Bloque de estudio…", "")), Object.entries(pB).forEach(([e, t]) => p.append(new Option(t.label, e))), p.onchange = () => {
+			p.value && this.editor.chain().focus().insertContent({
+				type: "semanticBlock",
+				attrs: { environment: p.value },
+				content: [{ type: "paragraph" }]
+			}).run(), p.value = "";
+		}, u.append(p), u = l("Fórmulas y plantillas"), d("Insertar fórmula en línea", () => this.insertFormula(!1)), d("Insertar fórmula en bloque", () => this.insertFormula(!0)), Object.entries({
 			Fracción: "\\frac{#0}{#?}",
 			Exponente: "x^{#0}",
 			Subíndice: "x_{#0}",
@@ -55940,7 +56220,7 @@ var EB = Ip.create({
 			Símbolos: "\\forall x\\in\\mathbb{R}"
 		}).forEach(([e, t]) => d(e, () => this.insertTemplate(t))), d("Volver al párrafo", () => {
 			this.visual.querySelectorAll("math-field").forEach((e) => e.blur()), this.editor.commands.setTextSelection(this.editor.state.doc.content.size - 1), this.editor.commands.insertContent({ type: "paragraph" }), this.editor.view.focus();
-		}), u = l("Representación del documento"), d("Fuente LaTeX", () => this.toggleSource()), d("Vista previa", () => {
+		}), u = l("Representación del documento"), d("Bloque LaTeX avanzado", () => hB(this.editor, document.body)), d("Fuente LaTeX", () => this.toggleSource()), d("Vista previa", () => {
 			this.preview.hidden = !this.preview.hidden, this.preview.hidden || this.updatePreview();
 		}), this.source.oninput = () => {
 			this.changed(this.source.value, this.snapshot()), this.updatePreview();
@@ -55979,10 +56259,10 @@ var EB = Ip.create({
 		this.changed(this.value(), this.snapshot()), this.updatePreview();
 	}
 	updatePreview() {
-		this.preview.hidden || (this.disposePreview?.(), this.disposePreview = NB(this.preview, this.value()));
+		this.preview.hidden || (this.disposePreview?.(), this.disposePreview = VB(this.preview, this.value()));
 	}
 	value() {
-		return this.sourceMode ? this.source.value : CB(this.editor.getJSON());
+		return this.sourceMode ? this.source.value : MB(this.editor.getJSON());
 	}
 	snapshot() {
 		let e = Array.from(this.visual.querySelectorAll("math-field")), t = this.activeMath ? e.indexOf(this.activeMath) : -1, n = t >= 0 && this.activeMath?.selection && !this.sourceMode ? {
@@ -56002,7 +56282,7 @@ var EB = Ip.create({
 		return this.sourceMode || !this.visual.querySelector("[data-invalid=\"true\"]");
 	}
 	toggleSource() {
-		this.sourceMode ? (this.editor.commands.setContent(xB(this.source.value), { emitUpdate: !1 }), this.editor.commands.setContent(pB(this.editor.getJSON()), { emitUpdate: !1 })) : this.source.value = this.value(), this.sourceMode = !this.sourceMode, this.visual.hidden = this.sourceMode, this.source.hidden = !this.sourceMode, this.notify();
+		this.sourceMode ? (this.editor.commands.setContent(AB(this.source.value), { emitUpdate: !1 }), this.editor.commands.setContent(SB(this.editor.getJSON()), { emitUpdate: !1 })) : this.source.value = this.value(), this.sourceMode = !this.sourceMode, this.visual.hidden = this.sourceMode, this.source.hidden = !this.sourceMode, this.notify();
 	}
 	insertFormula(e) {
 		let t = new Set(this.visual.querySelectorAll("math-field"));
@@ -56028,26 +56308,26 @@ var EB = Ip.create({
 		this.disposeKeyboard(), this.disposePreview?.(), this.editor.destroy();
 	}
 };
-function NB(e, t) {
-	let n = new $p({
+function VB(e, t, n) {
+	let r = new $p({
 		element: e,
-		extensions: jB(),
+		extensions: zB(n),
 		editable: !1,
-		content: xB(t),
+		content: AB(t),
 		editorProps: { attributes: { class: "mathematical-document" } }
 	});
-	return () => n.destroy();
+	return () => r.destroy();
 }
 //#endregion
 //#region src/knowledge-map/bibliography.ts
-var PB = () => ({
+var HB = () => ({
 	printed_page: "",
 	pdf_page: null,
 	chapter: "",
 	section: "",
 	theorem: "",
 	passage: ""
-}), FB = {
+}), UB = {
 	idle: "Busca en tu biblioteca, pega un identificador o prepara una ficha manual.",
 	searching: "Buscando referencia…",
 	found: "Ficha recuperada. Revisa los campos antes de guardar.",
@@ -56061,17 +56341,17 @@ var PB = () => ({
 	conflict: "La referencia cambió. Revisa la ficha existente; las correcciones locales se conservan.",
 	saved: "Ficha guardada y seleccionada para esta cita. Guarda el documento para confirmar el enlace."
 };
-function IB(e, t) {
+function WB(e, t) {
 	if (!(!e.pending || t?.request_id !== e.pending) && (e.pending = void 0, e.status = t.status, t.candidates?.length && (e.candidates = structuredClone(t.candidates)), t.status === "saved" && t.reference_data)) return e.open = !1, structuredClone(t.reference_data);
 }
-function LB(e) {
+function GB(e) {
 	return [
 		(e.authors ?? []).map((e) => e.literal || [e.given, e.family].filter(Boolean).join(" ")).join("; "),
 		e.title || "Sin título",
 		e.year
 	].filter((e) => e != null && e !== "").join(" · ");
 }
-function RB(e, t, n, r, i, a) {
+function KB(e, t, n, r, i, a) {
 	let o = C("dialog", "", "document-dialog bibliography-dialog");
 	o.setAttribute("aria-label", "Referencias del documento");
 	let s = () => {
@@ -56109,17 +56389,17 @@ function RB(e, t, n, r, i, a) {
 			query: t.title,
 			author: t.author
 		}), u), o.append(u);
-		let d = C("p", FB[t.status] ?? t.status);
+		let d = C("p", UB[t.status] ?? t.status);
 		d.setAttribute("role", "status"), o.append(d), t.candidates.forEach((e) => {
 			let n = C("section", "", "reference-candidate");
-			n.append(C("p", LB(e.reference_data))), w(e.existing ? "Usar referencia existente" : "Revisar esta propuesta", () => {
+			n.append(C("p", GB(e.reference_data))), w(e.existing ? "Usar referencia existente" : "Revisar esta propuesta", () => {
 				t.selected = structuredClone(e), i(), s();
 			}, n), e.edition_ids?.forEach((e) => w("Consultar edición " + e, () => c("edition", { query: e }), n)), o.append(n);
 		});
 		let f = t.selected;
 		if (!f) return;
 		let p = f.reference_data, m = C("section", "", "reference-proposal");
-		if (m.append(C("h3", f.existing ? "Ficha local: se conserva sin sobrescribir" : "Propuesta editable")), f.existing) m.append(C("p", LB(p)), C("p", "Para corregir una ficha compartida usa Edit Source, donde puedes revisar las diferencias."));
+		if (m.append(C("h3", f.existing ? "Ficha local: se conserva sin sobrescribir" : "Propuesta editable")), f.existing) m.append(C("p", GB(p)), C("p", "Para corregir una ficha compartida usa Edit Source, donde puedes revisar las diferencias."));
 		else {
 			pe(m, "Tipo de documento", [
 				"book",
@@ -56189,7 +56469,7 @@ function RB(e, t, n, r, i, a) {
 }
 //#endregion
 //#region src/knowledge-map/document-citation.ts
-var zB = class {
+var qB = class {
 	dialog;
 	draft;
 	save;
@@ -56203,8 +56483,8 @@ var zB = class {
 	renderSummary() {
 		if (this.summary.replaceChildren(), !this.draft.referenceId) return;
 		let { draft: e } = this;
-		this.summary.append(C("p", e.reference ? LB(e.reference) : `Referencia: ${e.referenceId}`));
-		let t = e.referenceLocator ??= PB(), n = C("details");
+		this.summary.append(C("p", e.reference ? GB(e.reference) : `Referencia: ${e.referenceId}`));
+		let t = e.referenceLocator ??= HB(), n = C("details");
 		n.append(C("summary", "Localizador de este pasaje")), [
 			["printed_page", "Página impresa"],
 			["chapter", "Capítulo"],
@@ -56225,7 +56505,7 @@ var zB = class {
 			author: "",
 			status: "idle",
 			candidates: []
-		}, this.draft.bibliography.open = !0, this.save(), this.disposePicker?.(), this.disposePicker = RB(this.dialog, this.draft.bibliography, this.send, this.draft.source, this.save, () => {
+		}, this.draft.bibliography.open = !0, this.save(), this.disposePicker?.(), this.disposePicker = KB(this.dialog, this.draft.bibliography, this.send, this.draft.source, this.save, () => {
 			this.disposePicker?.(), this.disposePicker = void 0, this.renderSummary(), this.focusDocument();
 		});
 	}
@@ -56238,7 +56518,7 @@ var zB = class {
 };
 //#endregion
 //#region src/knowledge-map/provenance.ts
-function BB(e, t) {
+function JB(e, t) {
 	let n = [];
 	for (let r of t.evidence ?? []) {
 		if (r.concept_legacy_id !== e.id || r.concept_legacy_source !== e.source) continue;
@@ -56264,8 +56544,8 @@ function BB(e, t) {
 	});
 	return n;
 }
-function VB(e, t, n, r) {
-	let i = BB(t, n);
+function YB(e, t, n, r) {
+	let i = JB(t, n);
 	if (!i.length) return;
 	let a = C("section", "", "concept-provenance");
 	a.append(C("h3", "Fuentes y pasajes registrados")), i.forEach((e) => {
@@ -56279,7 +56559,7 @@ function VB(e, t, n, r) {
 }
 //#endregion
 //#region src/knowledge-map/document-dialog.ts
-var HB = class {
+var XB = class {
 	options;
 	composer;
 	citationControls;
@@ -56342,11 +56622,11 @@ var HB = class {
 			u.comment = e, r();
 		}, !0)), u.action === "edit") {
 			let e = t.nodes.find((e) => e.key === u.origin);
-			e && VB(h, e, t, s);
+			e && YB(h, e, t, s);
 		}
-		if (u.action !== "connect" && (this.citationControls = new zB(d, m, u, () => n.put(u), (e) => s("bibliography", e), () => this.composer?.restoreFocus())), u.action !== "connect") {
+		if (u.action !== "connect" && (this.citationControls = new qB(d, m, u, () => n.put(u), (e) => s("bibliography", e), () => this.composer?.restoreFocus())), u.action !== "connect") {
 			let e = C("div");
-			m.append(e), this.composer = new MB(e, u.content, (e, t) => {
+			m.append(e), this.composer = new BB(e, u.content, (e, t) => {
 				u.content = e, u.document = t, n.put(u);
 			}, u.document);
 		}
@@ -56423,7 +56703,7 @@ var HB = class {
 };
 //#endregion
 //#region src/knowledge-map/reader.ts
-function UB(e, t, n, r, i) {
+function ZB(e, t, n, r, i) {
 	let a = document.createElement("dialog");
 	a.className = "document-dialog reader-dialog";
 	let o = document.createElement("header"), s = document.createElement("h2");
@@ -56440,7 +56720,7 @@ function UB(e, t, n, r, i) {
 	f.textContent = t.tipo, f.className = "document-kind", d.append(f);
 	let p = document.createElement("div");
 	d.append(p);
-	let m = NB(p, t.contenido_latex), h = document.createElement("section");
+	let m = VB(p, t.contenido_latex), h = document.createElement("section");
 	h.append(Object.assign(document.createElement("h3"), { textContent: "Referencia y procedencia" })), h.append(Object.assign(document.createElement("p"), { textContent: t.source })), Object.entries(t.referencia ?? {}).forEach(([e, t]) => h.append(Object.assign(document.createElement("p"), { textContent: `${e}: ${t}` })));
 	let g = document.createElement("details");
 	g.append(Object.assign(document.createElement("summary"), { textContent: "Identidad y fuente original" }), Object.assign(document.createElement("p"), { textContent: t.key }), Object.assign(document.createElement("pre"), { textContent: t.contenido_latex })), h.append(g), d.append(h), i?.(d), a.append(o, d), e.append(a), a.showModal();
@@ -56451,7 +56731,7 @@ function UB(e, t, n, r, i) {
 }
 //#endregion
 //#region src/knowledge-map/drafts.ts
-var WB = class {
+var QB = class {
 	key;
 	drafts = {};
 	unreadableArchive = !1;
@@ -56501,14 +56781,14 @@ var WB = class {
 		});
 	}
 };
-function GB(e) {
+function $B(e) {
 	try {
 		return JSON.parse(localStorage.getItem("mathmongo-map-v2-" + e) ?? "null");
 	} catch {
 		return;
 	}
 }
-function KB(e, t) {
+function eV(e, t) {
 	try {
 		return localStorage.setItem("mathmongo-map-v2-" + e, JSON.stringify(t)), !0;
 	} catch {
@@ -56517,7 +56797,7 @@ function KB(e, t) {
 }
 //#endregion
 //#region src/knowledge-map/room-state.ts
-function qB() {
+function tV() {
 	return {
 		uid: crypto.randomUUID(),
 		revision: "",
@@ -56539,46 +56819,46 @@ function qB() {
 		}
 	};
 }
-function JB(e) {
+function nV(e) {
 	return {
-		...qB(),
+		...tV(),
 		uid: e.uid,
 		revision: e.revision,
 		state: structuredClone(e.state)
 	};
 }
-function YB(e, t) {
+function rV(e, t) {
 	let n = t.state.members;
 	return new Set(e.nodes.filter((e) => !n || n.includes(e.key)).map((e) => e.key));
 }
-function XB(e, t, n) {
+function iV(e, t, n) {
 	if (!t || !n) return [];
-	let r = YB(e, t), i = YB(e, n);
+	let r = rV(e, t), i = rV(e, n);
 	return [...r].filter((e) => i.has(e)).sort(d);
 }
-function ZB(e, t) {
+function aV(e, t) {
 	return [Math.max(.1, Math.min(.9, e)), Math.max(.15, Math.min(.85, t))];
 }
-function QB(e, t) {
+function oV(e, t) {
 	let n = e.notes?.find((e) => e.note_id === t.state.note_id), r = e.annotations?.find((e) => e.annotation_id === t.annotation), i = e.documents?.find((e) => e.document_id === (n?.document_id || r?.document_id || t.state.document_id)), a = S(e, y(), "save_note", [
 		0,
 		0,
 		1
 	]);
 	return a.id = t.noteDraft ?? crypto.randomUUID(), a.noteId = n?.note_id, a.documentId = i?.document_id, a.annotationId = r?.annotation_id, a.source = n?.source_id ?? i?.source_id ?? e.sources[0]?.id ?? "", a.title = n?.title ?? "", a.content = n?.body ?? r?.quote_text ?? "", a.revision = n?.revision ?? "", a.referenceId = n?.reference_id ?? r?.reference_id ?? i?.reference_id ?? void 0, a.referenceId && (a.referenceLocator = n?.reference_locator ?? {
-		...PB(),
+		...HB(),
 		printed_page: r?.page_label ?? "",
 		pdf_page: i?.kind === "pdf" ? n?.page_start ?? r?.page_number ?? null : null,
 		passage: r?.quote_text ?? ""
 	}), a;
 }
-function $B(e, t) {
+function sV(e, t) {
 	return !e.pending || e.pending.operation_id !== t?.operation_id ? !1 : (e.result = t, t.status === "saved" ? (e.pending.action === "save_view" && t.map_uid ? (e.state.spheres.some((e) => e.view_uid === t.map_uid) || e.state.spheres.push({
 		view_uid: t.map_uid,
-		position: ZB(.3 + e.state.spheres.length * .3, .45)
+		position: aV(.3 + e.state.spheres.length * .3, .45)
 	}), e.dirty = !0) : (e.revision = t.view_revision ?? e.revision, e.dirty = JSON.stringify(e.state) !== JSON.stringify(e.pending.room_state)), e.pending = void 0) : (t.status === "invalid" || t.status === "conflict") && (e.pending = void 0), !0);
 }
-function eV(e) {
+function cV(e) {
 	return !!e && typeof e.uid == "string" && typeof e.state?.name == "string" && Array.isArray(e.state.spheres) && e.state.spheres.every((e) => typeof e.view_uid == "string" && Array.isArray(e.position) && e.position.length === 2 && e.position.every((e) => Number.isFinite(e) && e >= 0 && e <= 1)) && [
 		"general",
 		"focus",
@@ -56586,7 +56866,7 @@ function eV(e) {
 		"note"
 	].includes(e.mode);
 }
-var tV = class {
+var lV = class {
 	scope;
 	archive;
 	corrupt = !1;
@@ -56600,13 +56880,13 @@ var tV = class {
 			let e = localStorage.getItem(this.key());
 			if (e) {
 				let t = JSON.parse(e);
-				if (!t || typeof t.active != "string" || !t.rooms || Array.isArray(t.rooms) || !Object.values(t.rooms).every((e) => eV(e))) throw Error("Invalid room archive");
+				if (!t || typeof t.active != "string" || !t.rooms || Array.isArray(t.rooms) || !Object.values(t.rooms).every((e) => cV(e))) throw Error("Invalid room archive");
 				this.archive = t;
 			}
 		} catch {
 			this.corrupt = !0, this.error = "No se pudo leer la habitación local. El archivo original se conserva; usa descargar para guardar la sesión actual.";
 		}
-		this.archive.rooms[this.archive.active] || this.select(t && !this.corrupt ? JB(t) : qB());
+		this.archive.rooms[this.archive.active] || this.select(t && !this.corrupt ? nV(t) : tV());
 	}
 	key() {
 		return "mathmongo-rooms-v1-" + this.scope;
@@ -56630,32 +56910,32 @@ var tV = class {
 			this.error = "Almacenamiento local no disponible; conserva una descarga de la habitación antes de cerrar.";
 		}
 	}
-}, nV = /* @__PURE__ */ new Map();
-function rV(e, t) {
-	let { data: n, parentElement: r, setTriggerValue: i } = e, a = nV.get(n.scope);
-	a || (a = new tV(n.scope, n.rooms?.[0]), nV.set(n.scope, a));
+}, uV = /* @__PURE__ */ new Map();
+function dV(e, t) {
+	let { data: n, parentElement: r, setTriggerValue: i } = e, a = uV.get(n.scope);
+	a || (a = new lV(n.scope, n.rooms?.[0]), uV.set(n.scope, a));
 	let o = a.current();
-	$B(o, n.result) && a.save();
+	sV(o, n.result) && a.save();
 	let s = C("section", "", "knowledge-map study-room");
 	s.setAttribute("aria-label", "Habitación de estudio"), l(s), (r.querySelector(".knowledge-map-root") ?? r).replaceChildren(s);
 	let c = [], u = !1, d = () => a.save(), f = () => {
 		o.dirty = !0, d();
-	}, p = (e) => n.scope + ":view:" + e, m = () => n.scope + ":notes:" + o.uid, h = () => new WB(m(), o.uid), g = (e) => n.views?.find((t) => t.uid === e), _ = () => queueMicrotask(() => {
+	}, p = (e) => n.scope + ":view:" + e, m = () => n.scope + ":notes:" + o.uid, h = () => new QB(m(), o.uid), g = (e) => n.views?.find((t) => t.uid === e), _ = () => queueMicrotask(() => {
 		u || T();
 	}), v = (e) => {
 		o.mode = e, d(), T();
 	}, b = (e) => {
 		o.pending || (o.pending = e, d(), i("intent", e), T());
 	}, x = (e) => {
-		let t = e ?? QB(n, o);
+		let t = e ?? oV(n, o);
 		t.id ??= crypto.randomUUID(), o.noteDraft = t.id, h().put(t), v("note");
 	}, ee = (e, t) => {
-		t.id ??= crypto.randomUUID(), new WB(p(e.uid), e.uid).put(t), o.noteDraft = t.id, o.draftView = e.uid, o.focus = e.uid, v("focus");
+		t.id ??= crypto.randomUUID(), new QB(p(e.uid), e.uid).put(t), o.noteDraft = t.id, o.draftView = e.uid, o.focus = e.uid, v("focus");
 	}, te = (e, t = "") => {
 		o.focus = e, o.selected = t, v("focus");
 	};
 	function ne(r, i, a) {
-		let s = o.draftView === i.uid && o.noteDraft ? new WB(p(i.uid), i.uid).get(o.noteDraft) : void 0;
+		let s = o.draftView === i.uid && o.noteDraft ? new QB(p(i.uid), i.uid).get(o.noteDraft) : void 0;
 		c.push(t({
 			...e,
 			parentElement: r,
@@ -56713,10 +56993,10 @@ function rV(e, t) {
 			value: e,
 			text: a.get(e)?.state.name ?? n.rooms.find((t) => t.uid === e).state.name
 		}))], o.uid, (e) => {
-			let t = n.rooms?.find((t) => t.uid === e), r = a.get(e) ?? (t ? JB(t) : void 0);
+			let t = n.rooms?.find((t) => t.uid === e), r = a.get(e) ?? (t ? nV(t) : void 0);
 			r && (d(), a.select(r), o = r, T());
 		}), w("Nueva habitación local", () => {
-			d(), o = qB(), a.select(o), T();
+			d(), o = tV(), a.select(o), T();
 		}, e);
 		let t = "";
 		pe(e, "Añadir una vista guardada", [{
@@ -56730,7 +57010,7 @@ function rV(e, t) {
 		}), w("Añadir esta esfera a la habitación", () => {
 			!g(t) || o.state.spheres.some((e) => e.view_uid === t) || (o.state.spheres.push({
 				view_uid: t,
-				position: ZB(.25 + o.state.spheres.length * .3 % .6, .45)
+				position: aV(.25 + o.state.spheres.length * .3 % .6, .45)
 			}), f(), T());
 		}, e);
 		let r = fe(e, "Nombre de una nueva esfera vacía", "Nueva esfera", () => {});
@@ -56772,7 +57052,7 @@ function rV(e, t) {
 			};
 			s(), w(i?.name ?? "Vista no disponible", () => {
 				i && te(i.uid);
-			}, a, !0).title = i?.name ?? t.view_uid, a.append(C("p", i ? `${YB(n, i).size} conceptos · ${i.state.areas.join(", ") || "sin áreas elegidas"}` : "La referencia se conserva para revisión"));
+			}, a, !0).title = i?.name ?? t.view_uid, a.append(C("p", i ? `${rV(n, i).size} conceptos · ${i.state.areas.join(", ") || "sin áreas elegidas"}` : "La referencia se conserva para revisión"));
 			let c = w("Recolocar esfera " + (r + 1), () => {}, a);
 			c.setAttribute("aria-label", "Recolocar " + (i?.name ?? t.view_uid));
 			let l;
@@ -56781,7 +57061,7 @@ function rV(e, t) {
 			}, c.onpointermove = (n) => {
 				if (!l || !c.hasPointerCapture(n.pointerId)) return;
 				let r = e.getBoundingClientRect();
-				t.position = ZB((n.clientX - r.left) / r.width, (n.clientY - r.top) / r.height), s();
+				t.position = aV((n.clientX - r.left) / r.width, (n.clientY - r.top) / r.height), s();
 			}, c.onpointerup = (e) => {
 				l && (c.releasePointerCapture(e.pointerId), l = void 0, f());
 			}, c.onpointercancel = () => {
@@ -56796,7 +57076,7 @@ function rV(e, t) {
 				if (n[e.key]) {
 					e.preventDefault();
 					let r = n[e.key];
-					t.position = ZB(t.position[0] + r[0], t.position[1] + r[1]), s(), f();
+					t.position = aV(t.position[0] + r[0], t.position[1] + r[1]), s(), f();
 				}
 			}, w("Quitar referencia a esta esfera", () => {
 				o.state.spheres = o.state.spheres.filter((e) => e !== t), f(), T();
@@ -56813,7 +57093,7 @@ function rV(e, t) {
 		let u = C("div", "", "room-lamp");
 		u.setAttribute("aria-hidden", "true"), e.append(u);
 		let d = oe();
-		if (XB(n, d[0], d[1]).length) {
+		if (iV(n, d[0], d[1]).length) {
 			let t = "http://www.w3.org/2000/svg", n = s.ownerDocument.createElementNS(t, "svg");
 			n.setAttribute("viewBox", "0 0 100 100"), n.setAttribute("preserveAspectRatio", "none"), n.classList.add("room-shared-line"), n.setAttribute("aria-hidden", "true");
 			let r = s.ownerDocument.createElementNS(t, "line"), i = o.state.spheres.find((e) => e.view_uid === d[0].uid), a = o.state.spheres.find((e) => e.view_uid === d[1].uid);
@@ -56827,7 +57107,7 @@ function rV(e, t) {
 		return o.comparison = t.map((e) => e.uid), t.slice(0, 2);
 	}
 	function se() {
-		let e = oe(), t = XB(n, e[0], e[1]), r = C("details");
+		let e = oe(), t = iV(n, e[0], e[1]), r = C("details");
 		r.append(C("summary", `${t.length} conceptos compartidos entre las dos vistas elegidas`)), r.append(C("p", "Compartir un ID representa pertenencia a ambas vistas, no una relación matemática nueva. La posición no crea vínculos.")), t.forEach((e) => {
 			let t = n.nodes.find((t) => t.key === e);
 			w(`${t.titulo} · ${t.source} · ${t.id}`, () => {
@@ -56930,7 +57210,7 @@ function rV(e, t) {
 			}), w("Incorporar nota como concepto…", () => {
 				let e = g(o.focus) ?? r;
 				if (!e) return;
-				let i = QB(n, o);
+				let i = oV(n, o);
 				i.action = "publish_note", i.noteRevision = t.revision;
 				let a = o.state.goal_view_uid === e.uid ? e.state.goals.find((e) => e.id === o.state.goal_id && !e.conceptKey) : void 0;
 				a && (i.goalId = a.id, i.point = structuredClone(a.point)), i.id = crypto.randomUUID(), ee(e, i);
@@ -56964,7 +57244,7 @@ function rV(e, t) {
 	function he() {
 		let r = C("div", "", "room-note-workspace");
 		s.append(r);
-		let i = QB(n, o);
+		let i = oV(n, o);
 		c.push(t({
 			...e,
 			parentElement: r,
@@ -57004,7 +57284,7 @@ function rV(e, t) {
 }
 //#endregion
 //#region src/knowledge-map/map-filters.ts
-function iV(e, t, n, r) {
+function fV(e, t, n, r) {
 	e.replaceChildren();
 	let i = {
 		value: "",
@@ -57029,7 +57309,7 @@ function iV(e, t, n, r) {
 		n.frontOnly = !n.frontOnly, r();
 	}, e);
 }
-function aV(e, t, n, r, i) {
+function pV(e, t, n, r, i) {
 	e.replaceChildren(), e.append(C("p", "Áreas: elige categorías temáticas explícitamente. Fuente, tipo y área son dimensiones distintas.", "hint")), [...new Set(t.nodes.flatMap((e) => e.categorias))].sort((e, t) => e.localeCompare(t, "es")).forEach((a) => {
 		let o = C("label", a), s = C("input");
 		s.type = "checkbox", s.checked = n.areas.includes(a), s.onchange = () => {
@@ -57037,10 +57317,10 @@ function aV(e, t, n, r, i) {
 				s.checked = !1;
 				return;
 			}
-			n.areas = s.checked ? [...n.areas, a] : n.areas.filter((e) => e !== a), n.layoutDirty = !0, aV(e, t, n, r, i), r();
+			n.areas = s.checked ? [...n.areas, a] : n.areas.filter((e) => e !== a), n.layoutDirty = !0, pV(e, t, n, r, i), r();
 		}, o.prepend(s), e.append(o);
 	}), w(n.mandala ? "Desactivar estilo mandala" : "Activar estilo mandala", () => {
-		n.mandala = !n.mandala, n.layoutDirty = !0, aV(e, t, n, r, i), r();
+		n.mandala = !n.mandala, n.layoutDirty = !0, pV(e, t, n, r, i), r();
 	}, e), w("Organizar por áreas", () => {
 		n.areas?.length && (i(), n.points = se(t, n), n.layoutDirty = !0, r());
 	}, e), w("Disposición orgánica: ensayo breve", () => {
@@ -57049,10 +57329,10 @@ function aV(e, t, n, r, i) {
 }
 //#endregion
 //#region src/knowledge-map/component.ts
-var oV = /* @__PURE__ */ new Map(), sV = /* @__PURE__ */ new WeakMap();
-function cV(e) {
-	if (oV.has(e)) return oV.get(e);
-	let t = GB(e);
+var mV = /* @__PURE__ */ new Map(), hV = /* @__PURE__ */ new WeakMap();
+function gV(e) {
+	if (mV.has(e)) return mV.get(e);
+	let t = $B(e);
 	if (t?.camera && t.points) return t;
 	try {
 		let t = JSON.parse(sessionStorage.getItem("mathmongo-map-" + e) ?? "null");
@@ -57060,17 +57340,17 @@ function cV(e) {
 	} catch {}
 	return y();
 }
-function lV(e) {
-	if (!e.data.roomMode) return uV(e);
-	sV.get(e.parentElement)?.();
-	let t = rV(e, uV);
-	return sV.set(e.parentElement, t), t;
+function _V(e) {
+	if (!e.data.roomMode) return vV(e);
+	hV.get(e.parentElement)?.();
+	let t = dV(e, vV);
+	return hV.set(e.parentElement, t), t;
 }
-function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, initialDraft: o, onExit: s, onSaved: c, onSelect: u, selectionKey: d, draftMapUid: p, expandOnMount: h, onOpenDocument: g }) {
-	sV.get(e)?.();
-	let v = cV(t.scope);
-	a && (v.mapUid !== a.uid || !v.layoutDirty && !v.draft && !v.pending && v.viewRevision !== a.revision) && ae(v, a), oV.set(t.scope, v), v.mapUid ??= p ?? crypto.randomUUID(), h !== void 0 && (v.expanded = h), d !== void 0 && (v.selected = d), v.mapName ??= "Mi esfera de estudio", v.pinned ??= [], v.areas ??= [], v.goals ??= [], v.flatPoints ??= {};
-	let y = new WB(t.scope, v.mapUid), x, te, ne, oe = v.draft, se = v.pending?.operation_id;
+function vV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, initialDraft: o, onExit: s, onSaved: c, onSelect: u, selectionKey: d, draftMapUid: p, expandOnMount: h, onOpenDocument: g }) {
+	hV.get(e)?.();
+	let v = gV(t.scope);
+	a && (v.mapUid !== a.uid || !v.layoutDirty && !v.draft && !v.pending && v.viewRevision !== a.revision) && ae(v, a), mV.set(t.scope, v), v.mapUid ??= p ?? crypto.randomUUID(), h !== void 0 && (v.expanded = h), d !== void 0 && (v.selected = d), v.mapName ??= "Mi esfera de estudio", v.pinned ??= [], v.areas ??= [], v.goals ??= [], v.flatPoints ??= {};
+	let y = new QB(t.scope, v.mapUid), x, te, ne, oe = v.draft, se = v.pending?.operation_id;
 	if (t.result && t.result.operation_id === v.pending?.operation_id && v.pending?.action === "save_view") v.points = _(t.nodes.map((e) => e.key), v.points), v.status = t.result, t.result.status === "saved" ? (v.viewRevision = t.result.view_revision, v.layoutDirty = JSON.stringify(ie(v)) !== JSON.stringify(v.pending.view_state) || v.mapName !== v.pending.map_name, v.pending = void 0) : ["invalid", "conflict"].includes(t.result.status) && (v.pending = void 0);
 	else {
 		let e = v.pending && t.result?.key && v.draft ? {
@@ -57098,8 +57378,8 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 		status: "uncertain",
 		message: "Existe un envío sin confirmar. Reconcilia el mismo intento antes de continuar."
 	}), v.draft && (v.draft.id ??= crypto.randomUUID(), y.put(v.draft)), v.draft?.bibliography) {
-		let e = IB(v.draft.bibliography, t.bibliography_result);
-		e && (v.draft.reference = e, v.draft.referenceId = e.reference_id, v.draft.referenceLocator ??= PB()), y.put(v.draft);
+		let e = WB(v.draft.bibliography, t.bibliography_result);
+		e && (v.draft.reference = e, v.draft.referenceId = e.reference_id, v.draft.referenceLocator ??= HB()), y.put(v.draft);
 	}
 	let ce = C("section", "", "knowledge-map");
 	l(ce), ce.setAttribute("aria-label", "Mapa de conocimiento editable");
@@ -57123,7 +57403,7 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 	let xe = e.querySelector(".knowledge-map-root") ?? e;
 	xe.replaceChildren(ce);
 	let Se = () => {
-		v.draft && y.put(v.draft), KB(t.scope, v);
+		v.draft && y.put(v.draft), eV(t.scope, v);
 	}, D = new de(ye, t, v, (e) => we(e), (e) => Ee("create", e), () => {
 		Se(), Oe();
 	}, (e) => {
@@ -57138,7 +57418,7 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 			return;
 		}
 		v.selected = e, v.auto = !1, Fe.value = e, D.bringFront(e), ke(), Oe(), Ce(), u?.(e);
-	}, Te = new HB({
+	}, Te = new XB({
 		view: v,
 		data: t,
 		get vault() {
@@ -57215,9 +57495,9 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 				g(e.key);
 				return;
 			}
-			v.auto = !1, x?.(), v.reader = e.key, Se(), x = UB(ce, e, v.textSize ?? 19, () => {
+			v.auto = !1, x?.(), v.reader = e.key, Se(), x = ZB(ce, e, v.textSize ?? 19, () => {
 				v.reader = void 0, x = void 0, Se(), ye.focus();
-			}, (n) => VB(n, e, t, r));
+			}, (n) => YB(n, e, t, r));
 		}, a, !0), w("Editar ficha", () => g ? g(e.key, !0) : Ee("edit"), a), w("Crear conectado", () => Ee("create_connected", v.points[e.key]), a), w("Conectar con…", () => Ee("connect"), a), w("Abrir nota / edición avanzada", () => {
 			Se(), r("open_note", {
 				key: e.key,
@@ -57271,7 +57551,7 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 		let n = t.draftId ? y.get(t.draftId) : void 0;
 		n ? (v.draft = n, Te.open()) : Ee("create", t.point, t);
 	}
-	let Me = () => iV(me, t, v, O), Ne = () => aV(he, t, v, O, () => D.rememberLayout());
+	let Me = () => fV(me, t, v, O), Ne = () => pV(he, t, v, O, () => D.rememberLayout());
 	function Pe() {
 		if (te) {
 			te.close();
@@ -57346,7 +57626,7 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 		text: e.name
 	}))], v.mapUid, (e) => {
 		let n = t.views?.find((t) => t.uid === e);
-		n && (Te.close(), v.draft = void 0, ae(v, n), y = new WB(t.scope, n.uid), Ne(), O());
+		n && (Te.close(), v.draft = void 0, ae(v, n), y = new QB(t.scope, n.uid), Ne(), O());
 	}), w("Recuperar borradores", () => {
 		let e = C("dialog", "", "document-dialog drafts-dialog");
 		e.append(C("h2", "Borradores locales recuperables"));
@@ -57378,7 +57658,7 @@ function uV({ parentElement: e, data: t, setTriggerValue: r, initialView: a, ini
 	let Ve = () => {
 		Te.close(), x?.(), D.destroy(), ne && clearTimeout(ne), te && (te.onclose = null), te?.remove(), Se();
 	};
-	return sV.set(e, Ve), Ve;
+	return hV.set(e, Ve), Ve;
 }
 //#endregion
-export { lV as default, uV as renderMap };
+export { _V as default, vV as renderMap };
