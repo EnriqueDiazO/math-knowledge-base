@@ -32,6 +32,7 @@ from mathmongo.source_catalog.repository import ReferenceRepository
 from mathmongo.source_catalog.repository import RepositoryConflictError
 from mathmongo.source_catalog.repository import SourceRepository
 from mathmongo.source_catalog.repository import reference_revision
+from mathmongo.source_catalog.repository import source_revision
 
 T = TypeVar("T")
 FutureLinkDetector = Callable[[Any, str], Iterable[str]]
@@ -333,6 +334,7 @@ class SourceCatalogService:
         *,
         preserve_previous_name_as_alias: bool = False,
         allow_duplicate: bool = False,
+        expected_revision: str = "",
     ) -> CatalogResult[Source]:
         """Update one validated Source profile with duplicate protection."""
         unexpected = set(changes) - self._SOURCE_UPDATE_FIELDS
@@ -349,6 +351,8 @@ class SourceCatalogService:
             return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Source not found.")
         try:
             current = _source_from_repository(current_value)
+            if expected_revision and source_revision(current) != expected_revision:
+                raise RepositoryConflictError("Source changed; keep the local draft.")
             data = current.model_dump(mode="python")
             data.update(dict(changes))
             changed_fields = set(changes)
@@ -389,7 +393,7 @@ class SourceCatalogService:
                 for key in (*self._SOURCE_UPDATE_FIELDS, "updated_at")
                 if key in changed_fields or key == "updated_at"
             }
-            updated = self.sources.update(source_id, controlled)
+            updated = self.sources.update(source_id, controlled, **({"expected_revision": expected_revision} if expected_revision else {}))
             if updated is None:
                 return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Source not found.")
             return CatalogResult(
@@ -406,17 +410,18 @@ class SourceCatalogService:
         except Exception as exc:
             return CatalogResult(CatalogResultStatus.ERROR, errors=(str(exc),))
 
-    def archive_source(self, source_id: str) -> CatalogResult[Source]:
+    def archive_source(self, source_id: str, *, expected_revision: str = "") -> CatalogResult[Source]:
         """Archive a Source as the normal removal action."""
-        return self._source_state_change(source_id, archive=True)
+        return self._source_state_change(source_id, archive=True, expected_revision=expected_revision)
 
-    def reactivate_source(self, source_id: str) -> CatalogResult[Source]:
+    def reactivate_source(self, source_id: str, *, expected_revision: str = "") -> CatalogResult[Source]:
         """Reactivate an archived Source."""
-        return self._source_state_change(source_id, archive=False)
+        return self._source_state_change(source_id, archive=False, expected_revision=expected_revision)
 
-    def _source_state_change(self, source_id: str, *, archive: bool) -> CatalogResult[Source]:
+    def _source_state_change(self, source_id: str, *, archive: bool, expected_revision: str = "") -> CatalogResult[Source]:
         try:
-            value = self.sources.archive(source_id) if archive else self.sources.reactivate(source_id)
+            options = {"expected_revision": expected_revision} if expected_revision else {}
+            value = self.sources.archive(source_id, **options) if archive else self.sources.reactivate(source_id, **options)
             if value is None:
                 return CatalogResult(CatalogResultStatus.NOT_FOUND, message="Source not found.")
             return CatalogResult(

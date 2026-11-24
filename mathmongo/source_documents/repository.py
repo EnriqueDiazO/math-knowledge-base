@@ -4,6 +4,8 @@
 
 from __future__ import annotations
 
+import hashlib
+import json
 from collections.abc import Mapping
 from dataclasses import dataclass
 from datetime import datetime
@@ -17,6 +19,11 @@ from mathmongo.source_documents.models import DocumentKind
 from mathmongo.source_documents.models import DocumentStatus
 from mathmongo.source_documents.models import SourceDocument
 from mathmongo.source_documents.models import utc_now
+
+
+def document_revision(document: SourceDocument) -> str:
+    """Identify the complete metadata and PDF-version snapshot."""
+    return hashlib.sha256(json.dumps(document.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
 
 
 class SourceDocumentRepositoryError(RuntimeError):
@@ -188,20 +195,24 @@ class SourceDocumentRepository:
         self,
         document_id: str,
         changes: Mapping[str, Any],
+        *, expected_revision: str = "",
     ) -> SourceDocument | None:
         unexpected = set(changes) - self.MUTABLE_METADATA_FIELDS
         if unexpected:
             raise ValueError(f"Unsupported Source Document metadata fields: {sorted(unexpected)}")
-        current = self.get_by_id(document_id)
+        observed = self._collection.find_one({"document_id": document_id})
+        current = _model(observed)
         if current is None:
             return None
+        if expected_revision and document_revision(current) != expected_revision:
+            raise SourceDocumentRepositoryConflictError("Document changed; keep the local draft.")
         payload = current.model_dump(mode="python")
         payload.update(dict(changes))
         payload["updated_at"] = utc_now()
         candidate = SourceDocument.model_validate(payload)
         try:
             result = self._collection.replace_one(
-                {"document_id": document_id},
+                {"document_id": document_id, "$expr": {"$eq": ["$$ROOT", {"$literal": observed}]}},
                 _mongo_document(candidate),
                 upsert=False,
             )
@@ -209,12 +220,20 @@ class SourceDocumentRepository:
             raise SourceDocumentRepositoryConflictError(
                 f"Concurrent Source Document conflict: {document_id}"
             ) from exc
-        return candidate if getattr(result, "matched_count", 0) else None
+        if not getattr(result, "matched_count", 0):
+            raise SourceDocumentRepositoryConflictError("Document changed during save; keep the local draft.")
+        return candidate
 
-    def replace(self, document: SourceDocument) -> SourceDocument | None:
+    def replace(self, document: SourceDocument, *, expected_revision: str = "") -> SourceDocument | None:
+        observed = self._collection.find_one({"document_id": document.document_id})
+        current = _model(observed)
+        if current is None:
+            return None
+        if expected_revision and document_revision(current) != expected_revision:
+            raise SourceDocumentRepositoryConflictError("Document changed; keep the local draft.")
         try:
             result = self._collection.replace_one(
-                {"document_id": document.document_id},
+                {"document_id": document.document_id, "$expr": {"$eq": ["$$ROOT", {"$literal": observed}]}},
                 _mongo_document(document),
                 upsert=False,
             )
@@ -222,19 +241,21 @@ class SourceDocumentRepository:
             raise SourceDocumentRepositoryConflictError(
                 f"Concurrent Source Document conflict: {document.document_id}"
             ) from exc
-        return document if getattr(result, "matched_count", 0) else None
+        if not getattr(result, "matched_count", 0):
+            raise SourceDocumentRepositoryConflictError("Document changed during save.")
+        return document
 
-    def archive(self, document_id: str) -> SourceDocument | None:
+    def archive(self, document_id: str, *, expected_revision: str = "") -> SourceDocument | None:
         current = self.get_by_id(document_id)
         if current is None or current.status == DocumentStatus.ARCHIVED:
             return current
-        return self.replace(SourceDocument.model_validate(current.archived().model_dump()))
+        return self.replace(SourceDocument.model_validate(current.archived().model_dump()), expected_revision=expected_revision or document_revision(current))
 
-    def reactivate(self, document_id: str) -> SourceDocument | None:
+    def reactivate(self, document_id: str, *, expected_revision: str = "") -> SourceDocument | None:
         current = self.get_by_id(document_id)
         if current is None or current.status == DocumentStatus.ACTIVE:
             return current
-        return self.replace(SourceDocument.model_validate(current.reactivated().model_dump()))
+        return self.replace(SourceDocument.model_validate(current.reactivated().model_dump()), expected_revision=expected_revision or document_revision(current))
 
     def count_for_reference(self, reference_id: str) -> int:
         return int(self._collection.count_documents({"reference_id": reference_id}))

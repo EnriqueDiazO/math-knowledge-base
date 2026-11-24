@@ -62,10 +62,13 @@ def _values(document: Any, path: str) -> list[Any]:
 
 
 def _matches(document: dict[str, Any], query: dict[str, Any]) -> bool:
-    return all(
-        any(value == expected for value in _values(document, field))
-        for field, expected in query.items()
-    )
+    for field, expected in query.items():
+        if field == "$expr":
+            if expected != {"$eq": ["$$ROOT", {"$literal": document}]}:
+                return False
+        elif not any(value == expected for value in _values(document, field)):
+            return False
+    return True
 
 
 class _Cursor:

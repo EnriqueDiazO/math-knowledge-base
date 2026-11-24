@@ -399,6 +399,7 @@ class SourceDocumentService:
         self,
         document_id: str,
         changes: Mapping[str, Any],
+        *, expected_revision: str = "",
     ) -> DocumentOperationResult:
         current = self.documents.get_by_id(document_id)
         if current is None:
@@ -406,7 +407,7 @@ class SourceDocumentService:
         try:
             if "reference_id" in changes:
                 self._reference(changes.get("reference_id"), current.source_id)
-            updated = self.documents.update_metadata(document_id, changes)
+            updated = self.documents.update_metadata(document_id, changes, **({"expected_revision": expected_revision} if expected_revision else {}))
         except (ValidationError, ValueError) as exc:
             return DocumentOperationResult(DocumentOperationStatus.ERROR, current, str(exc))
         except SourceDocumentRepositoryConflictError as exc:
@@ -426,13 +427,13 @@ class SourceDocumentService:
             metadata_persisted=True,
         )
 
-    def archive_document(self, document_id: str) -> DocumentOperationResult:
-        return self._change_status(document_id, archive=True)
+    def archive_document(self, document_id: str, *, expected_revision: str = "") -> DocumentOperationResult:
+        return self._change_status(document_id, archive=True, expected_revision=expected_revision)
 
-    def reactivate_document(self, document_id: str) -> DocumentOperationResult:
-        return self._change_status(document_id, archive=False)
+    def reactivate_document(self, document_id: str, *, expected_revision: str = "") -> DocumentOperationResult:
+        return self._change_status(document_id, archive=False, expected_revision=expected_revision)
 
-    def _change_status(self, document_id: str, *, archive: bool) -> DocumentOperationResult:
+    def _change_status(self, document_id: str, *, archive: bool, expected_revision: str = "") -> DocumentOperationResult:
         current = self.documents.get_by_id(document_id)
         if current is None:
             return DocumentOperationResult(DocumentOperationStatus.NOT_FOUND, message="Not found.")
@@ -449,9 +450,9 @@ class SourceDocumentService:
             )
         try:
             value = (
-                self.documents.archive(document_id)
+                self.documents.archive(document_id, **({"expected_revision": expected_revision} if expected_revision else {}))
                 if archive
-                else self.documents.reactivate(document_id)
+                else self.documents.reactivate(document_id, **({"expected_revision": expected_revision} if expected_revision else {}))
             )
         except Exception:
             return DocumentOperationResult(

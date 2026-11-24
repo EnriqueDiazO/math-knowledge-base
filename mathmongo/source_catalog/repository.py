@@ -39,6 +39,11 @@ def reference_revision(reference: Reference) -> str:
     return hashlib.sha256(json.dumps(reference.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
 
 
+def source_revision(source: Source) -> str:
+    """Capture all source metadata, including changes inside one BSON millisecond."""
+    return hashlib.sha256(json.dumps(source.model_dump(mode="json"), sort_keys=True).encode()).hexdigest()
+
+
 class RepositoryError(RuntimeError):
     """Base class for controlled Source Catalog persistence failures."""
 
@@ -314,16 +319,19 @@ class SourceRepository:
             model_type=Source,
         )
 
-    def update(self, source_id: str, changes: Mapping[str, Any]) -> Source | None:
+    def update(self, source_id: str, changes: Mapping[str, Any], *, expected_revision: str = "") -> Source | None:
         """Apply a validated controlled `$set` without changing the ID."""
         forbidden = set(changes) & self._IMMUTABLE_FIELDS
         unknown = set(changes) - self._MUTABLE_FIELDS
         if forbidden or unknown:
             fields = sorted(forbidden | unknown)
             raise ImmutableFieldError(f"Unsupported or immutable Source fields: {fields}")
-        current = self.get_by_id(source_id)
+        observed = self._collection.find_one({"source_id": source_id})
+        current = _model_document(observed, Source)
         if current is None:
             return None
+        if expected_revision and source_revision(current) != expected_revision:
+            raise RepositoryConflictError("Source changed; keep the local draft.")
         candidate_data = current.model_dump(mode="python")
         candidate_data.update(dict(changes))
         candidate_data["updated_at"] = changes.get("updated_at", utc_now())
@@ -335,16 +343,16 @@ class SourceRepository:
             set_fields["name_normalized"] = candidate_dump["name_normalized"]
         try:
             result = self._collection.update_one(
-                {"source_id": source_id},
+                {"source_id": source_id, "$expr": {"$eq": ["$$ROOT", {"$literal": observed}]}},
                 {"$set": set_fields},
             )
         except DuplicateKeyError as exc:
             raise RepositoryConflictError(f"Concurrent Source conflict: {source_id}") from exc
         if not result.matched_count:
-            return None
+            raise RepositoryConflictError("Source changed during save; keep the local draft.")
         return self.get_by_id(source_id)
 
-    def archive(self, source_id: str) -> Source | None:
+    def archive(self, source_id: str, *, expected_revision: str = "") -> Source | None:
         """Archive a Source idempotently."""
         current = self.get_by_id(source_id)
         if current is None:
@@ -359,9 +367,10 @@ class SourceRepository:
                 "archived_at": archived.archived_at,
                 "updated_at": archived.updated_at,
             },
+            expected_revision=expected_revision or source_revision(current),
         )
 
-    def reactivate(self, source_id: str) -> Source | None:
+    def reactivate(self, source_id: str, *, expected_revision: str = "") -> Source | None:
         """Reactivate an archived Source idempotently."""
         current = self.get_by_id(source_id)
         if current is None:
@@ -376,6 +385,7 @@ class SourceRepository:
                 "archived_at": None,
                 "updated_at": active.updated_at,
             },
+            expected_revision=expected_revision or source_revision(current),
         )
 
     def duplicate_candidates(self, source: Source | Mapping[str, Any]) -> list[Source]:
