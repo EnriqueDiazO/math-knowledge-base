@@ -16,6 +16,8 @@ from pydantic import field_validator
 
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.study.document_export import compile_project
+from mathmongo.study.note_action_models import NoteActionRequest
+from mathmongo.study.note_actions import NoteActions
 from mathmongo.study.routes import scoped
 from mathmongo.study.structured_layout import fit_response
 from mathmongo.study.structured_layout import measured_project
@@ -87,8 +89,15 @@ def build_structured_router():
         request: Request,
         q: str = Query("", max_length=200),
         page: int = Query(1, ge=1, le=1000000),
+        project: str = Query("", max_length=500),
+        context: str = Query("", max_length=500),
+        date_from: calendar_date | None = None,
+        date_to: calendar_date | None = None,
     ):
-        return StructuredNotes(scoped(request).db, family).listing(q, page)
+        notes = StructuredNotes(scoped(request).db, family)
+        if date_from and date_to and date_from > date_to:
+            raise AdvancedReaderError("invalid_note_filter", "La fecha inicial debe ser anterior o igual a la final. Corrige el intervalo y vuelve a buscar.", status_code=422)
+        return notes.listing(q, page, project=project, context=context, date_from=date_from, date_to=date_to)
 
     @router.post("/{family}")
     def create(family: Family, payload: StructuredCreate, request: Request):
@@ -144,6 +153,11 @@ def build_structured_router():
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="mathmongo-{family}.pdf"'},
         )
+
+    @router.post("/{family}/{identity}/actions")
+    def action(family: Family, identity: str, payload: NoteActionRequest, request: Request):
+        notes = StructuredNotes(scoped(request).db, family)
+        return NoteActions(notes, family).execute(identity, payload.action, payload.request_id, payload.revision, payload.title)
 
     @router.post("/{family}/{identity}/fit")
     def fit(family: Family, identity: str, request: Request):

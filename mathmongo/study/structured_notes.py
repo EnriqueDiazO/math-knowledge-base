@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from copy import deepcopy
 from dataclasses import dataclass
+from datetime import datetime
+from datetime import time
 from importlib import import_module
 
 from pymongo.errors import DuplicateKeyError
@@ -85,9 +87,23 @@ class StructuredNotes:
                 status_code=422,
             ) from None
 
-    def listing(self, q="", page=1):
+    def listing(self, q="", page=1, *, project="", context="", date_from=None, date_to=None):
         """Paged metadata excludes all region bodies and source LaTeX."""
         query = {"note_format": self.spec.format_id}
+        if project:
+            query["project"] = project
+        if context:
+            query["context"] = context
+        if date_from is not None or date_to is not None:
+            text_range, bson_range = {}, {}
+            if date_from is not None:
+                text_range["$gte"] = date_from.isoformat()
+                bson_range["$gte"] = datetime.combine(date_from, time.min)
+            if date_to is not None:
+                text_range["$lte"] = date_to.isoformat()
+                bson_range["$lte"] = datetime.combine(date_to, time.max)
+            # Legacy notes may store a date string or a BSON datetime. Do not migrate either.
+            query["$and"] = [{"$or": [{"date": text_range}, {"date": bson_range}]}]
         if q:
             query["$or"] = [
                 {key: {"$regex": re.escape(q), "$options": "i"}}
@@ -144,11 +160,14 @@ class StructuredNotes:
     def _synchronize_media(self, note):
         """Reconcile only this note's registry references; retryable and never purges bytes."""
         previous = self.db.media_assets.distinct("asset_id", {"note_ids": str(note["_id"])})
+        media = import_module("editor." + self.spec.family + ".media")
+        extract_ids = getattr(media, self.spec.family + "_document_image_ids")
+        current = tuple(dict.fromkeys([*note.get("image_ids", []), *extract_ids(self.parse(note[self.spec.family]))]))
         synchronize_note_media_references(
             self.mongo,
             note_id=str(note["_id"]),
             previous_asset_ids=previous,
-            current_asset_ids=note.get("image_ids", []),
+            current_asset_ids=current,
         )
 
     def create(self, operation_id, metadata, raw):

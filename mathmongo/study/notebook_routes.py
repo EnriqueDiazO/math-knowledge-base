@@ -16,6 +16,8 @@ from pydantic import field_validator
 
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.study.document_export import compile_project
+from mathmongo.study.note_action_models import NoteActionRequest
+from mathmongo.study.note_actions import NoteActions
 from mathmongo.study.notebook import Notebook
 from mathmongo.study.routes import scoped
 
@@ -141,5 +143,9 @@ def build_notebook_router():
             media_type="application/pdf",
             headers={"Content-Disposition": 'attachment; filename="mathmongo-cuaderno.pdf"'},
         )
+
+    @router.post("/{identity}/actions")
+    def action(identity: str, payload: NoteActionRequest, request: Request):
+        return NoteActions(Notebook(scoped(request).db), "diary").execute(identity, payload.action, payload.request_id, payload.revision, payload.title)
 
     return router
