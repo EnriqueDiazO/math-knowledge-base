@@ -30,7 +30,7 @@
 .formula-tools-panel input[type="number"] {
   max-width: 6rem;
 }
-.study-document-viewport .document-toolbar:has(.formula-tools[open]) {
+.document-toolbar:has(.formula-tools[open]) {
   max-height: 30dvh;
   overflow: auto;
 }

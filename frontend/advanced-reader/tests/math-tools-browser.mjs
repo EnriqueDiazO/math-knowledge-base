@@ -122,10 +122,26 @@ await test(
       expect(matrixSource).toBe(
         String.raw`\begin{bmatrix}0&0\\0&0\\0&0\end{bmatrix}`,
       );
-      const matrixEnd = await matrix.evaluate(element => {element.position=-1;element.focus();return element.position;});
+      const matrixEnd = await matrix.evaluate((element) => {
+        element.position = -1;
+        return element.position;
+      });
+      // MathLive's model focus flag precedes its deferred DOM focus. Confirm the actual target.
+      await expect
+        .poll(() =>
+          matrix.evaluate((element) => {
+            element.focus();
+            return document.activeElement === element;
+          }),
+        )
+        .toBe(true);
       await page.keyboard.press("ArrowLeft");
-      expect(await matrix.evaluate(element=>element.position)).toBeLessThan(matrixEnd);
-      expect(await matrix.evaluate(element=>element.value)).toBe(matrixSource);
+      await expect
+        .poll(() => matrix.evaluate((element) => element.position))
+        .toBeLessThan(matrixEnd);
+      expect(await matrix.evaluate((element) => element.value)).toBe(
+        matrixSource,
+      );
       expect(
         await page
           .locator("math-field")
