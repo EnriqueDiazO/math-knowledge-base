@@ -1,12 +1,13 @@
 /** Presentation of academic metadata/page choices; persistence stays in the workspace. */
 import type { StudyContext } from "./api";
 import { StructuredReferences } from "./StructuredReferences";
+import { StructuredEditorial } from "./StructuredEditorial";
 import {
   regions,
   type Family,
   type Metadata,
   type Region,
-  type StructuredDocument,
+  type DocumentChange,
   type structuredValues,
 } from "./structured-state";
 export function StructuredFields({
@@ -37,7 +38,7 @@ export function StructuredFields({
     operation: "add" | "duplicate" | "up" | "down" | "remove",
   ) => void;
   select: (index: number, key: string) => void;
-  document: (value: StructuredDocument) => void;
+  document: DocumentChange;
   citation: (latex: string) => boolean;
 }) {
   const classic =
@@ -91,9 +92,10 @@ export function StructuredFields({
           <select
             aria-label="Plantilla de la nota"
             value={values.document.template_id}
-            onChange={(event) =>
-              document({ ...values.document, template_id: event.target.value })
-            }
+            onChange={(event) => {
+              const template_id = event.target.value;
+              document((current) => ({ ...current, template_id }));
+            }}
           >
             <option value={classic}>Clásica</option>
             <option value={family + "_hybrid_compact_v1"}>
@@ -109,6 +111,7 @@ export function StructuredFields({
           </select>
         </label>
       </details>
+      <StructuredEditorial value={values.document} change={document} />
       <nav aria-label="Páginas de la nota">
         {values.document.pages.map((_, index) => (
           <button
@@ -186,22 +189,23 @@ export function StructuredFields({
         Título de la región
         <input
           value={(values.document.pages[page][region] as Region).heading}
-          onChange={(event) =>
-            document({
-              ...values.document,
-              pages: values.document.pages.map((item, index) =>
+          onChange={(event) => {
+            const heading = event.target.value;
+            document((current) => ({
+              ...current,
+              pages: current.pages.map((item, index) =>
                 index === page
                   ? {
                       ...item,
                       [region]: {
                         ...(item[region] as Region),
-                        heading: event.target.value,
+                        heading,
                       },
                     }
                   : item,
               ),
-            })
-          }
+            }));
+          }}
         />
       </label>
       <StructuredReferences

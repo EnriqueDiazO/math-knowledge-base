@@ -178,6 +178,23 @@ Texto protegido $\localStudy{x}$.
         await expect(page.locator(".visual-document .tiptap")).toContainText(
           "Pregunta conservada",
         );
+        await page
+          .getByText("Pie de página y marca de agua", { exact: true })
+          .click();
+        await page.getByLabel("Incluir pie de página", { exact: true }).check();
+        await page
+          .getByLabel("Contenido del pie", { exact: true })
+          .selectOption("custom");
+        const footer = title + " · Autoría verificada";
+        await page.getByLabel("Texto del pie", { exact: true }).fill(footer);
+        await page.getByLabel("Incluir marca de agua", { exact: true }).check();
+        await page
+          .getByLabel("Texto de la marca de agua", { exact: true })
+          .fill("ESTUDIO");
+        await page
+          .getByLabel("Opacidad de la marca", { exact: true })
+          .fill("0.12");
+        await shot(family + "-editorial");
         let lost = false;
         const writes = [];
         await page.route(
@@ -207,6 +224,17 @@ Texto protegido $\localStudy{x}$.
           path = "/structured/" + family + "/" + identity;
         let saved = await request(path);
         expect(saved.document.pages).toHaveLength(1);
+        expect(saved.document.attribution).toMatchObject({
+          enabled: true,
+          mode: "custom",
+          text: footer,
+        });
+        expect(saved.document.watermark).toMatchObject({
+          enabled: true,
+          type: "text",
+          text: "ESTUDIO",
+          opacity: 0.12,
+        });
         expect(saved.document.pages[0][keys[0]].latex).toContain(
           "Pregunta conservada",
         );
@@ -229,6 +257,7 @@ Texto protegido $\localStudy{x}$.
           encoding: "utf8",
         });
         expect(text.status).toBe(0);
+        expect(text.stdout.replace(/\s+/gu, " ")).toContain(footer);
         expect(text.stdout.replace(/\s+/gu, " ")).toContain(
           "Pregunta conservada",
         );
@@ -289,6 +318,15 @@ Texto protegido $\localStudy{x}$.
         await expect(
           page.getByLabel("Título de la nota", { exact: true }),
         ).toHaveValue(title + " desde React");
+        await page
+          .getByText("Pie de página y marca de agua", { exact: true })
+          .click();
+        await expect(
+          page.getByLabel("Texto del pie", { exact: true }),
+        ).toHaveValue(footer);
+        await expect(
+          page.getByLabel("Opacidad de la marca", { exact: true }),
+        ).toHaveValue("0.12");
         await button(labels[1]).click();
         await expect(page.locator(".visual-document")).toContainText(
           "Desarrollo con fórmula",
@@ -336,6 +374,8 @@ Texto protegido $\localStudy{x}$.
           regions: keys,
           exactRetry: true,
           conflictPreserved: true,
+          editorialPersistedAndExported: true,
+          footer,
         });
       }
       expect(errors).toEqual([]);

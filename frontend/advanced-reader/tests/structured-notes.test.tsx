@@ -25,6 +25,7 @@ import {
   type StructuredDetail,
 } from "../src/study/structured-state";
 import type { StudyContext } from "../src/study/api";
+const buffered = { source: undefined as string | undefined };
 
 vi.mock("../src/study/DocumentSurface", () => ({
   DocumentSurface: ({
@@ -47,12 +48,12 @@ vi.mock("../src/study/DocumentSurface", () => ({
     };
     useEffect(() => {
       editorRef.current = {
-        value: () => value.current,
+        value: () => buffered.source ?? value.current,
         snapshot: () => snapshot,
         valid: () => !value.current.includes("unfinished"),
       } as unknown as DocumentEditor;
       return () => {
-        onChange.current(value.current, snapshot);
+        onChange.current(buffered.source ?? value.current, snapshot);
         editorRef.current = null;
       };
       // This adapter models the imperative editor lifecycle; browsers exercise real MathLive.
@@ -96,13 +97,147 @@ function note(family: Family): StructuredDetail {
     latex_body: "Fuente exacta",
   };
 }
-beforeEach(() => localStorage.clear());
+beforeEach(() => {
+  localStorage.clear();
+  buffered.source = undefined;
+});
 afterEach(() => {
   cleanup();
   vi.unstubAllGlobals();
 });
 for (const family of ["cornell", "cpi"] as const) {
   const title = family === "cornell" ? "Cornell" : "CPI";
+  it(
+    family +
+      ": preserves the existing image resource while saving automatic attribution and watermark placement",
+    async () => {
+      const original = note(family);
+      original.document.watermark = {
+        ...(original.document.watermark as object),
+        type: "image",
+        image_id: "shared-original",
+        private_extension: "keep",
+      };
+      const calls: Record<string, unknown>[] = [];
+      vi.stubGlobal(
+        "fetch",
+        vi.fn(async (_path, options) => {
+          const body = JSON.parse(options.body);
+          calls.push(body);
+          return Response.json({
+            ...original,
+            revision: "b".repeat(64),
+            metadata: { ...original.metadata, ...body.metadata },
+            document: body.document,
+            latex_body: "Confirmada",
+          });
+        }),
+      );
+      render(
+        <StructuredWorkspace
+          context={context}
+          family={family}
+          note={original}
+          navigate={vi.fn()}
+        />,
+      );
+      fireEvent.click(screen.getByText("Pie de página y marca de agua"));
+      expect(screen.queryByLabelText("Texto de la marca de agua")).toBeNull();
+      fireEvent.click(screen.getByLabelText("Incluir pie de página"));
+      fill("Autor del pie", "Autora propia");
+      fill("Curso del pie", "Curso conservado");
+      fill("Año del pie", "2026");
+      fill("Posición del pie", "top_right");
+      fill("Posición de la marca", "bottom_right");
+      fill("Escala de la marca", "0.8");
+      fireEvent.click(screen.getByLabelText("Marca en todas las páginas"));
+      expect(calls).toHaveLength(0);
+      click("Guardar nota " + title);
+      await screen.findByText("Nota guardada y confirmada en esta biblioteca.");
+      expect(calls).toHaveLength(1);
+      expect(calls[0].document).toMatchObject({
+        attribution: {
+          enabled: true,
+          mode: "auto",
+          author: "Autora propia",
+          course: "Curso conservado",
+          year: "2026",
+          position: "top_right",
+        },
+        watermark: {
+          type: "image",
+          image_id: "shared-original",
+          private_extension: "keep",
+          all_pages: false,
+          scale: 0.8,
+          position: "bottom_right",
+        },
+        pages: original.document.pages,
+      });
+    },
+  );
+  it(
+    family +
+      ": editorial changes flush pending source, preserve opaque fields and recover without saving",
+    async () => {
+      const original = note(family);
+      original.document.watermark = {
+        ...(original.document.watermark as object),
+        private_extension: { keep: true },
+      };
+      const props = { context, family, note: original, navigate: vi.fn() };
+      const view = render(<StructuredWorkspace {...props} />);
+      // Model an imperative editor change whose snapshot has not reached React yet.
+      buffered.source = String.raw`\unknown{Texto íntegro y á}`;
+      fill("Título de la región", "Región renombrada");
+      fireEvent.click(screen.getByText("Pie de página y marca de agua"));
+      fireEvent.click(screen.getByLabelText("Incluir pie de página"));
+      fill("Contenido del pie", "custom");
+      fill("Texto del pie", "Autoría propia");
+      fireEvent.click(screen.getByLabelText("Incluir marca de agua"));
+      fill("Texto de la marca de agua", "ESTUDIO");
+      fill("Opacidad de la marca", "0");
+      const read = () =>
+        structuredValues(
+          JSON.parse(
+            localStorage.getItem(
+              "mathmongo-structured-v1-owned-" + family + "-saved",
+            )!,
+          ),
+          family,
+        ).document;
+      const document = read();
+      expect(document.pages[0][regions[family][0][0]]).toMatchObject({
+        heading: "Región renombrada",
+        latex: buffered.source,
+      });
+      expect(document.pages[0][regions[family][1][0]]).toEqual(
+        original.document.pages[0][regions[family][1][0]],
+      );
+      expect(document.attribution).toMatchObject({
+        enabled: true,
+        mode: "custom",
+        text: "Autoría propia",
+      });
+      expect(document.watermark).toMatchObject({
+        enabled: true,
+        text: "ESTUDIO",
+        opacity: 0,
+        private_extension: { keep: true },
+      });
+      view.unmount();
+      buffered.source = undefined;
+      render(<StructuredWorkspace {...props} />);
+      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
+        String.raw`\unknown{Texto íntegro y á}`,
+      );
+      fireEvent.click(screen.getByText("Pie de página y marca de agua"));
+      expect(screen.getByLabelText("Texto del pie")).toHaveValue(
+        "Autoría propia",
+      );
+      expect(read()).toEqual(document);
+    },
+  );
   it(
     family +
       ": no-op keeps missing metadata, extensions and source outside the visual projection",

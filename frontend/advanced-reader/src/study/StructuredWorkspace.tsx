@@ -311,12 +311,14 @@ export function StructuredWorkspace({
             select={(index, key) => {
               if (flush()) activate(index, key);
             }}
-            document={(document) =>
+            document={(update) => {
+              if (!flush()) return;
+              const latest = structuredValues(current.current, family);
               remember({
                 ...current.current,
-                document: JSON.stringify(document),
-              })
-            }
+                document: JSON.stringify(update(latest.document)),
+              });
+            }}
             citation={(latex) => {
               if (!flush()) return false;
               const value = structuredValues(current.current, family),

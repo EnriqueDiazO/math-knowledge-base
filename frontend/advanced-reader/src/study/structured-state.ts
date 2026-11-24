@@ -26,6 +26,9 @@ export type StructuredDocument = {
   pages: StructuredPage[];
   [key: string]: unknown;
 };
+export type DocumentChange = (
+  update: (current: StructuredDocument) => StructuredDocument,
+) => void;
 export type Metadata = {
   title?: string;
   date?: string;
