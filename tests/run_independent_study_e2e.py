@@ -56,16 +56,34 @@ def restart_owned_package(app, command, work, environment, log, database, eviden
 
     before = state_hash()
     previous_pid = app.pid
+    base = environment["MATHMONGO_INDEPENDENT_URL"]
+    with urlopen(base + "/api/study/v1/context", timeout=5) as response:
+        previous_context = json.load(response)
     os.killpg(app.pid, signal.SIGTERM)
     try:
         app.wait(timeout=15)
     except subprocess.TimeoutExpired:
         os.killpg(app.pid, signal.SIGKILL)
         app.wait(timeout=5)
+    # AppImage's extraction parent can exit before the server child releases its
+    # listening socket. Do not mistake that dying server's health for the new one.
+    from urllib.parse import urlsplit
+    address = urlsplit(base)
+    closed = False
+    deadline = time.monotonic() + 20
+    while time.monotonic() < deadline:
+        try:
+            with socket.create_connection((address.hostname, address.port), timeout=1):
+                pass
+        except ConnectionRefusedError:
+            closed = True
+            break
+        time.sleep(0.1)
+    if not closed:
+        raise RuntimeError("Owned backend did not release its listening socket")
     restarted = subprocess.Popen(command, cwd=work, env=environment, stdout=log,
                                  stderr=subprocess.STDOUT, start_new_session=True)
     try:
-        base = environment["MATHMONGO_INDEPENDENT_URL"]
         for _ in range(100):
             assert restarted.poll() is None
             try:
@@ -76,6 +94,7 @@ def restart_owned_package(app, command, work, environment, log, database, eviden
                 time.sleep(0.1)
         with urlopen(base + "/api/study/v1/context", timeout=5) as response:
             context = json.load(response)
+        assert context["runtime_id"] != previous_context["runtime_id"], "Restart read the old backend"
         recovered = []
         for record in database.latex_notes.find():
             family = {"cornell_math_v1": "cornell", "cpi_v1": "cpi"}.get(record.get("note_format"))
@@ -105,6 +124,9 @@ def restart_owned_package(app, command, work, environment, log, database, eviden
             "passed": True, "previous_pid": previous_pid, "restarted_pid": restarted.pid,
             "persistent_state_sha256": after, "recovered_notes": recovered, "recovered_concepts": recovered_concepts,
             "MathV0_writes": 0, "only_owned_processes_restarted": True,
+            "old_socket_closed_before_start": closed,
+            "previous_runtime_id": previous_context["runtime_id"],
+            "restarted_runtime_id": context["runtime_id"],
         }, indent=2) + "\n")
         return restarted
     except BaseException:
