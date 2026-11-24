@@ -195,8 +195,8 @@ def test_capture_dispatch_validates_before_provider_and_searches_local(service):
         capture.execute({"request_id": "not-a-uuid", "action": "identifier"})["status"] == "invalid"
     )
     assert capture.execute(request("edition", query="../etc/passwd"))["status"] == "unavailable"
-    invalid = service.execute(create(service, reference_id='bad-reference-id'))
-    assert invalid['status'] == 'invalid'
+    invalid = service.execute(create(service, reference_id="bad-reference-id"))
+    assert invalid["status"] == "invalid"
     assert service.db.concepts.count_documents({}) == 0
     assert service.db["_knowledge_map_operations"].count_documents({}) == 0
     ref = ReferenceRepository(service.db).insert(Reference(title="Hallazgo local"))
@@ -308,3 +308,19 @@ def test_lookup_provenance_survives_real_bson_and_manual_correction(service, ide
         )["status"]
         == "invalid"
     )
+
+
+@pytest.mark.parametrize("change", [{"reference_type": "thesis"}, {"year_raw": "aprox. 1919"}])
+def test_reference_replay_never_confirms_a_different_type_or_raw_year(service, change):
+    capture = ReferenceCapture(service.db, MetadataLookup())
+    original = Reference(reference_type="book", title="Ficha conservada", year_raw="aprox. 1918")
+    data = original.model_dump(mode="json")
+    saved = capture.execute(request("save", source_id=service.test_source_id, reference_data=data))
+    assert saved["status"] == "saved"
+    before = ReferenceRepository(service.db).get_by_id(original.reference_id)
+    result = capture.execute(
+        request("save", source_id=service.test_source_id, reference_data={**data, **change})
+    )
+    assert result["status"] == "conflict"
+    assert ReferenceRepository(service.db).get_by_id(original.reference_id) == before
+    assert service.db.references.count_documents({}) == 1

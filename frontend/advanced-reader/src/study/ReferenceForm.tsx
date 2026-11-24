@@ -4,6 +4,12 @@ import type { StudyContext } from "./api";
 import { useLocalForm } from "./useLocalForm";
 import { useOperationScope } from "./useOperationScope";
 import { AuthoringPreparation } from "./AuthoringPreparation";
+import {
+  restoredProposal,
+  referenceAccessDate,
+  type ReferenceData,
+  type ReferenceDraft,
+} from "./reference-draft";
 
 const referenceTypes = {
   book: "Libro",
@@ -17,18 +23,6 @@ const referenceTypes = {
   misc: "Otro documento",
 };
 
-type ReferenceData = {
-  reference_id?: string;
-  reference_type?: string;
-  title?: string;
-  authors?: { literal?: string; family?: string; given?: string }[];
-  year?: number | null;
-  doi?: string | null;
-  isbn?: string[];
-  url?: string | null;
-  accessed_at?: string | null;
-  [key: string]: unknown;
-};
 type CaptureResult = {
   status: string;
   message?: string;
@@ -45,7 +39,7 @@ export function ReferenceForm({
   done: () => void;
 }) {
   const scope = useOperationScope(context);
-  const draft = useLocalForm(
+  const draft = useLocalForm<ReferenceDraft>(
     "mathmongo-reference-v1-" + context.library_id + "-" + sourceId,
     () => ({
       reference_id: "ref_" + crypto.randomUUID(),
@@ -65,10 +59,12 @@ export function ReferenceForm({
       NonNullable<CaptureResult["candidates"]>
     >([]),
     [sending, setSending] = useState(false);
-  const [proposal, setProposal] = useState<ReferenceData>({});
   const values = draft.state;
+  const { data: proposal, error: proposalError } = restoredProposal(
+    values.proposal_json,
+  );
   const capture = async (existing?: string) => {
-    if (sending) return;
+    if (sending || proposalError) return;
     setSending(true);
     try {
       const reference_data = {
@@ -93,9 +89,7 @@ export function ReferenceForm({
         doi: values.doi || null,
         isbn: values.isbn ? values.isbn.split(",").map((x) => x.trim()) : [],
         url: values.url || null,
-        accessed_at: values.accessed_at
-          ? values.accessed_at + "T00:00:00Z"
-          : null,
+        accessed_at: referenceAccessDate(values.accessed_at, proposal.accessed_at),
       };
       if (!draft.set(values)) return;
       const result = await studyRequest<CaptureResult>(
@@ -128,6 +122,7 @@ export function ReferenceForm({
     }
   };
   const lookup = async () => {
+    if (sending || proposalError) return;
     setSending(true);
     try {
       const result = await studyRequest<CaptureResult>(
@@ -135,6 +130,7 @@ export function ReferenceForm({
         context,
         { request_id: crypto.randomUUID(), action: "identifier", query },
       );
+      if (!scope.active) return;
       setProposals(result.candidates ?? []);
       setMessage(
         result.message ||
@@ -148,9 +144,10 @@ export function ReferenceForm({
     }
   };
   const choose = (data: ReferenceData) => {
-    setProposal(data);
     draft.set({
       ...values,
+      proposal_json: JSON.stringify(data),
+      accessed_at: data.accessed_at?.slice(0, 10) || "",
       reference_type: data.reference_type || "misc",
       title: data.title || "",
       author: (data.authors ?? [])
@@ -179,7 +176,7 @@ export function ReferenceForm({
       </label>
       <button
         type="button"
-        disabled={sending || !query.trim()}
+        disabled={sending || !!proposalError || !query.trim()}
         onClick={() => void lookup()}
       >
         Buscar metadatos
@@ -200,6 +197,17 @@ export function ReferenceForm({
           )}
         </article>
       ))}
+      {proposalError && (
+        <aside role="alert">
+          <p>{proposalError}</p>
+          <button type="button" onClick={draft.download}>
+            Descargar borrador de referencia
+          </button>
+          <button type="button" onClick={draft.restart}>
+            Reiniciar ficha conservando copia
+          </button>
+        </aside>
+      )}
       <form
         onSubmit={(event) => {
           event.preventDefault();
@@ -255,7 +263,7 @@ export function ReferenceForm({
         {(message || draft.problem) && (
           <p role="status">{message || draft.problem}</p>
         )}
-        <button type="submit" disabled={sending} className="primary-button">
+        <button type="submit" disabled={sending || !!proposalError} className="primary-button">
           Guardar referencia
         </button>
       </form>

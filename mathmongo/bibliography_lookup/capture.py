@@ -83,9 +83,11 @@ class ReferenceCapture:
             present = self.catalog.references.get_by_id(candidate.reference_id)
             if present is not None:
                 fields = (
+                    "reference_type",
                     "title",
                     "authors",
                     "year",
+                    "year_raw",
                     "journal",
                     "publisher",
                     "volume",
