@@ -12,9 +12,9 @@ from editor.cpi.models import CpiDocument
 from editor.cpi.models import build_cpi_v1_payload
 from editor.cpi.persistence import build_cpi_note_document
 from editor.cpi.persistence import extract_cpi_document
+from editor.notebook_lifecycle import delete_note_record
+from editor.notebook_lifecycle import duplicate_note_record
 from editor.structured_note_persistence import update_structured_note
-from editor.utils.media_assets import attach_media_assets_to_note
-from editor.utils.media_assets import detach_media_assets_from_note_record
 
 
 def _canonical_note(note: Mapping[str, Any], document: CpiDocument) -> dict[str, Any]:
@@ -91,48 +91,32 @@ def update_cpi_note(
     )
 
 
-def delete_cpi_note(db: Any, note_id: Any) -> Any:
-    """Delete an existing CPI note without deleting other note formats."""
-    existing = db.get_notebook_note_by_id(note_id)
+def delete_cpi_note(db: Any, note_id: Any, *, expected_snapshot=None) -> Any:
+    """Delete only the observed CPI note, retaining shared resources and other formats."""
+    existing = deepcopy(dict(expected_snapshot)) if expected_snapshot is not None else db.get_notebook_note_by_id(note_id)
     if existing is None:
         return None
     document = extract_cpi_document(existing)
-    result = db.delete_notebook_note(note_id)
-    if int(getattr(result, "deleted_count", 0) or 0) == 1:
-        detach_media_assets_from_note_record(
-            db,
-            note_id=str(note_id),
-            asset_ids=cpi_document_image_ids(document),
-        )
-    return result
+    if str(existing["_id"]) != str(note_id):
+        raise ValueError("The observed note identity does not match deletion")
+    return delete_note_record(db, existing, asset_ids=cpi_document_image_ids(document))
 
 
 def duplicate_cpi_note(
     db: Any,
     note_id: Any,
     metadata_overrides: Mapping[str, Any] | None = None,
+    *, expected_snapshot=None, target_id=None, creation_fingerprint=None,
 ) -> Any:
-    """Duplicate a CPI note while sharing portable media references safely."""
-    existing = get_cpi_note(db, note_id)
+    """Copy exact stored source and extensions, with optional idempotent HTTP identity."""
+    existing = deepcopy(dict(expected_snapshot)) if expected_snapshot is not None else db.get_notebook_note_by_id(note_id)
     if existing is None:
         return None
     document = extract_cpi_document(existing)
-    metadata = {
-        field: deepcopy(existing[field])
-        for field in ("title", "date", "project", "context", "tags")
-        if field in existing
-    }
-    metadata["title"] = f"Copia de {metadata.get('title') or 'Nota CPI'}"
-    metadata.update(deepcopy(dict(metadata_overrides or {})))
-    result = create_cpi_note(db, metadata, document)
-    inserted_id = getattr(result, "inserted_id", None)
-    if inserted_id is not None:
-        attach_media_assets_to_note(
-            db,
-            note_id=str(inserted_id),
-            asset_ids=cpi_document_image_ids(document),
-        )
-    return result
+    if str(existing["_id"]) != str(note_id):
+        raise ValueError("The observed note identity does not match duplication")
+    return duplicate_note_record(db, existing, metadata_overrides, target_id=target_id,
+                                 fingerprint=creation_fingerprint, asset_ids=cpi_document_image_ids(document))
 
 
 def list_cpi_notes(

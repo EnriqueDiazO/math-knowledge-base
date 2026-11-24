@@ -219,7 +219,7 @@ def test_duplicate_cornell_note_preserves_branding_and_shares_asset(monkeypatch)
     original_id = create_cornell_note(db, sample_metadata(), document).inserted_id
     attached: list[tuple[str, tuple[str, ...]]] = []
     monkeypatch.setattr(
-        "editor.cornell.service.attach_media_assets_to_note",
+        "editor.notebook_lifecycle.attach_media_assets_to_note",
         lambda _db, *, note_id, asset_ids: attached.append((note_id, tuple(asset_ids))),
     )
 

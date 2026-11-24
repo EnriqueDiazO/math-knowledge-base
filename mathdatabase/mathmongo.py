@@ -292,13 +292,16 @@ class MathMongo:
 
     def get_notebook_note_by_id(self, note_id) -> Optional[dict]:
         from bson import ObjectId
+        from bson.errors import InvalidId
 
         try:
-            doc = self.db["latex_notes"].find_one({"_id": ObjectId(str(note_id))})
+            object_id = ObjectId(str(note_id))
+        except (InvalidId, TypeError):
+            object_id = None
+        if object_id is not None:
+            doc = self.db["latex_notes"].find_one({"_id": object_id})
             if doc is not None:
                 return doc
-        except Exception:
-            pass
         return self.db["latex_notes"].find_one({"_id": str(note_id)})
 
     def create_notebook_note(self, note_data: dict):
@@ -338,6 +341,12 @@ class MathMongo:
         except Exception:
             pass
         return self.db["latex_notes"].delete_one({"_id": str(note_id)})
+
+    def delete_notebook_note_from_snapshot(self, original: dict):
+        """Delete exactly one observed BSON identity and revision, without a second read."""
+        from mathmongo.concurrency import exact_document
+
+        return self.db["latex_notes"].delete_one(exact_document(original))
 
     def get_notebook_projects(self) -> list[str]:
         projects = {}
