@@ -27,16 +27,13 @@ await test(
       const record = await page.evaluate(async (key) => {
         const ctx = await (await fetch("/api/study/v1/context")).json(),
           headers = { "X-MathMongo-Library": ctx.library_id };
-        const list = await (
-          await fetch("/api/study/v1/concepts", { headers })
-        ).json();
         return (
           await fetch(
             "/api/study/v1/concepts/detail?" + new URLSearchParams({ key }),
             { headers },
           )
         ).json();
-      });
+      }, process.env.MATHMONGO_CLONE_CONCEPT_KEY);
       const route =
         base + "/study/concepts/" + encodeURIComponent(record.key) + "/edit";
       await coverage.goto(route);
