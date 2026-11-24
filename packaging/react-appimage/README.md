@@ -18,13 +18,15 @@ usarse. El navegador sigue siendo externo.
 Artefacto local probado:
 
 ```
-dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage
-sha256 ec8ca4cfacb9a605fbaab4713a0439a550d7236619e322de19d18f99fd472e05
+dist/MathMongo-098cab43-experimental-x86_64.AppImage
+sha256 6779d1a5f73655231b5dddf49ef7ed83b5a8a1ee7bf48aaafd768f3e5a5a8631
 ```
 
-Payload y frontend construidos en `f00aa5ac`, con recuperación bibliográfica
-completa. La imagen inicial de `11dfe468` se conserva como evidencia del
-checkpoint documental anterior; no se sobrescribió. No se distribuye todavía
+Payload y frontend construidos en `098cab43`, con Biblioteca, Diario, núcleo
+Cornell/CPI y herramientas matemáticas por selección. Tamaño: 39 873 016 bytes;
+se conservan las diecinueve distribuciones fijadas, sin nuevas dependencias.
+La imagen `f00aa5ac` permanece intacta, con su SHA256 anterior; las imágenes de
+checkpoints previos tampoco se sobrescribieron. No se distribuye todavía
 como versión estable ni se afirma compatibilidad con otras distribuciones Linux.
 Se comprobó desde un directorio temporal distinto del repositorio, con intérprete
 `-I -B`, sin PYTHONPATH del repositorio, venv, ni Streamlit disponible.
@@ -32,7 +34,7 @@ Se comprobó desde un directorio temporal distinto del repositorio, con intérpr
 Desde la raíz del repositorio, usando la configuración Mongo existente:
 
 ```bash
-dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage --appimage-extract-and-run --port 8766
+dist/MathMongo-098cab43-experimental-x86_64.AppImage --appimage-extract-and-run --port 8766
 ```
 
 Abrir `http://127.0.0.1:8766/study`. Para elegir explícitamente una biblioteca,
@@ -40,6 +42,21 @@ añadir `--database nombre_de_tu_base`. La opción `--bundle-check` sólo compru
 el contenido/las dependencias del paquete; no conecta ni prepara MongoDB.
 Se probó la modalidad de extracción y ejecución sin exigir FUSE. No se cambia
 HOME ni se añaden configuraciones del usuario a la imagen.
+
+Desde Cuaderno se accede a Cornell y CPI. Los núcleos nuevos permiten edición por
+región, recuperación, páginas y TEX/PDF; las operaciones avanzadas siguen
+delimitadas en `docs/audits/sonarqube-2026-11/mandala/CORNELL_CPI_CHECKPOINT.md`.
+No se presentan los formatos completos como totalmente migrados.
+
+Se ejecutaron nueve recorridos por navegador, Chrome y Firefox, contra MongoDB
+temporal real desde este paquete. Después se detuvo únicamente el grupo del
+backend de prueba, se arrancó otra instancia de la misma imagen y se recuperaron
+cinco notas; el hash del estado Mongo coincidió antes/después. La comprobación
+del runtime demuestra que Streamlit no está disponible. Las capturas y los
+dos `package-restart.json` del recorrido completo están conservados en
+`evidence/sonar/cornell-cpi-2026-11-24/full-packaged-{chrome,firefox}/`.
+Las ejecuciones focalizadas posteriores usan `packaged-study/`; no sustituyen la
+prueba de recuperación de cinco notas del recorrido completo.
 
 ## Construcción reproducible con las herramientas ya verificadas
 
@@ -76,8 +93,9 @@ una versión nueva ni promete que una descarga futura mutable coincida.
 
 ```bash
 .venv/bin/python tests/run_independent_study_e2e.py \
-  --appimage=dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage \
-  --browser=chrome --authoring --notes --document-export --legacy
+  --appimage=dist/MathMongo-098cab43-experimental-x86_64.AppImage \
+  --browser=chrome --authoring --notes --document-export --legacy \
+  --library --notebook --structured --math-tools
 ```
 
 Repetir con `--browser=firefox`. Cada ejecución es dueña del PID/dbpath/puerto
