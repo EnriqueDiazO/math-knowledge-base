@@ -282,3 +282,42 @@ def test_identical_cpi_pages_reorder_their_opaque_metadata_and_replay_exactly(ht
     invalid = {**edit, "revision": result.json()["revision"], "page_origins": [99, 1]}
     assert client.post(path, json=invalid).status_code == 409
     assert client.get(path).json() == result.json()
+
+
+@pytest.mark.parametrize("family", ["cornell", "cpi"])
+def test_historical_unsorted_pages_are_presented_in_order_without_rewriting_bson(
+    http, service, family
+):
+    """The canonical display order is distinct from historical BSON array order."""
+    client, _ = http
+    body = payload(family)
+    second = deepcopy(body["document"]["pages"][0])
+    order = "order" if family == "cornell" else "page_number"
+    second[order] = 2
+    if family == "cornell":
+        second["page_id"] = "second"
+    body["document"]["pages"].append(second)
+    first = client.post(BASE + family, json=body).json()
+    identity = first["note_id"]
+    service.db.latex_notes.update_one(
+        {"_id": identity}, {"$set": {family + ".pages": list(reversed(first["document"]["pages"]))}}
+    )
+    before = service.db.latex_notes.find_one({"_id": identity})
+    path = BASE + family + "/" + identity
+    opened = client.get(path).json()
+    assert [page[order] for page in opened["document"]["pages"]] == [1, 2]
+    origins = [
+        page["page_id" if family == "cornell" else "page_number"]
+        for page in opened["document"]["pages"]
+    ]
+    edit = {
+        "revision": opened["revision"],
+        "metadata": {},
+        "document": opened["document"],
+        "page_origins": origins,
+    }
+    assert client.post(path, json=edit).status_code == 200
+    assert service.db.latex_notes.find_one({"_id": identity}) == before
+    edit["document"]["pages"].reverse()
+    assert client.post(path, json=edit).status_code == 409
+    assert service.db.latex_notes.find_one({"_id": identity}) == before

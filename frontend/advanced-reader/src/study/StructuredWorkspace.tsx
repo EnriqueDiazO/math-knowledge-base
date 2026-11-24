@@ -184,7 +184,13 @@ export function StructuredWorkspace({
     if (!current.current.pending) {
       if (!flush()) return;
       const value = structuredValues(current.current, family);
-      if (!value.metadata.title?.trim()) {
+      if (
+        !value.metadata.title?.trim() &&
+        (!note ||
+          value.metadata.title !==
+            (JSON.parse(current.current.original) as { metadata: Metadata })
+              .metadata.title)
+      ) {
         setMessage("Escribe un título; el borrador se conserva.");
         return;
       }
@@ -388,6 +394,7 @@ export function StructuredWorkspace({
                 onClick={() => {
                   if (!form.restart()) return;
                   remember(structuredDraft(family, remote));
+                  setSavedSource(remote.latex_body);
                   activate(0, regions[family][0][0]);
                   setConflict(false);
                   setRemote(undefined);

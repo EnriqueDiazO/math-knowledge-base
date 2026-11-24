@@ -123,12 +123,15 @@ class StructuredNotes:
 
     def describe(self, note):
         """Keep raw source and raw extended fields distinct from their visual projection."""
+        document = deepcopy(note[self.spec.family])
+        order = "order" if self.spec.family == "cornell" else "page_number"
+        document["pages"].sort(key=lambda page: page[order])
         return {
             "note_id": str(note["_id"]),
             "revision": digest(note),
             "family": self.spec.family,
             "metadata": {key: deepcopy(note[key]) for key in METADATA_FIELDS if key in note},
-            "document": deepcopy(note[self.spec.family]),
+            "document": document,
             "latex_body": note.get("latex_body", ""),
             "regions": [{"key": key, "label": label} for key, label in self.spec.regions],
             "template_ids": list(self.spec.template_ids),
@@ -185,6 +188,10 @@ class StructuredNotes:
         original = self.opened(identity)
         document = self.parse(raw)
         current = self.parse(original[self.spec.family])
+        if origins is not None and document.pages != document.ordered_pages():
+            raise rejected(
+                "El orden de las páginas y sus orígenes no coincide. Abre la nota guardada; el borrador se conserva."
+            )
         fingerprint = digest(
             {
                 "revision": revision,

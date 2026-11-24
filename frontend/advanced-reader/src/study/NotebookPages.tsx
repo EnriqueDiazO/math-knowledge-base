@@ -5,7 +5,12 @@ import type { Navigate } from "./navigation";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import { NotebookWorkspace } from "./NotebookWorkspace";
-import { StructuredPages } from "./StructuredPages";
+import { lazy } from "react";
+const StructuredPages = lazy(() =>
+  import("./StructuredPages").then((module) => ({
+    default: module.StructuredPages,
+  })),
+);
 export function NotebookPages({
   context,
   navigate,
