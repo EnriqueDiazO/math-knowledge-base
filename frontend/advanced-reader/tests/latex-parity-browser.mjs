@@ -136,6 +136,28 @@ await test(
           expect(layout.font).toContain("monospace");
           expect(layout.gutter).toBe("sticky");
           expect(layout.violations).toEqual([]);
+          await expect(
+            page.getByRole("group", {
+              name: "Texto y estructura",
+              exact: true,
+            }),
+          ).toBeHidden();
+          const overlap = await page
+            .locator(".study-document-actions")
+            .evaluate((element) => {
+              const surface = document.querySelector(
+                ".study-document-viewport",
+              );
+              return {
+                position: getComputedStyle(element).position,
+                top: element.getBoundingClientRect().top,
+                bottom: surface.getBoundingClientRect().bottom,
+                zoom: visualViewport.scale,
+              };
+            });
+          expect(overlap.position).toBe("static");
+          expect(overlap.top).toBeGreaterThanOrEqual(overlap.bottom);
+          expect(overlap.zoom).toBe(1);
           await writeFile(
             evidence + "/source-style-policy.json",
             JSON.stringify(layout, null, 2),

@@ -36,6 +36,10 @@
 .study-document-viewport {
   box-shadow: 0 8px 32px #030d1638;
 }
+/* Source has its own resize/scroll area; keep save actions below that area. */
+.study-writing:has(.latex-source:not([hidden])) .study-document-actions {
+  position: static;
+}
 .study-document-viewport .visual-document {
   border: 0;
   margin-top: 0;

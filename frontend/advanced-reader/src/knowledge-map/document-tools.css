@@ -116,4 +116,9 @@
   color: var(--mm-text);
 }
 
-.visual-document .ProseMirror-gapcursor:after { border-top-color: var(--mm-focus); }
+.visual-document .ProseMirror-gapcursor:after {
+  border-top-color: var(--mm-focus);
+}
+[inert].document-tool-group {
+  display: none;
+}
