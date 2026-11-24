@@ -429,11 +429,23 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                                    "latex_sha256": hashlib.sha256(record.get("latex_body", "").encode()).hexdigest(),
                                    "provenance": "authoritative-private-backup", "bson_sha256": hashlib.sha256(json_util.dumps(original,sort_keys=True).encode()).hexdigest()})
                 mongo_facade = MathMongo.from_database(db)
-                cpi_id = create_cpi_note(mongo_facade, sample_metadata(), sample_document()).inserted_id
+                from dataclasses import replace
+
+                from PIL import Image
+                shared_id = "lifecycle-shared-image"
+                image_path = work / "data/mathmongo/media/images/note-actions.png"
+                image_path.parent.mkdir(parents=True, exist_ok=True)
+                Image.new("RGB", (24, 16), "#197f96").save(image_path)
+                document = sample_document()
+                first_page = replace(document.pages[0], production=replace(document.pages[0].production, image_ids=(shared_id,)))
+                document = replace(document, pages=(first_page, *document.pages[1:]))
+                cpi_id = create_cpi_note(mongo_facade, sample_metadata(), document).inserted_id
+                db.latex_notes.insert_one({"_id": "lifecycle-resource-keeper", "title": "Recurso compartido", "latex_body": "Conservar", "image_ids": [shared_id]})
+                db.media_assets.insert_one({"asset_id": shared_id, "note_ids": [str(cpi_id), "lifecycle-resource-keeper"], "concept_ids": [], "path": "media/images/note-actions.png", "filename": "note-actions.png", "mime_type": "image/png", "sha256": hashlib.sha256(image_path.read_bytes()).hexdigest(), "size_bytes": image_path.stat().st_size})
                 cpi = db.latex_notes.find_one({"_id": cpi_id})
                 copied.append({"family": "cpi", "id": str(cpi_id),
                                "latex_sha256": hashlib.sha256(cpi["latex_body"].encode()).hexdigest(),
-                               "provenance": "canonical-synthetic-no-cpi-in-private-backup"})
+                               "provenance": "canonical-synthetic-no-cpi-in-private-backup", "resource_sha256": hashlib.sha256(image_path.read_bytes()).hexdigest()})
                 manifest = work / "note-actions-cases.json"
                 manifest.write_text(json.dumps(copied))
                 environment["MATHMONGO_NOTE_ACTIONS_CASES"] = str(manifest)
@@ -441,6 +453,8 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 proof = json.loads((evidence / "note-actions-browser.json").read_text())
                 assert proof["passed"] and len(proof["cases"]) == 3
                 assert db.latex_notes.find_one({"_id": original["_id"]}) is None
+                assert set(db.media_assets.find_one({"asset_id": shared_id})["note_ids"]) == {str(cpi_id), "lifecycle-resource-keeper"}
+                assert hashlib.sha256(image_path.read_bytes()).hexdigest() == copied[-1]["resource_sha256"]
                 (evidence / "note-actions-provenance.json").write_text(json.dumps(copied, indent=2))
                 assert_no_streamlit(evidence)
             if "--palette" in sys.argv:

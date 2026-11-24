@@ -112,6 +112,9 @@ def test_delete_replays_only_its_own_note_and_preserves_shared_references(
             "absolute_path": str(file),
         }
     )
+    service.db.media_assets.insert_one(
+        {"asset_id": "last-reference", "note_ids": [identity], "absolute_path": str(file)}
+    )
     service.db.references.insert_one({"_id": "untouched-reference", "opaque": True})
     request = action(note, "delete")
     first = client.post(path + "/actions", json=request)
@@ -122,6 +125,7 @@ def test_delete_replays_only_its_own_note_and_preserves_shared_references(
     )
     assert client.post(path + "/actions", json=request).json() == first.json()
     assert service.db.media_assets.find_one({"asset_id": "shared"})["note_ids"] == ["other-note"]
+    assert service.db.media_assets.find_one({"asset_id": "last-reference"})["note_ids"] == []
     assert file.exists() and service.db.references.find_one({"_id": "untouched-reference"}) == {
         "_id": "untouched-reference",
         "opaque": True,
