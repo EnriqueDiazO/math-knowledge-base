@@ -30,12 +30,16 @@ TOOL_SHA256 = "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 RUNTIME_SHA256 = "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46"
 
 
+def file_sha256(path):
+    """Read a package digest while closing its file descriptor deterministically."""
+    with path.open("rb") as handle:
+        return hashlib.file_digest(handle, "sha256").hexdigest()
+
+
 def verified_tool(path, expected):
     """Require pinned bytes before executing an external packaging program."""
     path = Path(path).resolve(strict=True)
-    with path.open("rb") as handle:
-        actual = hashlib.file_digest(handle, "sha256").hexdigest()
-    if actual != expected:
+    if file_sha256(path) != expected:
         raise ValueError("La herramienta de empaquetado no coincide con la huella fijada.")
     return path
 
@@ -158,7 +162,7 @@ def main():
         json.dumps(
             {
                 "path": str(output),
-                "sha256": hashlib.file_digest(output.open("rb"), "sha256").hexdigest(),
+                "sha256": file_sha256(output),
             }
         )
     )

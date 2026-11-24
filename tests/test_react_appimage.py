@@ -84,3 +84,50 @@ def test_runtime_rejects_venv_and_external_symlinks_before_staging(tmp_path):
     with pytest.raises(ValueError, match="fuera de su directorio"):
         build.prepare_appdir(output, runtime)
     assert not output.exists()
+
+
+def test_build_publishes_a_real_digest_and_refuses_to_replace_an_existing_package(
+    tmp_path, monkeypatch, capsys
+):
+    """The packaging process receives bounded inputs and an existing artifact is never replaced."""
+    import hashlib
+    import json
+
+    output = tmp_path / "MathMongo.AppImage"
+    tool = tmp_path / "tool"
+    tool.touch()
+    runtime = tmp_path / "runtime"
+    runtime.touch()
+    calls = []
+    monkeypatch.setattr(build, "verified_tool", lambda path, expected: Path(path))
+    monkeypatch.setattr(build, "prepare_appdir", lambda target, python: target.mkdir())
+
+    def compile_bundle(command, **options):
+        calls.append((command, options))
+        assert "--runtime-file" in command and str(runtime) in command
+        assert options["check"] is True and options["timeout"] == 300
+        Path(command[-1]).write_bytes(b"verified generated package")
+
+    monkeypatch.setattr(build.subprocess, "run", compile_bundle)
+    monkeypatch.setattr(
+        build.sys,
+        "argv",
+        [
+            "build",
+            "--python-runtime",
+            str(tmp_path),
+            "--appimagetool",
+            str(tool),
+            "--runtime-file",
+            str(runtime),
+            "--output",
+            str(output),
+        ],
+    )
+    assert build.main() == 0
+    report = json.loads(capsys.readouterr().out)
+    assert report["sha256"] == hashlib.sha256(output.read_bytes()).hexdigest()
+    assert len(calls) == 1
+    with pytest.raises(ValueError, match="no se sobrescribió"):
+        build.main()
+    assert output.read_bytes() == b"verified generated package" and len(calls) == 1
