@@ -269,6 +269,19 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.source_documents.find_one({"document_id":proof["documentId"]})["status"]=="active"
                 assert db.reading_notes.find_one({"note_id":proof["noteId"]})["document_id"]==proof["documentId"]
                 print(json.dumps({"browser":browser,"library":"passed","MathV0_writes":0}))
+            if "--notebook" in sys.argv:
+                historical = {"_id":"historical-diary", "title":"Diario histórico de prueba", "latex_body": "% preservar exactamente\n\\macroHistorica{α}\n\\begin{tikzpicture}\\draw (0,0)--(1,1);\\end{tikzpicture}\n", "unknown_metadata":{"preserve":[1,"two"]}, "image_ids":["shared-historical"]}
+                db.latex_notes.insert_one(historical.copy())
+                subprocess.run(["node","tests/notebook-browser.mjs"],cwd=ROOT/"frontend/advanced-reader",env=environment,check=True,timeout=240)
+                proof=json.loads((evidence/"notebook-browser.json").read_text())
+                note=db.latex_notes.find_one({"_id":proof["noteId"]})
+                assert note["title"]=="Mi título tras conflicto" and note["project"]=="Proyecto de otra ventana"
+                assert note["references"][0]["catalog_reference_id"]==proof["referenceId"]
+                assert proof["protectedLatex"] in note["latex_body"]
+                assert db.latex_notes.count_documents({})==2
+                assert db.latex_notes.find_one({"_id":"historical-diary"})==historical
+                assert not json.loads((evidence/"ownership.json").read_text())["streamlit_imported"]
+                print(json.dumps({"browser":browser,"notebook":"passed","exact_historical_source":True,"MathV0_writes":0}))
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.

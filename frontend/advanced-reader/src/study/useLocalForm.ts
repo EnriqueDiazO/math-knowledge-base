@@ -66,10 +66,12 @@ export function useLocalForm<T extends object>(key: string, initial: () => T) {
       corrupt.current = false;
       update(next);
       setProblem("");
+      return true;
     } catch {
       setProblem(
         "No se pudo conservar una copia. El borrador original sigue intacto; descárgalo y recupera el almacenamiento.",
       );
+      return false;
     }
   };
   return {

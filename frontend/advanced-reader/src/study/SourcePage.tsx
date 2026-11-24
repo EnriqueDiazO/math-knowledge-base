@@ -92,6 +92,12 @@ export function SourcePage({
         >
           Conceptos de esta fuente
         </StudyLink>
+        <StudyLink
+          to={"/study/notebook?source=" + encodeURIComponent(sourceId)}
+          navigate={navigate}
+        >
+          Entradas del Cuaderno con referencias de esta fuente
+        </StudyLink>
       </div>
       {source.status !== "archived" && (
         <div className="study-actions">

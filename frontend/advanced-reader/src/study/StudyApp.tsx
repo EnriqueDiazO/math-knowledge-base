@@ -13,6 +13,11 @@ import "./surfaces.css";
 import "./activity-forms.css";
 
 const AppearancePage = lazy(() => import("./AppearancePage"));
+const NotebookPages = lazy(() =>
+  import("./NotebookPages").then((module) => ({
+    default: module.NotebookPages,
+  })),
+);
 const NewSourcePage = lazy(() =>
   import("./SourceForms").then((module) => ({ default: module.NewSourcePage })),
 );
@@ -188,7 +193,12 @@ export function StudyApp() {
         navigate={navigate}
       />
     ) : (
-      <ConceptsPage key={url.search} context={context} navigate={navigate} search={url.search} />
+      <ConceptsPage
+        key={url.search}
+        context={context}
+        navigate={navigate}
+        search={url.search}
+      />
     );
   else if (section === "spaces")
     content = (
@@ -257,17 +267,12 @@ export function StudyApp() {
     );
   else if (section === "notebook")
     content = (
-      <section>
-        <h1>Cuaderno</h1>
-        <p>
-          Diario, tareas, revisiones, entregables y formatos Cornell/CPI
-          conservan sus modelos y herramientas actuales. Su migración está
-          pendiente; no se han retirado.
-        </p>
-        <StudyLink to="/study/notes" navigate={navigate}>
-          Continuar escribiendo una nota de lectura
-        </StudyLink>
-      </section>
+      <NotebookPages
+        context={context}
+        identity={identity}
+        navigate={navigate}
+        search={url.search}
+      />
     );
   else
     content = (

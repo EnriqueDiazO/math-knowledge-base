@@ -6,10 +6,12 @@ export function ExportActions({
   context,
   conceptKeys = [],
   noteIds = [],
+  notebookId,
 }: {
   context: StudyContext;
   conceptKeys?: string[];
   noteIds?: string[];
+  notebookId?: string;
 }) {
   const scope = useOperationScope(context),
     [message, setMessage] = useState(""),
@@ -24,12 +26,20 @@ export function ExportActions({
         : "Preparando el proyecto LaTeX…",
     );
     try {
-      const blob = await studyBinary("/export", context, {
-        format,
-        concept_keys: conceptKeys,
-        note_ids: noteIds,
-        include_technical_ids: includeIds,
-      });
+      const blob = await studyBinary(
+        notebookId
+          ? "/notebook/" + encodeURIComponent(notebookId) + "/export"
+          : "/export",
+        context,
+        notebookId
+          ? { format }
+          : {
+              format,
+              concept_keys: conceptKeys,
+              note_ids: noteIds,
+              include_technical_ids: includeIds,
+            },
+      );
       if (!scope.active) return;
       downloadDocument(
         blob,
@@ -45,18 +55,42 @@ export function ExportActions({
     }
   };
   return (
-    <section className="study-export-actions" aria-label="Exportar documentos">
-      <label><input type="checkbox" checked={includeIds} disabled={busy} onChange={event => setIncludeIds(event.target.checked)} /> Incluir identificadores técnicos</label>
+    <section
+      className="study-export-actions"
+      aria-label={
+        notebookId ? "Exportar entrada guardada" : "Exportar documentos"
+      }
+    >
+      {notebookId ? (
+        <p>
+          Se exporta la versión guardada. Guarda primero si quieres incluir los
+          cambios del borrador.
+        </p>
+      ) : (
+        <label>
+          <input
+            type="checkbox"
+            checked={includeIds}
+            disabled={busy}
+            onChange={(event) => setIncludeIds(event.target.checked)}
+          />{" "}
+          Incluir identificadores técnicos
+        </label>
+      )}
       <button
         type="button"
-        disabled={busy || (!conceptKeys.length && !noteIds.length)}
+        disabled={
+          busy || (!notebookId && !conceptKeys.length && !noteIds.length)
+        }
         onClick={() => void run("tex")}
       >
         Exportar proyecto TEX
       </button>
       <button
         type="button"
-        disabled={busy || (!conceptKeys.length && !noteIds.length)}
+        disabled={
+          busy || (!notebookId && !conceptKeys.length && !noteIds.length)
+        }
         onClick={() => void run("pdf")}
       >
         Exportar PDF
