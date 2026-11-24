@@ -14,6 +14,8 @@ from mathmongo.reading_annotations.service import ReadingAnnotationService
 from mathmongo.reading_space.preparation import ReadingPreparation
 from mathmongo.source_catalog.repository import ReferenceRepository
 from mathmongo.source_catalog.repository import SourceRepository
+from mathmongo.source_catalog.repository import source_revision, reference_revision
+from mathmongo.source_documents.repository import document_revision
 
 
 class StudyApplication:
@@ -53,10 +55,10 @@ class StudyApplication:
             },
         }
 
-    def library(self, query="", page=1):
+    def library(self, query="", page=1, *, status="active", source_type=""):
         """Search bibliography on the server before paging; never truncate matches first."""
         pipeline = [
-            {"$match": {"status": "active"}},
+            {"$match": {"status": status, **({"source_type":source_type} if source_type else {})}},
             {
                 "$lookup": {
                     "from": "references",
@@ -93,6 +95,8 @@ class StudyApplication:
                         "source_id": 1,
                         "name": 1,
                         "description": 1,
+                        "source_type": 1,
+                        "status": 1,
                         "bibliography.title": 1,
                         "bibliography.authors": 1,
                         "bibliography.year": 1,
@@ -116,28 +120,35 @@ class StudyApplication:
             "page_size": 20,
         }
 
-    def source(self, source_id, documents):
+    def source(self, source_id, documents, *, document_page=1, reference_page=1, document_status="active"):
         """Resolve a deep link exactly, independently of the current search page."""
         source = self.sources.get_by_id(source_id)
         if source is None:
             raise AdvancedReaderError(
                 "source_not_found", "Esta fuente ya no está disponible.", status_code=404
             )
-        items = documents.list(source_id, page_size=100, status="active").items
-        references = self.references.list(source_id=source_id, page_size=100).items
+        document_list = documents.list(source_id, page=document_page, page_size=100, status=document_status)
+        items = document_list.items
+        reference_list = self.references.list(source_id=source_id, page=reference_page, page_size=100)
+        references = reference_list.items
         return {
             "source_id": source.source_id,
             "name": source.name,
             "description": source.description,
+            "status": source.status.value,
+            "source_type": source.source_type.value,
+            "revision": source_revision(source),
+            "document_count": document_list.total,
+            "reference_count": reference_list.total,
             "documents": [
-                {"web_url": item.web.url_normalized if item.web else None, **{
+                {"revision": document_revision(item), "web_url": item.web.url_normalized if item.web else None, **{
                     key: item.model_dump(mode="json")[key]
-                    for key in ("document_id", "source_id", "reference_id", "title", "kind")
+                    for key in ("document_id", "source_id", "reference_id", "title", "kind", "status")
                 }}
                 for item in items
             ],
             "references": [
-                ref.model_dump(mode="json", exclude={"raw", "provenance"}) for ref in references
+                {**ref.model_dump(mode="json", include={"reference_id","title","authors","year","doi","isbn","url","status","source_ids"}), "revision": reference_revision(ref)} for ref in references
             ],
         }
 
@@ -168,7 +179,7 @@ class StudyApplication:
         )
         return {"items": items, "total": self.db.reading_notes.count_documents(query), "page": page}
 
-    def concepts(self, query="", kind="", source_id="", page=1):
+    def concepts(self, query="", kind="", source_id="", page=1, *, document_id=""):
         """Page metadata before loading bodies; legacy source identity stays intact."""
         filters = {"_delete_operation": {"$exists": False}}
         if query.strip():
@@ -177,7 +188,18 @@ class StudyApplication:
             filters["tipo"] = kind
         if source_id:
             source = self.sources.get_by_id(source_id)
-            filters["$or"] = [{"source_id": source_id}, {"source": source.name if source else ""}]
+            names = [source.name, *(alias.value for alias in source.aliases)] if source else []
+            filters["$or"] = [{"source_id": source_id}, {"source": {"$in":names}}]
+        if document_id:
+            document = self.db.source_documents.find_one({"document_id":document_id})
+            if document is None or (source_id and document.get("source_id") != source_id):
+                return {"items":[],"page":page,"total":0}
+            linked_notes = self.db.reading_notes.distinct("note_id", {"document_id":document_id})
+            links = self.db.concept_evidence_links.find({"status":"active", "$or":[{"document_id":document_id},{"note_id":{"$in":linked_notes}}]}, {"concept_legacy_id":1,"concept_legacy_source":1})
+            identities = [{"id":item["concept_legacy_id"],"source":item["concept_legacy_source"]} for item in links]
+            if not identities:
+                return {"items":[],"page":page,"total":0}
+            filters["$and"] = [{"$or":identities}]
         projection = {"id": 1, "source": 1, "titulo": 1, "tipo": 1}
         items = [{"key": str(doc["id"]) + "@" + doc["source"], "titulo": doc.get("titulo") or str(doc["id"]), "tipo": doc.get("tipo", "nota"), "source": doc["source"]} for doc in self.db.concepts.find(filters, projection).sort([("titulo", 1), ("_id", 1)]).skip((page-1)*20).limit(20)]
         return {"items": items, "page": page, "total": self.db.concepts.count_documents(filters)}

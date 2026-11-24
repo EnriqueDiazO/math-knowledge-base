@@ -76,13 +76,13 @@ def build_study_router() -> APIRouter:
         return app.context()  # always a new backend read-back, never a guessed success
 
     @router.get("/library")
-    def library(request: Request, q: str = Query("", max_length=200), page: int = Query(1, ge=1)):
-        return scoped(request).library(q, page)
+    def library(request: Request, q: str = Query("", max_length=200), page: int = Query(1, ge=1), status: str = Query("active", pattern="^(active|archived)$"), source_type: str = Query("", max_length=40)):
+        return scoped(request).library(q, page, status=status, source_type=source_type)
 
     @router.get("/sources/{source_id}")
-    def source(source_id: str, request: Request):
+    def source(source_id: str, request: Request, document_page: int = Query(1,ge=1), reference_page: int = Query(1,ge=1), document_status: str = Query("active",pattern="^(active|archived)$")):
         deps = request.app.state.advanced_reader_dependencies
-        return scoped(request).source(source_id, deps.document_service.documents)
+        return scoped(request).source(source_id, deps.document_service.documents, document_page=document_page, reference_page=reference_page, document_status=document_status)
 
     @router.get("/notes")
     def notes(request: Request, page: int = Query(1, ge=1), q: str = Query("", max_length=200), source_id: str = Query("", max_length=100), document_id: str = Query("", max_length=100)):
@@ -103,8 +103,8 @@ def build_study_router() -> APIRouter:
         return {"sources": [{"id": source.source_id, "name": source.name} for source in app.sources.list(page_size=100, status="active").items], "concept_types": list(CONCEPT_TYPES), "relation_types": [kind.value for kind in TipoRelacion]}
 
     @router.get("/concepts")
-    def concepts(request: Request, q: str = Query("", max_length=200), tipo: str = Query("", max_length=40), source_id: str = Query("", max_length=100), page: int = Query(1, ge=1, le=1000000)):
-        return scoped(request).concepts(q, tipo, source_id, page)
+    def concepts(request: Request, q: str = Query("", max_length=200), tipo: str = Query("", max_length=40), source_id: str = Query("", max_length=100), page: int = Query(1, ge=1, le=1000000), document_id: str = Query("", max_length=100)):
+        return scoped(request).concepts(q, tipo, source_id, page, document_id=document_id)
 
     @router.get("/overview")
     def overview(request: Request):
