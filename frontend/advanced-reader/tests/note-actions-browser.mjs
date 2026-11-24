@@ -103,17 +103,30 @@ await test(
             copy = (await request(root + "/" + copyId)).body;
           expect(copy.latex_body).toBe(initial.latex_body);
           expect(copy.document).toEqual(initial.document);
-        if (item.resource_sha256) {
-          const exported = page.waitForEvent("download");
-          await button("Exportar proyecto TEX").click();
-          const bundlePath = evidence + "/note-copy-cpi-resources.zip";
-          await (await exported).saveAs(bundlePath);
-          const result = spawnSync("python3", ["-c", "import hashlib,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=next(n for n in z.namelist() if 'cpi_assets/media' in n and n.endswith('.png')); print(hashlib.sha256(z.read(n)).hexdigest())", bundlePath], {encoding:"utf8"});
-          expect(result.status).toBe(0);expect(result.stdout.trim()).toBe(item.resource_sha256);
-          const pdf = page.waitForEvent("download");await button("Exportar PDF").click();
-          const pdfPath = evidence + "/note-copy-cpi-resources.pdf";
-          await (await pdf).saveAs(pdfPath);expect((await readFile(pdfPath)).subarray(0,5).toString()).toBe("%PDF-");
-        }
+          if (item.resource_sha256) {
+            const exported = page.waitForEvent("download");
+            await button("Exportar proyecto TEX").click();
+            const bundlePath = evidence + "/note-copy-cpi-resources.zip";
+            await (await exported).saveAs(bundlePath);
+            const result = spawnSync(
+              "python3",
+              [
+                "-c",
+                "import hashlib,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=next(n for n in z.namelist() if 'cpi_assets/media' in n and n.endswith('.png')); print(hashlib.sha256(z.read(n)).hexdigest())",
+                bundlePath,
+              ],
+              { encoding: "utf8" },
+            );
+            expect(result.status).toBe(0);
+            expect(result.stdout.trim()).toBe(item.resource_sha256);
+            const pdf = page.waitForEvent("download");
+            await button("Exportar PDF").click();
+            const pdfPath = evidence + "/note-copy-cpi-resources.pdf";
+            await (await pdf).saveAs(pdfPath);
+            expect((await readFile(pdfPath)).subarray(0, 5).toString()).toBe(
+              "%PDF-",
+            );
+          }
           await page.screenshot({
             path: evidence + "/note-copy-" + family + ".png",
             fullPage: true,
