@@ -24,7 +24,7 @@ await test(
     let passed = false;
     try {
       await coverage.goto(base + "/study/concepts");
-      const record = await page.evaluate(async () => {
+      const record = await page.evaluate(async (key) => {
         const ctx = await (await fetch("/api/study/v1/context")).json(),
           headers = { "X-MathMongo-Library": ctx.library_id };
         const list = await (
@@ -32,8 +32,7 @@ await test(
         ).json();
         return (
           await fetch(
-            "/api/study/v1/concepts/detail?" +
-              new URLSearchParams({ key: list.items[0].key }),
+            "/api/study/v1/concepts/detail?" + new URLSearchParams({ key }),
             { headers },
           )
         ).json();

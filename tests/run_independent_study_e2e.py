@@ -276,8 +276,6 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 + "\n"
             )
             print(json.dumps({"browser": browser, "status": "passed", "streamlit_started": False}))
-            if "--clone-drafts" in sys.argv:
-                subprocess.run(["node", "tests/concept-cloned-window-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=180)
             if "--authoring" in sys.argv:
                 if "--needs-preparation" in sys.argv:
                     # Simulate a compatible unprepared library only inside this
@@ -408,6 +406,14 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.concepts.count_documents({}) == 9
                 assert db.reading_notes.count_documents({}) == 1
                 print(json.dumps({"browser": browser, "palette": "passed", "temporary_concepts": 9}))
+            if "--clone-drafts" in sys.argv:
+                identity = {"id": "clone-probe", "source": source.name}
+                db.concepts.insert_one({**identity, "source_id": source.source_id,
+                                        "titulo": "Documento de control de ventanas",
+                                        "tipo": "definicion", "comentario": "", "categorias": []})
+                db.latex_documents.insert_one({**identity, "contenido_latex": "Una idea matemática que permanece después de recargar.$\\frac{1}{2}$\n\n"})
+                environment["MATHMONGO_CLONE_CONCEPT_KEY"] = identity["id"] + "@" + identity["source"]
+                subprocess.run(["node", "tests/concept-cloned-window-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=180)
             if "--latex-parity" in sys.argv:
                 from tests.latex_parity_corpus import freeze_corpus
                 manifest = freeze_corpus(work / "corpus")
