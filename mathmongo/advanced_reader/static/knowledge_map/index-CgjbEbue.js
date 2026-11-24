@@ -55711,7 +55711,7 @@ var gB = Qp.create({
 	pending;
 	closed = !1;
 	selection;
-	constructor(e, t, n, r = () => import("./source-editor-BT-AccRB.js")) {
+	constructor(e, t, n, r = () => import("./source-editor-C_BfDS_-.js")) {
 		this.host = e, this.text = t, this.changed = n, this.load = r, e.className = "latex-source";
 	}
 	get value() {
@@ -56283,6 +56283,7 @@ var IB = Ap.create({
 		}, !0);
 		let d = PB("section");
 		d.hidden = !0, this.preview = PB("div"), this.preview.className = "document-preview", this.preview.hidden = !0, this.editor = new qp({
+			injectCSS: !1,
 			element: this.visual,
 			extensions: BB(i?.preview),
 			content: r?.json ?? jB(t),
@@ -56432,6 +56433,7 @@ var IB = Ap.create({
 };
 function HB(e, t, n) {
 	let r = new qp({
+		injectCSS: !1,
 		element: e,
 		extensions: BB(n),
 		editable: !1,

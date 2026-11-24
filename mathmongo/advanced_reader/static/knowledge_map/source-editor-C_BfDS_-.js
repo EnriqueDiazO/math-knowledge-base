@@ -12929,7 +12929,7 @@ var Oh = [
 	],
 	[
 		"reference",
-		"Referencia",
+		"Referencia (definición propia)",
 		!1
 	],
 	[
@@ -12995,8 +12995,24 @@ function Ah(e) {
 	};
 }
 //#endregion
+//#region src/latex/source-editor.css?inline
+var jh = ".latex-source{--mm-code-command:var(--mm-sky);--mm-code-comment:var(--mm-muted);--mm-code-value:var(--mm-turquoise);border:1px solid var(--mm-line);background:var(--mm-panel);min-width:0;color:var(--mm-text);border-radius:6px}.latex-source[hidden]{display:none}.latex-source-tools{border-bottom:1px solid var(--mm-line);flex-wrap:wrap;align-items:center;gap:.5rem;padding:.65rem;display:flex}.latex-source-tools label{align-items:center;gap:.4rem;font-size:.85rem;display:flex}.latex-source-tools input{width:5rem}.latex-source-viewport{resize:vertical;height:28rem;min-height:12rem;max-height:80dvh;overflow:auto}.latex-source .cm-editor{min-width:0;font-size:.95rem}.latex-source .cm-gutters{background:var(--mm-control);color:var(--mm-muted);border-right-color:var(--mm-line)}.latex-source .cm-activeLineGutter,.latex-source .cm-activeLine{background:var(--mm-selected-bg)}.latex-source .cm-cursor{border-left-color:var(--mm-text)}.latex-source .cm-selectionBackground,.latex-source .cm-focused .cm-selectionBackground{background:var(--mm-selected-bg)}.latex-source .cm-panel,.latex-source .cm-tooltip{background:var(--mm-control);color:var(--mm-text);border-color:var(--mm-line)}.latex-source .cm-search{white-space:normal}.latex-source .cm-search label{gap:.25rem;display:inline-flex}.latex-source .cm-search input{background:var(--mm-panel);max-width:12rem;color:var(--mm-text)}.latex-source .cm-focused{outline:2px solid var(--mm-focus);outline-offset:-2px}.latex-source-hint{color:var(--mm-muted);margin:.5rem .7rem;font-size:.8rem}@media (width<=600px){.latex-source .cm-search input{max-width:9rem}.latex-source-tools{gap:.3rem}}", Mh = /* @__PURE__ */ new WeakMap();
+function Nh(e) {
+	let t = e.ownerDocument, n = t.defaultView?.CSSStyleSheet;
+	if (!n?.prototype.replaceSync) throw Error("Constructable stylesheets unavailable");
+	let r = Mh.get(t);
+	r || (r = new n(), r.replaceSync(jh + "\n:host{display:block}.code-root{height:100%;border:0;border-radius:0}"), Mh.set(t, r));
+	let i = e.attachShadow({ mode: "open" });
+	i.adoptedStyleSheets = [r];
+	let a = t.createElement("div");
+	return a.className = "latex-source code-root", i.append(a), {
+		parent: a,
+		root: i
+	};
+}
+//#endregion
 //#region src/latex/source-editor.ts
-var jh = {
+var Ph = {
 	Find: "Buscar",
 	Replace: "Reemplazar",
 	next: "siguiente",
@@ -13015,19 +13031,48 @@ var jh = {
 	"Replace with": "Reemplazar por",
 	"Fold line": "Plegar línea",
 	"Unfold line": "Desplegar línea"
-}, Mh = (e, t = "") => {
+}, Fh = (e, t = "") => {
 	let n = document.createElement(e);
 	return n.textContent = t, n;
-}, Nh = class {
+}, Ih = Yl(Gl.define([
+	{
+		tag: [w.keyword, w.name],
+		color: "var(--mm-code-command)"
+	},
+	{
+		tag: w.comment,
+		color: "var(--mm-code-comment)",
+		fontStyle: "italic"
+	},
+	{
+		tag: [w.string, w.number],
+		color: "var(--mm-code-value)"
+	},
+	{
+		tag: [w.bracket, w.punctuation],
+		color: "var(--mm-text)"
+	}
+])), Lh = Y.theme({
+	"&": {
+		height: "100%",
+		color: "var(--mm-text)",
+		backgroundColor: "var(--mm-panel)"
+	},
+	".cm-scroller": {
+		overflow: "auto",
+		fontFamily: "ui-monospace, monospace",
+		lineHeight: "1.6"
+	}
+}, { dark: !0 }), Rh = _u.define(Dh), zh = class {
 	host;
 	view;
 	height;
 	constructor(e, t, n, r) {
 		this.host = e, e.className = "latex-source";
-		let i = Mh("div");
+		let i = Fh("div");
 		i.className = "latex-source-tools", i.setAttribute("role", "group"), i.setAttribute("aria-label", "Herramientas de código LaTeX");
 		let a = (e, t) => {
-			let n = Mh("button", e);
+			let n = Fh("button", e);
 			return n.type = "button", n.onclick = t, i.append(n), n;
 		};
 		a("Buscar y reemplazar", () => em(this.view));
@@ -13035,7 +13080,7 @@ var jh = {
 			Qu(this.view), this.view.focus();
 		}), s = a("Rehacer código", () => {
 			$u(this.view), this.view.focus();
-		}), c = Mh("select");
+		}), c = Fh("select");
 		c.setAttribute("aria-label", "Insertar fragmento LaTeX"), c.append(new Option("Insertar entorno…", "")), Oh.forEach(({ name: e, label: t }) => c.append(new Option(t, e))), c.onchange = () => {
 			let e = Oh.find(({ name: e }) => e === c.value);
 			if (e) {
@@ -13044,9 +13089,9 @@ var jh = {
 			}
 			c.value = "";
 		}, i.append(c);
-		let l = Mh("label", "Ir a línea"), u = Mh("input");
+		let l = Fh("label", "Ir a línea"), u = Fh("input");
 		u.type = "number", u.min = "1", u.value = "1", u.inputMode = "numeric", l.append(u), i.append(l);
-		let d = Mh("span");
+		let d = Fh("span");
 		d.setAttribute("role", "status"), a("Ir", () => {
 			let e = Number(u.value);
 			if (!Number.isInteger(e) || e < 1 || e > this.view.state.doc.lines) {
@@ -13059,18 +13104,21 @@ var jh = {
 				effects: Y.scrollIntoView(t, { y: "center" })
 			}), this.view.focus(), d.textContent = "";
 		}), i.append(d);
-		let f = Mh("div");
-		f.className = "latex-source-viewport", this.height = Mh("select"), this.height.setAttribute("aria-label", "Altura del código"), this.height.append(new Option("Altura normal", "28rem"), new Option("Compacto", "20rem"), new Option("Amplio", "48rem")), this.height.onchange = () => {
+		let f = Fh("div");
+		f.className = "latex-source-viewport", this.height = Fh("select"), this.height.setAttribute("aria-label", "Altura del código"), this.height.append(new Option("Altura normal", "28rem"), new Option("Compacto", "20rem"), new Option("Amplio", "48rem")), this.height.onchange = () => {
 			f.style.height = this.height.value, this.view.requestMeasure(), n();
 		}, i.append(this.height);
-		let p = Mh("p", "Ctrl+F: buscar · Ctrl+H: reemplazar · Ctrl+Espacio: completar · Tab: siguiente campo del fragmento · Esc y Tab: salir del editor.");
-		p.className = "latex-source-hint", e.append(i, f, p), this.view = new Y({
-			parent: f,
+		let p = Fh("p", "Ctrl+F: buscar · Ctrl+H: reemplazar · Ctrl+Espacio: completar · Tab: siguiente campo del fragmento · Esc y Tab: salir del editor.");
+		p.className = "latex-source-hint", e.append(i, f, p);
+		let m = Nh(f);
+		this.view = new Y({
+			parent: m.parent,
+			root: m.root,
 			state: P.create({
 				doc: t,
 				extensions: [
 					P.lineSeparator.of("\n"),
-					P.phrases.of(jh),
+					P.phrases.of(Ph),
 					al(),
 					oc(),
 					pc(),
@@ -13078,26 +13126,8 @@ var jh = {
 					Xu(),
 					Wl(),
 					su(),
-					_u.define(Dh),
-					Yl(Gl.define([
-						{
-							tag: [w.keyword, w.name],
-							color: "var(--mm-code-command)"
-						},
-						{
-							tag: w.comment,
-							color: "var(--mm-code-comment)",
-							fontStyle: "italic"
-						},
-						{
-							tag: [w.string, w.number],
-							color: "var(--mm-code-value)"
-						},
-						{
-							tag: [w.bracket, w.punctuation],
-							color: "var(--mm-text)"
-						}
-					])),
+					Rh,
+					Ih,
 					Cp({ top: !0 }),
 					Ch({ override: [Ah] }),
 					Vs.of([
@@ -13112,18 +13142,7 @@ var jh = {
 						"aria-multiline": "true",
 						spellcheck: "false"
 					}),
-					Y.theme({
-						"&": {
-							height: "100%",
-							color: "var(--mm-text)",
-							backgroundColor: "var(--mm-panel)"
-						},
-						".cm-scroller": {
-							overflow: "auto",
-							fontFamily: "ui-monospace, monospace",
-							lineHeight: "1.6"
-						}
-					}, { dark: !0 }),
+					Lh,
 					Y.updateListener.of((e) => {
 						o.disabled = rd(e.state) === 0, s.disabled = id(e.state) === 0, (e.docChanged || e.selectionSet || e.viewportChanged) && n();
 					})
@@ -13171,4 +13190,4 @@ var jh = {
 	}
 };
 //#endregion
-export { Nh as LatexSourceEditor };
+export { zh as LatexSourceEditor };
