@@ -1,7 +1,7 @@
 import test from "node:test";
 import { chromium, firefox, expect } from "@playwright/test";
 import { writeFile } from "node:fs/promises";
-import { readSource, writeSource, sourceField } from "./source-browser.mjs";
+import { readSource, writeSource } from "./source-browser.mjs";
 import { browserCoverage } from "./browser-coverage.mjs";
 await test(
   "a cloned session cannot erase its opener's unsaved concept",
