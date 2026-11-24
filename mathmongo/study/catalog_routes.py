@@ -38,7 +38,7 @@ class BibliographyRequest(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
     request_id: UUID
-    action: str = Field(pattern="^(identifier|edition|title|save)$")
+    action: str = Field(pattern="^(identifier|edition|title|local|save)$")
     query: str = Field(default="", max_length=500)
     author: str = Field(default="", max_length=300)
     source_id: str = Field(default="", max_length=100)

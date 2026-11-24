@@ -191,18 +191,6 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 + "\n"
             )
             print(json.dumps({"browser": browser, "status": "passed", "streamlit_started": False}))
-            if "--library" in sys.argv:
-                upload = work / "library.pdf"
-                upload.write_bytes(synthetic_text_pdf(padding_bytes=0))
-                environment["MATHMONGO_AUTHORING_PDF"] = str(upload)
-                subprocess.run(["node","tests/library-browser.mjs"],cwd=ROOT/"frontend/advanced-reader",env=environment,check=True,timeout=240)
-                proof=json.loads((evidence/"library-browser.json").read_text())
-                assert db.sources.find_one({"source_id":proof["sourceId"]})["name"]=="Fuente corregida y recuperable"
-                assert set(db.references.find_one({"reference_id":proof["referenceId"]})["source_ids"])=={proof["sourceId"],proof["secondSourceId"]}
-                assert db.references.count_documents({"source_ids":proof["sourceId"]})==2
-                assert db.source_documents.find_one({"document_id":proof["documentId"]})["status"]=="active"
-                assert db.reading_notes.find_one({"note_id":proof["noteId"]})["document_id"]==proof["documentId"]
-                print(json.dumps({"browser":browser,"library":"passed","MathV0_writes":0}))
             if "--authoring" in sys.argv:
                 if "--needs-preparation" in sys.argv:
                     # Simulate a compatible unprepared library only inside this
@@ -269,6 +257,18 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                     current = db.concepts.find_one(identity)
                     assert all(current[key] == value for key,value in item["metadata"].items() if key not in {"ultima_actualizacion"})
                 print(json.dumps({"browser":browser,"legacy":"passed","real_copies":len(copied),"MathV0_writes":0}))
+            if "--library" in sys.argv:
+                upload = work / "library.pdf"
+                upload.write_bytes(synthetic_text_pdf(padding_bytes=0))
+                environment["MATHMONGO_AUTHORING_PDF"] = str(upload)
+                subprocess.run(["node","tests/library-browser.mjs"],cwd=ROOT/"frontend/advanced-reader",env=environment,check=True,timeout=240)
+                proof=json.loads((evidence/"library-browser.json").read_text())
+                assert db.sources.find_one({"source_id":proof["sourceId"]})["name"]=="Fuente corregida y recuperable"
+                assert set(db.references.find_one({"reference_id":proof["referenceId"]})["source_ids"])=={proof["sourceId"],proof["secondSourceId"]}
+                assert db.references.count_documents({"source_ids":proof["sourceId"]})==2
+                assert db.source_documents.find_one({"document_id":proof["documentId"]})["status"]=="active"
+                assert db.reading_notes.find_one({"note_id":proof["noteId"]})["document_id"]==proof["documentId"]
+                print(json.dumps({"browser":browser,"library":"passed","MathV0_writes":0}))
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.

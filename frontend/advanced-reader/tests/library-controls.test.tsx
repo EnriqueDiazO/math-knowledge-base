@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, expect, it, vi } from "vitest";
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { BibtexImport } from "../src/study/BibtexImport";
 import { ReferencePicker } from "../src/study/ReferencePicker";
 import { CatalogStateAction } from "../src/study/CatalogStateAction";
+import { SourcePage } from "../src/study/SourcePage";
 import type { StudyContext } from "../src/study/api";
 const context = { library_id: "owned", runtime_id: "runtime" } as StudyContext;
 beforeEach(() => localStorage.clear());
@@ -161,4 +162,65 @@ it("announces archive only after a backend-confirmed status and keeps a failed a
   expect(done).not.toHaveBeenCalled();
   await user.click(screen.getByRole("button", { name: "Archivar fuente" }));
   await waitFor(() => expect(done).toHaveBeenCalledTimes(1));
+});
+it("waits for document reactivation before allowing a different status query", async () => {
+  const user = userEvent.setup();
+  let status = "archived";
+  let complete!: () => void;
+  const pending = new Promise<void>((resolve) => {
+    complete = resolve;
+  });
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (input, options) => {
+      if (options?.method === "POST") {
+        await pending;
+        status = "active";
+        return Response.json({ status });
+      }
+      const query = new URL(String(input), "http://localhost");
+      return Response.json({
+        source_id: "owned",
+        name: "Biblioteca",
+        documents:
+          query.searchParams.get("document_status") === status
+            ? [
+                {
+                  document_id: "doc",
+                  title: "PDF conservado",
+                  kind: "pdf",
+                  status,
+                  revision: "a".repeat(64),
+                },
+              ]
+            : [],
+        references: [],
+      });
+    }),
+  );
+  render(<SourcePage context={context} sourceId="owned" navigate={vi.fn()} />);
+  await user.selectOptions(
+    await screen.findByLabelText("Estado de los documentos"),
+    "archived",
+  );
+  await user.click(await screen.findByText("Organizar documento"));
+  await user.click(
+    screen.getByRole("checkbox", { name: "Confirmar reactivar documento" }),
+  );
+  await user.click(screen.getByRole("button", { name: "Reactivar documento" }));
+  expect(screen.getByLabelText("Estado de los documentos")).toBeDisabled();
+  await act(async () => {
+    complete();
+    await pending;
+  });
+  await waitFor(() =>
+    expect(screen.getByLabelText("Estado de los documentos")).toBeEnabled(),
+  );
+  await user.selectOptions(
+    screen.getByLabelText("Estado de los documentos"),
+    "active",
+  );
+  expect(
+    await screen.findByRole("link", { name: "Leer documento" }),
+  ).toHaveAttribute("href", "/study/read/doc");
 });

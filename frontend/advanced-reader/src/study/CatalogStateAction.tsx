@@ -9,6 +9,7 @@ export function CatalogStateAction({
   status,
   kind,
   done,
+  pending,
 }: {
   context: StudyContext;
   path: string;
@@ -16,6 +17,7 @@ export function CatalogStateAction({
   status: string;
   kind: "fuente" | "documento";
   done: () => void;
+  pending?: (busy: boolean) => void;
 }) {
   const scope = useOperationScope(context),
     [confirmed, setConfirmed] = useState(false),
@@ -26,6 +28,7 @@ export function CatalogStateAction({
   const run = async () => {
     if (!confirmed || busy) return;
     setBusy(true);
+    pending?.(true);
     try {
       const record = await studyRequest<{ status: string }>(
         path + "/state",
@@ -42,6 +45,7 @@ export function CatalogStateAction({
     } catch (error) {
       if (scope.active) setMessage((error as Error).message);
     } finally {
+      pending?.(false);
       if (scope.active) setBusy(false);
     }
   };

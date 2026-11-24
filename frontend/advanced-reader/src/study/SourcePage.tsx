@@ -23,6 +23,7 @@ export function SourcePage({
     [documentPage, setDocumentPage] = useState(1),
     [referencePage, setReferencePage] = useState(1),
     [documentStatus, setDocumentStatus] = useState("active");
+  const [documentBusy, setDocumentBusy] = useState(false);
   const base = "/sources/" + encodeURIComponent(sourceId);
   const resource = useStudyResource<SourceDetail>(
     context,
@@ -155,6 +156,7 @@ export function SourcePage({
             Estado de los documentos
             <select
               value={documentStatus}
+              disabled={documentBusy}
               onChange={(event) => {
                 setDocumentStatus(event.target.value);
                 setDocumentPage(1);
@@ -169,6 +171,7 @@ export function SourcePage({
             source={source}
             navigate={navigate}
             retry={resource.retry}
+            pending={setDocumentBusy}
           />
         </>
       )}

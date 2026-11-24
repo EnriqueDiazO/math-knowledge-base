@@ -17,11 +17,13 @@ export function SourceDocuments({
   source,
   navigate,
   retry,
+  pending,
 }: {
   context: StudyContext;
   source: SourceDetail;
   navigate: Navigate;
   retry: () => void;
+  pending?: (busy: boolean) => void;
 }) {
   const [editing, setEditing] = useState("");
   if (editing)
@@ -105,6 +107,7 @@ export function SourceDocuments({
                 status={document.status || "active"}
                 kind="documento"
                 done={retry}
+                pending={pending}
               />
             )}
           </article>
