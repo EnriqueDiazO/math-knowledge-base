@@ -350,3 +350,54 @@ renovado y las decisiones de los veinte archivos grandes están en
 [HYBRID_INVENTORY.json](HYBRID_INVENTORY.json) y [LARGE_FILES.md](LARGE_FILES.md).
 Los commits de documentación posteriores al análisis no cambian el código analizado.
 Todo queda local; sin push ni merge.
+
+## F — Biblioteca recuperada y validación A (24 de noviembre de 2026)
+
+Reanudación en `feature/knowledge-sphere-2026-11`, HEAD `442aa5a4`, sin AGENTS.md
+aplicables. Se conservan `3013ab71`, `eca18756`, `c86992af`, `442aa5a4`. Los dos
+cambios pendientes eran legítimos: admisión HTTP de la búsqueda bibliográfica
+local y orden del recorrido Biblioteca después de las cohortes anteriores.
+`library_bibtex.py` ya estaba confirmado en `eca18756`: no había un tercer diff.
+La preparación administrativa de Waveform no se repite ni se modifica.
+
+`db85ec15` completa esas integraciones y corrige una carrera real: cambiar el
+filtro de documentos mientras se reactivaba podía consultar antes de la escritura
+y conservar una lista vacía. La prueba falla antes (`library-reactivation-before.log`)
+y pasa después; el filtro espera la confirmación del backend. `720f8fbf` publica
+los recursos React. No se retiró ninguna implementación antigua. Los assets con
+hash se regeneraron; no se presentan como código propio eliminado.
+
+La integral recuperada terminó con **2148 aprobadas, 9 omitidas opt-in, 0 fallidas**;
+los mismos 9 casos pasan aparte: **2157 casos Python distintos aprobados**.
+Frontend actualizado: **282 aprobadas**, ESLint, typecheck y build correctos.
+Se conservan las verificaciones de 93 casos focalizados anteriores, sin sumarlos
+a la integral. Los seis recorridos combinados pasan en Chrome y Firefox, con
+MongoDB/PID/dbpath/XDG propios: lectura, autoría, notas, exportación, cinco copias
+históricas exactas y Biblioteca. Esta última verifica creación/recarga/edición,
+pérdida de ACK/reintento idéntico, BibTeX selectivo, referencia compartida, PDF,
+archivo/reactivación, pasaje→nota→conceptos y ancho de 700 px. `MathV0_writes=0`.
+Capturas y resultados: `evidence/sonar/independent-study/{chrome,firefox}/library-*`.
+No se importa la cobertura del recorrido combinado fallido anterior.
+
+Sonar procesado sobre `720f8fbf6ceafa204a3f41b1552f46b003707036`: análisis
+`cf571842-3656-48db-b967-2ef10505dfed`, CE SUCCESS. General **73,9 %**, nueva
+**73,6 %** frente a **74,2/74,5** del corte anterior. Gate **ERROR** sólo por
+`new_coverage 73,6 <80`; duplicación nueva **0,10731 ≤3 %**, incidencias nuevas
+**0 ≤0**. Referencia PREVIOUS_VERSION `2026-11-21T16:46:16+0000`, umbrales, perfiles
+y exclusiones sin cambios. XML regenerado desde integral/opt-ins y backend
+instrumentado válido; LCOV de 282 unidades más seis recorridos Chrome con
+mapas privados comprobados: **4461/5916→4729/5916 líneas**,
+**2683/4281→2870/4281 condiciones**. Son contadores frontend, no porcentajes Sonar.
+`LIBRARY_RESULTS.json` y `LIBRARY_COVERAGE.csv` conservan resultado y déficit.
+El alcance nuevo exige 925 observaciones adicionales de línea/condición para
+alcanzar 80 % sin modificar código. Destacan relaciones heredadas (402 líneas),
+Inicio (289), mapas (286), room (157 líneas/100 condiciones). Inicio tenía 59
+líneas sin cubrir en el informe histórico: esta pérdida de observaciones tras
+regenerar la integral se investigará, sin inventar ni trasplantar hits de líneas
+desplazadas. La calidad sigue abierta; el recorrido A funcional permite Cuaderno.
+
+Biblioteca no se declara migrada en su totalidad: borrado físico, sustitución de
+versión/reanclado y decisiones avanzadas de fusión conservan sus procedimientos.
+No se reconstruye AppImage: el paquete `f00aa5ac` sigue siendo el artefacto
+experimental verificado anterior; los recursos actuales sólo se han comprobado
+en el servidor React independiente. Se continúa con el núcleo Diario de Cuaderno.
