@@ -72,14 +72,14 @@ def test_sandbox_clears_credentials_has_no_host_network_and_no_writable_director
         port = server.getsockname()[1]
         code = "\n".join(
             [
-                "import os,socket",
+                "import os,socket,errno",
                 "assert os.environ.get('MATHMONGO_PRIVATE_PROBE') is None",
                 f"assert not os.path.exists({str(private)!r})",
                 "s=socket.socket();s.settimeout(.3)",
                 f"assert s.connect_ex(('127.0.0.1',{port})) != 0",
                 "for path in ['/work/unexpected','/tmp/unexpected','/inputs/unexpected']:",
                 " try: open(path,'w')",
-                " except OSError: pass",
+                " except OSError as error: assert error.errno == errno.EROFS",
                 " else: raise AssertionError('writable directory')",
                 "print('isolated')",
             ]
