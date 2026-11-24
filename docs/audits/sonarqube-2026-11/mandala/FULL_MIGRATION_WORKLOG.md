@@ -401,3 +401,57 @@ versión/reanclado y decisiones avanzadas de fusión conservan sus procedimiento
 No se reconstruye AppImage: el paquete `f00aa5ac` sigue siendo el artefacto
 experimental verificado anterior; los recursos actuales sólo se han comprobado
 en el servidor React independiente. Se continúa con el núcleo Diario de Cuaderno.
+
+## G — Núcleo Diario de Cuaderno, validación B
+
+`f81f7479` añade actividades HTTP explícitas sobre `latex_notes`. Reutiliza
+`MathMongo` mediante un enlace sin inicialización, la persistencia mínima de
+Diario, settings/referencias canónicas y el exportador de proyectos existente.
+Las listas consultan título/cuerpo, pero sólo devuelven resúmenes paginados; el
+LaTeX completo se pide al abrir. No hay una segunda colección ni otro formato
+canónico. El `_id` histórico, ObjectId o string, se mantiene; altas nuevas usan
+un ID estable por intento, compatible con el CRUD existente y el índice `_id`.
+
+Una única lectura BSON aporta revisión, cuerpo original y predicado CAS. Se
+comprueban concurrencia intercalada real, reintento tras perder ACK y no-op sin
+materializar defaults. Los metadatos desconocidos, macros, TikZ, medios y ajustes
+se conservan; las referencias del catálogo crean snapshots locales mediante el
+adaptador de Diario. Modificar el catálogo no reescribe esas citas. Las entradas
+Cornell/CPI y formatos desconocidos se rechazan sin convertirlos a texto libre.
+
+La nueva reutilización detectó que `editor.pdf_export` importaba Streamlit al
+cargar el exportador de notas: la prueba de arranque con Streamlit bloqueado
+falló antes y pasa después de cargarlo sólo dentro de sus cuatro funciones UI.
+Las funciones y consumidores antiguos permanecen; no se cambia el compilador
+heredado ni se usa desde HTTP. Los nuevos PDFs pasan por `compile_project` y
+el aislamiento existente. El bundle conserva `content/body.tex` exacto; `main.tex`
+añade los dos cargadores de macros canónicos, sin duplicar documentclass/cuerpo.
+
+`ffeff389` integra el editor matemático existente y `useLocalForm`, con envío
+pendiente durable, bloqueo de edición durante el reintento, recuperación de
+selección, revisión de conflicto y rebase explícito sólo de los campos cambiados.
+El cleanup de una superficie vieja no recrea borradores guardados ni sustituye
+el cuerpo remoto durante un rebase. Referencias y metadatos se abren bajo demanda.
+El componente común de exportación admite ahora Diario; exporta la versión
+guardada y lo indica expresamente. `123ad626` publica los assets. No se crea
+un editor alternativo ni se amplía el entry Streamlit de 21 líneas.
+
+Verificación focalizada: **44 Python** de HTTP/Diario/exportación y **57** de
+contratos Cornell/CPI/empaquetado (no sumar a integral por solapamiento).
+**290 frontend** aprobadas, incluidos 8 casos nuevos de recuperación y conflicto;
+ESLint/typecheck/build correctos. Chrome y Firefox pasan creación visual con
+fracción y TikZ, pérdida real de respuesta después de persistir, recarga/reintento
+idéntico, referencia del catálogo, edición localizada, conflicto entre ventanas,
+TEX/PDF, filtro por fuente y nota histórica sintética sin cambios BSON. Se
+conserva además el recorrido previo de cinco copias históricas privadas.
+Las capturas están en `evidence/sonar/independent-study/{chrome,firefox}/notebook-*`;
+los PDFs se verificaron con pdfinfo/pdftotext y rasterización inspeccionada.
+Todas las escrituras pertenecen a Mongo/PID/rutas temporales; `MathV0_writes=0`.
+
+La batería integral y siete recorridos instrumentados están en ejecución para
+la medición Sonar B. El Gate anterior sigue ERROR; no se lo declara aprobado.
+No se reconstruye la AppImage: el artefacto anterior sigue intacto y no contiene
+estos cambios. La regresión de arranque verifica el backend nuevo sin Streamlit;
+la integración con las 19 dependencias del paquete se revisará sin reemplazarlo.
+La familia Cuaderno sigue parcial: eliminación/medios completos, trabajo/tareas,
+semanales, entregables, promociones, Cornell y CPI pendientes; no se retiró código.
