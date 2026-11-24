@@ -162,6 +162,14 @@ def test_frontend_manifest_has_reproducible_pinned_runtime_and_build_commands() 
     assert package["type"] == "module"
     assert package["packageManager"] == "npm@11.12.1"
     assert package["dependencies"] == {
+        "@codemirror/autocomplete": "6.20.4",
+        "@codemirror/commands": "6.11.1",
+        "@codemirror/language": "6.13.1",
+        "@codemirror/legacy-modes": "6.5.5",
+        "@codemirror/search": "6.7.2",
+        "@codemirror/state": "6.7.6",
+        "@codemirror/view": "6.43.15",
+        "@lezer/highlight": "1.2.5",
         "@tiptap/core": "3.35.0",
         "@tiptap/starter-kit": "3.35.0",
         "dompurify": "3.4.18",
