@@ -455,3 +455,135 @@ estos cambios. La regresión de arranque verifica el backend nuevo sin Streamlit
 la integración con las 19 dependencias del paquete se revisará sin reemplazarlo.
 La familia Cuaderno sigue parcial: eliminación/medios completos, trabajo/tareas,
 semanales, entregables, promociones, Cornell y CPI pendientes; no se retiró código.
+
+## H — contratos retenidos, calidad y cierre del lote
+
+La integral B terminó con **2161 aprobadas, 9 omitidas opt-in, 0 fallidas**. Los
+mismos 9 casos pasan en la ejecución opt-in, en Mongo/PID/rutas propios.
+Las 11 nuevas caracterizaciones se añadieron después de esa colección: su JUnit
+no comparte ninguna identidad con los 2170 casos de B. Resultado reunido:
+**2181 pruebas Python distintas aprobadas, 0 fallidas y 0 pendientes de ejecución**.
+Los 50 casos históricos del ZIP privado están en la integral, no entre los opt-ins;
+se usa el ZIP autoritativo ya disponible, sin datos sustitutos. Los focalizados
+44/57 se solapan y no se suman de nuevo. Frontend final: **297 aprobadas**,
+ESLint/typecheck y builds correctos.
+
+`2d385653` resuelve dos fallos de integridad demostrados con AppTest y Mongo real:
+
+- La confirmación de borrado y los widgets de edición de relaciones usaban el
+  índice de fila; filtrar podía transferir el estado a otra relación. Ahora la
+  identidad contiene la huella de biblioteca e `_id`. La regresión falla antes y
+  pasa después; editar/borrar explícitamente conserva conceptos y LaTeX.
+- La exportación masiva pasaba `db.client` a un servicio que consulta colecciones
+  de una Database. Se pasa `db.db`, la base seleccionada. La prueba falla antes y
+  pasa después: el adaptador conserva la consulta canónica y los cuerpos reales,
+  sustituyendo únicamente la compilación por escritura de TEX en el fixture.
+
+Las mismas pruebas comprueban contadores/filtros de Inicio sin escrituras,
+creación/duplicación/consulta de mapas sin reemplazar conceptos, selección vacía
+de exportación y limpieza con confirmación/respaldo sólo de archivos temporales
+propios. Las dos caracterizaciones Cornell/CPI usan sus servicios con Mongo real
+y conservan regiones, identidad, origen, metadatos y el recurso utilizado por la
+copia cuando se borra la nota original. Son contratos, no una UI migrada.
+
+`4dd413e7` corrige el botón de búsqueda Diario sin `type` explícito detectado por
+Sonar y comprueba búsqueda/paginación, alcance por fuente y recuperación de errores.
+`147c44c9` añade cinco pruebas de habitación: colección local sin duplicados,
+reconciliación del mismo envío, adopción explícita de revisión conservando trabajo,
+nota/cita/pregunta al publicar, preguntas resueltas/pendientes y respuesta de
+guardado inválida frente a confirmada. No se atribuyen estas unidades a escrituras
+reales: sus contratos de dominio/HTTP se verifican por separado. `d12fcb50` publica
+los assets; no se cambia un perfil o supresión para resolver la incidencia.
+
+| Corte procesado | Revisión analizada | General | Nueva | Gate / causa |
+|---|---|---:|---:|---|
+| Entrada válida anterior | f00aa5ac | 74,2 % | 74,5 % | ERROR: cobertura nueva |
+| Biblioteca A | 720f8fbf | 73,9 % | 73,6 % | ERROR: cobertura nueva |
+| Diario B | 03ee4a3a | 74,1 % | 74,1 % | ERROR: cobertura y un botón sin type |
+| Cierre C | a6d77fdb | **76,0 %** | **80,6 %** | **OK** |
+
+B: análisis `44934ef1-546e-490a-ad4f-e2da59ba897b`. Final: análisis
+**`b4ddd3bd-402b-4ab7-80b3-df8231fcc998`**, revisión exacta
+**`a6d77fdb7fb056e8f225fdc983254926c6b8b9c0`**, CE SUCCESS y scanner exit 0.
+Condiciones finales: cobertura nueva **80,6 ≥80**, duplicación nueva
+**0,10067 ≤3 %**, incidencias nuevas **0 ≤0**. El resultado B no se borra ni se
+presenta como aprobado; su incidencia se corrigió. `LIBRARY_NOTEBOOK_FINAL_RESULTS.json`
+y `LIBRARY_NOTEBOOK_FINAL_COVERAGE.csv` conservan métricas y desglose completo.
+Los commits posteriores de este cierre sólo documentan el código analizado.
+
+Referencia inalterada: PREVIOUS_VERSION `2026-11-21T16:46:16+0000`. Configuración
+SHA256 `84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6`.
+No se cambian umbrales, reglas, perfiles, exclusiones, supresiones ni versión.
+`SONAR_LABEL` nombra evidencias y no establece `sonar.projectVersion`. Waveform,
+sus tokens, archivos y configuración no se han utilizado ni modificado.
+
+Cobertura nueva final: **9744/11739 líneas** y **2342/3252 condiciones** observadas;
+**1995 líneas y 910 condiciones** siguen sin cubrir. General: 41478/54185 líneas y
+3093/4461 condiciones. El LCOV frontend local mide otro alcance: unidades
+**4703/6085 líneas y 2891/4461 ramas**; tras siete recorridos Chrome válidos,
+**4985/6085 (81,92 %) y 3093/4461 (69,33 %)**, con **282 líneas y 202 ramas**
+adicionales observadas. Firefox valida comportamiento; no se inventan hits V8
+de Firefox. El log final confirma importación de `evidence/sonar/coverage.xml`
+y `frontend/advanced-reader/coverage/lcov.info`, sin rutas ausentes.
+
+La regresión A frente al informe histórico no era un reporte rechazado: al
+regenerar la integral dejó de estar el suplemento de observaciones de Inicio.
+El informe anterior tenía 240/299 líneas; la integral reproducible A/B sólo
+10/299: diferencia **230 líneas**, aproximadamente **1,6 puntos** del denominador
+nuevo A. No se trasplantan esos hits antiguos. Dos pruebas de comportamiento de
+Inicio vuelven a medir **253/299 líneas** sobre el archivo actual. El resto del
+déficit procede de ramas/comportamientos sin observar, no de una atribución
+genérica a scripts. Los nuevos contratos reducen relaciones de **402 a 52**
+líneas sin cubrir, mantenimiento de **118 a 32**, y room de **157/100** líneas/
+condiciones nuevas sin cubrir a **54/53**. Mapas, edición/exploración heredadas,
+canvas y el coordinador conservan déficit registrado por archivo.
+
+La integral B se conserva para módulos sin cambios. Al corregir relaciones y
+exportación se retiraron sólo sus observaciones obsoletas (10 entradas de datos
+por módulo) y se midieron completos con las 11 pruebas nuevas, sin eliminar
+archivos ni denominadores. Los assets regenerados obligaron a recoger V8 de
+nuevo; el merge valida sus hashes y mapas privados. No se unieron recorridos
+fallidos ni posiciones desplazadas de archivos modificados. La secuencia completa
+reproducible está actualizada en `REPEAT_REACT_ANALYSIS.md` e incluye ya las
+caracterizaciones dentro de la integral futura y los siete recorridos.
+
+Chrome y Firefox finales pasan siete cohortes cada uno: lectura/origen, autoría,
+notas/concurrencia, exportación visual/mixta, cinco copias históricas reales,
+Biblioteca y Diario. Las evidencias tienen run_id y revisión, y registran
+`streamlit_imported=false`, `MathV0_writes=0`. No se ha interpretado una respuesta
+vacía como éxito. Las escrituras pertenecen exclusivamente a procesos, bases,
+perfiles y rutas temporales propios.
+
+La AppImage anterior permanece byte a byte: SHA256
+`ec8ca4cfacb9a605fbaab4713a0439a550d7236619e322de19d18f99fd472e05`.
+No se reconstruyó ni se afirma que contenga las funcionalidades nuevas. El backend
+actual se importa con Python aislado (`-I -S`), sólo el código propio y las
+**mismas 19 distribuciones** fijadas para el paquete, sin Streamlit instalado.
+Mongo y las herramientas LaTeX siguen siendo externos. No se modifica el sistema
+de empaquetado.
+
+Contabilidad desde el HEAD recuperado `442aa5a4`, excluyendo docs/recursos/build:
+**1179 líneas añadidas y 37 reemplazadas/retiradas en 19 archivos mantenidos**;
+**1570 añadidas y 13 reemplazadas en 9 archivos de pruebas/harness**. Doce líneas
+del runner se trasladaron para ordenar las cohortes; no son eliminación. Las
+sustituciones de imports, contratos y del placeholder Cuaderno no retiran
+capacidades. **No se eliminó ninguna función propia por supuesto desuso**.
+No se cuenta la renovación de assets como borrado de producto ni el Diario nuevo
+como reducción de código. El entry permanece en 21 líneas y todos los módulos
+nuevos cuentan en el inventario; ninguna extracción se oculta en otro monolito.
+
+Pendientes concretos: Biblioteca conserva eliminación física y planes avanzados
+de referencias, sustitución/reanclado de versiones y fusión deliberada. Diario
+conserva pendientes de borrado, gestión completa de medios y preferencias
+editoriales. Worklog/Backlog/Weekly/Deliverables, promociones, Cornell/CPI,
+transferencias y administración mantienen las implementaciones antiguas.
+Se detecta además que el selector de formato del exportador individual legado
+sigue llamando al mismo generador TEX/PDF: se deja para un contrato específico,
+sin declararlo corregido por la prueba de exportación masiva. La auditoría de
+mantenibilidad continúa aunque el Gate esté OK. No se retira Streamlit.
+
+Siguiente lote recomendado: el corte vertical Cornell definido en
+`CORNELL_CPI_NEXT.md`, empezando por CAS estructurado, regiones y overflow antes
+de publicar sus acciones HTTP. `PARITY_V014.md` delimita implementado, verificado
+sin Streamlit y pendiente/listo para retirar: este lote no autoriza retiradas.
+Todo permanece en la rama de desarrollo y en commits locales; sin push ni merge.

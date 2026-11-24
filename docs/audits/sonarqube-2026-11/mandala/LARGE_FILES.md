@@ -309,3 +309,28 @@ por ello los pendientes de modularización de mapas, importación, actualizacion
 Cuaderno histórico, migraciones, medios, Cornell/CPI ni el coordinador del lector.
 Las pruebas y los módulos extraídos/añadidos cuentan en el inventario; regenerar
 assets con otros hashes no se presenta como una eliminación de código propio.
+
+### Veinte mayores al cerrar Biblioteca/Diario
+
+| Archivo propio | Líneas | Responsabilidad | Decisión vigente |
+|---|---:|---|---|
+| editor/cuaderno_page.py | 4122 | Diario, trabajo, tareas, revisiones y entregables antiguos | Conservar compatibilidad; migrar las actividades pendientes por cortes verticales. |
+| visualizations/grafoconocimiento.py | 3670 | Construcción de grafo y plantilla HTML/JS descargable | Separar controlador/plantilla después; conserva consumidores CLI/mapas/HTML. |
+| editor/utils/db_import.py | 2904 | Preflight e importación portable con modelos, referencias y medios | Conservar barreras y compensación; separación por fases pendiente. |
+| editor/utils/db_update.py | 2242 | Plan, backup, conflictos y aplicación/reanudación de actualizaciones | Conservar contratos; modularizar sólo con failpoints propios. |
+| mathmongo/reading_annotations/service.py | 1693 | Notas, anotaciones, evidencias y comprobación de preparación | Conservar validaciones por tipo; CAS y pruebas vigentes. |
+| mathmongo/source_catalog_migration/bootstrap.py | 1635 | Estado y reconciliación de la migración del catálogo | Separación de comprobaciones pendiente; no aplicar migraciones implícitas. |
+| editor/cornell/streamlit_page.py | 1634 | Regiones Cornell, branding, ajuste y división por overflow | Conservar hasta completar la especificación React; no aplanar regiones. |
+| editor/cpi/streamlit_page.py | 1485 | Regiones CPI, metadatos, medios y exportación | Conservar la consolidación anterior y migrar tras Cornell. |
+| editor/app_pages/knowledge_graph.py | 1381 | Crear, consultar, editar, duplicar e importar/exportar mapas | Conservar capacidades; caracterización real ampliada, refactorización posterior pendiente. |
+| editor/concept_linking/linking_wizard.py | 1264 | Etapas de incorporación y evidencia, recuperación parcial | Conservar servicio y capacidad de recuperar el blanco tras fallo del enlace. |
+| frontend/advanced-reader/src/app/App.tsx | 1247 | Ciclo PDF, selección, anotaciones, peticiones y posición | Extraer estado por responsabilidad en lote del lector; mantener guards actuales. |
+| editor/reading_space/reader_page.py | 1222 | Lector canónico de compatibilidad, posición y acciones | Conservar hasta cerrar todos los comportamientos de anotación en React. |
+| editor/source_catalog/edit_source_page.py | 1192 | Gestión avanzada Source/Reference y planes de borrado | Conservar planes no migrados; no retirar por existir la nueva ficha React. |
+| mathmongo/source_catalog_migration/apply_safety.py | 1186 | Autorización, backups e invariantes de aplicación | Conservar; tamaño justificado por contratos de seguridad distintos. |
+| mathmongo/source_catalog_migration/manifest.py | 1122 | Modelos, transiciones e identidad del manifiesto | Conservar CAS, hashes y estados; no simplificar eliminando restricciones. |
+| editor/utils/knowledge_graph_sync.py | 1076 | Snapshots, pertenencia, altas/bajas visuales y elementos manuales | Conservar API y pruebas; quitar una vista no elimina un concepto. |
+| editor/pdf_export.py | 1058 | Preparación TEX/PDF, diagnósticos y presentación antigua | Revisado en este lote: imports UI perezosos; consumidores y PDF verificados. |
+| exporters_latex/latex_validation.py | 1046 | Validación, ChkTeX, procesos, timeout y diagnósticos | Conservar fronteras y renderizadores existentes; nuevos HTTP usan sandbox. |
+| mathmongo/reading_annotations/repository.py | 1019 | Persistencia CAS de notas/anotaciones y versiones | Conservar identidades, predicados y resultados comprobados. |
+| frontend/advanced-reader/src/styles/reader.css | 1008 | Geometría, controles y responsive del lector PDF | Conservar revisión anterior y tokens; modularizar al modificar el componente. |

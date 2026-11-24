@@ -1,0 +1,222 @@
+{
+  "revision": "a6d77fdb7fb056e8f225fdc983254926c6b8b9c0",
+  "ce": {
+    "task": {
+      "id": "cc1d4754-f912-4b6f-bb15-b2c38ac5b49e",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "b4ddd3bd-402b-4ab7-80b3-df8231fcc998",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-24T17:40:58+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-24T17:40:58+0000",
+      "executedAt": "2026-11-24T17:41:01+0000",
+      "executionTimeMs": 2400,
+      "hasScannerContext": true,
+      "warningCount": 0,
+      "warnings": [],
+      "infoMessages": []
+    }
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "OK",
+      "conditions": [
+        {
+          "status": "OK",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "80.6"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.10067"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "76.0",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "20081"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.4",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "54185"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "12707",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "20575",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "108710"
+        },
+        {
+          "metric": "files",
+          "value": "440"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "76.5",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "new_code_counts": {
+    "totals": {
+      "new_lines_to_cover": 11739.0,
+      "new_uncovered_lines": 1995.0,
+      "new_conditions_to_cover": 3252.0,
+      "new_uncovered_conditions": 910.0
+    },
+    "measures": [
+      {
+        "metric": "uncovered_conditions",
+        "value": "1368",
+        "bestValue": false
+      },
+      {
+        "metric": "new_coverage",
+        "period": {
+          "index": 1,
+          "value": "80.6",
+          "bestValue": false
+        }
+      },
+      {
+        "metric": "new_conditions_to_cover",
+        "period": {
+          "index": 1,
+          "value": "3252"
+        }
+      },
+      {
+        "metric": "new_uncovered_lines",
+        "period": {
+          "index": 1,
+          "value": "1995",
+          "bestValue": false
+        }
+      },
+      {
+        "metric": "new_uncovered_conditions",
+        "period": {
+          "index": 1,
+          "value": "910",
+          "bestValue": false
+        }
+      },
+      {
+        "metric": "conditions_to_cover",
+        "value": "4461"
+      },
+      {
+        "metric": "new_lines_to_cover",
+        "period": {
+          "index": 1,
+          "value": "11739"
+        }
+      }
+    ]
+  },
+  "python_distinct_passed": 2181,
+  "python_integral_passed": 2161,
+  "initial_opt_in_skips_completed_separately": 9,
+  "additional_compatibility_passed": 11,
+  "final_unexecuted_skips": 0,
+  "frontend_passed": 297,
+  "browser_versions": {
+    "chrome": "158.0.8127.36",
+    "firefox": "151.0"
+  },
+  "independent_scenarios_per_browser": 7,
+  "MathV0_writes": 0,
+  "appimage_rebuilt": false,
+  "preserved_appimage_sha256": "ec8ca4cfacb9a605fbaab4713a0439a550d7236619e322de19d18f99fd472e05"
+}

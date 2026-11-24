@@ -1,0 +1,57 @@
+{
+  "totals": {
+    "new_lines_to_cover": 11739.0,
+    "new_uncovered_lines": 1995.0,
+    "new_conditions_to_cover": 3252.0,
+    "new_uncovered_conditions": 910.0
+  },
+  "measures": [
+    {
+      "metric": "uncovered_conditions",
+      "value": "1368",
+      "bestValue": false
+    },
+    {
+      "metric": "new_coverage",
+      "period": {
+        "index": 1,
+        "value": "80.6",
+        "bestValue": false
+      }
+    },
+    {
+      "metric": "new_conditions_to_cover",
+      "period": {
+        "index": 1,
+        "value": "3252"
+      }
+    },
+    {
+      "metric": "new_uncovered_lines",
+      "period": {
+        "index": 1,
+        "value": "1995",
+        "bestValue": false
+      }
+    },
+    {
+      "metric": "new_uncovered_conditions",
+      "period": {
+        "index": 1,
+        "value": "910",
+        "bestValue": false
+      }
+    },
+    {
+      "metric": "conditions_to_cover",
+      "value": "4461"
+    },
+    {
+      "metric": "new_lines_to_cover",
+      "period": {
+        "index": 1,
+        "value": "11739"
+      }
+    }
+  ]
+}

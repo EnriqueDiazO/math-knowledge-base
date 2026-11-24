@@ -6,7 +6,8 @@ No se extrae sobre el repositorio ni se ejecutan sus archivos. Su entry históri
 tiene 6019 líneas; no es la línea base de 5744 de la extracción anterior. El entry
 actual de compatibilidad sigue en 21 líneas, con sus páginas conservadas.
 
-Estado de este corte: recuperación, lote documental C, edición híbrida y paquete experimental. **Completa** se refiere
+Estado de este corte: Biblioteca y núcleo Diario verificados sin Streamlit, con Gate OK;
+la migración completa y el inventario de mantenibilidad siguen abiertos. **Completa** se refiere
 a la operación delimitada de la fila, no a toda la familia ni a autorización para
 retirar Streamlit. Se mantienen los contratos y servicios históricos.
 
@@ -43,3 +44,25 @@ No hay funcionalidades retiradas en estos checkpoints. Las páginas antiguas,
 servicios, documentos, ZIP, referencias e identidades permanecen disponibles.
 Las pruebas históricas privadas y el inventario de mantenibilidad no se cierran
 porque un recorrido React funcione o porque un Gate cambie de estado.
+
+## Checkpoint Biblioteca/Diario
+
+- **Implementado y verificado sin Streamlit:** las operaciones delimitadas de
+  Biblioteca y el núcleo Diario, con Mongo real temporal y siete recorridos por
+  navegador. Pruebas: `test_library_management_http`, `test_library_concurrency`,
+  `test_notebook_http`, `library-browser.mjs`, `notebook-browser.mjs` y casos de
+  recuperación frontend. La escritura sigue siendo explícita, con LaTeX canónico.
+- **Servicios heredados reutilizados:** catálogo/referencias/documentos, CRUD
+  `latex_notes`, settings/referencias Diario, editor y exportador de bundles.
+  Esto no exige una sesión Streamlit. Cornell/CPI conservan además sus servicios
+  y dos caracterizaciones nuevas con persistencia real.
+- **Parcial o dependiente aún de compatibilidad:** operaciones avanzadas de
+  Biblioteca, borrados/medios completos, otras actividades del Cuaderno,
+  Cornell/CPI, transferencias y administración, según las filas anteriores.
+- **Listo para retirar:** ninguna familia completa en este corte. No se elimina
+  una implementación histórica sólo porque exista una nueva página equivalente.
+- **Calidad:** análisis final `b4ddd3bd-402b-4ab7-80b3-df8231fcc998`, fuente
+  `a6d77fdb`, general 76,0 %, nueva 80,6 %, Gate OK. El déficit residual por
+  archivo y el inventario no se cierran por ese resultado.
+
+Especificación siguiente: [CORNELL_CPI_NEXT.md](CORNELL_CPI_NEXT.md).
