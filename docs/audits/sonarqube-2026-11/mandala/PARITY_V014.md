@@ -1,5 +1,11 @@
 # Paridad funcional con v0.14.0-teaching-rc1
 
+**Prioridad vigente:** no generar nuevas AppImages. La matriz exhaustiva por
+operaciones y el porcentaje funcional están en [FUNCTIONAL_PARITY.md](FUNCTIONAL_PARITY.md)
+y FUNCTIONAL_PARITY.json. La tabla por páginas siguiente conserva contexto
+histórico y no sustituye ese recuento ni acredita familias completas.
+
+
 Referencia consultada en modo lectura: ZIP de 949 entradas con SHA256
 `778c1b55dd246fc3ecb8cdfd19b7010753c0ccdad20fab38ca744fffce0b6c32`.
 No se extrae sobre el repositorio ni se ejecutan sus archivos. Su entry histórico
