@@ -39,9 +39,9 @@ retirar Streamlit. Se mantienen los contratos y servicios históricos.
 | Exportación TEX/PDF de texto/TikZ | Exportador individual/unificado, ZIP portable y contexto de paquetes | Selección de conceptos y notas guardadas, TEX/estilos, PDF; nuevos/mixtos/completos verificados | Recursos externos, opciones de formatos y trazabilidad editorial completa | **Parcial**: cuerpo exacto/preámbulo probados; IDs técnicos omitidos por defecto con opción explícita, también en exportadores de compatibilidad. Falta incorporar todos los recursos externos |
 | TikZ: preview/ampliación/PDF | Compilación histórica, no sólo texto | Namespace aislado, PNG recortado, caché por contenido/configuración; píxeles reales comprobados tras corregir CSP | Macros/dependencias particulares requieren contexto explícito | **Completa** para figuras autocontenidas probadas; no para cualquier paquete ausente |
 | Medios compartidos | Registro de medios, referencias de concepto/nota/Cornell/CPI y portabilidad | Servicios y datos conservados; el borrado común retira sólo su referencia | Subida/gestión y empaquetado de todos los recursos desde React | **Pendiente** de paridad React; no purgar bytes compartidos |
-| Cuaderno y sus actividades | `latex_notes`: Diario libre, proyectos/fechas/contextos/etiquetas, referencias propias; Cornell/CPI separados | Diario React: crear/abrir/buscar/paginar/editar/guardar/recargar, asociaciones del catálogo, LaTeX exacto, CAS/reintento, TEX/PDF aislado; Mongo y Chrome/Firefox | Worklog, Backlog, Weekly, Deliverables, promociones, medios y eliminación completa siguen pendientes | **Completo el núcleo Diario delimitado**, familia Cuaderno **parcial**; ninguna retirada autorizada |
-| Cornell | Modelo v1, preguntas/desarrollo/síntesis, páginas, overflow y exportación | React: crear/buscar/abrir/editar/guardar/recargar, citas, borrador por región, CAS/reintento, páginas, ajuste real, pie y marca de texto, TEX/PDF aislado; Chrome/Firefox y AppImage | Medios/asociaciones completos, sustitución de marca de imagen, nota completa duplicar/borrar y propuestas de división; documentos >30 páginas | **Núcleo v1 delimitado verificado**, familia **parcial**; conservar compatibilidad |
-| CPI | Comprensión/Producción/Integración, geometría/estilos propios, páginas y exportación | React: mismo recorrido por regiones, con modelo y plantillas CPI; geometría real, overflow sin recorte, conservación de metadatos por página, pie y marca de texto; Mongo, navegadores y AppImage | Medios y asociaciones, sustitución de marca de imagen, nota completa duplicar/borrar; documentos >30 páginas | **Núcleo v1 delimitado verificado**, familia **parcial**; zonas CPI distintas de tipos matemáticos |
+| Cuaderno y sus actividades | `latex_notes`: Diario libre, proyectos/fechas/contextos/etiquetas, referencias propias; Cornell/CPI separados | Diario React: crear/abrir/buscar/paginar/editar/guardar/recargar, asociaciones del catálogo, LaTeX exacto, CAS/reintento, TEX/PDF aislado; Mongo y Chrome/Firefox | Worklog, Backlog, Weekly, Deliverables, promociones, medios y filtros avanzados siguen pendientes; borrado de Diario ya verificado | **Completo el núcleo Diario delimitado**, familia Cuaderno **parcial**; ninguna retirada autorizada |
+| Cornell | Modelo v1, preguntas/desarrollo/síntesis, páginas, overflow y exportación | React: crear/buscar/abrir/editar/guardar/recargar, citas, borrador por región, CAS/reintento, páginas, ajuste real, pie y marca de texto, TEX/PDF aislado; Chrome/Firefox y AppImage | Medios/asociaciones completos, sustitución de marca de imagen y propuestas de división; documentos >30 páginas. Copia/borrado y filtros de notas completos verificados en este lote | **Núcleo v1 delimitado verificado**, familia **parcial**; conservar compatibilidad |
+| CPI | Comprensión/Producción/Integración, geometría/estilos propios, páginas y exportación | React: mismo recorrido por regiones, con modelo y plantillas CPI; geometría real, overflow sin recorte, conservación de metadatos por página, pie y marca de texto; Mongo, navegadores y AppImage | Medios y asociaciones, sustitución de marca de imagen; documentos >30 páginas. Copia/borrado y filtros de notas completos verificados en este lote | **Núcleo v1 delimitado verificado**, familia **parcial**; zonas CPI distintas de tipos matemáticos |
 | Transferencias/importación/exportación QMD/HTML | Preflight, modelos/BSON, referencias, mapas y compensación | Servicios existentes; no endpoints automáticos para cada método | Sí, varias rutas de compatibilidad/CLI | **Pendiente** de operaciones explícitas con autorización y casos privados conservados |
 | Administración, migraciones y backups | Plan/dry-run/huella/backup/reconciliación; no reparación silenciosa | Preparación compatible de notas/biblioteca y diagnóstico de scope | Resto de procedimientos avanzados | **Parcial**: no convertir preparación en reparación destructiva |
 | Enseñanza y auxiliares | Materiales/proyectos/Quarto, recursos y referencias | Datos y exportadores conservados | Varias herramientas aún antiguas | **Pendiente**: inventario activo, sin retirada por ausencia de coincidencias |
@@ -99,3 +99,24 @@ conflictos explícitos y opciones editoriales Cornell/CPI: [informe](LATEX_AUTHO
 [resultados](LATEX_AUTHORING_RESULTS.json) e [inventario](LATEX_AUTHORING_INVENTORY.json).
 El contenido canónico sigue siendo LaTeX. El 95 % y la migración completa
 permanecen abiertos. No hay nuevas páginas completas listas para retirar.
+
+## Recuperación funcional por operaciones — 24 de noviembre
+
+La matriz vigente registra **110/277 operaciones verificadas (39,71 %)**,
+**54 parciales, una implementada sin prueba completa y 112 ausentes**.
+Esenciales: **109/215 (50,70 %)**. Se añade al denominador un pendiente real de
+filtros avanzados de Diario; sobre idéntico alcance el punto de partida es
+103/277. No es una estimación por páginas ni cobertura de código.
+
+Siete operaciones nuevas sin Streamlit: copia y borrado de nota completa
+Cornell/CPI, filtros por proyecto/contexto/fecha en ambos formatos y borrado de
+Diario. La copia conserva fuente histórica/extensiones; el borrado verifica
+snapshot y admite reanudar limpieza sin purgar archivos compartidos. Pruebas
+HTTP, Mongo propio y Chrome/Firefox, con recarga, exportación y respuesta perdida.
+CPI usa fixture canónico identificado porque el ZIP privado no contiene CPI.
+Las familias siguen parciales; sus consumidores legados se conservan.
+
+Detalles, commits, capturas y controles: [FUNCTIONAL_MIGRATION_CHECKPOINT.md](FUNCTIONAL_MIGRATION_CHECKPOINT.md).
+Se suspenden nuevas construcciones/pruebas de AppImage. Artefactos e infraestructura
+anteriores permanecen intactos. La siguiente prioridad son medios/asociaciones
+pendientes de estas actividades, seguida de las tareas históricas del Cuaderno.

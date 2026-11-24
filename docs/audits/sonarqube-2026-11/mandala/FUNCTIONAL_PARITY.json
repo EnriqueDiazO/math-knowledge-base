@@ -136,7 +136,7 @@
     {
       "id": "source-05",
       "module": "Biblioteca · fuentes",
-      "operation": "Editar nombre, título, autores y metadatos bibliográficos básicos",
+      "operation": "Editar nombre, descripción, idioma, tipo, alias y etiquetas de Source",
       "essential": true,
       "status": "verified",
       "python_service": "mathmongo/source_catalog/service.py; mathmongo/study/library_management.py",
@@ -164,9 +164,9 @@
     {
       "id": "source-06",
       "module": "Biblioteca · fuentes",
-      "operation": "Editar íntegramente todos los campos de Source, derechos y procedencia",
+      "operation": "Editar derechos, redistribución, licencia y notas de derechos de Source",
       "essential": true,
-      "status": "partial",
+      "status": "unverified",
       "python_service": "mathmongo/source_catalog/service.py; mathmongo/study/library_management.py",
       "react": "LibraryPages.tsx / SourceForms.tsx / CatalogEditor.tsx",
       "tests": [
@@ -187,7 +187,7 @@
           "line": 249
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "CatalogEditor expone estos campos; falta acreditar el recorrido completo de modificación y recuperación en navegador. No se confunde Source con autores/título de Reference."
     },
     {
       "id": "source-07",
@@ -472,7 +472,7 @@
       "operation": "Capturar referencia manual y editar propuesta antes de confirmar",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -500,7 +500,7 @@
       "operation": "Consultar metadatos mediante DOI (Crossref/DataCite)",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -528,7 +528,7 @@
       "operation": "Consultar edición mediante ISBN (Open Library)",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -556,7 +556,7 @@
       "operation": "Buscar referencias por título y autor en proveedores",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -584,7 +584,7 @@
       "operation": "Buscar libros y elegir edición entre candidatos",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -612,7 +612,7 @@
       "operation": "Crear y asociar referencia a una fuente",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -640,7 +640,7 @@
       "operation": "Reutilizar referencia existente compartida",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -668,7 +668,7 @@
       "operation": "Editar campos bibliográficos básicos con consentimiento si es compartida",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -696,7 +696,7 @@
       "operation": "Editar roles, contenedor, páginas y procedencia completos",
       "essential": true,
       "status": "partial",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -724,7 +724,7 @@
       "operation": "Desvincular de una Source sin borrar referencia compartida ni citas ajenas",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -752,7 +752,7 @@
       "operation": "Archivar y reactivar una referencia",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -780,7 +780,7 @@
       "operation": "Inspeccionar y eliminar físicamente Reference sin consumidores",
       "essential": false,
       "status": "absent",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -805,7 +805,7 @@
       "operation": "Detectar duplicados DOI/ISBN/BibTeX",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -833,7 +833,7 @@
       "operation": "Previsualizar BibTeX y seleccionar entradas para importar",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -861,7 +861,7 @@
       "operation": "Reintentar importación selectiva sin duplicar las entradas",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -889,7 +889,7 @@
       "operation": "Resolver conflictos bibliográficos y fusionar deliberadamente duplicados",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -917,7 +917,7 @@
       "operation": "Aplicar sólo campos seleccionados de una consulta externa a ficha existente",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/source_catalog/service.py; mathmongo/reference_capture",
+      "python_service": "mathmongo/source_catalog/service.py; mathmongo/bibliography_lookup/capture.py; mathmongo/bibliography_lookup/service.py",
       "react": "ReferenceForm.tsx / SourcePanels.tsx / ReferencePicker.tsx",
       "tests": [
         "tests/library-browser.mjs",
@@ -1995,10 +1995,9 @@
       "operation": "Abrir biblioteca documental y continuar lectura",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2023,10 +2022,9 @@
       "operation": "Abrir PDF integrado, navegar páginas y buscar texto",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2051,10 +2049,9 @@
       "operation": "Recuperar posición del documento tras recargar",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2079,10 +2076,9 @@
       "operation": "Marcar documento completado, posponer y reiniciar progreso",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2107,10 +2103,9 @@
       "operation": "Filtrar progreso y documentos por todas las categorías históricas",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2135,10 +2130,9 @@
       "operation": "Seleccionar pasaje y abrir nota con procedencia",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2163,10 +2157,9 @@
       "operation": "Crear y recuperar anotación visual sobre PDF",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2191,10 +2184,9 @@
       "operation": "Gestionar todos los tipos de anotación histórica y localizadores",
       "essential": true,
       "status": "partial",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2219,10 +2211,9 @@
       "operation": "Volver al pasaje original desde concepto/evidencia",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2247,7 +2238,7 @@
       "operation": "Definir página PDF correspondiente a página 1 del libro",
       "essential": true,
       "status": "absent",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -2272,7 +2263,7 @@
       "operation": "Crear reglas de etiquetas y excepciones manuales de numeración",
       "essential": true,
       "status": "absent",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -2297,7 +2288,7 @@
       "operation": "Archivar, reactivar y restablecer mapa de páginas",
       "essential": false,
       "status": "absent",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -2322,10 +2313,9 @@
       "operation": "Preparar notas/subrayados explícitamente y verificar mismo contexto",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2350,10 +2340,9 @@
       "operation": "Distinguir preparación pendiente, fallo de comprobación e incompatibilidad",
       "essential": true,
       "status": "verified",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -2378,10 +2367,9 @@
       "operation": "Consultar diagnóstico detallado del lector en Ajustes",
       "essential": false,
       "status": "partial",
-      "python_service": "mathmongo/reading_state; mathmongo/document_page_map",
+      "python_service": "mathmongo/reading_space/service.py; mathmongo/document_page_maps/service.py",
       "react": "ReadingPage.tsx / ReaderEntry.tsx",
       "tests": [
-        "tests/independent-study-browser.mjs",
         "tests/independent-study-browser.mjs"
       ],
       "historical_and_current_evidence": [
@@ -3274,6 +3262,50 @@
       "module": "Cuaderno · Diario",
       "operation": "Eliminar nota con confirmación preservando recursos compartidos",
       "essential": true,
+      "status": "verified",
+      "python_service": "mathdatabase/mathmongo.py; editor/diary_note_models.py; mathmongo/study/notebook.py; mathmongo/study/note_actions.py; editor/notebook_lifecycle.py",
+      "react": "SavedNoteActions.tsx / NotebookPages.tsx",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs",
+        "tests/saved-note-actions.test.tsx"
+      ],
+      "historical_and_current_evidence": [
+        {
+          "version": "v0.14.0",
+          "path": "editor/cuaderno_page.py",
+          "sha256": "6e9e8cc3a2280baf615c660b61067c9779e259fc4e77dc6e53c3a25e4d57a092",
+          "line": 531
+        },
+        {
+          "version": "current-streamlit",
+          "path": "editor/cuaderno_page.py",
+          "sha256": "98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554",
+          "line": 548
+        }
+      ],
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
+    },
+    {
+      "id": "diary-21",
+      "module": "Cuaderno · Diario",
+      "operation": "Filtrar Diario por contexto, etiquetas, intervalo de fechas, año/mes y actualización reciente",
+      "essential": true,
       "status": "absent",
       "python_service": "mathdatabase/mathmongo.py; editor/diary_note_models.py; mathmongo/study/notebook.py",
       "react": "",
@@ -3289,10 +3321,10 @@
           "version": "current-streamlit",
           "path": "editor/cuaderno_page.py",
           "sha256": "98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554",
-          "line": 548
+          "line": 1396
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Migrar los controles de _render_diary_search y su consulta histórica validada; proyecto/fuente/texto no cubren estos filtros."
     },
     {
       "id": "cornell-01",
@@ -3355,10 +3387,13 @@
       "module": "Cuaderno · Cornell",
       "operation": "Filtrar notas por fecha, proyecto y contexto",
       "essential": true,
-      "status": "absent",
+      "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "",
-      "tests": [],
+      "react": "StructuredPages.tsx / URL filters",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3373,7 +3408,22 @@
           "line": 694
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
     },
     {
       "id": "cornell-04",
@@ -3657,10 +3707,14 @@
       "module": "Cuaderno · Cornell",
       "operation": "Duplicar nota completa conservando contenido y recursos",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py; mathmongo/study/note_actions.py; editor/notebook_lifecycle.py",
+      "react": "SavedNoteActions.tsx / StructuredPages.tsx",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs",
+        "tests/saved-note-actions.test.tsx"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3675,17 +3729,36 @@
           "line": 694
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
     },
     {
       "id": "cornell-15",
       "module": "Cuaderno · Cornell",
       "operation": "Borrar nota completa con confirmación y medios compartidos",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py; mathmongo/study/note_actions.py; editor/notebook_lifecycle.py",
+      "react": "SavedNoteActions.tsx / StructuredPages.tsx",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs",
+        "tests/saved-note-actions.test.tsx"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3700,7 +3773,22 @@
           "line": 694
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
     },
     {
       "id": "cornell-16",
@@ -3931,10 +4019,13 @@
       "module": "Cuaderno · CPI",
       "operation": "Filtrar notas por fecha, proyecto y contexto",
       "essential": true,
-      "status": "absent",
+      "status": "verified",
       "python_service": "editor/cpi/service.py; mathmongo/study/structured_notes.py",
-      "react": "",
-      "tests": [],
+      "react": "StructuredPages.tsx / URL filters",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3949,7 +4040,22 @@
           "line": 638
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
     },
     {
       "id": "cpi-04",
@@ -4233,10 +4339,14 @@
       "module": "Cuaderno · CPI",
       "operation": "Duplicar nota completa conservando contenido y recursos",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cpi/service.py; mathmongo/study/structured_notes.py",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "editor/cpi/service.py; mathmongo/study/structured_notes.py; mathmongo/study/note_actions.py; editor/notebook_lifecycle.py",
+      "react": "SavedNoteActions.tsx / StructuredPages.tsx",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs",
+        "tests/saved-note-actions.test.tsx"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4251,17 +4361,36 @@
           "line": 638
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
     },
     {
       "id": "cpi-15",
       "module": "Cuaderno · CPI",
       "operation": "Borrar nota completa con confirmación y medios compartidos",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cpi/service.py; mathmongo/study/structured_notes.py",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "editor/cpi/service.py; mathmongo/study/structured_notes.py; mathmongo/study/note_actions.py; editor/notebook_lifecycle.py",
+      "react": "SavedNoteActions.tsx / StructuredPages.tsx",
+      "tests": [
+        "tests/test_note_actions_http.py",
+        "tests/note-actions-browser.mjs",
+        "tests/saved-note-actions.test.tsx"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4276,7 +4405,22 @@
           "line": 638
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "verification": {
+        "production_commits": [
+          "ec8ddca8",
+          "7d3ce7dd",
+          "4af7c176",
+          "d0323c75"
+        ],
+        "browsers": [
+          "chrome",
+          "firefox"
+        ],
+        "evidence": "evidence/sonar/independent-study/{browser}/note-actions-browser.json",
+        "database": "owned standalone mongod, temporary UUID database, no MathV0 connection",
+        "historical_scope": "authoritative private Cornell/Diario copies; CPI canonical fixture because backup contains no CPI"
+      }
     },
     {
       "id": "cpi-16",
@@ -6484,7 +6628,7 @@
       "operation": "Elegir base activa y aislar todo estado/borrador",
       "essential": true,
       "status": "partial",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6503,7 +6647,7 @@
       "operation": "Crear y administrar perfiles de conexión",
       "essential": true,
       "status": "absent",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6522,7 +6666,7 @@
       "operation": "Probar conexión sin mutación",
       "essential": true,
       "status": "absent",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6541,7 +6685,7 @@
       "operation": "Renombrar, editar y quitar perfil de conexión",
       "essential": true,
       "status": "absent",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6560,7 +6704,7 @@
       "operation": "Consultar nombre real de base y estado de conexión",
       "essential": false,
       "status": "partial",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6579,7 +6723,7 @@
       "operation": "Abrir diagnóstico seguro e interpretar permisos/incompatibilidad",
       "essential": true,
       "status": "partial",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6598,7 +6742,7 @@
       "operation": "Preparar índices compatibles de notas explícitamente",
       "essential": true,
       "status": "verified",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6617,7 +6761,7 @@
       "operation": "Preparar catálogo de fuentes explícitamente",
       "essential": true,
       "status": "verified",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6636,7 +6780,7 @@
       "operation": "Crear biblioteca mediante bootstrap/dry-run autorizado",
       "essential": true,
       "status": "absent",
-      "python_service": "editor/connection_manager.py; mathmongo/config",
+      "python_service": "editor/connection_manager.py; mathmongo/config.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6855,7 +6999,7 @@
       "operation": "Consultar estadísticas de colecciones, índices y recursos",
       "essential": false,
       "status": "partial",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6874,7 +7018,7 @@
       "operation": "Inspeccionar integridad sin reparar silenciosamente",
       "essential": true,
       "status": "partial",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "StudyApp.tsx / Ajustes",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6893,7 +7037,7 @@
       "operation": "Escanear carpetas de exportación",
       "essential": false,
       "status": "absent",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6912,7 +7056,7 @@
       "operation": "Limpiar temporales de compilación con vista previa",
       "essential": false,
       "status": "absent",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6931,7 +7075,7 @@
       "operation": "Limpiar exportaciones antiguas mediante selección",
       "essential": false,
       "status": "absent",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6950,7 +7094,7 @@
       "operation": "Limpiar temporales de grafos",
       "essential": false,
       "status": "absent",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6969,7 +7113,7 @@
       "operation": "Copiar grafos legacy a runtime",
       "essential": false,
       "status": "absent",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -6988,7 +7132,7 @@
       "operation": "Vaciar carpetas de exportación con confirmación",
       "essential": false,
       "status": "absent",
-      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor",
+      "python_service": "editor/utils/cleanup_exports.py; mathmongo/doctor.py",
       "react": "",
       "tests": [],
       "historical_and_current_evidence": [
@@ -7229,6 +7373,74 @@
         "partial": 22
       },
       "verified_percent": 1.61
+    }
+  },
+  "refinements": [
+    {
+      "operation": "diary-21",
+      "reason": "Historical date/context/tags/year/month/recent controls were not represented by diary-02 (project/source/text). Added as pending; no new verified credit."
+    },
+    {
+      "operation": "source-05/source-06",
+      "reason": "Separate actual Source fields and rights controls from bibliographic Reference metadata; implemented rights remain unverified."
+    }
+  ],
+  "initial_count": {
+    "total": 276,
+    "verified": 103,
+    "partial": 55,
+    "absent": 118,
+    "essential_total": 214,
+    "essential_verified": 102
+  },
+  "comparison_same_scope": {
+    "baseline": {
+      "total": 277,
+      "verified": 103,
+      "percent": 37.18,
+      "essential_total": 215,
+      "essential_verified": 102,
+      "essential_percent": 47.44
+    },
+    "newly_verified": [
+      "diary-20",
+      "cornell-03",
+      "cpi-03",
+      "cornell-14",
+      "cpi-14",
+      "cornell-15",
+      "cpi-15"
+    ]
+  },
+  "summary": {
+    "total": {
+      "operations": 277,
+      "statuses": {
+        "verified": 110,
+        "unverified": 1,
+        "partial": 54,
+        "absent": 112
+      },
+      "verified_percentage": 39.71
+    },
+    "essential": {
+      "operations": 215,
+      "statuses": {
+        "verified": 109,
+        "unverified": 1,
+        "partial": 32,
+        "absent": 73
+      },
+      "verified_percentage": 50.7
+    },
+    "secondary": {
+      "operations": 62,
+      "statuses": {
+        "absent": 39,
+        "verified": 1,
+        "partial": 22
+      },
+      "verified_percentage": 1.61
     }
   }
 }
