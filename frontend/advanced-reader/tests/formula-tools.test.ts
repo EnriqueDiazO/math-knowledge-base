@@ -86,7 +86,7 @@ it("dispatches formula history only when MathLive confirms its availability", ()
   const host = document.createElement("div"),
     field = Object.assign(document.createElement("math-field"), {
       canUndo: () => true,
-      canRedo: () => false,
+      canRedo: (): boolean => false,
       executeCommand: vi.fn(),
     });
   document.body.append(host, field);
