@@ -10,6 +10,11 @@ if (!Range.prototype.getClientRects) {
   Range.prototype.getClientRects = () => [] as unknown as DOMRectList;
   Range.prototype.getBoundingClientRect = () => new DOMRect();
 }
+if (!document.execCommand) {
+  // CodeMirror's shadow-selection fallback calls this browser API. jsdom has
+  // neither native editing commands nor layout; real selection stays in E2E.
+  document.execCommand = () => false;
+}
 
 // jsdom lacks native dialog methods; real focus/inert behavior is checked in
 // Chrome and Firefox, while unit tests exercise the source-editing contract.
@@ -55,3 +60,17 @@ vi.mock("../src/latex/source-loader", async () => {
   const { LatexSourceEditor } = await import("../src/latex/source-editor");
   return { LatexSourceLoader: LatexSourceEditor };
 });
+
+// jsdom does not render constructable stylesheets. State tests model the platform
+// shape only; Chrome/Firefox validate actual adopted CSS under the unchanged CSP.
+if (!CSSStyleSheet.prototype.replaceSync) {
+  CSSStyleSheet.prototype.replaceSync = function (_text: string) { /* No layout engine. */ };
+}
+if (!("adoptedStyleSheets" in ShadowRoot.prototype)) {
+  const sheets = new WeakMap<ShadowRoot, CSSStyleSheet[]>();
+  Object.defineProperty(ShadowRoot.prototype, "adoptedStyleSheets", {
+    configurable: true,
+    get(this: ShadowRoot) { return sheets.get(this) ?? []; },
+    set(this: ShadowRoot, value: CSSStyleSheet[]) { sheets.set(this, value); },
+  });
+}

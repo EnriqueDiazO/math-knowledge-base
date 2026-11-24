@@ -115,3 +115,5 @@
   background: var(--mm-control);
   color: var(--mm-text);
 }
+
+.visual-document .ProseMirror-gapcursor:after { border-top-color: var(--mm-focus); }

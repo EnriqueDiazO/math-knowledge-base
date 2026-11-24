@@ -29,6 +29,16 @@ await test(
     const coverage = await browserCoverage(page, name, "latex-parity"),
       errors = [];
     page.on("pageerror", (error) => errors.push(error.message));
+    await page.addInitScript(() => {
+      window.mathmongoStyleViolations = [];
+      document.addEventListener("securitypolicyviolation", (event) => {
+        if (event.effectiveDirective.startsWith("style-src"))
+          window.mathmongoStyleViolations.push(
+            event.effectiveDirective + ":" + event.blockedURI,
+          );
+      });
+    });
+
     const codeRequests = [];
     page.on("request", (request) => {
       if (/source-editor-[^/]+\.js$/u.test(new URL(request.url()).pathname))
@@ -106,6 +116,32 @@ await test(
         await button("Fuente LaTeX").click();
         expect(await readSource(page)).toBe(original);
         if (item.case === 1) expect(codeRequests).toHaveLength(1);
+        if (item.case === 1) {
+          const layout = await sourceField(page).evaluate((element) => {
+            const root = element.getRootNode(),
+              view = element.closest(".cm-editor");
+            return {
+              shadow: root instanceof ShadowRoot,
+              sheets:
+                root instanceof ShadowRoot ? root.adoptedStyleSheets.length : 0,
+              font: getComputedStyle(view.querySelector(".cm-scroller"))
+                .fontFamily,
+              gutter: getComputedStyle(view.querySelector(".cm-gutters"))
+                .position,
+              violations: window.mathmongoStyleViolations,
+            };
+          });
+          expect(layout.shadow).toBe(true);
+          expect(layout.sheets).toBeGreaterThanOrEqual(2);
+          expect(layout.font).toContain("monospace");
+          expect(layout.gutter).toBe("sticky");
+          expect(layout.violations).toEqual([]);
+          await writeFile(
+            evidence + "/source-style-policy.json",
+            JSON.stringify(layout, null, 2),
+          );
+        }
+
         await writeSource(page, original);
         expect(await readSource(page)).toBe(original);
         await button("Fuente LaTeX").click();

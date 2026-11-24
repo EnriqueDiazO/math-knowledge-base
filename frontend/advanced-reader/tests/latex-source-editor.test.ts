@@ -1,3 +1,4 @@
+import { sourceRoot } from "./source-code-support";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CompletionContext } from "@codemirror/autocomplete";
 import { EditorSelection, EditorState } from "@codemirror/state";
@@ -91,17 +92,19 @@ describe("lossless full LaTeX source editor", () => {
   it("finds, replaces and undoes a literal search through CodeMirror's real panel", () => {
     const { editor, host } = mount("ámbito x\nmacro x\n");
     button(host, "Buscar y reemplazar").click();
-    const search = host.querySelector<HTMLInputElement>(
+    const search = sourceRoot(host).querySelector<HTMLInputElement>(
       'input[name="search"]',
     )!;
     search.value = "macro";
     search.dispatchEvent(new Event("change", { bubbles: true }));
-    const replacement = host.querySelector<HTMLInputElement>(
+    const replacement = sourceRoot(host).querySelector<HTMLInputElement>(
       'input[name="replace"]',
     )!;
     replacement.value = "definición";
     replacement.dispatchEvent(new Event("change", { bubbles: true }));
-    host.querySelector<HTMLButtonElement>('button[name="replaceAll"]')!.click();
+    sourceRoot(host)
+      .querySelector<HTMLButtonElement>('button[name="replaceAll"]')!
+      .click();
     expect(editor.value).toBe("ámbito x\ndefinición x\n");
     button(host, "Deshacer código").click();
     expect(editor.value).toBe("ámbito x\nmacro x\n");

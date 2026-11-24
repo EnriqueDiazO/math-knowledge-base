@@ -1,3 +1,4 @@
+import { sourceRoot } from "./source-code-support";
 import { afterEach, expect, it, vi } from "vitest";
 import { LatexSourceEditor } from "../src/latex/source-editor";
 import type { LatexSourceLoader as Loader } from "../src/latex/source-loader";
@@ -44,7 +45,7 @@ it("keeps canonical source and cursor before tools load, then uses the latest dr
   editor.value = "Nueva fuente\r\n\\unknown{á}";
   complete({ LatexSourceEditor });
   await vi.waitFor(() =>
-    expect(host.querySelector(".cm-editor")).not.toBeNull(),
+    expect(sourceRoot(host).querySelector(".cm-editor")).not.toBeNull(),
   );
   expect(editor.value).toBe("Nueva fuente\r\n\\unknown{á}");
   expect(editor.snapshot()).toMatchObject({ anchor: 2, head: 5 });
@@ -90,7 +91,7 @@ it("preserves exact source on load failure and permits an explicit retry", async
   expect(host.querySelector("textarea")!.readOnly).toBe(true);
   host.querySelector<HTMLButtonElement>("button")!.click();
   await vi.waitFor(() =>
-    expect(host.querySelector(".cm-editor")).not.toBeNull(),
+    expect(sourceRoot(host).querySelector(".cm-editor")).not.toBeNull(),
   );
   expect(editor.value).toBe(source);
   expect(load).toHaveBeenCalledTimes(2);

@@ -12,7 +12,7 @@ const environments = [
   ["example", "Ejemplo", true],
   ["remark", "Nota", true],
   ["context", "Contexto", false],
-  ["reference", "Referencia", false],
+  ["reference", "Referencia (definición propia)", false],
   ["proof", "Demostración", false],
   ["align*", "Ecuaciones alineadas", false],
   ["cases", "Sistema por casos", false],

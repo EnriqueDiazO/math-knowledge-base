@@ -12,6 +12,7 @@ import { SourceBlock, editProtectedSource } from "./document-source";
 import type { PreviewFigure } from "./document-source";
 import { conceptKind, conceptType, resultChoices } from "./concept-types";
 import "./document-tools.css";
+import "./document-base.css";
 import type { SourceSelection } from "../latex/source-editor";
 import { LatexSourceLoader } from "../latex/source-loader";
 import {
@@ -337,6 +338,7 @@ export class DocumentEditor {
     this.preview.className = "document-preview";
     this.preview.hidden = true;
     this.editor = new Editor({
+      injectCSS: false,
       element: this.visual,
       extensions: documentExtensions(surface?.preview),
       content: snapshot?.json ?? parseDocument(latex),
@@ -647,6 +649,7 @@ export function renderDocument(
   preview?: PreviewFigure,
 ): () => void {
   const reader = new Editor({
+    injectCSS: false,
     element: parent,
     extensions: documentExtensions(preview),
     editable: false,

@@ -35,6 +35,7 @@ import {
 import { stex } from "@codemirror/legacy-modes/mode/stex";
 import { latexCompletion, latexSnippets } from "./completions";
 import "./source-editor.css";
+import { codeViewport } from "./source-styles";
 
 export type SourceSelection = {
   anchor: number;
@@ -68,6 +69,44 @@ const node = <K extends keyof HTMLElementTagNameMap>(tag: K, text = "") => {
   value.textContent = text;
   return value;
 };
+
+const sourceHighlight = syntaxHighlighting(
+  HighlightStyle.define([
+    {
+      tag: [tags.keyword, tags.name],
+      color: "var(--mm-code-command)",
+    },
+    {
+      tag: tags.comment,
+      color: "var(--mm-code-comment)",
+      fontStyle: "italic",
+    },
+    {
+      tag: [tags.string, tags.number],
+      color: "var(--mm-code-value)",
+    },
+    {
+      tag: [tags.bracket, tags.punctuation],
+      color: "var(--mm-text)",
+    },
+  ]),
+);
+const sourceTheme = EditorView.theme(
+  {
+    "&": {
+      height: "100%",
+      color: "var(--mm-text)",
+      backgroundColor: "var(--mm-panel)",
+    },
+    ".cm-scroller": {
+      overflow: "auto",
+      fontFamily: "ui-monospace, monospace",
+      lineHeight: "1.6",
+    },
+  },
+  { dark: true },
+);
+const sourceLanguage = StreamLanguage.define(stex);
 
 export class LatexSourceEditor {
   readonly view: EditorView;
@@ -165,8 +204,10 @@ export class LatexSourceEditor {
     );
     hint.className = "latex-source-hint";
     host.append(tools, parent, hint);
+    const code = codeViewport(parent);
     this.view = new EditorView({
-      parent,
+      parent: code.parent,
+      root: code.root,
       state: EditorState.create({
         doc: source,
         extensions: [
@@ -180,28 +221,8 @@ export class LatexSourceEditor {
           history(),
           indentOnInput(),
           bracketMatching(),
-          StreamLanguage.define(stex),
-          syntaxHighlighting(
-            HighlightStyle.define([
-              {
-                tag: [tags.keyword, tags.name],
-                color: "var(--mm-code-command)",
-              },
-              {
-                tag: tags.comment,
-                color: "var(--mm-code-comment)",
-                fontStyle: "italic",
-              },
-              {
-                tag: [tags.string, tags.number],
-                color: "var(--mm-code-value)",
-              },
-              {
-                tag: [tags.bracket, tags.punctuation],
-                color: "var(--mm-text)",
-              },
-            ]),
-          ),
+          sourceLanguage,
+          sourceHighlight,
           search({ top: true }),
           autocompletion({ override: [latexCompletion] }),
           keymap.of([
@@ -216,21 +237,7 @@ export class LatexSourceEditor {
             "aria-multiline": "true",
             spellcheck: "false",
           }),
-          EditorView.theme(
-            {
-              "&": {
-                height: "100%",
-                color: "var(--mm-text)",
-                backgroundColor: "var(--mm-panel)",
-              },
-              ".cm-scroller": {
-                overflow: "auto",
-                fontFamily: "ui-monospace, monospace",
-                lineHeight: "1.6",
-              },
-            },
-            { dark: true },
-          ),
+          sourceTheme,
           EditorView.updateListener.of((update) => {
             backward.disabled = undoDepth(update.state) === 0;
             forward.disabled = redoDepth(update.state) === 0;
