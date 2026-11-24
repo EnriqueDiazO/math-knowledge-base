@@ -262,3 +262,23 @@ study a security (25 líneas), no se eliminó. El SourceBlock se extrajo y ampli
 se conserva su consumidor del editor/lector. Formatear SourcePicker y NoteCitation
 no cuenta como aumento funcional ni reducción de complejidad. Los bundles
 reemplazados son regeneración; ninguna capacidad ni prueba fue retirada.
+
+## Híbrido y captura bibliográfica — 24 de noviembre
+
+`HYBRID_INVENTORY.json` renueva los veinte mayores mantenidos y la lista completa
+por encima de mil líneas. Continúan siendo veinte. Se reutilizan las revisiones
+de los diecinueve sin cambios. `editor/pdf_export.py` es el único grande cambiado
+desde C: **1115 →1052** líneas; conserva preparación temporal, composición de notas,
+publicación PDF y diagnóstico. El cuerpo repetido de concepto pasa al renderizador
+canónico, junto con el de ExportadorLatex (**259 →216**), sin cambiar sus consumidores.
+Se revisaron exportaciones/citas, rutas XDG, fallos de compilación y el contrato
+académico opt-in de identificadores. No se eliminan validaciones, pruebas ni
+comentarios docentes. **Decisión: conservar el resto de responsabilidades y
+separar por tipos de exportación en un lote posterior con sus consumidores**.
+
+El renderizador compartido cambia **567 →569**, el editor **609 →616**, el entry
+permanece **21**. El constructor independiente tiene su propio módulo, los datos
+bibliográficos recuperables otro; sus líneas también figuran en el inventario.
+Los recursos estáticos regenerados siguen clasificados como generados. No se
+presentan cambios de hashes/minificación de esos recursos como código muerto.
+No se retira ninguna ruta de compatibilidad en esta fase.

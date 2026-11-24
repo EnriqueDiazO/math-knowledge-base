@@ -18,13 +18,13 @@ usarse. El navegador sigue siendo externo.
 Artefacto local probado:
 
 ```
-.tools/appimage/MathMongo-react-experimental-x86_64.AppImage
-sha256 de25f97d0dd5c38e62717cee7f631e51a4ca1cb9682c08c6505c3892c57e19c6
+dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage
+sha256 ec8ca4cfacb9a605fbaab4713a0439a550d7236619e322de19d18f99fd472e05
 ```
 
-Payload construido en `11dfe468`; frontend funcional `b62889bf`.
-Los commits posteriores del constructor sólo cierran descriptores y amplían
-sus pruebas; no cambian el payload de esta imagen. No se distribuye todavía
+Payload y frontend construidos en `f00aa5ac`, con recuperación bibliográfica
+completa. La imagen inicial de `11dfe468` se conserva como evidencia del
+checkpoint documental anterior; no se sobrescribió. No se distribuye todavía
 como versión estable ni se afirma compatibilidad con otras distribuciones Linux.
 Se comprobó desde un directorio temporal distinto del repositorio, con intérprete
 `-I -B`, sin PYTHONPATH del repositorio, venv, ni Streamlit disponible.
@@ -32,7 +32,7 @@ Se comprobó desde un directorio temporal distinto del repositorio, con intérpr
 Desde la raíz del repositorio, usando la configuración Mongo existente:
 
 ```bash
-.tools/appimage/MathMongo-react-experimental-x86_64.AppImage --appimage-extract-and-run --port 8766
+dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage --appimage-extract-and-run --port 8766
 ```
 
 Abrir `http://127.0.0.1:8766/study`. Para elegir explícitamente una biblioteca,
@@ -76,7 +76,7 @@ una versión nueva ni promete que una descarga futura mutable coincida.
 
 ```bash
 .venv/bin/python tests/run_independent_study_e2e.py \
-  --appimage=.tools/appimage/MathMongo-react-experimental-x86_64.AppImage \
+  --appimage=dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage \
   --browser=chrome --authoring --notes --document-export --legacy
 ```
 

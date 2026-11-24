@@ -263,3 +263,90 @@ La imagen experimental probada pesa 38 MiB; su contrato y comandos están en
 LaTeX del host. No gestiona un daemon ni acredita portabilidad a otros sistemas.
 Sigue pendiente la gestión de Biblioteca y la paridad de Cuaderno/Cornell/CPI,
 medios externos, transferencias y administración. El inventario continúa activo.
+
+
+## E1 — corrección de recuperación bibliográfica y cierre de esta ejecución
+
+`cccfac1f` corrige una pérdida demostrada: elegir una propuesta, corregir el título,
+recargar y guardar perdía revista/editorial, BibTeX/procedencia y autores
+estructurados. `reference-before.log` muestra la prueba fallida anterior al cambio;
+`reference-after.log` y `reference-valid-metadata.log` pasan tras conservar la
+propuesta y los campos manuales en un único borrador, con el mismo ID de ficha.
+La fecha completa de consulta se conserva si no se cambia el día. Los borradores
+manuales v1 sin propuesta siguen siendo válidos. Si el JSON recuperado está dañado,
+se bloquea el envío parcial y se ofrecen descarga y reinicio con copia archivada.
+La respuesta de una consulta del contexto anterior no se reconcilia en el actual.
+
+Se comprobó HEAD antes de ampliar el contrato del backend: ya comparaba revista,
+editorial, volumen, edición, BibTeX y otros campos. No se reimplementó esa protección.
+Se añadieron sólo `reference_type` y `year_raw`, cuya omisión permitía anunciar
+«guardado» de una petición distinta con el mismo ID. Las dos regresiones fallan
+antes (`reference-replay-before.log`) y pasan después, con Mongo temporal y sin
+modificar la referencia original. No se convierten en una edición implícita.
+`f00aa5ac` publica el frontend y es la revisión exacta del paquete final probado.
+
+Verificaciones acumuladas válidas: **2149 casos Python distintos aprobados,
+0 fallidos**: 2133 de integral + sus 9 opt-ins ejecutados aparte + 5 nuevos de
+empaquetado + 2 nuevos de reintento. Las 22 pruebas focalizadas de captura/HTTP
+incluyen los dos casos nuevos y se solapan con la integral: no se suman otras 22.
+**271 casos frontend aprobados**; typecheck, ESLint y builds correctos. Cinco
+escenarios en Chrome y cinco en Firefox desde la imagen final, incluyendo
+pasaje→nota→concepto→esfera→origen, creación bibliográfica/documental, concurrencia,
+compilación sin guardar, exportación e identidad exacta de las cinco copias reales.
+Cada informe queda ligado a su run_id y revisión. `MathV0_writes=0`.
+
+| Corte procesado | Revisión | General | Nueva | Gate |
+|---|---|---:|---:|---|
+| Notas B | 79ed6560 | 73,7 % | 72,7 % | ERROR |
+| C recuperado y revisado | 1ea60d06 | 73,9 % | 73,8 % | ERROR |
+| Híbrido / primer AppImage | a4f5852c | 74,0 % | 73,9 % | ERROR |
+| Final bibliográfico | f00aa5ac | **74,2 %** | **74,5 %** | **ERROR** |
+
+Análisis final **`1c60f417-845f-4b54-aee8-98f7ddd0cb45`**, CE SUCCESS, revisión
+`f00aa5ac34fdc2ee39ed7162d034d4286784195a`. Falla sólo cobertura nueva
+**74,5 <80**. Duplicación nueva **0,11546 ≤3 %**, incidencias nuevas **0 ≤0**.
+No se cambia el periodo PREVIOUS_VERSION `2026-11-21T16:46:16+0000`, perfiles,
+exclusiones, supresiones ni umbrales. El falso positivo aislado de S5443 conserva
+su revisión documentada; no aparecen incidencias nuevas.
+
+Sonar importó `evidence/sonar/coverage.xml` y
+`frontend/advanced-reader/coverage/lcov.info`. El XML procede de la integral,
+opt-ins y backend instrumentado anterior aún válido; sólo se purgó la medición
+de `bibliography_lookup/capture.py` al desplazar líneas y se reobservó con 22
+pruebas. El LCOV final añade **252 líneas y 171 ramas** compatibles observadas en
+Chrome a las unidades: **4242/5645 →4494/5645 líneas** y
+**2471/3975 →2642/3975 condiciones**. No mide automáticamente el Python empaquetado.
+No comparar su porcentaje de líneas frontend con el porcentaje general/nuevo de
+Sonar que incluye Python y condiciones, ni sumar contadores no equivalentes.
+
+El déficit restante está localizado en `RECOVERY_FINAL_COVERAGE.csv` (184 archivos
+con líneas nuevas). Encabezan relaciones de compatibilidad (402 líneas sin
+verificar), mapas heredados (286), room (157 líneas y 100 condiciones), canvas
+(65/74) y coordinación del mapa (58/76). Son comportamientos/ramas por caracterizar,
+no reportes omitidos ni una atribución genérica a tooling. Siguen pendientes también
+mantenimiento, edición/exploración/exportación heredadas. Las pruebas añadidas
+validan efectos y preservación; no se excluyen esas páginas para aprobar el Gate.
+
+El paquete final está en **`dist/MathMongo-f00aa5ac-experimental-x86_64.AppImage`**,
+39.795.192 bytes, SHA256
+`ec8ca4cfacb9a605fbaab4713a0439a550d7236619e322de19d18f99fd472e05`.
+Se conservan también las imágenes anteriores y sus evidencias. Se comprueban
+PDF con pdfinfo/pdftotext y rasterización inspeccionada; hay capturas amplias y
+estrechas reales en `evidence/sonar/packaged-study/{chrome,firefox}`.
+
+El constructor no da por migrada la aplicación completa. Biblioteca todavía
+necesita edición/archivo/reactivación y BibTeX; conceptos, borrado contextual,
+anotaciones y relaciones requieren cerrar todas sus operaciones; Cuaderno,
+Cornell/CPI, medios externos, transferencias y administración mantienen su matriz.
+No hay retiradas de compatibilidad autorizadas por estos resultados. El próximo
+lote recomendado es edición bibliográfica con CAS y las operaciones de Biblioteca,
+en paralelo con caracterización de contratos heredados que concentran el déficit.
+La ventana nativa, Mongo gestionado, actualización y otras distribuciones de la
+AppImage siguen pendientes. El ZIP privado está disponible; no es un bloqueo.
+
+[REPEAT_REACT_ANALYSIS.md](REPEAT_REACT_ANALYSIS.md) conserva el comando/secuencia
+reproducible sin alterar referencia y sin perder cobertura Chrome. El inventario
+renovado y las decisiones de los veinte archivos grandes están en
+[HYBRID_INVENTORY.json](HYBRID_INVENTORY.json) y [LARGE_FILES.md](LARGE_FILES.md).
+Los commits de documentación posteriores al análisis no cambian el código analizado.
+Todo queda local; sin push ni merge.
