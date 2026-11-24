@@ -7,11 +7,13 @@ export function ExportActions({
   conceptKeys = [],
   noteIds = [],
   notebookId,
+  structuredFamily,
 }: {
   context: StudyContext;
   conceptKeys?: string[];
   noteIds?: string[];
   notebookId?: string;
+  structuredFamily?: "cornell" | "cpi";
 }) {
   const scope = useOperationScope(context),
     [message, setMessage] = useState(""),
@@ -28,7 +30,12 @@ export function ExportActions({
     try {
       const blob = await studyBinary(
         notebookId
-          ? "/notebook/" + encodeURIComponent(notebookId) + "/export"
+          ? (structuredFamily
+              ? "/structured/" + structuredFamily
+              : "/notebook") +
+              "/" +
+              encodeURIComponent(notebookId) +
+              "/export"
           : "/export",
         context,
         notebookId

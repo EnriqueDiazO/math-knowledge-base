@@ -5,6 +5,7 @@ import type { Navigate } from "./navigation";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import { NotebookWorkspace } from "./NotebookWorkspace";
+import { StructuredPages } from "./StructuredPages";
 export function NotebookPages({
   context,
   navigate,
@@ -16,6 +17,17 @@ export function NotebookPages({
   identity: string;
   search: string;
 }) {
+  const [family, ...rest] = identity.split("/");
+  if (family === "cornell" || family === "cpi")
+    return (
+      <StructuredPages
+        context={context}
+        navigate={navigate}
+        family={family}
+        identity={rest.join("/")}
+        search={search}
+      />
+    );
   if (identity === "new")
     return (
       <NotebookWorkspace
@@ -102,6 +114,14 @@ function DiaryList({
     <section>
       <p className="eyebrow">Escritura por fecha y proyecto</p>
       <h1>Cuaderno</h1>
+      <nav aria-label="Actividades de estudio">
+        <StudyLink to="/study/notebook/cornell" navigate={navigate}>
+          Cornell
+        </StudyLink>
+        <StudyLink to="/study/notebook/cpi" navigate={navigate}>
+          CPI
+        </StudyLink>
+      </nav>
       <StudyLink
         to="/study/notebook/new"
         navigate={navigate}
@@ -176,9 +196,9 @@ function DiaryList({
       <details>
         <summary>Otras actividades del Cuaderno</summary>
         <p>
-          Cornell, CPI, Worklog, Backlog, revisiones semanales y entregables
-          conservan sus modelos. Sus operaciones completas siguen pendientes de
-          migración; estas entradas de Diario no las sustituyen.
+          Worklog, Backlog, revisiones semanales y entregables conservan sus
+          modelos. Sus operaciones siguen pendientes de migración; Diario,
+          Cornell y CPI no las sustituyen.
         </p>
       </details>
     </section>
