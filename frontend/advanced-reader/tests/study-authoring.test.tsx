@@ -1,3 +1,4 @@
+import { mockWindowLocks } from "./web-locks-support";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { act, cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -70,6 +71,7 @@ const context: StudyContext = {
 const source = "src_2df041a2-7577-4a78-9e2c-a72740a21fd3";
 const requests: { path: string; body: Record<string, unknown> }[] = [];
 beforeEach(() => {
+  mockWindowLocks();
   localStorage.clear();
   requests.length = 0;
   vi.stubGlobal(
@@ -113,20 +115,52 @@ afterEach(() => {
 });
 
 describe("authoring operations and recoverable drafts", () => {
-  it("sends unchanged category literals intact and leaves the stored citation untouched", async()=>{
-    const original=globalThis.fetch,navigate=vi.fn(),user=userEvent.setup();
-    const categories=["Unidad, familia"," propia "];
-    vi.stubGlobal("fetch",vi.fn(async(input,options)=>{
-      if(String(input).includes('/concepts/detail?'))return Response.json({key:'definition:owned@Fuente de prueba',id:'definition:owned',source:'Fuente de prueba',source_id:source,titulo:'  Identidad sin normalizar  ',tipo:'definicion',contenido_latex:'Texto original.',categorias:categories,comentario:'',reference_id:'ref_2df041a2-7577-4a78-9e2c-a72740a21fd3',reference_locator:null,revision:'revision-original',passages:[]});
-      return original(input,options);
-    }));
-    render(<ConceptEditorPage context={context} navigate={navigate} search="" conceptKey="definition:owned@Fuente de prueba"/>);
-    await screen.findByLabelText('Nombre del concepto');
-    await user.click(screen.getByRole('button',{name:'Guardar concepto'}));
-    await waitFor(()=>expect(navigate).toHaveBeenCalled());
-    expect(requests[0].body).toMatchObject({titulo:'  Identidad sin normalizar  ',categorias:categories,contenido_latex:'Texto original.',revision:'revision-original'});
-    expect(requests[0].body).not.toHaveProperty('reference_id');
-    expect(requests[0].body).not.toHaveProperty('reference_locator');
+  it("sends unchanged category literals intact and leaves the stored citation untouched", async () => {
+    const original = globalThis.fetch,
+      navigate = vi.fn(),
+      user = userEvent.setup();
+    const categories = ["Unidad, familia", " propia "];
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (input, options) => {
+        if (String(input).includes("/concepts/detail?"))
+          return Response.json({
+            key: "definition:owned@Fuente de prueba",
+            id: "definition:owned",
+            source: "Fuente de prueba",
+            source_id: source,
+            titulo: "  Identidad sin normalizar  ",
+            tipo: "definicion",
+            contenido_latex: "Texto original.",
+            categorias: categories,
+            comentario: "",
+            reference_id: "ref_2df041a2-7577-4a78-9e2c-a72740a21fd3",
+            reference_locator: null,
+            revision: "revision-original",
+            passages: [],
+          });
+        return original(input, options);
+      }),
+    );
+    render(
+      <ConceptEditorPage
+        context={context}
+        navigate={navigate}
+        search=""
+        conceptKey="definition:owned@Fuente de prueba"
+      />,
+    );
+    await screen.findByLabelText("Nombre del concepto");
+    await user.click(screen.getByRole("button", { name: "Guardar concepto" }));
+    await waitFor(() => expect(navigate).toHaveBeenCalled());
+    expect(requests[0].body).toMatchObject({
+      titulo: "  Identidad sin normalizar  ",
+      categorias: categories,
+      contenido_latex: "Texto original.",
+      revision: "revision-original",
+    });
+    expect(requests[0].body).not.toHaveProperty("reference_id");
+    expect(requests[0].body).not.toHaveProperty("reference_locator");
   });
   it("keeps an old library's pending source and ignores its late reply after unmount", async () => {
     const user = userEvent.setup(),
@@ -164,7 +198,9 @@ describe("authoring operations and recoverable drafts", () => {
         search=""
       />,
     );
-    await act(async()=>{confirm(Response.json({source_id:source}));});
+    await act(async () => {
+      confirm(Response.json({ source_id: source }));
+    });
     await waitFor(() =>
       expect(screen.getByLabelText("Nombre de la fuente")).toHaveValue(""),
     );
@@ -268,7 +304,10 @@ describe("authoring operations and recoverable drafts", () => {
     );
     expect(
       JSON.parse(
-        localStorage.getItem("mathmongo-drafts-v2-owned-study-concepts")!,
+        localStorage.getItem(
+          "mathmongo-drafts-v2-owned-study-concepts-window-" +
+            sessionStorage.getItem("mathmongo-concept-window-v1"),
+        )!,
       ).new.content,
     ).toBe("Texto con una fórmula conservada.");
     await user.click(screen.getByRole("button", { name: "Guardar concepto" }));
@@ -285,13 +324,18 @@ describe("authoring operations and recoverable drafts", () => {
     app.unmount();
     expect(
       JSON.parse(
-        localStorage.getItem("mathmongo-drafts-v2-owned-study-concepts")!,
+        localStorage.getItem(
+          "mathmongo-drafts-v2-owned-study-concepts-window-" +
+            sessionStorage.getItem("mathmongo-concept-window-v1"),
+        )!,
       ),
     ).toEqual({});
     app = render(
       <ConceptEditorPage context={context} navigate={navigate} search="" />,
     );
-    expect(screen.getByLabelText("Nombre del concepto")).toBeEnabled();
+    await waitFor(() =>
+      expect(screen.getByLabelText("Nombre del concepto")).toBeEnabled(),
+    );
     expect(screen.getByLabelText("Nombre del concepto")).toHaveValue("");
     app.unmount();
   });

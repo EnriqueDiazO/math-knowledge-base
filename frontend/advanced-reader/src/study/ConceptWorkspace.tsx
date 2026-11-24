@@ -1,14 +1,16 @@
+import { ConceptConflict } from "./ConceptConflict";
+import { rebaseConcept } from "./concept-rebase";
 import { useOperationScope } from "./useOperationScope";
 /** Direct creation and revision-bound editing reuse the mathematical document port. */
-import { useRef, useState } from "react";
-import { DraftVault } from "../knowledge-map/drafts";
+import { useEffect, useRef, useState } from "react";
+import { conceptDraftStorage } from "./concept-drafts";
 import { intention } from "../knowledge-map/model";
 import type { Draft, Intent } from "../knowledge-map/model";
 import type { DocumentEditor } from "../knowledge-map/document-editor";
 import { emptyLocator } from "../knowledge-map/bibliography";
 import { conceptTypes } from "../knowledge-map/concept-types";
 import { DocumentSurface } from "./DocumentSurface";
-import { executeStudy } from "./api";
+import { executeStudy, downloadDocument } from "./api";
 import type { StudyContext, ConceptDetail, SourceDetail } from "./api";
 import { useStudyResource } from "./navigation";
 import type { Navigate } from "./navigation";
@@ -16,7 +18,7 @@ import { StudyLink } from "./StudyLink";
 import { SourcePicker } from "./SourcePicker";
 import { AuthoringPreparation } from "./AuthoringPreparation";
 
-type ConceptDraft = Draft & { pending?: Intent };
+type ConceptDraft = Draft & { pending?: Intent; baseline?: ConceptDetail };
 export function ConceptEditorPage({
   context,
   navigate,
@@ -54,7 +56,7 @@ function ConceptWorkspace({
   context,
   navigate,
   search,
-  concept,
+  concept: initialConcept,
 }: {
   context: StudyContext;
   navigate: Navigate;
@@ -62,16 +64,23 @@ function ConceptWorkspace({
   concept?: ConceptDetail;
 }) {
   const scope = useOperationScope(context);
-  const [vault] = useState(
-    () => new DraftVault(context.library_id, "study-concepts"),
-  );
+  const [concept, setConcept] = useState(initialConcept);
+  const [conflict, setConflict] = useState(false);
+  const [epoch, setEpoch] = useState(0);
+  const activeEpoch = useRef(0);
+  const [storage] = useState(() => conceptDraftStorage(context.library_id));
+  const vault = storage.current;
+  const [storageReady, setStorageReady] = useState(false);
   const [draft, setDraft] = useState<ConceptDraft>(() => {
     const params = new URLSearchParams(search),
       id = concept ? "edit-" + concept.key : params.get("draft") || "new";
-    const old = vault.get(id) as ConceptDraft | undefined;
+    const old = (vault.get(id) ?? storage.legacy.get(id)) as
+      | ConceptDraft
+      | undefined;
     const value: ConceptDraft = old ?? {
       id,
       action: concept ? "edit" : "create",
+      baseline: concept,
       title: concept?.titulo || "",
       content: concept?.contenido_latex || "",
       type: concept?.tipo || "definicion",
@@ -89,13 +98,25 @@ function ConceptWorkspace({
     };
     if (!concept && !value.pending && params.get("source"))
       value.source = params.get("source")!;
-    vault.put(value);
     return value;
   });
   const value = useRef(draft),
     composer = useRef<DocumentEditor | null>(null);
   const finished = useRef(false);
-  const [initial] = useState(() => ({
+  const [draftProblem, setDraftProblem] = useState(false);
+  useEffect(() => {
+    let active = true;
+    void storage.ready.then(() => {
+      if (!active || !scope.active) return;
+      storage.current.put(value.current);
+      setDraftProblem(!storage.current.available);
+      setStorageReady(true);
+    });
+    return () => {
+      active = false;
+    };
+  }, [storage, scope]);
+  const [initial, setInitial] = useState(() => ({
     content: draft.content,
     snapshot: draft.document,
   }));
@@ -109,10 +130,11 @@ function ConceptWorkspace({
   const remember = (next: ConceptDraft) => {
     value.current = next;
     vault.put(next);
+    setDraftProblem(!vault.available);
     setDraft(next);
   };
   const save = async () => {
-    if (sending) return;
+    if (sending || conflict || !storageReady || !storage.recoverable) return;
     let current = value.current;
     if (!current.pending) {
       if (
@@ -170,6 +192,7 @@ function ConceptWorkspace({
       } else {
         setMessage(result.message);
         if (result.status === "duplicate") setExisting(result.key ?? "");
+        if (result.status === "conflict") setConflict(true);
         if (["invalid", "conflict", "duplicate"].includes(result.status))
           remember({ ...current, pending: undefined });
       }
@@ -177,6 +200,39 @@ function ConceptWorkspace({
       setMessage((error as Error).message);
     } finally {
       setSending(false);
+    }
+  };
+  const adopt = (remote: ConceptDetail) => {
+    if (!concept || !scope.active) return;
+    try {
+      const current = value.current;
+      const next: ConceptDraft = {
+        ...rebaseConcept(current, current.baseline ?? concept, remote),
+        baseline: remote,
+        pending: undefined,
+      };
+      vault.put({
+        ...current,
+        id: "conflict-" + crypto.randomUUID(),
+        completed: true,
+      });
+      if (!vault.available) {
+        setMessage(
+          "No se pudo archivar el borrador. Descárgalo antes de cambiar su revisión.",
+        );
+        return;
+      }
+      activeEpoch.current = epoch + 1;
+      remember(next);
+      setConcept(remote);
+      setInitial({ content: next.content, snapshot: next.document });
+      setEpoch(epoch + 1);
+      setConflict(false);
+      setMessage(
+        "Borrador combinado con la revisión consultada. Revisa el contenido y pulsa Guardar concepto; todavía no se ha guardado.",
+      );
+    } catch (error) {
+      setMessage((error as Error).message);
     }
   };
   const back =
@@ -191,8 +247,13 @@ function ConceptWorkspace({
         El contenido se conserva como LaTeX. Guardar confirma el documento en
         esta biblioteca.
       </p>
+      {!storageReady && (
+        <p role="status">Preparando la recuperación segura del borrador…</p>
+      )}
       <AuthoringPreparation context={context} />
-      <fieldset disabled={!!draft.pending || sending}>
+      <fieldset
+        disabled={!!draft.pending || sending || conflict || !storageReady}
+      >
         <label>
           Nombre del concepto
           <input
@@ -305,21 +366,39 @@ function ConceptWorkspace({
           </label>
         </details>
       </fieldset>
-      <div inert={!!draft.pending}>
-        <DocumentSurface
-          context={context}
-          title={draft.title}
-          initial={initial.content}
-          snapshot={initial.snapshot}
-          editorRef={composer}
-          changed={(content, document) => {
-            if (finished.current) return;
-            value.current = { ...value.current, content, document };
-            vault.put(value.current);
-          }}
-        />
+      <div inert={!!draft.pending || conflict || !storageReady}>
+        {storageReady && (
+          <DocumentSurface
+            key={epoch}
+            context={context}
+            title={draft.title}
+            initial={initial.content}
+            snapshot={initial.snapshot}
+            editorRef={composer}
+            changed={(content, document) => {
+              if (finished.current || epoch !== activeEpoch.current) return;
+              value.current = { ...value.current, content, document };
+              vault.put(value.current);
+              setDraftProblem(!vault.available);
+            }}
+          />
+        )}
       </div>
       {message && <p role="status">{message}</p>}
+      {conflict && concept && (
+        <ConceptConflict
+          context={context}
+          identity={concept.key}
+          adopt={adopt}
+        />
+      )}
+      {storageReady && !storage.recoverable && (
+        <p role="alert">
+          No pudimos preparar la recuperación al recargar. Conserva esta
+          ventana, descarga tu borrador y permite el almacenamiento del
+          navegador antes de guardar.
+        </p>
+      )}
       {!vault.available && (
         <p role="alert">
           El navegador no pudo conservar el borrador. Mantén el documento
@@ -337,8 +416,23 @@ function ConceptWorkspace({
       <div className="study-document-actions">
         <button
           type="button"
+          onClick={() =>
+            downloadDocument(
+              new Blob([JSON.stringify(value.current, null, 2)], {
+                type: "application/json",
+              }),
+              "mathmongo-borrador-concepto.json",
+            )
+          }
+        >
+          Descargar borrador
+        </button>
+        <button
+          type="button"
           className="primary-button"
-          disabled={sending}
+          disabled={
+            sending || conflict || !storageReady || !storage.recoverable
+          }
           onClick={() => void save()}
         >
           {sending
@@ -352,8 +446,9 @@ function ConceptWorkspace({
         </StudyLink>
       </div>
       <p>
-        Borrador local conservado. Sólo el guardado confirmado modifica el
-        concepto.
+        {storageReady && storage.recoverable && !draftProblem && vault.available
+          ? "Borrador local conservado. Sólo el guardado confirmado modifica el concepto."
+          : "Tu escritura permanece en esta ventana. Descárgala antes de salir si la recuperación local no está disponible."}
       </p>
     </section>
   );
