@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import json
 import os
-import signal
 import shutil
+import signal
 import socket
 import subprocess
 import sys
@@ -33,6 +33,65 @@ def free_port():
     with socket.socket() as sock:
         sock.bind(("127.0.0.1", 0))
         return sock.getsockname()[1]
+
+
+def restart_owned_package(app, command, work, environment, log, database, evidence):
+    """Restart only this test-owned process group and recover real persisted academic notes."""
+    import hashlib
+    from urllib.request import Request
+
+    from bson import json_util
+
+    def state_hash():
+        records = {name: list(database[name].find().sort("_id", 1))
+                   for name in sorted(database.list_collection_names())}
+        return hashlib.sha256(json_util.dumps(records, sort_keys=True).encode()).hexdigest()
+
+    before = state_hash()
+    previous_pid = app.pid
+    os.killpg(app.pid, signal.SIGTERM)
+    try:
+        app.wait(timeout=15)
+    except subprocess.TimeoutExpired:
+        os.killpg(app.pid, signal.SIGKILL)
+        app.wait(timeout=5)
+    restarted = subprocess.Popen(command, cwd=work, env=environment, stdout=log,
+                                 stderr=subprocess.STDOUT, start_new_session=True)
+    try:
+        base = environment["MATHMONGO_INDEPENDENT_URL"]
+        for _ in range(100):
+            assert restarted.poll() is None
+            try:
+                with urlopen(base + "/api/advanced-reader/health", timeout=1) as response:
+                    if response.status == 200:
+                        break
+            except OSError:
+                time.sleep(0.1)
+        with urlopen(base + "/api/study/v1/context", timeout=5) as response:
+            context = json.load(response)
+        recovered = []
+        for record in database.latex_notes.find():
+            family = {"cornell_math_v1": "cornell", "cpi_v1": "cpi"}.get(record.get("note_format"))
+            path = ("/structured/" + family if family else "/notebook") + "/" + str(record["_id"])
+            request = Request(base + "/api/study/v1" + path,
+                              headers={"X-MathMongo-Library": context["library_id"]})
+            with urlopen(request, timeout=5) as response:
+                note = json.load(response)
+            assert note["latex_body"] == record.get("latex_body", "")
+            recovered.append(str(record["_id"]))
+        after = state_hash()
+        assert before == after
+        (evidence / "package-restart.json").write_text(json.dumps({
+            "passed": True, "previous_pid": previous_pid, "restarted_pid": restarted.pid,
+            "persistent_state_sha256": after, "recovered_notes": recovered,
+            "MathV0_writes": 0, "only_owned_processes_restarted": True,
+        }, indent=2) + "\n")
+        return restarted
+    except BaseException:
+        if restarted.poll() is None:
+            os.killpg(restarted.pid, signal.SIGTERM)
+        restarted.wait(timeout=15)
+        raise
 
 
 def main():
@@ -321,6 +380,9 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 assert db.concepts.count_documents({}) == 9
                 assert db.reading_notes.count_documents({}) == 1
                 print(json.dumps({"browser": browser, "palette": "passed", "temporary_concepts": 9}))
+            if appimage:
+                app = restart_owned_package(app, command, work, environment, log, db, evidence)
+                print(json.dumps({"browser": browser, "packaged_restart": "passed", "MathV0_writes": 0}))
         finally:
             if app is not None:
                 if app.poll() is None:
