@@ -127,7 +127,7 @@ function DiaryList({
           Filtrar por proyecto
           <input name="project" defaultValue={params.get("project") || ""} />
         </label>
-        <button>Buscar entradas</button>
+        <button type="submit">Buscar entradas</button>
       </form>
       {resource.error && (
         <p role="alert">
