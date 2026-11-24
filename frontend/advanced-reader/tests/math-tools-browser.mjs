@@ -122,6 +122,10 @@ await test(
       expect(matrixSource).toBe(
         String.raw`\begin{bmatrix}0&0\\0&0\\0&0\end{bmatrix}`,
       );
+      const matrixEnd = await matrix.evaluate(element => {element.position=-1;element.focus();return element.position;});
+      await page.keyboard.press("ArrowLeft");
+      expect(await matrix.evaluate(element=>element.position)).toBeLessThan(matrixEnd);
+      expect(await matrix.evaluate(element=>element.value)).toBe(matrixSource);
       expect(
         await page
           .locator("math-field")
@@ -161,6 +165,35 @@ await test(
         await page.getByLabel("Fuente LaTeX", { exact: true }).inputValue(),
       ).toBe(original);
       await button("Fuente LaTeX").click();
+      await page.screenshot({
+        path: evidence + "/math-tools-palette-validation.png",
+        fullPage: true,
+      });
+      const viewport = page.locator(".study-document-viewport"),
+        toolbar = page.locator(".document-toolbar");
+      expect((await toolbar.boundingBox()).height).toBeLessThan(
+        (await viewport.boundingBox()).height * 0.6,
+      );
+      await page.setViewportSize({ width: 480, height: 900 });
+      expect((await toolbar.boundingBox()).height).toBeLessThan(
+        (await viewport.boundingBox()).height * 0.6,
+      );
+      expect(
+        await page.evaluate(
+          () => document.documentElement.scrollWidth <= innerWidth + 1,
+        ),
+      ).toBe(true);
+      await page.screenshot({
+        path: evidence + "/math-tools-palette-narrow.png",
+        fullPage: true,
+      });
+      await page.setViewportSize({ width: 1440, height: 1080 });
+      await page
+        .getByText("Más herramientas matemáticas", { exact: true })
+        .click();
+      await viewport.evaluate((element) => {
+        element.scrollTop = 0;
+      });
       await page.screenshot({
         path: evidence + "/math-tools-matrix-nested-tikz.png",
         fullPage: true,

@@ -143,7 +143,7 @@ function Listing({
           Buscar notas {title}
           <input name="q" type="search" defaultValue={params.get("q") || ""} />
         </label>
-        <button>Buscar notas</button>
+        <button type="submit">Buscar notas</button>
       </form>
       {resource.error && (
         <p role="alert">

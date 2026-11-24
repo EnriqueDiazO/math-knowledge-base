@@ -363,6 +363,9 @@ for (const family of ["cornell", "cpi"] as const) {
       expect(
         await screen.findByRole("link", { name: "Nota recuperada" }),
       ).toHaveAttribute("href", "/study/notebook/" + family + "/one");
+      expect(
+        screen.getByRole("button", { name: "Buscar notas" }),
+      ).toHaveAttribute("type", "submit");
       click("Siguientes");
       expect(navigate).toHaveBeenCalledWith(
         "/study/notebook/" + family + "?page=2",

@@ -25,9 +25,14 @@
 .formula-tools-panel label {
   display: grid;
   gap: 0.3rem;
+  font-size: 0.9rem;
 }
 .formula-tools-panel input[type="number"] {
   max-width: 6rem;
+}
+.study-document-viewport .document-toolbar:has(.formula-tools[open]) {
+  max-height: 30dvh;
+  overflow: auto;
 }
 .document-composer .document-toolbar {
   gap: 9px;
