@@ -42,3 +42,89 @@ Datos iniciales por archivo y funciones críticas: evidencia local
 `evidence/sonar/cornell-cpi-2026-11-24/initial-*`. Matriz de paridad y revisiones
 anteriores se conservan. Todas las escrituras de prueba usarán Mongo/PID/base,
 recursos y XDG temporales propios. No se escribe sobre MathV0.
+
+
+## Cierre medido del 24 de noviembre: 95 % todavía pendiente
+
+Análisis procesado `68db7833-292e-46f7-8b7b-93e7998ded5e`, revisión
+`0e08a639578546f0fbcd5375be299efdffef4163`. Referencia PREVIOUS_VERSION de
+2026-11-21T16:46:16+0000 y configuración conservadas. Gate oficial **OK**:
+81,7 ≥80 de cobertura nueva, 0,09069 ≤3 de duplicación y cero incidencias nuevas.
+No se confunde este resultado con la aceptación interna del 95 %.
+
+| Alcance | Antes | Después | Observaciones / faltantes | Adicionales para 95 % a denominador fijo |
+|---|---:|---:|---:|---:|
+| General | 76,0 % | 76,4 % | 59 665 / 14 110 | **11 127** |
+| Nuevo | 80,6 % | 81,7 % | 16 023 / 2934 | **2133** |
+
+El intermedio `54e6847a-86d7-4bc2-a573-63d2226071cd` tuvo Gate ERROR por un botón
+sin tipo submit (S9011). Se corrigió en `d7a411e0` y no se suprimió la incidencia.
+Los análisis posteriores quedaron aprobados. Las 348 pruebas frontend y 2216
+Python distintas verificadas añaden contratos: fuente original/no-op, CAS, replay,
+fallo parcial de medios, confirmación posterior a escritura, límite/modelo,
+regiones/borrador, respuesta tardía, medición aislada y exportación fallida.
+No se suman las repeticiones focalizadas al número de pruebas distintas.
+
+Nuevas fronteras Python: persistencia 58/59 líneas y 29/30 ramas; dominio 124/124
+y 32/32; HTTP 88/88 y 8/8; layout 32/32 y 6/6. Es una medición de ramas separada,
+no se importa como si fuera el XML comparable de líneas. `formula-tools.ts`
+alcanza 99,2 % combinado, estado estructurado y citas 100 %, campos 98,0 %, listado
+95,2 % y coordinador 92,0 %. El coordinador sigue por debajo de la aceptación
+interna y conserva cinco líneas y dieciocho condiciones sin observar.
+
+### Déficit restante por archivo
+
+Se muestran los diez primeros del código nuevo. El JSON versionado conserva
+los veinticinco primeros de cada alcance, con líneas/condiciones por separado.
+
+| Archivo | Cobertura nueva | Líneas nuevas sin cubrir | Condiciones nuevas sin cubrir |
+|---|---:|---:|---:|
+| `editor/app_pages/knowledge_graph.py` | 63.2 % | 263 | 0 |
+| `frontend/advanced-reader/src/knowledge-map/canvas.ts` | 79.4 % | 65 | 74 |
+| `frontend/advanced-reader/src/knowledge-map/component.ts` | 81.5 % | 58 | 76 |
+| `frontend/advanced-reader/src/knowledge-map/room.ts` | 83.7 % | 54 | 53 |
+| `editor/app_pages/concept_edit.py` | 72.4 % | 101 | 0 |
+| `editor/app_pages/concepts.py` | 41.6 % | 94 | 0 |
+| `frontend/advanced-reader/src/study/StudyApp.tsx` | 48.3 % | 41 | 50 |
+| `frontend/advanced-reader/scripts/merge-browser-coverage.mjs` | 49.7 % | 37 | 41 |
+| `frontend/advanced-reader/src/knowledge-map/document-editor.ts` | 81.1 % | 36 | 41 |
+| `frontend/advanced-reader/src/study/ConceptPages.tsx` | 42.4 % | 40 | 32 |
+
+La mayor deuda general sigue en Cuaderno de compatibilidad (2036 líneas sin
+cubrir), Cornell legado (319), pdf_export (298), document_builder (276), CPI legado
+(274), grafo de compatibilidad (263), publicación (227), sincronización de grafo
+(224), importación (212) y notas/evidencia (200). Reutilizar caracterizaciones y
+probar efectos reales al migrar sus operaciones; no borrar sus denominadores
+mientras sus consumidores sigan vigentes.
+
+### Tooling e importación: cuantificación, no atribución genérica
+
+Los seis archivos identificados de tooling/configuración tienen 532 observaciones
+generales y **98 nuevas** sin cubrir: merge 78 nuevas, builder AppImage 15,
+prepare-pdf-worker 1, publish-build 2, Vite 2, Playwright 0. Son **3,34 %** del
+déficit nuevo; no explican las otras 2836 observaciones sin cubrir. Los helpers
+CLI no quedan instrumentados por V8 al construir, y además faltan pruebas de
+sus fallos: ejecutar el camino satisfactorio no acredita las condiciones negativas.
+
+Todas las rutas de Python analizadas coinciden con el XML. Python nativo
+71,73 % incluye 2763 líneas sin cubrir de copias/sondas y flatted fuera del alcance
+Sonar inalterado; Python propio Sonar mide 75,88 %. La diferencia es de alcance,
+no de importación fallida. LCOV combinado mide 5336/6441 líneas y 3353/4743
+condiciones. Los 723 números de línea sólo presentes en BRDA y trece líneas de
+configuración fuera del LCOV explican exactamente la diferencia con Sonar JS.
+No se alteran informes, exclusiones ni denominadores para mejorar el porcentaje.
+
+### Siguiente avance verificable
+
+Primero completar recuperación/estado del coordinador y los contratos de
+medios/asociaciones Cornell/CPI con Mongo temporal; después duplicación/borrado
+contextual y tareas de Cuaderno con sus fallos parciales. Atender las operaciones
+heredadas que sigan disponibles, incluidos exportadores y recursos. Para tooling,
+crear casos de publicación/merge con salidas y errores comprobables y capturar
+sus procesos de manera compatible con el LCOV vigente, sin atribuir hits manuales.
+Seguir con lotes separados y medición procesada; la brecha de 11 127/2133 no se
+oculta tras los módulos nuevos de alta cobertura.
+
+`CORNELL_CPI_RESULTS.json` conserva datos y `CORNELL_CPI_CHECKPOINT.md` el informe.
+`REPEAT_REACT_ANALYSIS.md` reproduce nueve cohortes y el análisis con la misma
+referencia. No se retira Streamlit ni se declara alcanzado el objetivo global.

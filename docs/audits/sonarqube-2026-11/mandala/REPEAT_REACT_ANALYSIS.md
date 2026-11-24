@@ -16,11 +16,11 @@ COVERAGE_RCFILE="$PWD/evidence/sonar/coverage-runtime.ini" \
 COVERAGE_FILE="$CHECKPOINT_EVIDENCE/chrome/.coverage" \
 MATHMONGO_COLLECT_BROWSER_COVERAGE=1 \
 .venv/bin/python -m coverage run --parallel-mode tests/run_independent_study_e2e.py \
-  --browser=chrome --authoring --notes --document-export --legacy --library --notebook
+  --browser=chrome --authoring --notes --document-export --legacy --library --notebook --structured --math-tools
 COVERAGE_RCFILE="$PWD/evidence/sonar/coverage-runtime.ini" \
 COVERAGE_FILE="$CHECKPOINT_EVIDENCE/firefox/.coverage" \
 .venv/bin/python -m coverage run --parallel-mode tests/run_independent_study_e2e.py \
-  --browser=firefox --authoring --notes --document-export --legacy --library --notebook
+  --browser=firefox --authoring --notes --document-export --legacy --library --notebook --structured --math-tools
 .venv/bin/python -m coverage combine --append "$CHECKPOINT_EVIDENCE/chrome" "$CHECKPOINT_EVIDENCE/firefox"
 .venv/bin/python -m coverage xml
 (cd frontend/advanced-reader && node scripts/merge-browser-coverage.mjs \
@@ -30,7 +30,9 @@ COVERAGE_FILE="$CHECKPOINT_EVIDENCE/firefox/.coverage" \
   ../../evidence/sonar/independent-study/chrome/coverage-document-export.json \
   ../../evidence/sonar/independent-study/chrome/coverage-legacy.json \
   ../../evidence/sonar/independent-study/chrome/coverage-library.json \
-  ../../evidence/sonar/independent-study/chrome/coverage-notebook.json)
+  ../../evidence/sonar/independent-study/chrome/coverage-notebook.json \
+  ../../evidence/sonar/independent-study/chrome/coverage-structured.json \
+  ../../evidence/sonar/independent-study/chrome/coverage-math-tools.json)
 ```
 
 Detener la secuencia si falla cualquier comando. `test:coverage` se ejecuta
@@ -42,13 +44,16 @@ comportamiento; el LCOV de navegador se obtiene de Chrome.
 En el corte anterior también se verificó el paquete independiente real,
 con `--appimage=...` y evidencia en `packaged-study`; el backend de ese paquete
 no incluye coverage. Su ejecución no se suma automáticamente al XML Python.
-La secuencia actual incluye los siete recorridos independientes, Biblioteca y
-Diario entre ellos. La integral incluye las caracterizaciones de las páginas
+La secuencia actual incluye nueve recorridos independientes: lectura, autoría,
+notas, exportación, históricos, Biblioteca, Diario, Cornell/CPI y herramientas
+matemáticas. La integral incluye las caracterizaciones de las páginas
 retenidas y de los contratos Cornell/CPI. Se requiere el ZIP privado histórico
 ya disponible y las copias locales verificadas para la cohorte `--legacy`.
 Una reconstrucción completa desde estos comandos vuelve a observar el backend
-actual sin unir líneas desplazadas de informes viejos. El paquete AppImage
-anterior se conserva: no contiene automáticamente las funcionalidades nuevas.
+actual sin unir líneas desplazadas de informes viejos. La AppImage actualizada
+`098cab43` contiene los módulos nuevos y fue verificada por separado con los
+nueve recorridos en ambos navegadores y reinicio del backend propio. La imagen
+inicial `f00aa5ac` también se conserva; no contiene automáticamente estas mejoras.
 
 ## Analizar los informes generados, sin volver a borrarlos
 
