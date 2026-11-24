@@ -280,6 +280,7 @@ def build_note_latex_bundle(
     chktex_report: object | None = None,
     diagnostics: Mapping[str, Any] | None = None,
     template: str = "diario",
+    source_tex: str | None = None,
 ) -> LatexBundleResult:
     """Return a portable note project independently from PDF compilation status."""
     note_data = dict(note)
@@ -289,6 +290,7 @@ def build_note_latex_bundle(
         assets_by_id=None,
         template=template,
     )
+    main_tex = tex_export.tex if source_tex is None else source_tex
     diagnostics_data = dict(diagnostics or {})
     latex_log = diagnostics_data.get("log_text") or diagnostics_data.get("log_excerpt")
     portable_metadata = {
@@ -297,10 +299,10 @@ def build_note_latex_bundle(
         if key not in {"latex_body", "cornell_document", "cpi_document"}
     }
     return build_latex_project_bundle(
-        main_tex=tex_export.tex,
+        main_tex=main_tex,
         raw_body=str(note_data.get("latex_body") or ""),
         metadata=portable_metadata,
-        project_styles=_note_bundle_styles(tex_export.tex),
+        project_styles=_note_bundle_styles(main_tex),
         images=_note_bundle_assets(note_data, db=db, assets_by_id=assets_by_id),
         chktex_report=chktex_report or diagnostics_data.get("chktex"),
         latex_log=latex_log,

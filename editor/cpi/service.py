@@ -63,6 +63,7 @@ def update_cpi_note(
     *,
     expected_snapshot: Mapping[str, Any] | None = None,
     page_origins=None,
+    operation_fingerprint=None,
 ) -> Any:
     """Update an existing CPI note without converting other note formats."""
     existing = (
@@ -80,7 +81,13 @@ def update_cpi_note(
         safe_metadata["seed_id"] = existing["seed_id"]
     note = build_cpi_note_document(safe_metadata, document)
     return update_structured_note(
-        db, existing, note, build_cpi_v1_payload(previous), "cpi", page_origins=page_origins
+        db,
+        existing,
+        note,
+        build_cpi_v1_payload(previous),
+        "cpi",
+        page_origins=page_origins,
+        operation_fingerprint=operation_fingerprint,
     )
 
 

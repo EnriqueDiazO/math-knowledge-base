@@ -67,6 +67,7 @@ def update_cornell_note(
     *,
     expected_snapshot: Mapping[str, Any] | None = None,
     page_origins=None,
+    operation_fingerprint=None,
 ) -> Any:
     """Update an existing Cornell note without converting legacy notes."""
     existing = (
@@ -90,6 +91,7 @@ def update_cornell_note(
         build_cornell_math_v1_payload(previous),
         "cornell",
         page_origins=page_origins,
+        operation_fingerprint=operation_fingerprint,
     )
 
 

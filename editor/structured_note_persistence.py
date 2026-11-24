@@ -63,7 +63,9 @@ def merge_structured_document(raw, before, after, *, page_origins=None):
     return result
 
 
-def update_structured_note(db, existing, candidate, before_payload, field, *, page_origins=None):
+def update_structured_note(
+    db, existing, candidate, before_payload, field, *, page_origins=None, operation_fingerprint=None
+):
     """Use one canonical facade write; older adapters keep their established call signature."""
     updater = getattr(type(db), "update_notebook_note_from_snapshot", None)
     if not callable(updater):
@@ -89,4 +91,6 @@ def update_structured_note(db, existing, candidate, before_payload, field, *, pa
             changes["image_ids"] = candidate["image_ids"]
     if not changes:
         return UpdateResult({"n": 1, "nModified": 0, "ok": 1.0}, acknowledged=True)
+    if operation_fingerprint is not None:
+        changes["study_update_fingerprint"] = operation_fingerprint
     return updater(db, existing, changes)
