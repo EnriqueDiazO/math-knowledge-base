@@ -91,12 +91,47 @@ await test(
         String.raw`a+\sqrt{b}+c`,
       );
       await field.evaluate((element) => {
-        element.value = String.raw`\frac{a_{i}+\sqrt{b}}{1+x^2}+\sum_{n=1}^3n`;
-        element.position = -1;
-        element.focus();
-        element.dispatchEvent(new InputEvent("input", { bubbles: true }));
+        element.value = "";
       });
+      await expect
+        .poll(() =>
+          field.evaluate((element) => {
+            element.focus();
+            return document.activeElement === element;
+          }),
+        )
+        .toBe(true);
+      const pasted = String.raw`\frac{a_{i}+\sqrt{b}}{1+x^2}+\sum_{n=1}^3n`;
+      // Exercise MathLive's installed paste handler, without changing the OS clipboard.
+      const pasteDelivery = await field.evaluate((element, value) => {
+        const clipboardData = new DataTransfer();
+        clipboardData.setData("application/x-latex", value);
+        clipboardData.setData("text/plain", value);
+        const target = element.shadowRoot.querySelector(".ML__keyboard-sink");
+        if (!target) throw new Error("MathLive has no keyboard sink");
+        const event = new ClipboardEvent("paste", {
+          clipboardData,
+          bubbles: true,
+          cancelable: true,
+          composed: true,
+        });
+        const constructorPreservesData =
+          event.clipboardData?.getData("application/x-latex") === value;
+        // Firefox drops data supplied to synthetic ClipboardEvent constructors.
+        // Supply the test payload on that event; the real MathLive handler still runs.
+        if (!constructorPreservesData)
+          Object.defineProperty(event, "clipboardData", {
+            value: clipboardData,
+          });
+        target.dispatchEvent(event);
+        return { target: target.className, constructorPreservesData };
+      }, pasted);
+      await expect
+        .poll(() => field.evaluate((element) => element.value))
+        .toContain(String.raw`\frac`);
       const nested = await field.evaluate((element) => element.value);
+      expect(nested).toContain(String.raw`\sum`);
+      expect(nested).toContain(String.raw`\sqrt{b}`);
       await page
         .getByLabel("Buscar estructura matemática", { exact: true })
         .fill("norma");
@@ -168,6 +203,17 @@ await test(
         .getByLabel("Código LaTeX protegido", { exact: true })
         .fill(source);
       await button("Conservar bloque").click();
+      // Insert after the protected TikZ already exists, then verify both survive.
+      await button("Volver al párrafo").click();
+      await button("Insertar fórmula en bloque").click();
+      await button("Integral").click();
+      const afterTikz = page.locator("math-field").last();
+      await afterTikz.evaluate((element) => element.insert("1"));
+      const insertedAfterTikz = await afterTikz.evaluate(
+        (element) => element.value,
+      );
+      expect(insertedAfterTikz).toContain(String.raw`\int`);
+      await button("Volver al párrafo").click();
       await button("Fuente LaTeX").click();
       const original = await page
         .getByLabel("Fuente LaTeX", { exact: true })
@@ -175,6 +221,7 @@ await test(
       expect(original).toContain(source);
       expect(original).toContain(matrixSource);
       expect(original).toContain(nested);
+      expect(original).toContain(insertedAfterTikz);
       await button("Fuente LaTeX").click();
       await button("Fuente LaTeX").click();
       expect(
@@ -314,6 +361,9 @@ await test(
             noteId: identity,
             matrixSource,
             nested,
+            pasteEvent: "MathLive ClipboardEvent with application/x-latex",
+            pasteDelivery,
+            insertedAfterTikz,
             protectedLatex: source,
             canonicalLatex: original,
           },
