@@ -1,5 +1,11 @@
 # Revisión de archivos grandes
 
+Actualización del 24 de noviembre: la entrada principal permanece en **21 líneas**.
+`CORNELL_CPI_INVENTORY.json` contiene tamaños/hashes actuales y los veinte mayores
+propios mantenidos. Los veinte mayores de mil líneas conservan su hash de la
+revisión anterior: se reutiliza esa evidencia. La tabla inicial siguiente es
+histórica; la actualización al final expresa las decisiones vigentes.
+
 Medida de tamaño: **líneas físicas**, incluidos comentarios y espacios. No es
 `ncloc` de Sonar. El CSV reproducible se obtiene con
 `python -m scripts.repository_inventory`; distingue fuente mantenida, pruebas,
@@ -334,3 +340,38 @@ assets con otros hashes no se presenta como una eliminación de código propio.
 | exporters_latex/latex_validation.py | 1046 | Validación, ChkTeX, procesos, timeout y diagnósticos | Conservar fronteras y renderizadores existentes; nuevos HTTP usan sandbox. |
 | mathmongo/reading_annotations/repository.py | 1019 | Persistencia CAS de notas/anotaciones y versiones | Conservar identidades, predicados y resultados comprobados. |
 | frontend/advanced-reader/src/styles/reader.css | 1008 | Geometría, controles y responsive del lector PDF | Conservar revisión anterior y tokens; modularizar al modificar el componente. |
+
+## Continuidad del checkpoint Cornell/CPI
+
+No se repiten inspecciones cuyo archivo no cambió. Estas responsabilidades y
+decisiones reutilizan la revisión previa; los nuevos adaptadores no sustituyen
+capacidades ausentes. Dependencias y salida generada se clasifican separadamente
+de fuente manual y pruebas; el CSV reproducible conserva el inventario completo.
+
+| Archivo propio | Líneas actuales | Responsabilidades | Decisión vigente |
+|---|---:|---|---|
+| editor/cuaderno_page.py | 4122 | Diario y actividades Worklog/Backlog/Weekly/Deliverables, promociones y exportaciones | Refactorizar al migrar cada actividad; conservar operaciones todavía sin paridad. |
+| visualizations/grafoconocimiento.py | 3670 | PyVis, snapshots, normalización y HTML autocontenido | Separación de plantilla/control pendiente; exportadores y CLI siguen consumiéndolo. |
+| editor/utils/db_import.py | 2904 | Preflight, importación, compensación y restauración | Conservar garantías; lote específico de transferencias con ZIP y fallos parciales. |
+| editor/utils/db_update.py | 2242 | Identidades, migraciones y mantenimiento de registros | Conservar; no simplificar validaciones ni ejecutar reparaciones sobre bibliotecas reales. |
+| mathmongo/reading_annotations/service.py | 1693 | Anclajes/versiones, estados y escrituras de anotaciones | Servicio canónico compartido: conservar; separar orquestación sólo con regresión concreta. |
+| mathmongo/source_catalog_migration/bootstrap.py | 1635 | Preparación/migración, duplicados, planes y respaldo | Conservar límites y autorizaciones; no convertir preparación inicial en reparación. |
+| editor/cornell/streamlit_page.py | 1634 | Experiencia Cornell completa, medios, preferencias, páginas y división | Core React nuevo; conservar hasta migrar operaciones avanzadas y documentos fuera del límite. |
+| editor/cpi/streamlit_page.py | 1485 | Experiencia CPI completa, regiones, medios y preferencias | Core React nuevo; mantener compatibilidad y completar operaciones pendientes antes de retirar. |
+| editor/app_pages/knowledge_graph.py | 1381 | Página antigua de mapas, selección y exportación | Conservar rutas que aún tienen consumidores; paridad total de vistas pendiente. |
+| editor/concept_linking/linking_wizard.py | 1264 | Promoción y enlace guiados con evidencia | Conservar el contrato de fallo parcial y las identidades; no duplicar en React. |
+| frontend/advanced-reader/src/app/App.tsx | 1247 | PDF.js, selección, búsquedas, anotación y posición | Extraer estado al modificar esos comportamientos; lector canónico permanece. |
+| editor/reading_space/reader_page.py | 1222 | Lectura antigua, fuente, documento y navegación | Conservar estilos/anclajes y operaciones sin paridad; no crear otro lector. |
+| editor/source_catalog/edit_source_page.py | 1192 | Fuentes, referencias y planes avanzados de cambios/bajas | Biblioteca React cubre el núcleo; conservar planes/fusión/borrados avanzados. |
+| mathmongo/source_catalog_migration/apply_safety.py | 1186 | Autorización, huellas, respaldo y aplicación segura | Conservar con justificación: invariantes explícitas y pruebas de integridad. |
+| mathmongo/source_catalog_migration/manifest.py | 1122 | Modelo del manifiesto y transición/CAS | Conservar con justificación: esquema y validadores coherentes, no validaciones eliminables. |
+| editor/utils/knowledge_graph_sync.py | 1076 | Snapshots, nodos manuales y sincronización de vistas | Conservar contrato; una baja visual no borra un concepto. Separación posterior delimitada. |
+| editor/pdf_export.py | 1058 | Exportación de compatibilidad, temporales y diagnósticos | Conservar; React usa bundles y sandbox. Selector individual legado aún requiere contrato específico. |
+| exporters_latex/latex_validation.py | 1046 | Logs, codificaciones y validación/diagnóstico de TeX | Conservar con justificación; no es salida generada ni un parser reemplazable por búsquedas simples. |
+| mathmongo/reading_annotations/repository.py | 1019 | Persistencia/CAS, estados y preparación de anotaciones | Conservar repositorio canónico; no duplicar MongoDB en adaptadores HTTP. |
+| frontend/advanced-reader/src/styles/reader.css | 1008 | Presentación mantenida a mano del lector PDF | Conservar; extraer por componentes únicamente al cambiar una responsabilidad demostrada. |
+
+Ningún módulo manual nuevo supera mil líneas. La presentación de regiones, el
+estado durable, las operaciones HTTP, persistencia y layout están separados por
+responsabilidad. La extracción de lógica compartida no se cuenta como eliminación
+de capacidades. No se retira código de producto en este lote.

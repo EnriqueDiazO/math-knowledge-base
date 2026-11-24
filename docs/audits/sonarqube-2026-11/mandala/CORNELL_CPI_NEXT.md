@@ -1,7 +1,16 @@
 # Cornell y CPI: siguiente corte vertical implementable
 
+Este es el plan previo al checkpoint del 24 de noviembre. Su núcleo ya está
+implementado; consultar `CORNELL_CPI_CHECKPOINT.md` y `PARITY_V014.md` para el estado
+actual. No rehacer CAS, regiones, páginas, citas ni exportación. La ruta HTTP
+publicada usa `/api/study/v1/structured/{cornell|cpi}`. Permanecen medios y
+asociaciones completos, preferencias editoriales, duplicación/borrado de nota,
+aceptación de propuestas de división y ampliación del adaptador a más de treinta
+páginas. Las secciones siguientes conservan la especificación de origen.
+
+
 Este documento delimita la continuación de Cuaderno tras el núcleo Diario de
-`f81f7479`/`ffeff389`. Cornell y CPI **no tienen aún un editor React**. Se conserva
+`f81f7479`/`ffeff389`. En ese punto Cornell y CPI **todavía no tenían editor React**; el estado vigente figura arriba. Se conserva
 su implementación histórica; no están listos para retirar Streamlit.
 
 ## Contratos recuperados

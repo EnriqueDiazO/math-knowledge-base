@@ -587,3 +587,98 @@ Siguiente lote recomendado: el corte vertical Cornell definido en
 de publicar sus acciones HTTP. `PARITY_V014.md` delimita implementado, verificado
 sin Streamlit y pendiente/listo para retirar: este lote no autoriza retiradas.
 Todo permanece en la rama de desarrollo y en commits locales; sin push ni merge.
+
+
+## 24 de noviembre de 2026 — Cornell/CPI, Matchaio selectivo y distribución
+
+Se recuperó `278b420c`, rama `feature/knowledge-sphere-2026-11`, limpia. Se
+conservan los commits y las verificaciones anteriores válidas. Se consultaron
+los modelos/servicios actuales, las implementaciones históricas y el ZIP de
+referencia sin sobrescribir el código. La especificación Cornell/CPI previa se
+conserva marcada como ejecutada en su núcleo, con pendientes explícitos.
+
+**Migrado y verificado sin Streamlit:** crear/buscar/abrir Cornell/CPI, editar sus
+tres regiones independientes, guardar, recuperar tras recargar, gestionar páginas,
+citas deliberadas del catálogo y TEX/PDF con estilos y geometría canónicos. Se
+reutilizan `latex_notes`, MathMongo, servicios/modelos por familia y el editor
+compartido. El adaptador HTTP delimita modelos v1 con 1–30 páginas; las versiones
+y documentos históricos fuera de ese límite siguen disponibles por compatibilidad.
+Los valores desconocidos y la fuente divergente no se normalizan al abrir/guardar.
+
+Antes de ampliar UI, cuatro regresiones reales demostraron sobrescritura de
+fuente/no-op y carrera de actualización. `0707405c` usa snapshot BSON/CAS y cambios
+mínimos, compatible con standalone; `4d31109e` corrige el fondo Cornell omitido
+en el bundle portable. `ec057832` añade dominio/HTTP y ajuste TeX dentro del
+sandbox existente; el overflow y la falta de medición bloquean PDF conservando
+fuente/TEX. `c0dbeb22` y `811d112e` publican la actividad React y preservan orden
+histórico/campos opacos por página. Replay exacto y confirmación posterior a CAS
+impiden falsos mensajes de guardado. Un fallo del registro de medios se repara
+por reintento sin retirar referencias ajenas ni borrar bytes.
+
+Matchaio fue inspeccionado en `8194e17` sin modificaciones y probado en copia
+independiente (31 pruebas). Se encontró texto LaTeX/KaTeX sobre canvas, no un
+editor de subexpresiones equivalente a MathLive. Tras comparar capacidades y
+licencias se implementaron tres ideas propias: inserción por selección e historial
+de fórmula, paleta de trece estructuras buscables y matrices configurables.
+Cero código copiado, cero dependencias nuevas. Se preservan Tiptap, MathLive,
+LaTeX canónico, bloques protegidos y los ocho tipos/alias/colores.
+
+`cc4d08fc` corrige `replaceAll` destructivo con regresión antes/después;
+`31d99bc9` evita aplicar/anunciar citas atrasadas en otra región; `d7a411e0`
+corrige S9011 sin supresión y acota las herramientas también fuera del diálogo.
+`0e08a639` refuerza el ensayo A–H: pegado por handler real, fórmula insertada
+cuando TikZ ya existe y edición localizada de una copia histórica mediante fuente.
+El evento sintético de Firefox necesita payload explícito en el harness; no se
+presenta esa diferencia de automatización como fallo del editor ni como prueba
+del portapapeles del escritorio.
+
+**Pruebas:** 2200 aprobadas en integral +9 optativas reales +5 regresiones de
+confirmación +2 de límite añadidas después = **2216 Python distintas**; cero
+fallidas. Las nueve omitidas por la integral se ejecutaron después. Los cincuenta
+casos del ZIP privado están incluidos. Frontend **348/45 archivos**, cero fallos.
+No se suman ejecuciones repetidas. TypeScript, ESLint y Ruff focalizado pasan.
+Se verificaron nueve cohortes por Chrome/Firefox desde fuente y paquete, y
+posteriormente el ensayo A–H reforzado. Todas las escrituras en mongod/PID/dbpath,
+base UUID, recursos y XDG propios; **MathV0_writes=0**.
+
+Sonar final procesado **`68db7833-292e-46f7-8b7b-93e7998ded5e`**, fuente exacta
+**`0e08a639578546f0fbcd5375be299efdffef4163`**, CE SUCCESS. Comparación preservada:
+**76,0→76,4 % general**, **80,6→81,7 % nueva**, **Gate OK**, cero incidencias nuevas.
+Condiciones: nueva ≥80; duplicación 0,09069 ≤3; nuevas incidencias ≤0. El ERROR
+intermedio por S9011 permanece documentado como corregido. Referencia
+PREVIOUS_VERSION del 21 de noviembre, perfiles, reglas, umbrales y exclusiones
+sin cambios; SONAR_LABEL sólo nombra archivos. La meta interna **95 % sigue
+pendiente**: faltan al menos 11 127 observaciones generales/2133 nuevas a
+denominador fijo. Seis archivos de tooling explican sólo 98/2934 faltantes nuevos.
+La importación XML/LCOV se reconcilia por archivo, incluidas líneas BRDA y alcances
+diferentes; no se transfiere cobertura vieja sobre archivos modificados.
+
+AppImage nueva **098cab43**, 39 873 016 bytes, SHA256
+`6779d1a5f73655231b5dddf49ef7ed83b5a8a1ee7bf48aaafd768f3e5a5a8631`, +77 824 bytes
+frente a la inicial preservada. Mismas diecinueve distribuciones fijadas; MongoDB,
+TeX/sandbox y navegador externos. Se arranca desde temporal sin repo/venv/Streamlit.
+Tras los nueve recorridos se reinicia sólo el grupo del backend propio y se
+recuperan cinco notas con el mismo hash del estado Mongo completo en ambos
+navegadores. No se declara autónoma ni versión estable.
+
+La entrada ya tenía 21 líneas y sigue en 21. Los veinte archivos propios >1000
+conservan hash/revisión; se mantienen todas sus decisiones y pendientes. No se
+retira código de producto. Código mantenido +2154/−29, pruebas +2494/−3 hasta
+`9814f890`; el refuerzo A–H añade 54/−4 de harness. Bundles generados se cuentan
+aparte. Los nuevos módulos por responsabilidad no constituyen una reducción
+ficticia del código ni un monolito trasladado.
+
+**Todavía parcial:** asociaciones/medios y preferencias Cornell/CPI completas,
+duplicación/borrado de nota, propuestas de división aceptables, adaptadores para
+más de treinta páginas; Worklog/Backlog/Weekly/Deliverables, promociones,
+transferencias y administración avanzadas. Biblioteca y Diario conservan sus
+pendientes anteriores. Ninguna página histórica queda lista para retirar sólo
+por este checkpoint. El próximo lote debe cerrar medios/asociaciones y borrado
+seguro Cornell/CPI y continuar tareas del Cuaderno, con pruebas de efectos reales.
+
+Informe y capturas: [CORNELL_CPI_CHECKPOINT.md](CORNELL_CPI_CHECKPOINT.md).
+Datos verificables: `CORNELL_CPI_RESULTS.json`, `CORNELL_CPI_INVENTORY.json`.
+Decisión Matchaio: [MATCHAIO_REVIEW.md](MATCHAIO_REVIEW.md). Plan 95 y matriz
+actualizados. Comandos de cobertura/sonar en `REPEAT_REACT_ANALYSIS.md`; arranque
+en el informe y `packaging/react-appimage/README.md`. Commits locales por alcance;
+no push, merge, reinicio Sonar, cambio de credenciales ni trabajo sobre Waveform.

@@ -94,3 +94,59 @@ no la autoriza automáticamente.
 Las implementaciones y experimentos se registrarán al verificarse. Este documento
 es el checkpoint de auditoría y selección, no una afirmación de implementación.
 Continúan Cornell/CPI y la matriz de migración; no se retira código histórico.
+
+
+## Implementación y resultado del checkpoint
+
+Las tres selecciones están implementadas independientemente sobre MathLive
+0.111.4 ya instalado: inserción `replaceSelection` e historial de fórmula activa;
+paleta buscable de trece estructuras; matrices `pmatrix`/`bmatrix`/`vmatrix` de
+1–8 filas/columnas. No se copió código de Matchaio, incorporó Konva/SQLite ni se
+instaló otro motor matemático. El árbol Tiptap y sus bloques protegidos permanecen.
+
+La regresión de navegador conservada en `matchaio-2026-11-24/selection-before.log`
+falla antes porque insertar una raíz borra `a+b`. Ahora se conserva la expresión
+y se envuelve sólo la selección: `a+b+c` → `a+\sqrt{b}+c`. Matriz comprobada:
+`\begin{bmatrix}0&0\\0&0\\0&0\end{bmatrix}`. La validación de un tamaño inválido
+no cambia el campo. El historial se refiere a la fórmula activa, no al texto.
+
+Los experimentos A–H pasan en Chrome y Firefox contra FastAPI/MongoDB temporales:
+matriz variable, anidación, pegado por handler MathLive, inserción después de
+TikZ protegido, una fórmula histórica editada en fuente preservando el resto,
+fuente ↔ visual, guardado/recarga exactos y PDF con plantillas reales. El evento
+de pegado es sintético con payload controlado; Firefox requiere suministrar su
+`clipboardData` en el harness porque su constructor descarta esos datos. No se
+sobrescribe el portapapeles del usuario ni se simula el handler de MathLive.
+No se afirma haber probado permisos del portapapeles del escritorio.
+
+La barra desplegada queda acotada también en el editor amplio, con documento
+visible y sin desbordamiento horizontal a 480 px. Se verificó el foco DOM real
+antes de enviar flechas: el flag interno `hasFocus()` puede adelantarse al foco
+diferido de MathLive y no es una prueba suficiente del teclado.
+
+Se descartan en este lote: trasladar el editor/canvas completo, otro modelo de
+expresiones, gráficos `stub`, workspace SQLite, motor de figuras duplicado y
+favoritos globales sin necesidad demostrada. TikZ/PGFPlots siguen protegidos y
+exportables. Las copias históricas conservan entornos semánticos y macros; no se
+promete reversibilidad visual de TeX arbitrario. Cornell/CPI reutilizan la misma
+superficie matemática; no se construyeron editores independientes.
+
+El análisis Sonar procesado y los contadores están en `CORNELL_CPI_RESULTS.json`:
+Gate OK, 76,4 % general y 81,7 % nuevo. `formula-tools.ts` alcanza 99,2 % combinado,
+100 % líneas y 25/26 condiciones; el 95 % global sigue pendiente. Los tests de
+fórmula incluyen doce casos unitarios y el recorrido MathLive real de navegador.
+Se mantiene la referencia PREVIOUS_VERSION, perfiles, umbrales y exclusiones.
+
+AppImage actualizada: `098cab43`, 39 873 016 bytes, +77 824 frente al paquete inicial
+(incluye también Cornell/CPI), mismas 19 distribuciones y cero dependencias nuevas.
+Se verificaron nueve cohortes en cada navegador y recuperación de cinco notas
+tras reiniciar únicamente el backend propio de prueba. No es autónoma de MongoDB
+ni del toolchain LaTeX del anfitrión.
+
+El [informe del checkpoint](CORNELL_CPI_CHECKPOINT.md) contiene A–H, commits,
+comandos, límites, capturas y referencias de evidencia. Capturas locales reales:
+`evidence/sonar/independent-study/chrome/math-tools-matrix-nested-tikz.png` y
+`math-tools-palette-narrow.png`, con sus equivalentes Firefox/paquete.
+Continúa abierta la migración: núcleo Cornell/CPI verificado, funciones avanzadas,
+medios, otras actividades de Cuaderno y administración pendientes. No se retira
+Streamlit ni sus servicios por esta mejora del editor.

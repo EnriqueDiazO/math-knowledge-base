@@ -6,7 +6,8 @@ No se extrae sobre el repositorio ni se ejecutan sus archivos. Su entry históri
 tiene 6019 líneas; no es la línea base de 5744 de la extracción anterior. El entry
 actual de compatibilidad sigue en 21 líneas, con sus páginas conservadas.
 
-Estado de este corte: Biblioteca y núcleo Diario verificados sin Streamlit, con Gate OK;
+Estado de este corte: Biblioteca, núcleo Diario y núcleos Cornell/CPI delimitados
+verificados sin Streamlit, con Gate OK;
 la migración completa y el inventario de mantenibilidad siguen abiertos. **Completa** se refiere
 a la operación delimitada de la fila, no a toda la familia ni a autorización para
 retirar Streamlit. Se mantienen los contratos y servicios históricos.
@@ -33,12 +34,12 @@ retirar Streamlit. Se mantienen los contratos y servicios históricos.
 | TikZ: preview/ampliación/PDF | Compilación histórica, no sólo texto | Namespace aislado, PNG recortado, caché por contenido/configuración; píxeles reales comprobados tras corregir CSP | Macros/dependencias particulares requieren contexto explícito | **Completa** para figuras autocontenidas probadas; no para cualquier paquete ausente |
 | Medios compartidos | Registro de medios, referencias de concepto/nota/Cornell/CPI y portabilidad | Servicios y datos conservados; el borrado común retira sólo su referencia | Subida/gestión y empaquetado de todos los recursos desde React | **Pendiente** de paridad React; no purgar bytes compartidos |
 | Cuaderno y sus actividades | `latex_notes`: Diario libre, proyectos/fechas/contextos/etiquetas, referencias propias; Cornell/CPI separados | Diario React: crear/abrir/buscar/paginar/editar/guardar/recargar, asociaciones del catálogo, LaTeX exacto, CAS/reintento, TEX/PDF aislado; Mongo y Chrome/Firefox | Worklog, Backlog, Weekly, Deliverables, promociones, medios y eliminación completa siguen pendientes | **Completo el núcleo Diario delimitado**, familia Cuaderno **parcial**; ninguna retirada autorizada |
-| Cornell | Modelo, regiones/cues/cuerpo/síntesis, overflow y exportación multipágina | Servicios conservados y pruebas históricas; no editor React de Cornell | Sí | **Pendiente**: adaptar experiencia sin perder regiones/medios |
-| CPI | Comprensión/Producción/Integración, regiones y exportación | Servicios y colores de zonas conservados; no confundir con tipos matemáticos | Sí | **Pendiente**: editor por actividad y pruebas de desbordamiento/exportación |
+| Cornell | Modelo v1, preguntas/desarrollo/síntesis, páginas, overflow y exportación | React: crear/buscar/abrir/editar/guardar/recargar, citas, borrador por región, CAS/reintento, páginas, ajuste real y TEX/PDF aislado; Chrome/Firefox y AppImage | Medios/asociaciones completos, editoriales, nota completa duplicar/borrar y propuestas de división; documentos >30 páginas | **Núcleo v1 delimitado verificado**, familia **parcial**; conservar compatibilidad |
+| CPI | Comprensión/Producción/Integración, geometría/estilos propios, páginas y exportación | React: mismo recorrido por regiones, con modelo y plantillas CPI; geometría real, overflow sin recorte, conservación de metadatos por página; Mongo, navegadores y AppImage | Medios y asociaciones, preferencias, nota completa duplicar/borrar; documentos >30 páginas | **Núcleo v1 delimitado verificado**, familia **parcial**; zonas CPI distintas de tipos matemáticos |
 | Transferencias/importación/exportación QMD/HTML | Preflight, modelos/BSON, referencias, mapas y compensación | Servicios existentes; no endpoints automáticos para cada método | Sí, varias rutas de compatibilidad/CLI | **Pendiente** de operaciones explícitas con autorización y casos privados conservados |
 | Administración, migraciones y backups | Plan/dry-run/huella/backup/reconciliación; no reparación silenciosa | Preparación compatible de notas/biblioteca y diagnóstico de scope | Resto de procedimientos avanzados | **Parcial**: no convertir preparación en reparación destructiva |
 | Enseñanza y auxiliares | Materiales/proyectos/Quarto, recursos y referencias | Datos y exportadores conservados | Varias herramientas aún antiguas | **Pendiente**: inventario activo, sin retirada por ausencia de coincidencias |
-| AppImage | Launcher/runtime/Mongo real y XDG; no SQLite | Paquete x86_64 de 38 MiB, Python+React+19 distribuciones, cinco recorridos en Chrome/Firefox con Mongo temporal real | No inicia ni instala Streamlit. No sustituye aún todos sus flujos | **Parcial / experimental**: usa Mongo instalado, no gestiona daemon. Verificado en este host; otras distribuciones, ventana nativa y actualización pendientes |
+| AppImage | Launcher/runtime/Mongo real y XDG; no SQLite | Imagen `098cab43`, 39 873 016 bytes, Python+React+19 distribuciones, nueve recorridos en cada navegador y reinicio del backend con cinco notas recuperadas y hash Mongo idéntico | Ninguna dependencia de Streamlit en el runtime. Siguen faltando capacidades académicas avanzadas | **Actualizada / experimental**: Mongo y TeX del host, sin gestión de daemon; otras distribuciones y ventana nativa pendientes |
 
 No hay funcionalidades retiradas en estos checkpoints. Las páginas antiguas,
 servicios, documentos, ZIP, referencias e identidades permanecen disponibles.
@@ -66,3 +67,21 @@ porque un recorrido React funcione o porque un Gate cambie de estado.
   archivo y el inventario no se cierran por ese resultado.
 
 Especificación siguiente: [CORNELL_CPI_NEXT.md](CORNELL_CPI_NEXT.md).
+
+## Checkpoint Cornell/CPI y comparación Matchaio
+
+- Implementado y verificado sin Streamlit: núcleos v1 por regiones de hasta treinta
+  páginas, plantillas clásica/híbrida, persistencia y conflictos, cita canónica
+  editable, aislamiento de respuestas tardías, gestión de páginas y exportación.
+  Ver `CORNELL_CPI_CHECKPOINT.md`, `test_structured_notes_http`,
+  `test_structured_note_atomicity`, `test_structured_note_failure_confirmation`,
+  `test_structured_notes_limits`, `structured-*.test.tsx` y `structured-browser.mjs`.
+- Editor común: inserción MathLive por selección, historial matemático, paleta
+  buscable y matrices configurables. `MATCHAIO_REVIEW.md` contrasta código/licencias
+  reales; se implementan ideas propias sin copiar ni añadir otro motor o almacén.
+- Fuente histórica: no-op idéntico; cuerpos divergentes no se regeneran. El límite
+  del adaptador no cambia los modelos históricos ni sus datos. Documentos mayores,
+  otras versiones y capacidades avanzadas conservan la vía anterior.
+- **Listo para retirar: ninguno de los módulos de compatibilidad de este lote.**
+  Las implementaciones completas Cornell/CPI y las demás actividades siguen teniendo
+  consumidores. Un Gate OK no elimina esos pendientes ni acredita el objetivo 95 %.
