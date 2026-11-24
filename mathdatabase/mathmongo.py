@@ -321,6 +321,13 @@ class MathMongo:
             pass
         return self.db["latex_notes"].update_one({"_id": str(note_id)}, {"$set": update})
 
+    def update_notebook_note_from_snapshot(self, original: dict, changes: dict):
+        """Atomically edit the exact observed note, without a second identity/revision read."""
+        from mathmongo.concurrency import exact_document
+
+        update = {**changes, "updated_at": datetime.now()}
+        return self.db["latex_notes"].update_one(exact_document(original), {"$set": update})
+
     def delete_notebook_note(self, note_id):
         from bson import ObjectId
 

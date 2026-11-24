@@ -14,6 +14,7 @@ from editor.cornell.models import CornellRegion
 from editor.cornell.models import build_cornell_math_v1_payload
 from editor.cornell.persistence import build_cornell_note_document
 from editor.cornell.persistence import extract_cornell_document
+from editor.structured_note_persistence import update_structured_note
 from editor.utils.media_assets import attach_media_assets_to_note
 from editor.utils.media_assets import detach_media_assets_from_note_record
 from editor.utils.media_assets import media_collection
@@ -32,9 +33,20 @@ def _cornell_query(query: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return {"$and": [{"note_format": CORNELL_NOTE_FORMAT}, deepcopy(dict(query))]}
 
 
-def create_cornell_note(db: Any, metadata: Mapping[str, Any], document: CornellDocument) -> Any:
+def create_cornell_note(
+    db: Any,
+    metadata: Mapping[str, Any],
+    document: CornellDocument,
+    *,
+    note_id=None,
+    creation_fingerprint=None,
+) -> Any:
     """Create a Cornell note using MathMongo's existing latex_notes CRUD."""
     note = build_cornell_note_document(metadata, document)
+    if note_id is not None:
+        note["_id"] = note_id
+    if creation_fingerprint is not None:
+        note["study_create_fingerprint"] = creation_fingerprint
     return db.create_notebook_note(note)
 
 
@@ -52,17 +64,33 @@ def update_cornell_note(
     note_id: Any,
     metadata: Mapping[str, Any],
     document: CornellDocument,
+    *,
+    expected_snapshot: Mapping[str, Any] | None = None,
+    page_origins=None,
 ) -> Any:
     """Update an existing Cornell note without converting legacy notes."""
-    existing = db.get_notebook_note_by_id(note_id)
+    existing = (
+        deepcopy(dict(expected_snapshot))
+        if expected_snapshot is not None
+        else db.get_notebook_note_by_id(note_id)
+    )
     if existing is None:
         return None
-    extract_cornell_document(existing)
+    if str(existing["_id"]) != str(note_id):
+        raise ValueError("The observed note identity does not match the requested edit")
+    previous = extract_cornell_document(existing)
     safe_metadata = deepcopy(dict(metadata))
     if existing.get("seed_id") and "seed_id" not in safe_metadata:
         safe_metadata["seed_id"] = existing["seed_id"]
     note = build_cornell_note_document(safe_metadata, document)
-    return db.update_notebook_note(note_id, note)
+    return update_structured_note(
+        db,
+        existing,
+        note,
+        build_cornell_math_v1_payload(previous),
+        "cornell",
+        page_origins=page_origins,
+    )
 
 
 def delete_cornell_note(db: Any, note_id: Any) -> Any:
@@ -123,7 +151,9 @@ def list_cornell_notes(
     return result
 
 
-def get_cornell_assets_by_ids(db: Any, image_ids: list[str] | tuple[str, ...]) -> list[dict[str, Any]]:
+def get_cornell_assets_by_ids(
+    db: Any, image_ids: list[str] | tuple[str, ...]
+) -> list[dict[str, Any]]:
     """Return media_assets documents for the given image_ids, preserving requested order."""
     clean_ids = [str(asset_id) for asset_id in image_ids if str(asset_id or "").strip()]
     if not clean_ids:
@@ -218,7 +248,9 @@ def update_cornell_region_image_ids(
     region = getattr(page, region_name, None)
     if not isinstance(region, CornellRegion):
         raise ValueError(f"Unknown Cornell region: {region_name!r}")
-    pages[safe_index] = _page_with_region(page, region_name, _region_with_image_ids(region, image_ids))
+    pages[safe_index] = _page_with_region(
+        page, region_name, _region_with_image_ids(region, image_ids)
+    )
     return CornellDocument(
         schema_version=document.schema_version,
         template_id=document.template_id,

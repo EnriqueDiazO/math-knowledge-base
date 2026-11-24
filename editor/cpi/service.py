@@ -12,6 +12,7 @@ from editor.cpi.models import CpiDocument
 from editor.cpi.models import build_cpi_v1_payload
 from editor.cpi.persistence import build_cpi_note_document
 from editor.cpi.persistence import extract_cpi_document
+from editor.structured_note_persistence import update_structured_note
 from editor.utils.media_assets import attach_media_assets_to_note
 from editor.utils.media_assets import detach_media_assets_from_note_record
 
@@ -28,9 +29,20 @@ def _cpi_query(query: Mapping[str, Any] | None = None) -> dict[str, Any]:
     return {"$and": [{"note_format": CPI_NOTE_FORMAT}, deepcopy(dict(query))]}
 
 
-def create_cpi_note(db: Any, metadata: Mapping[str, Any], document: CpiDocument) -> Any:
+def create_cpi_note(
+    db: Any,
+    metadata: Mapping[str, Any],
+    document: CpiDocument,
+    *,
+    note_id=None,
+    creation_fingerprint=None,
+) -> Any:
     """Create a CPI note using MathMongo's existing latex_notes CRUD."""
     note = build_cpi_note_document(metadata, document)
+    if note_id is not None:
+        note["_id"] = note_id
+    if creation_fingerprint is not None:
+        note["study_create_fingerprint"] = creation_fingerprint
     return db.create_notebook_note(note)
 
 
@@ -48,17 +60,28 @@ def update_cpi_note(
     note_id: Any,
     metadata: Mapping[str, Any],
     document: CpiDocument,
+    *,
+    expected_snapshot: Mapping[str, Any] | None = None,
+    page_origins=None,
 ) -> Any:
     """Update an existing CPI note without converting other note formats."""
-    existing = db.get_notebook_note_by_id(note_id)
+    existing = (
+        deepcopy(dict(expected_snapshot))
+        if expected_snapshot is not None
+        else db.get_notebook_note_by_id(note_id)
+    )
     if existing is None:
         return None
-    extract_cpi_document(existing)
+    if str(existing["_id"]) != str(note_id):
+        raise ValueError("The observed note identity does not match the requested edit")
+    previous = extract_cpi_document(existing)
     safe_metadata = deepcopy(dict(metadata))
     if existing.get("seed_id") and "seed_id" not in safe_metadata:
         safe_metadata["seed_id"] = existing["seed_id"]
     note = build_cpi_note_document(safe_metadata, document)
-    return db.update_notebook_note(note_id, note)
+    return update_structured_note(
+        db, existing, note, build_cpi_v1_payload(previous), "cpi", page_origins=page_origins
+    )
 
 
 def delete_cpi_note(db: Any, note_id: Any) -> Any:
