@@ -1,12 +1,9 @@
-import { useState } from "react";
-import type { Page, SourceDetail, SourceSummary, StudyContext } from "./api";
+import type { Page, SourceSummary, StudyContext } from "./api";
 import { bibliographyLabel } from "./api";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import type { Navigate } from "./navigation";
-import { ReferenceForm } from "./ReferenceForm";
-import { DocumentForm } from "./DocumentForm";
-import { documentLink } from "../security/document-links";
+import { sourceTypes } from "./catalog-fields";
 
 export function LibraryPage({
   context,
@@ -18,12 +15,14 @@ export function LibraryPage({
   search: string;
 }) {
   const query = new URLSearchParams(search),
-    q = query.get("q") ?? "";
+    q = query.get("q") ?? "",
+    status = query.get("status") || "active",
+    sourceType = query.get("type") || "";
   const page = Math.max(1, Number(query.get("page")) || 1);
-  const resource = useStudyResource<Page<SourceSummary>>(
-    context,
-    "/library?" + new URLSearchParams({ q, page: String(page) }),
-  );
+  const filters = new URLSearchParams({q,page:String(page)});
+  if (status !== "active") filters.set("status",status);
+  if (sourceType) filters.set("source_type",sourceType);
+  const resource = useStudyResource<Page<SourceSummary>>(context, "/library?" + filters);
   return (
     <section>
       <header>
@@ -45,7 +44,11 @@ export function LibraryPage({
           const value = new FormData(event.currentTarget).get(
             "query",
           ) as string;
-          navigate("/study/library?" + new URLSearchParams({ q: value }));
+          const form = new FormData(event.currentTarget);
+          const params = new URLSearchParams({q:value});
+          if (form.get("status") === "archived") params.set("status", "archived");
+          if (form.get("type")) params.set("type", String(form.get("type")));
+          navigate("/study/library?" + params);
         }}
       >
         <label>
@@ -57,6 +60,24 @@ export function LibraryPage({
             maxLength={200}
             type="search"
           />
+        </label>
+        <label>
+          Tipo de fuente
+          <select name="type" defaultValue={sourceType}>
+            <option value="">Todos los tipos</option>
+            {Object.entries(sourceTypes).map(([value, label]) => (
+              <option value={value} key={value}>
+                {label}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label>
+          Estado de las fuentes
+          <select name="status" defaultValue={status}>
+            <option value="active">Activas</option>
+            <option value="archived">Archivadas</option>
+          </select>
         </label>
         <button type="submit">Buscar</button>
       </form>
@@ -102,7 +123,12 @@ export function LibraryPage({
               <StudyLink
                 to={
                   "/study/library?" +
-                  new URLSearchParams({ q, page: String(page - 1) })
+                  new URLSearchParams({
+                    q,
+                    status,
+                    type: sourceType,
+                    page: String(page - 1),
+                  })
                 }
                 navigate={navigate}
               >
@@ -113,7 +139,12 @@ export function LibraryPage({
               <StudyLink
                 to={
                   "/study/library?" +
-                  new URLSearchParams({ q, page: String(page + 1) })
+                  new URLSearchParams({
+                    q,
+                    status,
+                    type: sourceType,
+                    page: String(page + 1),
+                  })
                 }
                 navigate={navigate}
               >
@@ -132,156 +163,4 @@ export function LibraryPage({
     </section>
   );
 }
-export function SourcePage({
-  context,
-  sourceId,
-  navigate,
-}: {
-  context: StudyContext;
-  sourceId: string;
-  navigate: Navigate;
-}) {
-  const resource = useStudyResource<SourceDetail>(
-    context,
-    "/sources/" + encodeURIComponent(sourceId),
-  );
-  const [section, setSection] = useState("documents");
-  if (resource.error)
-    return (
-      <p role="alert">
-        {resource.error} <button onClick={resource.retry}>Reintentar</button>
-      </p>
-    );
-  const source = resource.data;
-  if (!source) return <p role="status">Abriendo la fuente…</p>;
-  return (
-    <section>
-      <StudyLink to="/study/library" navigate={navigate}>
-        Volver a Biblioteca
-      </StudyLink>
-      <header>
-        <p className="eyebrow">Fuente de estudio</p>
-        <h1>{source.name}</h1>
-        <p>{source.description}</p>
-      </header>
-      <div className="study-actions">
-        <StudyLink
-          to={
-            "/study/concepts/new?" + new URLSearchParams({ source: sourceId })
-          }
-          navigate={navigate}
-        >
-          + Crear concepto desde esta fuente
-        </StudyLink>
-        <button type="button" onClick={() => setSection("add-reference")}>
-          + Añadir referencia
-        </button>
-        <button type="button" onClick={() => setSection("add-document")}>
-          + Asociar documento
-        </button>
-        <button
-          onClick={() => setSection("documents")}
-          aria-pressed={section === "documents"}
-        >
-          Documentos
-        </button>
-        <button
-          onClick={() => setSection("references")}
-          aria-pressed={section === "references"}
-        >
-          Bibliografía
-        </button>
-        <StudyLink
-          to={"/study/write?source=" + encodeURIComponent(sourceId)}
-          navigate={navigate}
-        >
-          Escribir nota sobre esta fuente
-        </StudyLink>
-        <StudyLink to={"/study/notes?source="+encodeURIComponent(sourceId)} navigate={navigate}>Notas de esta fuente</StudyLink>
-      </div>
-      {section === "add-reference" ? (
-        <ReferenceForm
-          context={context}
-          sourceId={sourceId}
-          done={() => {
-            resource.retry();
-            setSection("references");
-          }}
-        />
-      ) : section === "add-document" ? (
-        <DocumentForm
-          context={context}
-          source={source}
-          done={() => {
-            resource.retry();
-            setSection("documents");
-          }}
-        />
-      ) : section === "documents" ? (
-        <div className="study-library-list">
-          {source.documents.map((document) => (
-            <article key={document.document_id}>
-              <h2>{document.title}</h2>
-              <p>{document.kind === "pdf" ? "Documento PDF" : "Página web"}</p>
-              <StudyLink to={"/study/notes?document="+encodeURIComponent(document.document_id)} navigate={navigate}>Notas del documento</StudyLink>
-              {document.kind === "web" ? (
-                documentLink(document.web_url) ? (
-                  <a
-                    href={documentLink(document.web_url)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    Abrir página web
-                  </a>
-                ) : (
-                  <p>La dirección de esta página necesita revisión.</p>
-                )
-              ) : (
-                <StudyLink
-                  to={"/study/read/" + encodeURIComponent(document.document_id)}
-                  navigate={navigate}
-                >
-                  Leer documento
-                </StudyLink>
-              )}
-            </article>
-          ))}
-          {!source.documents.length && (
-            <p>
-              Esta fuente aún no tiene documentos. Puedes escribir una nota
-              sobre ella.
-            </p>
-          )}
-        </div>
-      ) : (
-        <section aria-label="Bibliografía">
-          {source.references.map((reference, index) => (
-            <article key={index}>
-              <h2>{reference.title || source.name}</h2>
-              <p>{bibliographyLabel(reference)}</p>
-              {documentLink(reference.url) && (
-                <a
-                  href={documentLink(reference.url)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Abrir referencia
-                </a>
-              )}
-              {reference.doi && <p>DOI: {reference.doi}</p>}
-              {reference.isbn?.length ? (
-                <p>ISBN: {reference.isbn.join(", ")}</p>
-              ) : null}
-            </article>
-          ))}
-          {!source.references.length && (
-            <p>
-              Esta fuente todavía no tiene una referencia bibliográfica
-              asociada.
-            </p>
-          )}
-        </section>
-      )}
-    </section>
-  );
-}
+export { SourcePage } from "./SourcePage";

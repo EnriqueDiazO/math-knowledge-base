@@ -16,14 +16,16 @@ import type { Navigate } from "./navigation";
 export function ConceptsPage({
   context,
   navigate,
+  search = "",
 }: {
   context: StudyContext;
   navigate: Navigate;
+  search?: string;
 }) {
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState<string[]>([]);
   const [kind, setKind] = useState(""),
-    [source, setSource] = useState(""),
+    [source, setSource] = useState(new URLSearchParams(search).get("source") || ""),
     [page, setPage] = useState(1);
   const resource = useStudyResource<
     Page<{ key: string; titulo: string; tipo: string; source: string }>
@@ -34,6 +36,7 @@ export function ConceptsPage({
         q: query,
         tipo: kind,
         source_id: source,
+        document_id: new URLSearchParams(search).get("document") || "",
         page: String(page),
       }),
   );

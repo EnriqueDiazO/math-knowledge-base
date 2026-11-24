@@ -7,20 +7,7 @@ import { useLocalForm } from "./useLocalForm";
 import { StudyLink } from "./StudyLink";
 import { AuthoringPreparation } from "./AuthoringPreparation";
 
-const sourceTypes = {
-  book: "Libro",
-  article: "Artículo",
-  thesis: "Tesis",
-  web: "Página web",
-  documentation: "Documentación",
-  course: "Curso",
-  corpus: "Corpus",
-  report: "Informe",
-  project: "Proyecto",
-  bibliographic_collection: "Colección bibliográfica",
-  other: "Otra fuente",
-};
-
+import { sourceTypes } from "./catalog-fields";
 
 export function NewSourcePage({
   context,
@@ -119,6 +106,7 @@ export function NewSourcePage({
           <label>
             Tipo de fuente
             <select
+              aria-label="Tipo de fuente"
               value={draft.state.source_type}
               onChange={(event) =>
                 draft.set({ ...draft.state, source_type: event.target.value })
@@ -164,4 +152,3 @@ export function NewSourcePage({
     </section>
   );
 }
-

@@ -121,14 +121,14 @@ export function ReferenceForm({
       if (scope.active) setSending(false);
     }
   };
-  const lookup = async () => {
+  const lookup = async (local = false) => {
     if (sending || proposalError) return;
     setSending(true);
     try {
       const result = await studyRequest<CaptureResult>(
         "/bibliography",
         context,
-        { request_id: crypto.randomUUID(), action: "identifier", query },
+        { request_id: crypto.randomUUID(), action: local ? "local" : "identifier", query },
       );
       if (!scope.active) return;
       setProposals(result.candidates ?? []);
@@ -181,6 +181,7 @@ export function ReferenceForm({
       >
         Buscar metadatos
       </button>
+      <button type="button" disabled={sending || !!proposalError || !query.trim()} onClick={() => void lookup(true)}>Buscar en mis referencias</button>
       {proposals.map((item, index) => (
         <article key={index}>
           <h3>{item.reference_data.title || "Propuesta bibliográfica"}</h3>

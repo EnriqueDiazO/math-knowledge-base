@@ -34,10 +34,15 @@ export type SourceSummary = {
   name: string;
   description?: string;
   bibliography?: Bibliography[];
+  source_type?: string;
+  status?: string;
+  revision?: string;
 };
 export type SourceDetail = SourceSummary & {
   documents: SourceDocument[];
-  references: Bibliography[];
+  references: (Bibliography & {revision?:string;source_ids?:string[];status?:string})[];
+  document_count?:number;
+  reference_count?:number;
 };
 export type Page<T> = { items: T[]; total: number; page: number };
 export type NoteDetail = ReadingNote & { reference_id: string | null };

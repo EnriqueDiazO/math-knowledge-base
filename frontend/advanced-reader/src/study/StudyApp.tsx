@@ -188,7 +188,7 @@ export function StudyApp() {
         navigate={navigate}
       />
     ) : (
-      <ConceptsPage context={context} navigate={navigate} />
+      <ConceptsPage key={url.search} context={context} navigate={navigate} search={url.search} />
     );
   else if (section === "spaces")
     content = (
