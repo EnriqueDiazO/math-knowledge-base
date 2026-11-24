@@ -109,6 +109,8 @@ def main():
                 MATHMONGO_INDEPENDENT_URL=f"http://127.0.0.1:{app_port}",
                 MATHMONGO_INDEPENDENT_EVIDENCE=str(evidence),
                 MATHMONGO_STUDY_BROWSER=browser,
+                MATHMONGO_TEST_RUN_ID=str(uuid4()),
+                MATHMONGO_TEST_REVISION=subprocess.check_output(["git","rev-parse","HEAD"],cwd=ROOT,text=True).strip(),
                 MATHMONGO_PALETTE_SOURCE=source.source_id,
             )
             for alias in ("MONGO_URI", "MONGO_DB", "DB_NAME"):
@@ -227,6 +229,7 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 print(json.dumps({"browser":browser,"document_export":"passed","canonical_LaTeX":True}))
             if "--legacy" in sys.argv:
                 import hashlib
+
                 from bson import json_util
 
                 copied = json_util.loads((ROOT / "evidence/sonar/fundamental-authoring/legacy-fixtures.json").read_text())
