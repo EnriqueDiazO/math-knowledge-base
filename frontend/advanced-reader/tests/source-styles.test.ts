@@ -37,9 +37,6 @@ it("keeps the locally served Tiptap baseline equal to the installed pinned depen
     "utf8",
   );
   const canonical = /const style = `([\s\S]+?)`;/u.exec(upstream)![1];
-  const local = readFileSync(
-    "src/knowledge-map/document-base.css",
-    "utf8",
-  );
+  const local = readFileSync("src/knowledge-map/document-base.css", "utf8");
   expect(local.slice(local.indexOf(".ProseMirror"))).toBe(canonical + "\n");
 });

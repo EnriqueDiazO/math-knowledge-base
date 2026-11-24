@@ -1,4 +1,5 @@
 import { ConceptConflict } from "./ConceptConflict";
+import { ConceptDraftRecovery } from "./ConceptDraftRecovery";
 import { rebaseConcept } from "./concept-rebase";
 import { useOperationScope } from "./useOperationScope";
 /** Direct creation and revision-bound editing reuse the mathematical document port. */
@@ -74,9 +75,7 @@ function ConceptWorkspace({
   const [draft, setDraft] = useState<ConceptDraft>(() => {
     const params = new URLSearchParams(search),
       id = concept ? "edit-" + concept.key : params.get("draft") || "new";
-    const old = (vault.get(id) ?? storage.legacy.get(id)) as
-      | ConceptDraft
-      | undefined;
+    const old = vault.get(id) as ConceptDraft | undefined;
     const value: ConceptDraft = old ?? {
       id,
       action: concept ? "edit" : "create",
@@ -206,6 +205,10 @@ function ConceptWorkspace({
     if (!concept || !scope.active) return;
     try {
       const current = value.current;
+      if (!current.baseline && current.revision !== concept.revision)
+        throw new Error(
+          "Este borrador antiguo no conserva su revisión de origen. Descárgalo y compara el contenido con la versión guardada antes de trasladar tus cambios.",
+        );
       const next: ConceptDraft = {
         ...rebaseConcept(current, current.baseline ?? concept, remote),
         baseline: remote,
@@ -235,6 +238,45 @@ function ConceptWorkspace({
       setMessage((error as Error).message);
     }
   };
+  const recover = (copy: Draft) => {
+    if (
+      !storageReady ||
+      !storage.recoverable ||
+      sending ||
+      value.current.pending
+    )
+      return;
+    if (
+      concept &&
+      (copy.action !== "edit" || (copy.origin && copy.origin !== concept.key))
+    ) {
+      setMessage(
+        "El borrador pertenece a otro documento. Descárgalo para revisarlo sin reemplazar esta edición.",
+      );
+      return;
+    }
+    vault.put({
+      ...value.current,
+      id: "recovery-" + crypto.randomUUID(),
+      completed: true,
+    });
+    if (!vault.available) {
+      setDraftProblem(true);
+      return;
+    }
+    const next = {
+      ...structuredClone(copy),
+      id: value.current.id,
+    } as ConceptDraft;
+    activeEpoch.current = epoch + 1;
+    remember(next);
+    setInitial({ content: next.content, snapshot: next.document });
+    setEpoch(epoch + 1);
+    setConflict(false);
+    setMessage(
+      "Copia recuperada en este borrador. Todavía no se ha guardado en la biblioteca.",
+    );
+  };
   const back =
     "/study/concepts/new?" + new URLSearchParams({ draft: draft.id! });
   return (
@@ -251,6 +293,15 @@ function ConceptWorkspace({
         <p role="status">Preparando la recuperación segura del borrador…</p>
       )}
       <AuthoringPreparation context={context} />
+      {storageReady && (
+        <ConceptDraftRecovery
+          library={context.library_id}
+          current={vault.key}
+          id={draft.id!}
+          locked={sending || !!draft.pending || !storage.recoverable}
+          recover={recover}
+        />
+      )}
       <fieldset
         disabled={!!draft.pending || sending || conflict || !storageReady}
       >

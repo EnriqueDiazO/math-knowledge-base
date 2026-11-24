@@ -7,6 +7,8 @@ import { NewSourcePage } from "../src/study/SourceForms";
 import { ConceptEditorPage } from "../src/study/ConceptWorkspace";
 import type { StudyContext } from "../src/study/api";
 import { documentLink } from "../src/security/document-links";
+import { DraftVault } from "../src/knowledge-map/drafts";
+import type { Draft } from "../src/knowledge-map/model";
 
 vi.mock("../src/study/DocumentSurface", async () => {
   const React = await import("react");
@@ -115,6 +117,59 @@ afterEach(() => {
 });
 
 describe("authoring operations and recoverable drafts", () => {
+  it("offers an old window's draft explicitly and preserves its exact pending operation without saving", async () => {
+    const user = userEvent.setup();
+    const old = new DraftVault("owned", "study-concepts-window-closed");
+    const pending = {
+      action: "create",
+      operation_id: "original-attempt",
+      titulo: "Anterior",
+    };
+    old.put({
+      id: "new",
+      action: "create",
+      title: "Anterior",
+      content: "\\macro{á}",
+      source,
+      type: "definicion",
+      categories: "",
+      comment: "",
+      origin: "",
+      target: "",
+      point: [0, 0, 1],
+      revision: "",
+      relation: "requiere_concepto",
+      reverse: false,
+      pending,
+    } as Draft);
+    const raw = localStorage.getItem(old.key);
+    render(
+      <ConceptEditorPage context={context} navigate={vi.fn()} search="" />,
+    );
+    await waitFor(() =>
+      expect(screen.getByLabelText("Nombre del concepto")).toBeEnabled(),
+    );
+    expect(screen.getByLabelText("Nombre del concepto")).toHaveValue("");
+    await user.click(
+      screen.getByText("Recuperar borradores de otras ventanas"),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Buscar borradores locales" }),
+    );
+    await user.click(
+      screen.getByRole("button", { name: "Recuperar una copia" }),
+    );
+    expect(screen.getByLabelText("Contenido de prueba")).toHaveValue(
+      "\\macro{á}",
+    );
+    expect(requests).toHaveLength(0);
+    expect(localStorage.getItem(old.key)).toBe(raw);
+    await user.click(
+      screen.getByRole("button", { name: "Reintentar el mismo envío" }),
+    );
+    await waitFor(() => expect(requests).toHaveLength(1));
+    expect(requests[0].body).toEqual(pending);
+  });
   it("sends unchanged category literals intact and leaves the stored citation untouched", async () => {
     const original = globalThis.fetch,
       navigate = vi.fn(),

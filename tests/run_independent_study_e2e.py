@@ -414,6 +414,8 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 db.latex_documents.insert_one({**identity, "contenido_latex": "Una idea matemática que permanece después de recargar.$\\frac{1}{2}$\n\n"})
                 environment["MATHMONGO_CLONE_CONCEPT_KEY"] = identity["id"] + "@" + identity["source"]
                 subprocess.run(["node", "tests/concept-cloned-window-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=180)
+                environment["MATHMONGO_TEST_PROFILE"] = str(work / "cold-browser-profile")
+                subprocess.run(["node", "tests/concept-cold-recovery-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=180)
             if "--latex-parity" in sys.argv:
                 from tests.latex_parity_corpus import freeze_corpus
                 manifest = freeze_corpus(work / "corpus")
