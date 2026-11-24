@@ -25,6 +25,7 @@ from mathmongo.advanced_reader.security import SECURITY_HEADERS
 from mathmongo.advanced_reader.security import redacted_request_path
 from mathmongo.source_documents.models import MAX_SOURCE_PDF_UPLOAD_BYTES
 from mathmongo.study.catalog_routes import build_catalog_router
+from mathmongo.study.document_routes import build_document_router
 from mathmongo.study.routes import build_study_router
 
 LOGGER = logging.getLogger("mathmongo.advanced_reader")
@@ -312,6 +313,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
     app.include_router(build_api_router())
     app.include_router(build_study_router())
     app.include_router(build_catalog_router())
+    app.include_router(build_document_router())
 
     def serve_index(request: Request) -> FileResponse:
         index = dependencies.frontend_root / "index.html"

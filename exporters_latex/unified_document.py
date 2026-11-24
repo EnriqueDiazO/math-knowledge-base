@@ -1,7 +1,9 @@
 #!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+"""Compose portable LaTeX documents without rewriting their authored bodies."""
+
 from __future__ import annotations
 
+import json
 import re
 import shutil
 import unicodedata
@@ -18,7 +20,6 @@ from editor.latex_bundle import build_latex_project_bundle
 from editor.utils.media_assets import copy_media_tree_for_latex
 from exporters_latex.latex_compile import latex_failure_message
 from exporters_latex.latex_compile import latex_warning_message
-from exporters_latex.latex_compile import output_tail
 from exporters_latex.latex_compile import run_latex_until_stable
 from mathkb_config import LATEX_MAX_PASSES
 from mathkb_config import PDF_COMPILE_TIMEOUT_SECONDS
@@ -57,6 +58,8 @@ TYPE_ORDER = [
 
 @dataclass
 class UnifiedExportResult:
+    """Generated paths and the canonical compiler outcome, including warnings."""
+
     master_tex_path: Path
     pdf_path: Path | None
     concepts_dir: Path
@@ -106,6 +109,7 @@ def latex_escape_text(value: Any) -> str:
 
 
 def copy_latex_styles(destino: Path, templates_dir: Path = DEFAULT_TEMPLATES_DIR) -> list[str]:
+    """Copy regular project style files into the validated export directory."""
     warnings: list[str] = []
     destino = validate_mutable_path(destino)
     template_symlink = find_symlink_component(templates_dir)
@@ -123,6 +127,19 @@ def copy_latex_styles(destino: Path, templates_dir: Path = DEFAULT_TEMPLATES_DIR
     return warnings
 
 
+def _has_authored_title(body: str, title: str) -> bool:
+    """Avoid an exact duplicate heading; never remove or rewrite authored source."""
+    definitions = json.loads((PROJECT_ROOT / "editor/ui/concept_types.json").read_text())
+    names = [alias for value in definitions.values() for alias in value["aliases"]]
+    names.extend("cth" + key for key in definitions)
+    prefixes = [
+        "\\" + command + "{" + title + "}"
+        for command in ("section", "section*", "chapter", "chapter*")
+    ]
+    prefixes.extend(r"\begin{" + name + "}{" + title + "}" for name in names)
+    return any(body.lstrip().startswith(prefix) for prefix in prefixes)
+
+
 def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
     """Render a partial LaTeX fragment using the current individual-export body."""
     concept_id = concepto.get("id", "")
@@ -136,12 +153,12 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
         f"% Type: {tipo}",
         f"% Title: {titulo}",
         "",
-        r"\section*{" + str(titulo) + "}",
-        "",
     ]
+    if not _has_authored_title(contenido_latex, str(titulo)):
+        lines.extend([r"\section*{" + str(titulo) + "}", ""])
 
     if contenido_latex:
-        lines.extend([contenido_latex.strip(), ""])
+        lines.extend([contenido_latex, ""])
 
     if concepto.get("comentario"):
         lines.extend([r"\section*{Comentario}", str(concepto["comentario"]), ""])
@@ -190,9 +207,7 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
     if concept_id or source:
         lines.extend(
             [
-                r"\textbf{ID del concepto:}~\verb|"
-                + f"{concept_id}@{source}"
-                + "|",
+                r"\textbf{ID del concepto:}~\nolinkurl{" + f"{concept_id}@{source}" + "}",
                 "",
             ]
         )
@@ -201,6 +216,7 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
 
 
 def make_unique_fragment_names(concepts: list[dict]) -> dict[str, str]:
+    """Assign distinct portable names without collapsing composite concept identities."""
     names: dict[str, str] = {}
     seen: set[str] = set()
     for index, concept in enumerate(concepts, start=1):
@@ -222,6 +238,7 @@ def make_unique_fragment_names(concepts: list[dict]) -> dict[str, str]:
 
 
 def concept_key(concept: dict) -> str:
+    """Retain the canonical composite identity used by modular export records."""
     return f"{concept.get('id')}@{concept.get('source')}"
 
 
@@ -232,6 +249,7 @@ def build_master_tex(
     respetar_orden_manual: bool = True,
     include_toc: bool = True,
 ) -> str:
+    """Compose one master that inputs each selected fragment once."""
     lines = [
         r"\documentclass[12pt]{article}",
         "",
@@ -261,9 +279,7 @@ def build_master_tex(
                 lines.append(r"\input{" + record["input_path"] + "}")
             lines.append("")
         other = [
-            r
-            for r in fragment_records
-            if (r["concept"].get("tipo") or "otro") not in TYPE_ORDER
+            r for r in fragment_records if (r["concept"].get("tipo") or "otro") not in TYPE_ORDER
         ]
         if other:
             lines.extend([r"\section{Otros}", ""])
@@ -279,6 +295,7 @@ def build_master_tex(
 
 
 def read_log_tail(log_path: Path, lines: int = 60) -> str:
+    """Read a bounded diagnostic tail from an existing compiler log."""
     if not log_path.exists():
         return ""
     content = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
@@ -286,6 +303,7 @@ def read_log_tail(log_path: Path, lines: int = 60) -> str:
 
 
 def detect_probable_error_file(log_tail: str) -> str | None:
+    """Locate a referenced TeX file in an already collected diagnostic tail."""
     matches = re.findall(r"\((concepts/[^()\s]+\.tex)", log_tail)
     if matches:
         return matches[-1]
@@ -303,14 +321,18 @@ def _referenced_graphics(tex_sources: Mapping[str, str]) -> list[str]:
     return list(dict.fromkeys(references))
 
 
-def _bundle_graphic_assets(output_dir: Path, tex_sources: Mapping[str, str]) -> list[LatexBundleAsset]:
+def _bundle_graphic_assets(
+    output_dir: Path, tex_sources: Mapping[str, str]
+) -> list[LatexBundleAsset]:
     """Recover only graphics that are actually referenced by the unified TEX."""
     assets: list[LatexBundleAsset] = []
     for reference in _referenced_graphics(tex_sources):
         path = Path(reference)
         candidates = [path]
         if not path.suffix:
-            candidates.extend(path.with_suffix(suffix) for suffix in (".png", ".jpg", ".jpeg", ".pdf"))
+            candidates.extend(
+                path.with_suffix(suffix) for suffix in (".png", ".jpg", ".jpeg", ".pdf")
+            )
         selected = None
         for candidate in candidates:
             if candidate.is_absolute() or ".." in candidate.parts:
@@ -372,7 +394,12 @@ def build_unified_document_bundle(
     return build_latex_project_bundle(
         main_tex=master_tex,
         raw_body="\n".join(fragments.values()),
-        metadata={"title": title, "source": source, "warnings": result.warnings, "errors": result.errors},
+        metadata={
+            "title": title,
+            "source": source,
+            "warnings": result.warnings,
+            "errors": result.errors,
+        },
         project_styles=styles,
         images=_bundle_graphic_assets(result.output_dir, tex_sources),
         additional_assets=fragments,
@@ -395,10 +422,9 @@ def export_unified_document_with_inputs(
     overwrite: bool = False,
     templates_dir: str | Path = DEFAULT_TEMPLATES_DIR,
 ) -> UnifiedExportResult:
+    """Export canonical documents using the existing portable project layout."""
     if output_dir is None:
-        output_dir = get_exports_dir(
-            configured=resolve_config().export_directory
-        ) / "documents"
+        output_dir = get_exports_dir(configured=resolve_config().export_directory) / "documents"
     else:
         output_dir = resolve_home_path(output_dir)
     output_dir = validate_mutable_path(output_dir)
@@ -496,7 +522,9 @@ def export_unified_document_with_inputs(
                 max_passes=LATEX_MAX_PASSES,
             )
             log_tail = compile_info.get("log_excerpt", "") or read_log_tail(log_path)
-            probable_error_file = detect_probable_error_file(log_tail or compile_info.get("stdout", ""))
+            probable_error_file = detect_probable_error_file(
+                log_tail or compile_info.get("stdout", "")
+            )
             if compile_info["status"] == "failed":
                 result = compile_info.get("result")
                 success = False

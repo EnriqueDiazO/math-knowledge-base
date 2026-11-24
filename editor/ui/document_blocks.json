@@ -1,0 +1,12 @@
+{
+  "context": {"label": "Contexto", "arguments": 0, "package": "notes"},
+  "reading": {"label": "Lectura / Estudio", "arguments": 0, "package": "notes"},
+  "exploration": {"label": "Exploración", "arguments": 0, "package": "notes"},
+  "hypothesis": {"label": "Hipótesis", "arguments": 0, "package": "notes"},
+  "connections": {"label": "Conexiones", "arguments": 0, "package": "notes"},
+  "reflection": {"label": "Reflexión", "arguments": 0, "package": "notes"},
+  "decision": {"label": "Decisión", "arguments": 0, "package": "notes"},
+  "openquestions": {"label": "Preguntas abiertas", "arguments": 0, "package": "notes"},
+  "technical": {"label": "Técnica / Código", "arguments": 0, "package": "notes"},
+  "nextsteps": {"label": "Próximos pasos", "arguments": 0, "package": "notes"}
+}
