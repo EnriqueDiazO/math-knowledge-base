@@ -9,6 +9,7 @@ from scripts import build_react_appimage as build
 
 
 def test_tool_is_verified_before_execution_and_existing_destination_is_preserved(tmp_path):
+    """Reject unverified tools and preserve an existing AppDir."""
     tool = tmp_path / "tool"
     tool.write_bytes(b"untrusted")
     with pytest.raises(ValueError, match="huella"):
@@ -19,6 +20,7 @@ def test_tool_is_verified_before_execution_and_existing_destination_is_preserved
 
 
 def test_only_tracked_application_resources_enter_bundle(tmp_path, monkeypatch):
+    """Include declared application resources while keeping private files out."""
     tracked = [
         "mathmongo/config.py",
         "templates_latex/miestilo.sty",
@@ -50,6 +52,7 @@ def test_only_tracked_application_resources_enter_bundle(tmp_path, monkeypatch):
 
 
 def test_vendor_keeps_license_and_code_but_rejects_hooks_and_parent_paths(tmp_path, monkeypatch):
+    """Keep dependency code and licenses without executable import hooks."""
     source = tmp_path / "source"
     source.mkdir()
     for name in ("library.py", "LICENSE", "hook.pth"):
@@ -72,6 +75,7 @@ def test_vendor_keeps_license_and_code_but_rejects_hooks_and_parent_paths(tmp_pa
 
 
 def test_runtime_rejects_venv_and_external_symlinks_before_staging(tmp_path):
+    """Reject nonportable runtimes before creating any output."""
     runtime = tmp_path / "python"
     (runtime / "bin").mkdir(parents=True)
     (runtime / "bin/python3.13").touch()
