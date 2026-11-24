@@ -2,6 +2,7 @@
 import type { Page, StudyContext } from "./api";
 import { useStudyResource, type Navigate } from "./navigation";
 import { StudyLink } from "./StudyLink";
+import { SavedNoteActions } from "./SavedNoteActions";
 import { StructuredWorkspace } from "./StructuredWorkspace";
 import type { Family, StructuredDetail } from "./structured-state";
 export function StructuredPages({
@@ -65,21 +66,43 @@ function Saved({
   );
   if (resource.error)
     return (
-      <p role="alert">
-        {resource.error}
-        <button onClick={resource.retry}>Reintentar nota</button>
-        <StudyLink to={"/study/notebook/" + family} navigate={navigate}>
-          Volver a la actividad
-        </StudyLink>
-      </p>
+      <section>
+        <p role="alert">
+          {resource.error}
+          <button onClick={resource.retry}>Reintentar nota</button>
+          <StudyLink to={"/study/notebook/" + family} navigate={navigate}>
+            Volver a la actividad
+          </StudyLink>
+        </p>
+        <SavedNoteActions
+          context={context}
+          family={family}
+          identity={identity}
+          navigate={navigate}
+          refresh={resource.retry}
+        />
+      </section>
     );
   return resource.data ? (
-    <StructuredWorkspace
-      context={context}
-      family={family}
-      navigate={navigate}
-      note={resource.data}
-    />
+    <section>
+      <SavedNoteActions
+        context={context}
+        family={family}
+        identity={identity}
+        note={{
+          title: resource.data.metadata.title || "Sin título",
+          revision: resource.data.revision,
+        }}
+        navigate={navigate}
+        refresh={resource.retry}
+      />
+      <StructuredWorkspace
+        context={context}
+        family={family}
+        navigate={navigate}
+        note={resource.data}
+      />
+    </section>
   ) : (
     <p role="status">Recuperando regiones y fuente original…</p>
   );
@@ -106,7 +129,16 @@ function Listing({
       "/structured/" +
         family +
         "?" +
-        new URLSearchParams({ page: String(page), q: params.get("q") || "" }),
+        new URLSearchParams({
+          page: String(page),
+          q: params.get("q") || "",
+          project: params.get("project") || "",
+          context: params.get("context") || "",
+          ...(params.get("date_from")
+            ? { date_from: params.get("date_from")! }
+            : {}),
+          ...(params.get("date_to") ? { date_to: params.get("date_to")! } : {}),
+        }),
     ),
     root = "/study/notebook/" + family;
   return (
@@ -135,6 +167,13 @@ function Listing({
             "q",
             String(new FormData(event.currentTarget).get("q") || ""),
           );
+          for (const key of ["project", "context", "date_from", "date_to"]) {
+            const value = String(
+              new FormData(event.currentTarget).get(key) || "",
+            );
+            if (value) params.set(key, value);
+            else params.delete(key);
+          }
           params.delete("page");
           navigate(root + "?" + params);
         }}
@@ -143,6 +182,33 @@ function Listing({
           Buscar notas {title}
           <input name="q" type="search" defaultValue={params.get("q") || ""} />
         </label>
+        <details>
+          <summary>Filtrar notas</summary>
+          <label>
+            Proyecto exacto
+            <input name="project" defaultValue={params.get("project") || ""} />
+          </label>
+          <label>
+            Contexto exacto
+            <input name="context" defaultValue={params.get("context") || ""} />
+          </label>
+          <label>
+            Desde la fecha
+            <input
+              name="date_from"
+              type="date"
+              defaultValue={params.get("date_from") || ""}
+            />
+          </label>
+          <label>
+            Hasta la fecha
+            <input
+              name="date_to"
+              type="date"
+              defaultValue={params.get("date_to") || ""}
+            />
+          </label>
+        </details>
         <button type="submit">Buscar notas</button>
       </form>
       {resource.error && (

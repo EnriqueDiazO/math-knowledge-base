@@ -258,9 +258,9 @@ export function StudyApp() {
             {context.preparation.reason || "Sin conflicto detectado"}.
           </p>
           <p>
-            La revisión anterior de Sonar continúa abierta: Gate ERROR por
-            cobertura nueva del código extraído. No se han rebajado los
-            controles.
+            El seguimiento de calidad se consulta en los informes locales de
+            auditoría. Este diagnóstico comprueba la biblioteca; no consulta el
+            estado de SonarQube.
           </p>
         </details>
       </section>

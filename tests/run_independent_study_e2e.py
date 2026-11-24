@@ -403,6 +403,46 @@ uvicorn.run(create_app(dependencies),host='127.0.0.1',port="""
                 print(json.dumps({"browser": browser, "structured": "passed", "MathV0_writes": 0}))
             if "--math-tools" in sys.argv:
                 subprocess.run(["node", "tests/math-tools-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
+            if "--note-actions" in sys.argv:
+                # Real historical Cornell/Diario are read from the authoritative ZIP.
+                # That backup predates CPI; its case remains explicitly synthetic.
+                import hashlib
+                from copy import deepcopy
+                from zipfile import ZipFile
+
+                from bson import json_util
+
+                from editor.cpi.service import create_cpi_note
+                from mathdatabase.mathmongo import MathMongo
+                from tests.test_cpi_service import sample_document
+                from tests.test_cpi_service import sample_metadata
+
+                backup = Path.home() / ".local/share/mathmongo/backups/mathkb_export_20260712_073927.zip"
+                with ZipFile(backup) as archive:
+                    historical = json_util.loads(archive.read("mathkb_export_20260712_073927/collections/latex_notes.json"))
+                copied = []
+                for family, fmt in [("cornell", "cornell_math_v1"), ("diary", None)]:
+                    original = next(row for row in historical if row.get("note_format") == fmt)
+                    record = deepcopy(original)
+                    db.latex_notes.insert_one(record)
+                    copied.append({"family": family, "id": str(record["_id"]),
+                                   "latex_sha256": hashlib.sha256(record.get("latex_body", "").encode()).hexdigest(),
+                                   "provenance": "authoritative-private-backup", "bson_sha256": hashlib.sha256(json_util.dumps(original,sort_keys=True).encode()).hexdigest()})
+                mongo_facade = MathMongo.from_database(db)
+                cpi_id = create_cpi_note(mongo_facade, sample_metadata(), sample_document()).inserted_id
+                cpi = db.latex_notes.find_one({"_id": cpi_id})
+                copied.append({"family": "cpi", "id": str(cpi_id),
+                               "latex_sha256": hashlib.sha256(cpi["latex_body"].encode()).hexdigest(),
+                               "provenance": "canonical-synthetic-no-cpi-in-private-backup"})
+                manifest = work / "note-actions-cases.json"
+                manifest.write_text(json.dumps(copied))
+                environment["MATHMONGO_NOTE_ACTIONS_CASES"] = str(manifest)
+                subprocess.run(["node", "tests/note-actions-browser.mjs"], cwd=ROOT / "frontend/advanced-reader", env=environment, check=True, timeout=240)
+                proof = json.loads((evidence / "note-actions-browser.json").read_text())
+                assert proof["passed"] and len(proof["cases"]) == 3
+                assert db.latex_notes.find_one({"_id": original["_id"]}) is None
+                (evidence / "note-actions-provenance.json").write_text(json.dumps(copied, indent=2))
+                assert_no_streamlit(evidence)
             if "--palette" in sys.argv:
                 # Seed visual examples only after checking the exact migration
                 # checkpoint counts. These records live in this owned database.

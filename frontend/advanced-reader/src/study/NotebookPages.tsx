@@ -4,6 +4,7 @@ import type { DiaryDetail } from "./notebook-state";
 import type { Navigate } from "./navigation";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
+import { SavedNoteActions } from "./SavedNoteActions";
 import { NotebookWorkspace } from "./NotebookWorkspace";
 import { lazy } from "react";
 const StructuredPages = lazy(() =>
@@ -72,20 +73,42 @@ function SavedEntry({
   );
   if (resource.error)
     return (
-      <p role="alert">
-        {resource.error}
-        <button onClick={resource.retry}>Reintentar entrada</button>
-        <StudyLink to="/study/notebook" navigate={navigate}>
-          Volver a Cuaderno
-        </StudyLink>
-      </p>
+      <section>
+        <p role="alert">
+          {resource.error}
+          <button onClick={resource.retry}>Reintentar entrada</button>
+          <StudyLink to="/study/notebook" navigate={navigate}>
+            Volver a Cuaderno
+          </StudyLink>
+        </p>
+        <SavedNoteActions
+          context={context}
+          family="diary"
+          identity={identity}
+          navigate={navigate}
+          refresh={resource.retry}
+        />
+      </section>
     );
   return resource.data ? (
-    <NotebookWorkspace
-      context={context}
-      navigate={navigate}
-      note={resource.data}
-    />
+    <section>
+      <SavedNoteActions
+        context={context}
+        family="diary"
+        identity={identity}
+        note={{
+          title: resource.data.title || "Sin título",
+          revision: resource.data.revision,
+        }}
+        navigate={navigate}
+        refresh={resource.retry}
+      />
+      <NotebookWorkspace
+        context={context}
+        navigate={navigate}
+        note={resource.data}
+      />
+    </section>
   ) : (
     <p role="status">Recuperando la entrada del Cuaderno…</p>
   );
