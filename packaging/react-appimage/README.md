@@ -18,14 +18,15 @@ usarse. El navegador sigue siendo externo.
 Artefacto local probado:
 
 ```
-dist/MathMongo-098cab43-experimental-x86_64.AppImage
-sha256 6779d1a5f73655231b5dddf49ef7ed83b5a8a1ee7bf48aaafd768f3e5a5a8631
+dist/MathMongo-187a5a9c-experimental-x86_64.AppImage
+sha256 90788e8c254872c3ff6eee9d04f01b270b9bee8495febb37685db4fd837c675a
 ```
 
-Payload y frontend construidos en `098cab43`, con Biblioteca, Diario, núcleo
-Cornell/CPI y herramientas matemáticas por selección. Tamaño: 39 873 016 bytes;
-se conservan las diecinueve distribuciones fijadas, sin nuevas dependencias.
-La imagen `f00aa5ac` permanece intacta, con su SHA256 anterior; las imágenes de
+Payload y frontend construidos en `187a5a9c`, con Biblioteca, Diario, núcleo
+Cornell/CPI, preferencias editoriales y fuente LaTeX completa. Tamaño: 40 114 680 bytes;
+se conservan las diecinueve distribuciones Python fijadas. El frontend incluye
+los ocho módulos mínimos CodeMirror/Lezer y sus licencias, cargados bajo demanda.
+Las imágenes `098cab43` y `f00aa5ac` permanecen intactas, con sus SHA256 anteriores; las imágenes de
 checkpoints previos tampoco se sobrescribieron. No se distribuye todavía
 como versión estable ni se afirma compatibilidad con otras distribuciones Linux.
 Se comprobó desde un directorio temporal distinto del repositorio, con intérprete
@@ -34,7 +35,7 @@ Se comprobó desde un directorio temporal distinto del repositorio, con intérpr
 Desde la raíz del repositorio, usando la configuración Mongo existente:
 
 ```bash
-dist/MathMongo-098cab43-experimental-x86_64.AppImage --appimage-extract-and-run --port 8766
+dist/MathMongo-187a5a9c-experimental-x86_64.AppImage --appimage-extract-and-run --port 8766
 ```
 
 Abrir `http://127.0.0.1:8766/study`. Para elegir explícitamente una biblioteca,
@@ -44,19 +45,19 @@ Se probó la modalidad de extracción y ejecución sin exigir FUSE. No se cambia
 HOME ni se añaden configuraciones del usuario a la imagen.
 
 Desde Cuaderno se accede a Cornell y CPI. Los núcleos nuevos permiten edición por
-región, recuperación, páginas y TEX/PDF; las operaciones avanzadas siguen
-delimitadas en `docs/audits/sonarqube-2026-11/mandala/CORNELL_CPI_CHECKPOINT.md`.
+región, recuperación, páginas, pie/marca de texto y TEX/PDF; las operaciones avanzadas
+siguen delimitadas en `docs/audits/sonarqube-2026-11/mandala/LATEX_AUTHORING_CHECKPOINT.md`.
 No se presentan los formatos completos como totalmente migrados.
 
-Se ejecutaron nueve recorridos por navegador, Chrome y Firefox, contra MongoDB
+Se ejecutaron trece cohortes por navegador, Chrome y Firefox, contra MongoDB
 temporal real desde este paquete. Después se detuvo únicamente el grupo del
-backend de prueba, se arrancó otra instancia de la misma imagen y se recuperaron
-cinco notas; el hash del estado Mongo coincidió antes/después. La comprobación
-del runtime demuestra que Streamlit no está disponible. Las capturas y los
-dos `package-restart.json` del recorrido completo están conservados en
-`evidence/sonar/cornell-cpi-2026-11-24/full-packaged-{chrome,firefox}/`.
-Las ejecuciones focalizadas posteriores usan `packaged-study/`; no sustituyen la
-prueba de recuperación de cinco notas del recorrido completo.
+backend propio y se verificó el cierre de su socket antes del nuevo arranque.
+El runtime nuevo recuperó cinco notas y veintidós conceptos; el hash del estado
+Mongo completo coincidió antes/después. Streamlit no está disponible en el runtime.
+Las capturas, resultados con run_id y pruebas de reinicio están conservadas en
+`evidence/sonar/latex-parity-2026-11-24/package-final-{chrome,firefox}/`.
+La imagen intermedia `79ca36f7` conserva un fallo de accesibilidad y no es la
+entrega recomendada; tampoco se sobrescribió para ocultarlo.
 
 ## Construcción reproducible con las herramientas ya verificadas
 
@@ -93,14 +94,16 @@ una versión nueva ni promete que una descarga futura mutable coincida.
 
 ```bash
 .venv/bin/python tests/run_independent_study_e2e.py \
-  --appimage=dist/MathMongo-098cab43-experimental-x86_64.AppImage \
+  --appimage=dist/MathMongo-187a5a9c-experimental-x86_64.AppImage \
   --browser=chrome --authoring --notes --document-export --legacy \
-  --library --notebook --structured --math-tools
+  --library --notebook --structured --math-tools --clone-drafts --latex-parity
 ```
 
 Repetir con `--browser=firefox`. Cada ejecución es dueña del PID/dbpath/puerto
 Mongo, base UUID, perfil del navegador, FastAPI y directorios XDG temporales.
 Se comprobaron pasaje→nota→concepto→esfera→origen, autoría/bibliografía/PDF,
 notas concurrentes, compilación antes de guardar, IDs optativos y cinco cuerpos
-históricos exactos. Evidencia separada de los ensayos desde código fuente en
+históricos exactos, el corpus de diez casos, clon/cierre de ventanas y recuperación
+tras reinicio. El caso helicoidal requiere sus definiciones originales para PDF;
+su cuerpo se conserva íntegro. Evidencia separada de los ensayos desde código fuente en
 `evidence/sonar/packaged-study/{chrome,firefox}`.

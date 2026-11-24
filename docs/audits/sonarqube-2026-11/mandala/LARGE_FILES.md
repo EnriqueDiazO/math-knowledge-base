@@ -375,3 +375,13 @@ Ningún módulo manual nuevo supera mil líneas. La presentación de regiones, e
 estado durable, las operaciones HTTP, persistencia y layout están separados por
 responsabilidad. La extracción de lógica compartida no se cuenta como eliminación
 de capacidades. No se retira código de producto en este lote.
+
+## Actualización de autoría LaTeX (24 de noviembre)
+
+`LATEX_AUTHORING_INVENTORY.json` vuelve a comparar tamaños y hashes: entrada
+21 líneas, veinte archivos mantenidos >1000 idénticos a la revisión precedente.
+Se reutilizan sus decisiones; no quedan cerrados por el Gate. Fuente especializada
+305 líneas, preferencias editoriales 197 y ConceptWorkspace 506. Este último
+conserva presentación de metadatos/persistencia coordinada y es candidato a
+separar presentación en un corte posterior, conservando reintentos y borradores.
+No hay bajas de código de producto; las sustituciones de bundles son generadas.

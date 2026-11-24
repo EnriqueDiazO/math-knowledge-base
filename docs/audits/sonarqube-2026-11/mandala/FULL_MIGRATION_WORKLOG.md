@@ -682,3 +682,54 @@ Decisión Matchaio: [MATCHAIO_REVIEW.md](MATCHAIO_REVIEW.md). Plan 95 y matriz
 actualizados. Comandos de cobertura/sonar en `REPEAT_REACT_ANALYSIS.md`; arranque
 en el informe y `packaging/react-appimage/README.md`. Commits locales por alcance;
 no push, merge, reinicio Sonar, cambio de credenciales ni trabajo sobre Waveform.
+
+## Autoría completa y preferencias editoriales — 24 de noviembre de 2026
+
+Se recuperó `0bae86e1` limpio y se conservó la rama. CodeMirror 6 mínimo y diferido
+completa la superficie de fuente: no sustituye Tiptap/MathLive ni LaTeX canónico.
+Diez casos (seis históricos, incluido helicoidal y una demostración real de
+325 líneas) prueban A–H. Nueve compilan directamente; el helicoidal conserva
+exactamente su cuerpo/TikZ, pero necesita las definiciones originales de concept
+y reference. Su compilación con un contexto propio de prueba se distingue del
+original. No se inventa ni sobrescribe su preámbulo.
+
+Se corrigieron la propiedad de borradores entre ventanas clonadas, recuperación
+explícita tras cerrar navegador, resolución de revisión con instantánea, CSS
+compatible con CSP sin relajarla y errores de compilación accionables. Cornell
+y CPI incorporan pie y marca de texto mediante sus servicios y exportadores.
+Las marcas de imagen existentes se conservan; seleccionarlas/reemplazarlas
+desde React sigue pendiente, junto con medios/asociaciones completos y notas
+completas duplicar/borrar, división y >30 páginas.
+
+Verificación: **2228 pruebas Python distintas consolidadas**; la integral inicial
+registró 2218 aprobadas/1 fallida/9 omitidas, después diez de empaquetado pasan y
+las nueve optativas pasan con Mongo propio. Se explica el detalle en el informe;
+no se presenta una integral limpia inexistente. **389 frontend**, cero fallidas
+u omitidas, ESLint/TypeScript y Ruff afectados. Trece cohortes por Chrome/Firefox
+desde fuente y otras trece desde la AppImage; recuperación de cinco notas y
+veintidós conceptos tras reiniciar sólo el backend propio, con hash Mongo íntegro.
+El harness se corrigió para no confundir el servidor que se cerraba con el nuevo.
+MathV0_writes=0; el ZIP privado se abre únicamente para lectura.
+
+Sonar procesado `05caf8eb-bca8-40dd-a7ef-abaacf2721cd`, fuente `24c4e115`,
+producción `187a5a9c`: **76,4→76,5 % general, 81,7→82,0 % nueva, Gate OK**,
+cero incidencias nuevas. Condiciones nuevas 2808/3775, generales 3559/4984.
+Ref/perfil/reglas/umbrales/exclusiones/SHA conservados. El 95 % sigue pendiente:
+11 152 observaciones generales y 2161 nuevas a denominador fijo; tooling sólo
+82/2994 faltantes nuevos. El nuevo componente editorial llega a 100 %; los
+coordinadores y deuda heredada permanecen abiertos.
+
+AppImage **187a5a9c**, 40 114 680 bytes, SHA256
+`90788e8c254872c3ff6eee9d04f01b270b9bee8495febb37685db4fd837c675a`,
++241 664 bytes respecto de 098cab43; diecinueve distribuciones Python sin cambios.
+Mongo/TeX/sandbox y navegador externos, XDG fuera del paquete; experimental.
+Imágenes anteriores preservadas; la intermedia 79ca conserva el fallo de
+accesibilidad y no se recomienda. No hay retiradas de producto. Entrada 21
+líneas y veinte mayores >1000 con hashes anteriores intactos. Descubrimiento
+de borradores se separa por responsabilidad; módulos extraídos contados.
+
+Informe: [LATEX_AUTHORING_CHECKPOINT.md](LATEX_AUTHORING_CHECKPOINT.md).
+Resultados y commits: LATEX_AUTHORING_RESULTS.json; inventario:
+LATEX_AUTHORING_INVENTORY.json. Matriz y comando reproducible actualizados.
+El siguiente corte sigue siendo medios/asociaciones y operaciones completas
+de nota, después tareas de Cuaderno y administración. No push ni merge.

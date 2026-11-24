@@ -4,9 +4,10 @@ Este es el plan previo al checkpoint del 24 de noviembre. Su núcleo ya está
 implementado; consultar `CORNELL_CPI_CHECKPOINT.md` y `PARITY_V014.md` para el estado
 actual. No rehacer CAS, regiones, páginas, citas ni exportación. La ruta HTTP
 publicada usa `/api/study/v1/structured/{cornell|cpi}`. Permanecen medios y
-asociaciones completos, preferencias editoriales, duplicación/borrado de nota,
+asociaciones completos, selección/sustitución de marca de imagen, duplicación/borrado de nota,
 aceptación de propuestas de división y ampliación del adaptador a más de treinta
-páginas. Las secciones siguientes conservan la especificación de origen.
+páginas. El pie y la marca de agua de texto ya están migrados: consultar
+LATEX_AUTHORING_CHECKPOINT.md. Las secciones siguientes conservan la especificación de origen.
 
 
 Este documento delimita la continuación de Cuaderno tras el núcleo Diario de

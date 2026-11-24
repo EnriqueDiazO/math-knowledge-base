@@ -128,3 +128,36 @@ oculta tras los módulos nuevos de alta cobertura.
 `CORNELL_CPI_RESULTS.json` conserva datos y `CORNELL_CPI_CHECKPOINT.md` el informe.
 `REPEAT_REACT_ANALYSIS.md` reproduce nueve cohortes y el análisis con la misma
 referencia. No se retira Streamlit ni se declara alcanzado el objetivo global.
+
+## Cierre de autoría completa y editoriales (24 de noviembre)
+
+La medición vigente se conserva en LATEX_AUTHORING_RESULTS.json; sustituye
+las cifras anteriores como estado actual, sin borrar su historial.
+Análisis `05caf8eb-bca8-40dd-a7ef-abaacf2721cd`, fuente `24c4e115`, CE SUCCESS,
+**76,5 % general / 82,0 % nueva, Gate OK**, nuevas incidencias 0. Referencia,
+perfil/reglas y configuración SHA siguen iguales. Condiciones nuevas 2808/3775;
+generales 3559/4984. No son ramas Python: el XML comparable mide líneas.
+
+General: 60 303 observaciones, 14 167 sin cubrir; faltan **11 152** para 95 % a
+denominador fijo. Nuevo: 16 661 observaciones, 2994 sin cubrir; faltan **2161**.
+El aumento de código cambia los denominadores: conservar el porcentaje redondeado
+no significa que no se haya ejecutado código nuevo. Frente al checkpoint recuperado
+se añadieron 581 observaciones generales cubiertas y 578 nuevas cubiertas.
+La ausencia de algunas ramas de compatibilidad y del coordinador no se oculta.
+
+Fuente especializada 99,2 %, carga diferida 95,3 %, completado/estilos/diagnóstico
+100 %, preferencias editoriales 100 %. Coordinadores ConceptWorkspace 81,9 % y
+StructuredWorkspace 91,7 % conservan riesgos por probar; no se declaran al 95 %.
+Dos regresiones relevantes cerraron nueve condiciones: notas antiguas sin ajustes
+no deben materializar defaults al abrir y un parámetro vacío no debe reemplazar
+un valor válido por NaN. Chrome añade 322 líneas/231 condiciones reales a Vitest.
+No se acreditan cohortes fallidas ni se vuelven a mapear fuentes modificadas.
+
+Diez rutas de tooling (incluidos cuatro .d.mts sin decisiones ejecutables) suman
+82 observaciones nuevas sin cubrir, **2,74 % de las 2994**: merge-browser-coverage
+37 líneas/41 condiciones; prepare-pdf-worker 1 línea; publish-build 2 líneas;
+runtime-notices 1 condición. No explican los 2161 adicionales necesarios para 95 %.
+Los primeros déficits siguen en conocimiento/gráficos, ConceptPages/StudyApp y
+compatibilidad; el JSON lista veinticinco por cada alcance. Priorizar contratos
+que permanecerán, sin dedicar toda la migración al código antiguo ni retirarlo
+antes de demostrar sus consumidores. Umbrales oficiales intactos.
