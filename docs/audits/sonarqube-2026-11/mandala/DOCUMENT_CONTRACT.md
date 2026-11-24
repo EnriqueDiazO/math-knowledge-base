@@ -95,3 +95,38 @@ siguiente checkpoint del encargo de reanudación. La exportación ya compilada y
 las vistas de figuras no se confunden con ese modo de borrador. Los medios
 adjuntos externos y macros auxiliares de documentos particulares siguen sujetos
 a su incorporación portable y autorización, sin acceso libre al sistema anfitrión.
+
+
+## Edición híbrida y trazabilidad editorial — 24 de noviembre
+
+`Vista compilada` toma `DocumentEditor.value()` en el instante de pulsarla,
+tanto en modo visual como Fuente LaTeX. Envía una instantánea a
+`POST /document-previews` (`kind=document`, título actual), sin operar sobre
+MongoDB. El backend usa `compose_project → compile_project(raster=True)` y el
+mismo namespace aislado que la exportación guardada. Una página PNG permite
+inspeccionar el resultado; el PDF descargable conserva todas las páginas.
+La interfaz indica que no hay guardado y que hay que volver a solicitar la vista
+tras editar. No mantiene una tercera versión editable ni compila al abrir.
+El título cambia sin desmontar el editor ni perder selección/borrador.
+
+Las macros del borrador completo pertenecen a su fuente. El HTTP rechaza un
+segundo campo macros para esa modalidad, en vez de ignorarlo silenciosamente.
+Las figuras mantienen su modalidad y preámbulo explícito anteriores. La caché
+incluye modalidad/título/fuente/macros/plantillas/renderizador/compilador; un
+cambio del texto reemplaza el panel anterior y las respuestas obsoletas no lo
+pueden completar. Un error de compilación conserva la fuente y ofrece el log.
+
+El pie **generado** de ID interno se omite por defecto. La opción
+`Incluir identificadores técnicos` activa `include_technical_ids`; conserva
+`\nolinkurl` para permitir composición de IDs largos. Los comentarios de
+trazabilidad de los fragmentos TEX permanecen. No se retocan identidades Mongo,
+referencias DOI/ISBN ni identificadores que el autor haya escrito en el cuerpo.
+Los dos exportadores de compatibilidad reutilizan ahora el fragmento canónico,
+eliminando dos implementaciones repetidas de cuerpo/comentario/referencia/ID.
+El documento completo sigue conservando su preámbulo y no recibe un pie añadido.
+
+Pruebas: exportación HTTP/PDF con y sin ID, texto extraído con pdftotext,
+PNG válido y decodificado, compilación fallida sin mutaciones de colecciones,
+título en la clave de caché, botón sobre fuente visual/completa, cambio de título
+sin desmontaje y recorrido con fuente avanzada/TikZ en Chrome y Firefox,
+desde repositorio y desde la AppImage independiente.

@@ -210,3 +210,56 @@ serialización, reconstrucción, PDF y límites visuales. [PARITY_V014.md](PARIT
 separa lectura, creación, edición, eliminación, validaciones y exportación con
 referencias a v0.14.0. No se declara terminada la migración de Biblioteca,
 Cuaderno, Cornell/CPI, medios, administración ni la retirada de Streamlit.
+
+## D — borrador compilado, PDF académico y primer paquete experimental
+
+- `d67b7f6b`: compilación de la instantánea aún sin guardar y IDs técnicos
+  optativos; dos cuerpos de exportación repetidos pasan a usar el canónico.
+- `07a84c9c`, `b62889bf`: integración React y recursos publicados; el texto visual,
+  fuente completa y vista compilada comparten el mismo LaTeX.
+- `13f0b7cd`, `11dfe468`: constructor y primer AppImage; se corrigió la ausencia
+  del pyproject que necesita recuperar la versión. `12811a1c` cierra descriptores
+  y prueba publicación/no sustitución; no cambia el payload empaquetado.
+
+Batería integral: **2133 aprobadas, 9 omitidas por opt-in, 0 fallidas**. Los mismos
+9 casos pasan bajo `quality_mongo` con procesos/bases propios; se solapan con las
+9 omisiones, no son otros nueve tests. Las 5 nuevas pruebas de empaquetado se
+crearon después de la colección integral y pasan aparte: **2147 casos Python
+distintos aprobados** al reunir ambas ejecuciones y el opt-in. Los 50 casos del
+ZIP privado ya forman parte de la integral y no están entre esas omisiones.
+Frontend: **258 pruebas aprobadas**, typecheck, ESLint y ambos builds correctos.
+Los cinco escenarios independientes pasan en Chrome y Firefox; el paquete
+repite esos cinco escenarios en ambos navegadores, con MongoDB temporal real.
+No se agregan esos escenarios a la cifra de pytest ni se atribuye cobertura
+Python automática al intérprete empaquetado sin instrumentation.
+
+Sonar procesado: `dc70ca8e-4726-4d2c-8c70-1c19ace3ed4c`, revisión
+`a4f5852c6197185fa548e7440597fce1b5da810f`. General **74,0 %**, nueva **73,9 %**
+(frente a **73,9 / 73,8** del C revisado). Gate **ERROR**, sólo `new_coverage <80`.
+Duplicación nueva **0,11604 % ≤3**, incidencias nuevas **0 ≤0**. Referencia
+PREVIOUS_VERSION `2026-11-21T16:46:16+0000`, perfiles, exclusiones y umbrales
+sin cambios. `HYBRID_RESULTS.json` y `HYBRID_COVERAGE.csv` guardan el resultado
+procesado y las contribuciones por archivo. Los principales déficits heredados
+siguen en páginas extraídas de relaciones, mapas y mantenimiento, además de
+ramas de coordinación del frontend: no se atribuyen a scripts de forma genérica.
+
+LCOV: **4180/5626 líneas y 2383/3933 ramas** de unidades → **4457/5626 líneas y
+2573/3933 ramas** después de unir únicamente observaciones Chrome con mapas
+privados y denominadores compatibles: **277 líneas y 190 condiciones** añadidas.
+Python se regenera desde la integral y opt-ins, más backend instrumentado de ambos
+navegadores; se miden por separado los ensayos del constructor actual. No se unen
+contadores antiguos de líneas desplazadas ni ejecuciones fallidas del paquete.
+
+El entry sigue en **21 líneas**. `editor/pdf_export.py` baja de **1115 a 1052**,
+`ExportadorLatex` de **259 a 216**: presentación de cuerpo/cita/comentario/ID
+reutilizada, con todos sus consumidores conservados. El renderizador común
+pasa de 567 a 569 y el editor común de 609 a 616: se cuentan también los módulos
+reutilizados y los nuevos, sin presentar traslado como eliminación. Las pruebas
+siguen comprobando citas ampliadas, rutas XDG, plantillas, compilación y errores.
+No se retira ningún flujo, dato, referencia, documento o prueba.
+
+La imagen experimental probada pesa 38 MiB; su contrato y comandos están en
+`packaging/react-appimage/README.md`. Depende de MongoDB instalado y herramientas
+LaTeX del host. No gestiona un daemon ni acredita portabilidad a otros sistemas.
+Sigue pendiente la gestión de Biblioteca y la paridad de Cuaderno/Cornell/CPI,
+medios externos, transferencias y administración. El inventario continúa activo.

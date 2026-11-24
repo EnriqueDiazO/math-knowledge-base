@@ -1,0 +1,328 @@
+{
+  "revision": "a4f5852c6197185fa548e7440597fce1b5da810f",
+  "ce": {
+    "task": {
+      "id": "04104a1c-dc98-4421-a137-a4c4065220f8",
+      "type": "REPORT",
+      "componentId": "927ed5a8-596d-4138-ac8f-592f19ff5ade",
+      "componentKey": "mathmongo-local",
+      "componentName": "MathMongo local",
+      "componentQualifier": "TRK",
+      "analysisId": "dc70ca8e-4726-4d2c-8c70-1c19ace3ed4c",
+      "status": "SUCCESS",
+      "submittedAt": "2026-11-24T15:50:50+0000",
+      "submitterLogin": "admin",
+      "startedAt": "2026-11-24T15:50:50+0000",
+      "executedAt": "2026-11-24T15:50:53+0000",
+      "executionTimeMs": 3195,
+      "hasScannerContext": true,
+      "warningCount": 0,
+      "warnings": [],
+      "infoMessages": []
+    }
+  },
+  "gate": {
+    "projectStatus": {
+      "status": "ERROR",
+      "conditions": [
+        {
+          "status": "ERROR",
+          "metricKey": "new_coverage",
+          "comparator": "LT",
+          "errorThreshold": "80",
+          "actualValue": "73.9"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_duplicated_lines_density",
+          "comparator": "GT",
+          "errorThreshold": "3",
+          "actualValue": "0.11604"
+        },
+        {
+          "status": "OK",
+          "metricKey": "new_violations",
+          "comparator": "GT",
+          "errorThreshold": "0",
+          "actualValue": "0"
+        }
+      ],
+      "ignoredConditions": false,
+      "period": {
+        "mode": "PREVIOUS_VERSION",
+        "date": "2026-11-21T16:46:16+0000"
+      },
+      "caycStatus": "compliant"
+    }
+  },
+  "measures": {
+    "component": {
+      "key": "mathmongo-local",
+      "name": "MathMongo local",
+      "qualifier": "TRK",
+      "measures": [
+        {
+          "metric": "coverage",
+          "value": "74.0",
+          "bestValue": false
+        },
+        {
+          "metric": "complexity",
+          "value": "19495"
+        },
+        {
+          "metric": "duplicated_lines_density",
+          "value": "1.4",
+          "bestValue": false
+        },
+        {
+          "metric": "code_smells",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "security_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "maintainability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "security_hotspots",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "sqale_index",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "bugs",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "lines_to_cover",
+          "value": "53115"
+        },
+        {
+          "metric": "uncovered_lines",
+          "value": "13454",
+          "bestValue": false
+        },
+        {
+          "metric": "cognitive_complexity",
+          "value": "20228",
+          "bestValue": false
+        },
+        {
+          "metric": "duplicated_blocks",
+          "value": "70",
+          "bestValue": false
+        },
+        {
+          "metric": "ncloc",
+          "value": "105917"
+        },
+        {
+          "metric": "files",
+          "value": "422"
+        },
+        {
+          "metric": "vulnerabilities",
+          "value": "0",
+          "bestValue": true
+        },
+        {
+          "metric": "reliability_issues",
+          "value": "{\"INFO\":0,\"LOW\":0,\"MEDIUM\":0,\"HIGH\":0,\"BLOCKER\":0,\"total\":0}"
+        },
+        {
+          "metric": "line_coverage",
+          "value": "74.7",
+          "bestValue": false
+        }
+      ]
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "frontend": {
+    "unit": {
+      "lines": {
+        "total": 5626,
+        "covered": 4180,
+        "pct": 74.3
+      },
+      "branches": {
+        "total": 3933,
+        "covered": 2383,
+        "pct": 60.59
+      }
+    },
+    "combined": {
+      "lines": {
+        "total": 5626,
+        "covered": 4457,
+        "pct": 79.22
+      },
+      "branches": {
+        "total": 3933,
+        "covered": 2573,
+        "pct": 65.42
+      }
+    },
+    "additional_lines": 277,
+    "additional_branches": 190,
+    "browser_files": [
+      "src/knowledge-map/geometry.ts",
+      "src/knowledge-map/layout.ts",
+      "src/knowledge-map/areas.ts",
+      "src/knowledge-map/canvas.ts",
+      "src/knowledge-map/document-citation.ts",
+      "src/knowledge-map/provenance.ts",
+      "src/knowledge-map/document-dialog.ts",
+      "src/knowledge-map/reader.ts",
+      "src/knowledge-map/room-state.ts",
+      "src/knowledge-map/room.ts",
+      "src/knowledge-map/map-filters.ts",
+      "src/knowledge-map/component.ts",
+      "src/study/ConceptRelations.tsx",
+      "src/study/ConceptPages.tsx",
+      "src/study/ConceptTypeBadge.tsx",
+      "src/study/ConceptWorkspace.tsx",
+      "src/knowledge-map/math.ts",
+      "src/knowledge-map/keyboard.ts",
+      "src/knowledge-map/document-link.ts",
+      "src/knowledge-map/document-blocks.ts",
+      "src/knowledge-map/document-source.ts",
+      "src/knowledge-map/latex-text.ts",
+      "src/knowledge-map/document.ts",
+      "src/knowledge-map/document-editor.ts",
+      "src/study/image-data.ts",
+      "src/study/FigurePreview.ts",
+      "src/study/DocumentSurface.tsx",
+      "src/study/ExportActions.tsx",
+      "src/study/NoteCitation.tsx",
+      "src/study/note-confirmation.ts",
+      "src/study/NoteWorkspace.tsx",
+      "src/study/NotePages.tsx",
+      "src/annotations/ui.ts",
+      "src/concepts/labels.ts",
+      "src/concepts/ConceptLinkWizard.tsx",
+      "src/concepts/ConceptPanels.tsx",
+      "src/components/ReaderStatus.tsx",
+      "src/components/SelectionActionToolbar.tsx",
+      "src/components/SelectionInspector.tsx",
+      "src/components/Toolbar.tsx",
+      "src/components/VisualAnnotationConfirmation.tsx",
+      "src/components/VisualAnnotationsPanel.tsx",
+      "src/pdf/search.ts",
+      "src/app/App.tsx",
+      "src/annotations/geometry.ts",
+      "src/annotations/types.ts",
+      "src/annotations/VisualAnnotationLayer.ts",
+      "src/selection/captureSelection.ts",
+      "src/pdf/canvasPaint.ts",
+      "src/pdf/ThumbnailManager.ts",
+      "src/pdf/PdfJsController.ts",
+      "src/app/ReaderEntry.tsx",
+      "src/study/ReadingPage.tsx",
+      "src/study/SourceForms.tsx",
+      "src/knowledge-map/model.ts",
+      "src/knowledge-map/ui.ts",
+      "src/knowledge-map/bibliography.ts",
+      "src/study/SourcePicker.tsx",
+      "src/study/api.ts",
+      "src/api/client.ts",
+      "src/knowledge-map/concept-types.ts",
+      "src/knowledge-map/theme.ts",
+      "src/study-reader-theme.ts",
+      "src/study/navigation.ts",
+      "src/study/StudyLink.tsx",
+      "src/study/useLocalForm.ts",
+      "src/study/useOperationScope.ts",
+      "src/study/AuthoringPreparation.tsx",
+      "src/study/ReferenceForm.tsx",
+      "src/study/DocumentForm.tsx",
+      "src/security/document-links.ts",
+      "src/study/LibraryPages.tsx",
+      "src/knowledge-map/drafts.ts",
+      "src/study/drafts.ts",
+      "src/study/StudyApp.tsx",
+      "src/StudyEntry.tsx",
+      "src/main.tsx"
+    ],
+    "executed_assets": [
+      {
+        "file": "api-BEdrKFWo.js",
+        "sha256": "cc65716f1823a4caf200e0112ef59dd06bb1a8ea0273afd6f247b15febde190e"
+      },
+      {
+        "file": "index-BjBNCYxT.js",
+        "sha256": "14bef6521c15bc61bffcc6a20ae117085f7727f097cde7f04d96e39f0254c04a"
+      },
+      {
+        "file": "react-runtime-DydpthbT.js",
+        "sha256": "904c18555d72008115bb03c72c1718b4e7e11560a3eb2e98f438175843c15848"
+      },
+      {
+        "file": "pdfjs-runtime-F8NMAkdw.js",
+        "sha256": "ac79ba45e75f869d57ae2c39347d960cd58cedd80c685d5ee4c9b65c969a9d99"
+      },
+      {
+        "file": "ReadingPage-DfNeFlPN.js",
+        "sha256": "bc9f93f89e08f1960ecf91108925805b9199a36436a73865a24b50595b66bacd"
+      },
+      {
+        "file": "client-YNM-R8bA.js",
+        "sha256": "1b4f94bad62095f2d6adac8c787ed327dc35c24be9e69b61c838d5b2f7859045"
+      },
+      {
+        "file": "ReaderEntry-Dc1UG7Qo.js",
+        "sha256": "f0f4e484226f97754198a1ec6211df4d00a5741d5dc42cd407a753e85358fbcc"
+      },
+      {
+        "file": "SourcePicker-C7khn_HH.js",
+        "sha256": "2f505e55f9093caf099a79672672ff124da42ac19b1a98c308101e78095fb8c9"
+      },
+      {
+        "file": "ExportActions-upYw9_Hw.js",
+        "sha256": "80f6734d963ab256492ec7e6a0f7febe61c175fc0cc222d78c10b292309e8639"
+      },
+      {
+        "file": "NotePages-_jvre-8m.js",
+        "sha256": "8aa53642cc66502fff8e8eeb8e325f6fff40d303204e4676953881e5828e10f0"
+      },
+      {
+        "file": "DocumentSurface-tfuTivfH.js",
+        "sha256": "684198b5d28307bb0c7207be9b8b8fedf7882d0417652d5a9c723038f0805eb7"
+      },
+      {
+        "file": "ConceptTypeBadge-CfV06t09.js",
+        "sha256": "b56c938006db63ab9deae113f2902eec87c503cc416f757797a983cdae67b538"
+      },
+      {
+        "file": "ConceptPages-CN0ZkgnE.js",
+        "sha256": "95fcd9202e0481847dab2165e30cf2ef700da09fe123d1a9ba154334ceb57c16"
+      },
+      {
+        "file": "SourceForms-DgGOPFpa.js",
+        "sha256": "b9de7df2e88e90caf6fd701d50ff3e70b887828509cede0d7e51965ecf115539"
+      },
+      {
+        "file": "ConceptWorkspace-8Vm8HIUj.js",
+        "sha256": "27800cd4c0fb03b8913e07704db857a34393695a819ce9a58052d4eeec55f8d7"
+      }
+    ]
+  },
+  "appimage": {
+    "path": ".tools/appimage/MathMongo-react-experimental-x86_64.AppImage",
+    "sha256": "de25f97d0dd5c38e62717cee7f631e51a4ca1cb9682c08c6505c3892c57e19c6",
+    "payload_revision": "11dfe468",
+    "mongo_management": "external",
+    "chrome_scenarios": 5,
+    "firefox_scenarios": 5
+  }
+}
