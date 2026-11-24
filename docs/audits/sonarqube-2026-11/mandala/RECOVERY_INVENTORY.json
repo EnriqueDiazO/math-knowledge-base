@@ -1,0 +1,329 @@
+{
+  "maintained": 420,
+  "tests": 232,
+  "generated": 313,
+  "large_maintained": [
+    {
+      "path": "editor/cuaderno_page.py",
+      "lines": "4122",
+      "kind": "maintained",
+      "bytes": "173421",
+      "sha256": "98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "visualizations/grafoconocimiento.py",
+      "lines": "3670",
+      "kind": "maintained",
+      "bytes": "124266",
+      "sha256": "568f4436f2f5804594e9aa2c64a54ba74183cbfb95ce69727b11649415f55c89",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/utils/db_import.py",
+      "lines": "2904",
+      "kind": "maintained",
+      "bytes": "115496",
+      "sha256": "725bdf213ba1343cafe15d4f55597cd966188e2afa3ca6b04871e00e50944e6e",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/utils/db_update.py",
+      "lines": "2242",
+      "kind": "maintained",
+      "bytes": "88446",
+      "sha256": "6142141731bde41f988b2a03194a39dd5f6221d64efcbc0e544299daf4d52ac6",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/reading_annotations/service.py",
+      "lines": "1693",
+      "kind": "maintained",
+      "bytes": "71253",
+      "sha256": "8fe1575a0629516a731c1f06c1b94e6eb4c789846a94218b2fca13f379441f90",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/bootstrap.py",
+      "lines": "1635",
+      "kind": "maintained",
+      "bytes": "71796",
+      "sha256": "ed986959d72ac9baa7d0b8f7d7ca08b6062e123786784b6de9c33f1dd421efb0",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/cornell/streamlit_page.py",
+      "lines": "1634",
+      "kind": "maintained",
+      "bytes": "59460",
+      "sha256": "85b96d262000879c7ec8223bad49c5326c7a996632c4c4d141587bf709467774",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/cpi/streamlit_page.py",
+      "lines": "1485",
+      "kind": "maintained",
+      "bytes": "54570",
+      "sha256": "7c133a29a37ddb185ea0f73c33b3fbbfeae77c20beef245ffdad5cf42c7a2028",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/app_pages/knowledge_graph.py",
+      "lines": "1381",
+      "kind": "maintained",
+      "bytes": "79532",
+      "sha256": "73a068e848a458d0d37c84d68eaa053a3480d43d3e6c5c3d2d042b1f4ab8377f",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/concept_linking/linking_wizard.py",
+      "lines": "1264",
+      "kind": "maintained",
+      "bytes": "43966",
+      "sha256": "bb409353b248fa2ba8873832b78d8de5cb813a9150e7d6946f59b134a1cdeaf4",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "frontend/advanced-reader/src/app/App.tsx",
+      "lines": "1247",
+      "kind": "maintained",
+      "bytes": "47778",
+      "sha256": "01a92393c735f2652f2790550bab96af0494b2ccc685352a709ccf7f11cfeb8e",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/reading_space/reader_page.py",
+      "lines": "1222",
+      "kind": "maintained",
+      "bytes": "46146",
+      "sha256": "594f1787da2dfcf8897def59109eb8c3b43ff630c1adc7c85b81549ced806bab",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/source_catalog/edit_source_page.py",
+      "lines": "1192",
+      "kind": "maintained",
+      "bytes": "45507",
+      "sha256": "6bfa69ee5268dae84a0404d602869f2f641320e404cc69a662546e0c246d4829",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/apply_safety.py",
+      "lines": "1186",
+      "kind": "maintained",
+      "bytes": "49763",
+      "sha256": "05fc313b7634c8c0fb67eabbc7692688ea059b94450de67b5c999afe2a203948",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/manifest.py",
+      "lines": "1122",
+      "kind": "maintained",
+      "bytes": "46080",
+      "sha256": "e1c3fc228968132ec640311e70c1f3321a414b6eda35263db9737af22287f2a9",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/pdf_export.py",
+      "lines": "1115",
+      "kind": "maintained",
+      "bytes": "39826",
+      "sha256": "c540f094d2c5b866ce2107fd86ac9365581eca6b9fb19b203654337c85c4f8d0",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/utils/knowledge_graph_sync.py",
+      "lines": "1076",
+      "kind": "maintained",
+      "bytes": "38742",
+      "sha256": "c3090f41a136d1b439796acabca101795e9ce5babd4fd1e5a391d90ffb37ddd9",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "exporters_latex/latex_validation.py",
+      "lines": "1046",
+      "kind": "maintained",
+      "bytes": "34649",
+      "sha256": "60b9cb9b421f04dc900a93ffc080986c34a6ff213cfbee617d4359cf964f59b0",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/reading_annotations/repository.py",
+      "lines": "1019",
+      "kind": "maintained",
+      "bytes": "36684",
+      "sha256": "59315ea23d03243c934cd3b7f1eba148454309043e727305962d4a2bd57ecd04",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "frontend/advanced-reader/src/styles/reader.css",
+      "lines": "1008",
+      "kind": "maintained",
+      "bytes": "18672",
+      "sha256": "9c21a4858acd3305414ef597372637ecd98d79492c44838b6926a4e3ff875727",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    }
+  ],
+  "top20": [
+    {
+      "path": "editor/cuaderno_page.py",
+      "lines": "4122",
+      "kind": "maintained",
+      "bytes": "173421",
+      "sha256": "98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "visualizations/grafoconocimiento.py",
+      "lines": "3670",
+      "kind": "maintained",
+      "bytes": "124266",
+      "sha256": "568f4436f2f5804594e9aa2c64a54ba74183cbfb95ce69727b11649415f55c89",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/utils/db_import.py",
+      "lines": "2904",
+      "kind": "maintained",
+      "bytes": "115496",
+      "sha256": "725bdf213ba1343cafe15d4f55597cd966188e2afa3ca6b04871e00e50944e6e",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/utils/db_update.py",
+      "lines": "2242",
+      "kind": "maintained",
+      "bytes": "88446",
+      "sha256": "6142141731bde41f988b2a03194a39dd5f6221d64efcbc0e544299daf4d52ac6",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/reading_annotations/service.py",
+      "lines": "1693",
+      "kind": "maintained",
+      "bytes": "71253",
+      "sha256": "8fe1575a0629516a731c1f06c1b94e6eb4c789846a94218b2fca13f379441f90",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/bootstrap.py",
+      "lines": "1635",
+      "kind": "maintained",
+      "bytes": "71796",
+      "sha256": "ed986959d72ac9baa7d0b8f7d7ca08b6062e123786784b6de9c33f1dd421efb0",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/cornell/streamlit_page.py",
+      "lines": "1634",
+      "kind": "maintained",
+      "bytes": "59460",
+      "sha256": "85b96d262000879c7ec8223bad49c5326c7a996632c4c4d141587bf709467774",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/cpi/streamlit_page.py",
+      "lines": "1485",
+      "kind": "maintained",
+      "bytes": "54570",
+      "sha256": "7c133a29a37ddb185ea0f73c33b3fbbfeae77c20beef245ffdad5cf42c7a2028",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/app_pages/knowledge_graph.py",
+      "lines": "1381",
+      "kind": "maintained",
+      "bytes": "79532",
+      "sha256": "73a068e848a458d0d37c84d68eaa053a3480d43d3e6c5c3d2d042b1f4ab8377f",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/concept_linking/linking_wizard.py",
+      "lines": "1264",
+      "kind": "maintained",
+      "bytes": "43966",
+      "sha256": "bb409353b248fa2ba8873832b78d8de5cb813a9150e7d6946f59b134a1cdeaf4",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "frontend/advanced-reader/src/app/App.tsx",
+      "lines": "1247",
+      "kind": "maintained",
+      "bytes": "47778",
+      "sha256": "01a92393c735f2652f2790550bab96af0494b2ccc685352a709ccf7f11cfeb8e",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/reading_space/reader_page.py",
+      "lines": "1222",
+      "kind": "maintained",
+      "bytes": "46146",
+      "sha256": "594f1787da2dfcf8897def59109eb8c3b43ff630c1adc7c85b81549ced806bab",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/source_catalog/edit_source_page.py",
+      "lines": "1192",
+      "kind": "maintained",
+      "bytes": "45507",
+      "sha256": "6bfa69ee5268dae84a0404d602869f2f641320e404cc69a662546e0c246d4829",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/apply_safety.py",
+      "lines": "1186",
+      "kind": "maintained",
+      "bytes": "49763",
+      "sha256": "05fc313b7634c8c0fb67eabbc7692688ea059b94450de67b5c999afe2a203948",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/source_catalog_migration/manifest.py",
+      "lines": "1122",
+      "kind": "maintained",
+      "bytes": "46080",
+      "sha256": "e1c3fc228968132ec640311e70c1f3321a414b6eda35263db9737af22287f2a9",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/pdf_export.py",
+      "lines": "1115",
+      "kind": "maintained",
+      "bytes": "39826",
+      "sha256": "c540f094d2c5b866ce2107fd86ac9365581eca6b9fb19b203654337c85c4f8d0",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "editor/utils/knowledge_graph_sync.py",
+      "lines": "1076",
+      "kind": "maintained",
+      "bytes": "38742",
+      "sha256": "c3090f41a136d1b439796acabca101795e9ce5babd4fd1e5a391d90ffb37ddd9",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "exporters_latex/latex_validation.py",
+      "lines": "1046",
+      "kind": "maintained",
+      "bytes": "34649",
+      "sha256": "60b9cb9b421f04dc900a93ffc080986c34a6ff213cfbee617d4359cf964f59b0",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "mathmongo/reading_annotations/repository.py",
+      "lines": "1019",
+      "kind": "maintained",
+      "bytes": "36684",
+      "sha256": "59315ea23d03243c934cd3b7f1eba148454309043e727305962d4a2bd57ecd04",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    },
+    {
+      "path": "frontend/advanced-reader/src/styles/reader.css",
+      "lines": "1008",
+      "kind": "maintained",
+      "bytes": "18672",
+      "sha256": "9c21a4858acd3305414ef597372637ecd98d79492c44838b6926a4e3ff875727",
+      "classification_reason": "hand-maintained source; review independently of coverage"
+    }
+  ]
+}

@@ -245,3 +245,20 @@ corte anterior queda sustituido por la implementación y los límites de
 [MIGRATION_CHECKPOINT.md](MIGRATION_CHECKPOINT.md); aún no se expone desde React.
 Los bundles y fuentes matemáticas regenerados se cuentan como **generados**,
 sin atribuir sus cambios de hash o formato a código obsoleto eliminado.
+
+## Reanudación del 24 de noviembre
+
+El inventario actualizado contiene 420 archivos mantenidos, 232 de prueba y 313
+salidas generadas (`RECOVERY_INVENTORY.json`). Los veinte archivos mantenidos de
+más de mil líneas conservan sus veinte hashes: siguen vigentes las decisiones
+y los pendientes de la tabla anterior. No se repite la inspección de código
+sin cambios ni se cierran sus refactorizaciones por el Gate.
+
+Se revisaron las nuevas responsabilidades del lote documental: parseo textual,
+contrato de entornos, bloques protegidos, presentación de figuras, composición
+portable, HTTP, caché y proceso aislado tienen módulos propios. El editor común
+mide 609 líneas y el entry de compatibilidad 21. URL validation se trasladó de
+study a security (25 líneas), no se eliminó. El SourceBlock se extrajo y amplió;
+se conserva su consumidor del editor/lector. Formatear SourcePicker y NoteCitation
+no cuenta como aumento funcional ni reducción de complejidad. Los bundles
+reemplazados son regeneración; ninguna capacidad ni prueba fue retirada.

@@ -1,0 +1,45 @@
+# Paridad funcional con v0.14.0-teaching-rc1
+
+Referencia consultada en modo lectura: ZIP de 949 entradas con SHA256
+`778c1b55dd246fc3ecb8cdfd19b7010753c0ccdad20fab38ca744fffce0b6c32`.
+No se extrae sobre el repositorio ni se ejecutan sus archivos. Su entry histórico
+tiene 6019 líneas; no es la línea base de 5744 de la extracción anterior. El entry
+actual de compatibilidad sigue en 21 líneas, con sus páginas conservadas.
+
+Estado de este corte: recuperación y lote documental C. **Completa** se refiere
+a la operación delimitada de la fila, no a toda la familia ni a autorización para
+retirar Streamlit. Se mantienen los contratos y servicios históricos.
+
+| Capacidad / operaciones | Versión histórica y contrato | React actual / evidencia | Dependencia Streamlit restante | Estado y siguiente acción |
+|---|---|---|---|---|
+| Biblioteca: consultar/buscar/paginar fuentes | Catálogo S1, identidades independientes de References/Documents | Búsqueda por bibliografía, selección paginada; HTTP y Chrome/Firefox | Ninguna para esas consultas | **Completa** para lectura; conservar la administración histórica |
+| Fuente: crear y recuperar | add_source_page, SourceCatalogService; manual/BibTeX eran alternativas | Crear manualmente, tipo, descripción, reintento mismo UUID después de perder ACK | BibTeX y edición/estado aún en edit_source_page | **Parcial**: crear/leer completos, editar/archivar/reactivar/eliminar pendientes de UI y concurrencia |
+| Reference: crear manualmente y asociar/citar | reference_form/reference_actions; autores estructurados, ID estable, localizadores separados | Manual, web sin DOI/ISBN ni fechas inventadas; nota/concepto citados y recuperados | Edición completa y gestión de asociaciones | **Parcial**: no declarar CRUD completo por tener captura |
+| Propuestas DOI/ISBN | Adaptadores canónicos Crossref/DataCite/Open Library; confirmación explícita | Propuesta editable disponible; pruebas de adaptadores previas válidas | Verificar todas las decisiones/recarga del formulario React | **Parcial**: ampliar regresiones de propuestas y correcciones manuales |
+| BibTeX | bibtex_ui, parseo/preview y selección de candidatos | Servicio conservado; captura React no lo expone todavía | Sí | **Pendiente**: preview/importación selectiva por servicios existentes |
+| Documento PDF/web: asociar y leer | SourceDocument separado de Source/Reference; blobs y rutas validados | Subida PDF/vínculo web, referencia, lectura real, reintento estable | Metadatos/archivo/reactivación y administración íntegra | **Parcial**: alta/consulta comprobadas; gestión restante pendiente |
+| Concepto: crear/leer/editar prosa y fórmulas | ConceptoBase, identidad compuesta, contenido_latex y campos bibliográficos | Ocho tipos en creación; edición visual/fuente con CAS, duplicados y borrador; Chrome/Firefox/Mongo real | Clasificaciones avanzadas/algoritmos/otros campos todavía no editables | **Parcial**: esos campos se conservan, no se normalizan ni se eliminan |
+| Concepto: eliminación | Dos rutas antiguas; ahora servicio común recuperable | Servicio y regresiones de relaciones, evidencia, medios y fallos parciales | UI React aún no conectada | **Pendiente**: confirmación contextual y reintento del mismo plan; no hacer otro borrado |
+| Relaciones: crear/leer | Direccionalidad/tipo/identidades canónicas; extremos históricos compatibles | Dos conceptos, una relación en ambos detalles después de recarga | Edición/eliminación completa de relaciones | **Parcial**: crear/consultar completos, modificar/borrar pendientes |
+| Esfera: explorar/abrir documento/editar | Coordenadas de presentación no cambian semántica; conceptos compartidos | Resúmenes sin carga íntegra de LaTeX, detalle a demanda y edición real | Todas las acciones avanzadas/vistas e importaciones no tienen paridad aún | **Parcial**: comprobar operaciones restantes del coordinador antes de retirar Bridge |
+| Nota de lectura: crear/guardar/editar/recuperar | ReadingNote y revisión esperada; no equivale a latex_notes del Cuaderno | Desde pasaje o directamente, cita, búsqueda, borrador, pérdida de respuesta, conflicto; pruebas reales | Vínculos adicionales y herramientas completas de anotación | **Parcial** a nivel familia; escritura y recuperación delimitadas **completas** |
+| Nota → concepto → esfera → origen | Incorporación explícita y enlaces de evidencia | Recorrido completo con PDF/página/pasaje; no se publica al preparar almacenamiento | Ninguna para ese recorrido | **Completa** para incorporación y retorno verificados |
+| Anotaciones/subrayados | Servicios S4/S5B, versión PDF, anclajes, estados y revisión | Selección de pasaje/anotación/notas operativas, API y lector reutilizados | Revisar todos los estilos, borrados y casos de versión/reanclado | **Parcial**: no confundir un highlight del recorrido con toda la anotación |
+| LaTeX: abrir y guardar fuente histórica | Texto canónico íntegro; ACE y snippets eran herramientas de autoría | Visual/fuente/protegido, acentos/enlaces seguros; cinco copias reales conservan SHA256 y metadatos | Estructuras no comprendidas se editan como fuente protegida | **Completa** para preservación probada; edición visual general **parcial** |
+| LaTeX: estructuras nuevas | Entornos y argumentos reales de miestilo/notes, no HTML canónico | Bloques semánticos anidados, MathLive y LaTeX avanzado; serialización/plantillas cotejadas | No todas las construcciones tienen controles visuales | **Parcial**; el modo fuente conserva expresividad sin prometer dependencias inexistentes |
+| Compilación del borrador completo | ACE/exportadores permitían inspeccionar resultado de TeX | PDF exportado y figuras compiladas ya integrados | Compilar antes de guardar falta como modalidad explícita | **Pendiente** del siguiente checkpoint; usar la misma fuente y aislamiento |
+| Exportación TEX/PDF de texto/TikZ | Exportador individual/unificado, ZIP portable y contexto de paquetes | Selección de conceptos y notas guardadas, TEX/estilos, PDF; nuevos/mixtos/completos verificados | Recursos externos, opciones de formatos y trazabilidad editorial completa | **Parcial**: cuerpo exacto y preámbulo probados; IDs visibles por defecto se cambian en el próximo lote |
+| TikZ: preview/ampliación/PDF | Compilación histórica, no sólo texto | Namespace aislado, PNG recortado, caché por contenido/configuración; píxeles reales comprobados tras corregir CSP | Macros/dependencias particulares requieren contexto explícito | **Completa** para figuras autocontenidas probadas; no para cualquier paquete ausente |
+| Medios compartidos | Registro de medios, referencias de concepto/nota/Cornell/CPI y portabilidad | Servicios y datos conservados; el borrado común retira sólo su referencia | Subida/gestión y empaquetado de todos los recursos desde React | **Pendiente** de paridad React; no purgar bytes compartidos |
+| Cuaderno y sus actividades | Diario, Worklog, Backlog, Weekly, Deliverables, promociones | Navegación y enlace a notas, sin sustituir sus modelos por ReadingNote | Sí, cuaderno_page y módulos | **Pendiente**: migrar actividades completas, no tarjetas automáticas de Mongo |
+| Cornell | Modelo, regiones/cues/cuerpo/síntesis, overflow y exportación multipágina | Servicios conservados y pruebas históricas; no editor React de Cornell | Sí | **Pendiente**: adaptar experiencia sin perder regiones/medios |
+| CPI | Comprensión/Producción/Integración, regiones y exportación | Servicios y colores de zonas conservados; no confundir con tipos matemáticos | Sí | **Pendiente**: editor por actividad y pruebas de desbordamiento/exportación |
+| Transferencias/importación/exportación QMD/HTML | Preflight, modelos/BSON, referencias, mapas y compensación | Servicios existentes; no endpoints automáticos para cada método | Sí, varias rutas de compatibilidad/CLI | **Pendiente** de operaciones explícitas con autorización y casos privados conservados |
+| Administración, migraciones y backups | Plan/dry-run/huella/backup/reconciliación; no reparación silenciosa | Preparación compatible de notas/biblioteca y diagnóstico de scope | Resto de procedimientos avanzados | **Parcial**: no convertir preparación en reparación destructiva |
+| Enseñanza y auxiliares | Materiales/proyectos/Quarto, recursos y referencias | Datos y exportadores conservados | Varias herramientas aún antiguas | **Pendiente**: inventario activo, sin retirada por ausencia de coincidencias |
+| AppImage | Launcher/runtime/Mongo real y XDG; no SQLite | Frontend compilado y backend independiente aptos para empaquetar | No necesita retirar primero todo el legado | **Pendiente**: primer paquete experimental; distinguir Mongo instalado de instancia gestionada |
+
+No hay funcionalidades retiradas en estos checkpoints. Las páginas antiguas,
+servicios, documentos, ZIP, referencias e identidades permanecen disponibles.
+Las pruebas históricas privadas y el inventario de mantenibilidad no se cierran
+porque un recorrido React funcione o porque un Gate cambie de estado.

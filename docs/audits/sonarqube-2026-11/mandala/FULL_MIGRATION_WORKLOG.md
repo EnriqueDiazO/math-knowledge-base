@@ -161,3 +161,52 @@ unitario; son totales de instrumentación acumulada, no incremento exclusivo de 
 No se retiran flujos legados. Exportación de notas, vinculación adicional y las
 capacidades de E siguen pendientes de paridad, aunque el recorrido de lectura,
 nota, incorporación explícita, esfera y retorno ya se verifica sin Streamlit.
+
+## Reanudación del 24 de noviembre — cierre documental C
+
+Se preservaron las 74 rutas pendientes: 46 manuales y 28 generadas. El estado
+inicial, procesos y límites de reutilización se registran en
+[RECOVERY_2026-11-24.md](RECOVERY_2026-11-24.md). Los cambios quedaron en commits
+locales por alcance: `8d3f672b` (citas), `50860f12` (servicio/exportación/aislamiento),
+`d8eed079` (editor), `26943c93` (regresiones), `fe1d9fd9` (publicación generada).
+No se restauró código ni se copiaron fuentes de la versión histórica.
+
+La reanudación encontró una regresión real de integración: el PNG existía pero
+el navegador bloqueaba el blob de la imagen. La prueba anterior de presencia
+no demostraba píxeles visibles. `5acbc7d9` conserva CSP y presenta PNG data:;
+`a7e0cd50` registra resultados por ejecución y fallos explícitos; `18d2f49f`
+publica el arreglo. Las capturas antiguas rotas se preservan como evidencia
+anterior, no como éxito visual. Chrome y Firefox vuelven a aprobar los cinco
+recorridos, incluida la imagen decodificada/ampliada, además de fuentes, notas,
+conflicto, exportación visual/mixta y cinco cuerpos históricos SHA256 idénticos.
+
+Verificación actualizada: **419 pruebas Python** de las fronteras/servicios
+modificados y sus consumidores; **256 frontend**, typecheck, ESLint y build.
+La prueba de aislamiento reforzada exige EROFS y vuelve a aprobar sus 4 casos.
+Los 20 archivos mantenidos de más de mil líneas conservan exactamente su hash:
+se reutilizan sus revisiones, sin dar por resueltos sus pendientes. Inventario:
+420 mantenidos, 232 pruebas, 313 generados. El entry sigue en 21 líneas;
+`document-editor.ts`, 609. Se cuentan todos los módulos extraídos y añadidos.
+
+Se retiraron mediciones antiguas sólo de siete módulos Python modificados,
+conservando las del resto. No se unieron números de línea desplazados. La cohorte
+419 los mide de nuevo. Los recorridos con backend instrumentado añaden **94
+líneas observadas** en seis módulos sobre esa cohorte. No se importan las
+mediciones de los recorridos fallidos. Vitest más Chromium aporta **279 líneas y
+191 condiciones adicionales**, con denominadores intactos: 4440/5608 líneas
+(79,17 %) y 2555/3909 condiciones (65,36 %), alcance frontend local.
+
+Sonar revisado: análisis `2a2fef59-1391-4c2f-ade9-7271eec9e513`, revisión
+`1ea60d061c6eb607a4582d554aa9f95e4bbe4fd9`, CE SUCCESS. General **73,9 %**,
+nueva **73,8 %**. Gate **ERROR** sólo por 73,8 < 80; duplicación nueva 0,11802 ≤ 3,
+incidencias nuevas 0. La clasificación individual S5443 se justifica en
+[S5443_SANDBOX_REVIEW.md](S5443_SANDBOX_REVIEW.md): el literal es destino de un
+montaje de sólo lectura del namespace, no una carpeta pública de salida.
+No se cambia perfil, regla, exclusión, periodo ni umbral. `RECOVERED_C_RESULTS.json`
+y `RECOVERED_C_COVERAGE.csv` conservan métricas y déficit por archivo.
+
+[DOCUMENT_CONTRACT.md](DOCUMENT_CONTRACT.md) distingue nodos, fuente almacenada,
+serialización, reconstrucción, PDF y límites visuales. [PARITY_V014.md](PARITY_V014.md)
+separa lectura, creación, edición, eliminación, validaciones y exportación con
+referencias a v0.14.0. No se declara terminada la migración de Biblioteca,
+Cuaderno, Cornell/CPI, medios, administración ni la retirada de Streamlit.
