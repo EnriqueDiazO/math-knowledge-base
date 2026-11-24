@@ -112,7 +112,7 @@ await test(
               "python3",
               [
                 "-c",
-                "import hashlib,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=next(n for n in z.namelist() if 'cpi_assets/media' in n and n.endswith('.png')); print(hashlib.sha256(z.read(n)).hexdigest())",
+                "import hashlib,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=next(n for n in z.namelist() if n.endswith('/images/note-actions.png')); print(hashlib.sha256(z.read(n)).hexdigest())",
                 bundlePath,
               ],
               { encoding: "utf8" },

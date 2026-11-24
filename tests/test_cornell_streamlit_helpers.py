@@ -449,6 +449,8 @@ class FakeDeleteDb:
 
     def delete_notebook_note(self, note_id: str) -> FakeDeleteResult:
         self.delete_ids.append(str(note_id))
+        if self.deleted_count > 0:
+            self.note = None
         return FakeDeleteResult(deleted_count=self.deleted_count)
 
 
@@ -478,7 +480,8 @@ def test_confirm_delete_uses_note_id_verifies_result_and_clears_current_state() 
     status = confirm_cornell_note_delete(state, db, "note-1")
 
     assert status == "deleted"
-    assert db.get_ids == ["note-1"]
+    assert db.get_ids == ["note-1", "note-1"]
+    assert db.note is None
     assert db.delete_ids == ["note-1"]
     assert state[SESSION_NOTE_ID] is None
     assert state[SESSION_DIRTY] is False
