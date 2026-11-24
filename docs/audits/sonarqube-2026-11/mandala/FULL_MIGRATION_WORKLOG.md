@@ -733,3 +733,72 @@ Resultados y commits: LATEX_AUTHORING_RESULTS.json; inventario:
 LATEX_AUTHORING_INVENTORY.json. Matriz y comando reproducible actualizados.
 El siguiente corte sigue siendo medios/asociaciones y operaciones completas
 de nota, después tareas de Cuaderno y administración. No push ni merge.
+
+## Recuperación funcional y suspensión del empaquetado — 24 de noviembre de 2026
+
+Se recuperó **2803cc37 limpio** y se mantuvo la rama. El nuevo inventario contrasta
+109 archivos de editor histórico, 156 del actual y 144 módulos de dominio; incluye
+controles secundarios/avanzados y operaciones de los módulos poco visibles.
+La unidad de progreso es una operación comprobada, no una página ni un widget.
+Primera lista: 276; tras incorporar los filtros avanzados omitidos del Diario,
+**277**. Sobre igual alcance: **103/277 (37,18 %) → 110/277 (39,71 %)**.
+Esenciales: **109/215 (50,70 %)**. Quedan **54 parciales, una implementada sin
+prueba completa y 112 ausentes**. Ninguna retirada ni familia declarada completa.
+La fila de derechos de Source separa implementación de verificación y evita
+confundir su modelo con los metadatos bibliográficos de Reference.
+
+Se implementan siete operaciones: copiar y borrar notas completas Cornell/CPI,
+filtrar ambos formatos por proyecto/contexto/fechas y borrar Diario. La copia
+nativa anterior perdía fuente histórica y extensiones; dos regresiones fallan
+antes y pasan después con copia exacta. Se comparte el helper nativo y se añaden
+CAS, recibo de operación standalone e intento durable por biblioteca/nota/revisión.
+Se conserva borrador tras respuesta perdida, eliminación efectiva, 404 y recarga;
+la limpieza puede reanudarse sin repetir otra eliminación ni publicar el borrador.
+Se mantienen referencias compartidas y bytes físicos, incluida la última referencia.
+
+Verificación: **2239 Python aprobadas/9 optativas omitidas/0 fallidas** en la
+integral; las nueve optativas pasan separadamente con mongod propio: **2248
+pruebas distintas**. El comando exterior largo notificó 143 tras los resultados
+y XML; se conserva ese dato, junto con JUnit cero fallos/errores y generación/
+validación posterior exit 0. No se transforma ese estado del proceso en fallo
+de una prueba ni se presenta una salida exterior cero inexistente. **396 frontend**,
+TypeScript/ESLint, Ruff afectado, **catorce cohortes React por Chrome/Firefox**
+y una comprobación adicional del consumidor legado de habitación en Chrome.
+Dos dobles de prueba se corrigieron para reflejar borrado real y una aserción
+ZIP se ajustó a la ruta portable existente; se conservan los registros fallidos.
+Sólo observaciones aprobadas y con código/mapas coincidentes entran en LCOV.
+
+El ZIP privado contiene Diario/Cornell, no CPI. El nuevo caso CPI usa fixture
+canónico expresamente identificado y recurso compartido real, con exportación
+TEX/PDF, SHA de imagen, eliminación de copia y original/otro consumidor intactos.
+Los casos históricos, fuente arbitraria/TikZ y recuperación del editor se conservan.
+Todos los writes ocurren en Mongo/PID/dbpath/puerto/UUID y XDG propios; MathV0_writes=0.
+
+Sonar **`e6830f9b-bc15-4a3e-a835-7d00d73293c1`**, revisión **`c1a29eb5`**, CE SUCCESS,
+**76,5→76,6 % general, 82,0→82,2 % nueva, Gate OK**, cero incidencias nuevas.
+Condiciones nuevas **2915/3898**, generales **3666/5107**. Ref/perfiles/reglas/
+umbrales/exclusiones/SHA conservados. Faltan **11170 observaciones generales y
+2183 nuevas** para 95 % a denominador fijo; tooling **82/3037 (2,70 %)** de las
+nuevas sin cubrir. La mejora porcentual no oculta el crecimiento del denominador
+ni sustituye la recuperación funcional. XML y LCOV importados; diferencias de
+alcance Python y líneas sólo BRDA cuantificadas en el informe/JSON.
+
+Entrada Streamlit **21 líneas**, veinte archivos propios >1000 con hashes
+inalterados y revisiones reutilizadas. Nuevo código en módulos pequeños, sin
+segundo editor/guardado ni borrado de capacidades. Fuente mantenida +777/−97
+líneas; pruebas +1009/−3, bundles +3422/−3421 (Git físico, renombres como baja/alta).
+No se interpreta la regeneración de bundles como reducción de complejidad.
+
+Commits: `2478bb7c`, `ec8ddca8`, `7d3ce7dd`, `4af7c176`, `e8203c25`, `25ea2d6f`,
+`d0323c75`, `aed9eb5a`, `c1a29eb5`; documentación final aparte. No push/merge.
+**Ninguna AppImage nueva construida ni arrancada**. Se conservan artefactos e
+infraestructura, la instancia Sonar, credenciales, tokens ajenos y ajuste sysctl.
+
+Informe: [FUNCTIONAL_MIGRATION_CHECKPOINT.md](FUNCTIONAL_MIGRATION_CHECKPOINT.md).
+Matriz: [FUNCTIONAL_PARITY.md](FUNCTIONAL_PARITY.md) / FUNCTIONAL_PARITY.json.
+Métricas: FUNCTIONAL_MIGRATION_RESULTS.json. Capturas y pruebas bajo
+`evidence/sonar/independent-study/{chrome,firefox}`; logs y auditoría bajo
+`evidence/sonar/functional-parity-2026-11-24`. El siguiente corte cierra medios,
+asociaciones y controles pendientes de las actividades existentes, después las
+tareas del Cuaderno. Resto de conceptos/mapas/transferencias/administración sigue
+inventariado. El empaquetado espera la paridad acordada; no bloquea migrar funciones.

@@ -1,0 +1,1890 @@
+{
+  "analysis_id": "e6830f9b-bc15-4a3e-a835-7d00d73293c1",
+  "analysed_revision": "c1a29eb5353ef6e9c59e7c613413b13b3ca6870a",
+  "production_revision": "d0323c756eccc68482dd8b5674dc5c5843531aff",
+  "branch": "feature/knowledge-sphere-2026-11",
+  "ce_status": "SUCCESS",
+  "gate": {
+    "status": "OK",
+    "conditions": [
+      {
+        "status": "OK",
+        "metricKey": "new_coverage",
+        "comparator": "LT",
+        "errorThreshold": "80",
+        "actualValue": "82.2"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_duplicated_lines_density",
+        "comparator": "GT",
+        "errorThreshold": "3",
+        "actualValue": "0.08159"
+      },
+      {
+        "status": "OK",
+        "metricKey": "new_violations",
+        "comparator": "GT",
+        "errorThreshold": "0",
+        "actualValue": "0"
+      }
+    ],
+    "ignoredConditions": false,
+    "period": {
+      "mode": "PREVIOUS_VERSION",
+      "date": "2026-11-21T16:46:16+0000"
+    },
+    "caycStatus": "compliant"
+  },
+  "measures": {
+    "coverage": 76.6,
+    "duplicated_lines_density": 1.3,
+    "new_coverage": 82.2,
+    "new_uncovered_conditions": 983.0,
+    "new_branch_coverage": 74.8,
+    "new_line_coverage": 84.4,
+    "lines_to_cover": 55588.0,
+    "uncovered_conditions": 1441.0,
+    "uncovered_lines": 12763.0,
+    "branch_coverage": 71.8,
+    "new_violations": 0.0,
+    "new_conditions_to_cover": 3898.0,
+    "new_uncovered_lines": 2054.0,
+    "line_coverage": 77.0,
+    "conditions_to_cover": 5107.0,
+    "new_lines_to_cover": 13192.0,
+    "new_duplicated_lines_density": 0.08159
+  },
+  "baseline": {
+    "analysis_id": "05caf8eb-bca8-40dd-a7ef-abaacf2721cd",
+    "revision": "24c4e115f782e4aad2f1b89dbfc09af3358fcc29",
+    "measures": {
+      "coverage": 76.5,
+      "duplicated_lines_density": 1.4,
+      "new_coverage": 82.0,
+      "new_uncovered_conditions": 967.0,
+      "new_branch_coverage": 74.4,
+      "new_line_coverage": 84.3,
+      "lines_to_cover": 55319.0,
+      "uncovered_conditions": 1425.0,
+      "uncovered_lines": 12742.0,
+      "branch_coverage": 71.4,
+      "new_violations": 0.0,
+      "new_conditions_to_cover": 3775.0,
+      "new_uncovered_lines": 2027.0,
+      "line_coverage": 77.0,
+      "conditions_to_cover": 4984.0,
+      "new_lines_to_cover": 12886.0,
+      "new_duplicated_lines_density": 0.08442
+    }
+  },
+  "comparison": {
+    "coverage": {
+      "before": 76.5,
+      "after": 76.6,
+      "delta": 0.09999999999999432
+    },
+    "duplicated_lines_density": {
+      "before": 1.4,
+      "after": 1.3,
+      "delta": -0.09999999999999987
+    },
+    "new_coverage": {
+      "before": 82.0,
+      "after": 82.2,
+      "delta": 0.20000000000000284
+    },
+    "new_uncovered_conditions": {
+      "before": 967.0,
+      "after": 983.0,
+      "delta": 16.0
+    },
+    "new_branch_coverage": {
+      "before": 74.4,
+      "after": 74.8,
+      "delta": 0.3999999999999915
+    },
+    "new_line_coverage": {
+      "before": 84.3,
+      "after": 84.4,
+      "delta": 0.10000000000000853
+    },
+    "lines_to_cover": {
+      "before": 55319.0,
+      "after": 55588.0,
+      "delta": 269.0
+    },
+    "uncovered_conditions": {
+      "before": 1425.0,
+      "after": 1441.0,
+      "delta": 16.0
+    },
+    "uncovered_lines": {
+      "before": 12742.0,
+      "after": 12763.0,
+      "delta": 21.0
+    },
+    "branch_coverage": {
+      "before": 71.4,
+      "after": 71.8,
+      "delta": 0.3999999999999915
+    },
+    "new_violations": {
+      "before": 0.0,
+      "after": 0.0,
+      "delta": 0.0
+    },
+    "new_conditions_to_cover": {
+      "before": 3775.0,
+      "after": 3898.0,
+      "delta": 123.0
+    },
+    "new_uncovered_lines": {
+      "before": 2027.0,
+      "after": 2054.0,
+      "delta": 27.0
+    },
+    "line_coverage": {
+      "before": 77.0,
+      "after": 77.0,
+      "delta": 0.0
+    },
+    "conditions_to_cover": {
+      "before": 4984.0,
+      "after": 5107.0,
+      "delta": 123.0
+    },
+    "new_lines_to_cover": {
+      "before": 12886.0,
+      "after": 13192.0,
+      "delta": 306.0
+    },
+    "new_duplicated_lines_density": {
+      "before": 0.08442,
+      "after": 0.08159,
+      "delta": -0.002829999999999999
+    }
+  },
+  "configuration_sha256": "84aec1246aae6a1a3949f786449faf9c19a10894cfcb044adcf81866f18f08a6",
+  "profile_keys_and_rule_counts_unchanged": true,
+  "internal_goal_95_reached": false,
+  "gap_95": {
+    "general": {
+      "observations": 60695,
+      "covered": 46491,
+      "uncovered": 14204,
+      "additional_for_95_at_fixed_denominator": 11170
+    },
+    "new": {
+      "observations": 17090,
+      "covered": 14053,
+      "uncovered": 3037,
+      "additional_for_95_at_fixed_denominator": 2183
+    }
+  },
+  "new_top_twenty_five": [
+    {
+      "path": "editor/app_pages/knowledge_graph.py",
+      "coverage": 63.2,
+      "line_coverage": 63.2,
+      "lines_to_cover": 714.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 63.2,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 63.2,
+      "new_lines_to_cover": 714.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 263.0,
+      "uncovered_lines": 263.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/canvas.ts",
+      "branch_coverage": 69.4,
+      "conditions_to_cover": 242.0,
+      "coverage": 79.4,
+      "line_coverage": 85.0,
+      "lines_to_cover": 433.0,
+      "new_branch_coverage": 69.4,
+      "new_conditions_to_cover": 242.0,
+      "new_coverage": 79.4,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 85.0,
+      "new_lines_to_cover": 433.0,
+      "new_uncovered_conditions": 74.0,
+      "new_uncovered_lines": 65.0,
+      "uncovered_conditions": 74.0,
+      "uncovered_lines": 65.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/component.ts",
+      "branch_coverage": 69.0,
+      "conditions_to_cover": 245.0,
+      "coverage": 81.5,
+      "line_coverage": 87.9,
+      "lines_to_cover": 478.0,
+      "new_branch_coverage": 69.0,
+      "new_conditions_to_cover": 245.0,
+      "new_coverage": 81.5,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 87.9,
+      "new_lines_to_cover": 478.0,
+      "new_uncovered_conditions": 76.0,
+      "new_uncovered_lines": 58.0,
+      "uncovered_conditions": 76.0,
+      "uncovered_lines": 58.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/room.ts",
+      "branch_coverage": 72.8,
+      "conditions_to_cover": 195.0,
+      "coverage": 83.7,
+      "line_coverage": 88.3,
+      "lines_to_cover": 461.0,
+      "new_branch_coverage": 72.8,
+      "new_conditions_to_cover": 195.0,
+      "new_coverage": 83.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 88.3,
+      "new_lines_to_cover": 461.0,
+      "new_uncovered_conditions": 53.0,
+      "new_uncovered_lines": 54.0,
+      "uncovered_conditions": 53.0,
+      "uncovered_lines": 54.0
+    },
+    {
+      "path": "editor/app_pages/concept_edit.py",
+      "coverage": 72.4,
+      "duplicated_lines_density": 3.8,
+      "line_coverage": 72.4,
+      "lines_to_cover": 366.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 72.4,
+      "new_duplicated_lines_density": 3.80952,
+      "new_line_coverage": 72.4,
+      "new_lines_to_cover": 366.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 101.0,
+      "uncovered_lines": 101.0
+    },
+    {
+      "path": "editor/app_pages/concepts.py",
+      "coverage": 41.6,
+      "line_coverage": 41.6,
+      "lines_to_cover": 161.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 41.6,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 41.6,
+      "new_lines_to_cover": 161.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 94.0,
+      "uncovered_lines": 94.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/StudyApp.tsx",
+      "branch_coverage": 32.4,
+      "conditions_to_cover": 74.0,
+      "coverage": 48.3,
+      "line_coverage": 59.8,
+      "lines_to_cover": 102.0,
+      "new_branch_coverage": 32.4,
+      "new_conditions_to_cover": 74.0,
+      "new_coverage": 48.3,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 59.8,
+      "new_lines_to_cover": 102.0,
+      "new_uncovered_conditions": 50.0,
+      "new_uncovered_lines": 41.0,
+      "uncovered_conditions": 50.0,
+      "uncovered_lines": 41.0
+    },
+    {
+      "path": "frontend/advanced-reader/scripts/merge-browser-coverage.mjs",
+      "branch_coverage": 48.1,
+      "conditions_to_cover": 79.0,
+      "coverage": 49.7,
+      "line_coverage": 51.3,
+      "lines_to_cover": 76.0,
+      "new_branch_coverage": 48.1,
+      "new_conditions_to_cover": 79.0,
+      "new_coverage": 49.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 51.3,
+      "new_lines_to_cover": 76.0,
+      "new_uncovered_conditions": 41.0,
+      "new_uncovered_lines": 37.0,
+      "uncovered_conditions": 41.0,
+      "uncovered_lines": 37.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/document-editor.ts",
+      "branch_coverage": 71.6,
+      "conditions_to_cover": 141.0,
+      "coverage": 82.1,
+      "line_coverage": 87.3,
+      "lines_to_cover": 284.0,
+      "new_branch_coverage": 71.6,
+      "new_conditions_to_cover": 141.0,
+      "new_coverage": 82.1,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 87.3,
+      "new_lines_to_cover": 284.0,
+      "new_uncovered_conditions": 40.0,
+      "new_uncovered_lines": 36.0,
+      "uncovered_conditions": 40.0,
+      "uncovered_lines": 36.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/ConceptPages.tsx",
+      "branch_coverage": 37.3,
+      "conditions_to_cover": 51.0,
+      "coverage": 42.4,
+      "line_coverage": 45.9,
+      "lines_to_cover": 74.0,
+      "new_branch_coverage": 37.3,
+      "new_conditions_to_cover": 51.0,
+      "new_coverage": 42.4,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 45.9,
+      "new_lines_to_cover": 74.0,
+      "new_uncovered_conditions": 32.0,
+      "new_uncovered_lines": 40.0,
+      "uncovered_conditions": 32.0,
+      "uncovered_lines": 40.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/ConceptWorkspace.tsx",
+      "branch_coverage": 81.8,
+      "conditions_to_cover": 181.0,
+      "coverage": 81.9,
+      "line_coverage": 82.1,
+      "lines_to_cover": 179.0,
+      "new_branch_coverage": 81.8,
+      "new_conditions_to_cover": 181.0,
+      "new_coverage": 81.9,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 82.1,
+      "new_lines_to_cover": 179.0,
+      "new_uncovered_conditions": 33.0,
+      "new_uncovered_lines": 32.0,
+      "uncovered_conditions": 33.0,
+      "uncovered_lines": 32.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/SourcePanels.tsx",
+      "branch_coverage": 22.4,
+      "conditions_to_cover": 49.0,
+      "coverage": 34.7,
+      "line_coverage": 46.9,
+      "lines_to_cover": 49.0,
+      "new_branch_coverage": 22.4,
+      "new_conditions_to_cover": 49.0,
+      "new_coverage": 34.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 46.9,
+      "new_lines_to_cover": 49.0,
+      "new_uncovered_conditions": 38.0,
+      "new_uncovered_lines": 26.0,
+      "uncovered_conditions": 38.0,
+      "uncovered_lines": 26.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/DocumentForm.tsx",
+      "branch_coverage": 35.7,
+      "conditions_to_cover": 56.0,
+      "coverage": 50.0,
+      "line_coverage": 62.9,
+      "lines_to_cover": 62.0,
+      "new_branch_coverage": 35.7,
+      "new_conditions_to_cover": 56.0,
+      "new_coverage": 50.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 62.9,
+      "new_lines_to_cover": 62.0,
+      "new_uncovered_conditions": 36.0,
+      "new_uncovered_lines": 23.0,
+      "uncovered_conditions": 36.0,
+      "uncovered_lines": 23.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/NoteWorkspace.tsx",
+      "branch_coverage": 76.8,
+      "conditions_to_cover": 112.0,
+      "coverage": 80.0,
+      "line_coverage": 82.3,
+      "lines_to_cover": 158.0,
+      "new_branch_coverage": 76.8,
+      "new_conditions_to_cover": 112.0,
+      "new_coverage": 80.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 82.3,
+      "new_lines_to_cover": 158.0,
+      "new_uncovered_conditions": 26.0,
+      "new_uncovered_lines": 28.0,
+      "uncovered_conditions": 26.0,
+      "uncovered_lines": 28.0
+    },
+    {
+      "path": "editor/app_pages/relations.py",
+      "coverage": 87.4,
+      "line_coverage": 87.4,
+      "lines_to_cover": 413.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 87.4,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 87.4,
+      "new_lines_to_cover": 413.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 52.0,
+      "uncovered_lines": 52.0
+    },
+    {
+      "path": "editor/app_pages/export.py",
+      "coverage": 49.0,
+      "line_coverage": 49.0,
+      "lines_to_cover": 96.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 49.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 49.0,
+      "new_lines_to_cover": 96.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 49.0,
+      "uncovered_lines": 49.0
+    },
+    {
+      "path": "editor/source_catalog/lookup_ui.py",
+      "coverage": 62.9,
+      "line_coverage": 62.9,
+      "lines_to_cover": 132.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 62.9,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 62.9,
+      "new_lines_to_cover": 132.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 49.0,
+      "uncovered_lines": 49.0
+    },
+    {
+      "path": "editor/app_pages/concept_create.py",
+      "coverage": 80.4,
+      "line_coverage": 80.4,
+      "lines_to_cover": 245.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 80.4,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 80.4,
+      "new_lines_to_cover": 245.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 48.0,
+      "uncovered_lines": 48.0
+    },
+    {
+      "path": "editor/ui/concept_media.py",
+      "coverage": 40.0,
+      "duplicated_lines_density": 8.0,
+      "line_coverage": 40.0,
+      "lines_to_cover": 80.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 40.0,
+      "new_duplicated_lines_density": 8.0292,
+      "new_line_coverage": 40.0,
+      "new_lines_to_cover": 80.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 48.0,
+      "uncovered_lines": 48.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/NotePages.tsx",
+      "branch_coverage": 40.0,
+      "conditions_to_cover": 50.0,
+      "coverage": 50.5,
+      "line_coverage": 61.7,
+      "lines_to_cover": 47.0,
+      "new_branch_coverage": 40.0,
+      "new_conditions_to_cover": 50.0,
+      "new_coverage": 50.5,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 61.7,
+      "new_lines_to_cover": 47.0,
+      "new_uncovered_conditions": 30.0,
+      "new_uncovered_lines": 18.0,
+      "uncovered_conditions": 30.0,
+      "uncovered_lines": 18.0
+    },
+    {
+      "path": "editor/app_pages/home.py",
+      "coverage": 84.6,
+      "line_coverage": 84.6,
+      "lines_to_cover": 299.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 84.6,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 84.6,
+      "new_lines_to_cover": 299.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 46.0,
+      "uncovered_lines": 46.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/document.ts",
+      "branch_coverage": 85.3,
+      "conditions_to_cover": 204.0,
+      "coverage": 89.5,
+      "line_coverage": 94.1,
+      "lines_to_cover": 187.0,
+      "new_branch_coverage": 85.3,
+      "new_conditions_to_cover": 204.0,
+      "new_coverage": 89.5,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 94.1,
+      "new_lines_to_cover": 187.0,
+      "new_uncovered_conditions": 30.0,
+      "new_uncovered_lines": 11.0,
+      "uncovered_conditions": 30.0,
+      "uncovered_lines": 11.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/bibliography.ts",
+      "branch_coverage": 78.3,
+      "conditions_to_cover": 69.0,
+      "coverage": 81.0,
+      "line_coverage": 82.3,
+      "lines_to_cover": 141.0,
+      "new_branch_coverage": 78.3,
+      "new_conditions_to_cover": 69.0,
+      "new_coverage": 81.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 82.3,
+      "new_lines_to_cover": 141.0,
+      "new_uncovered_conditions": 15.0,
+      "new_uncovered_lines": 25.0,
+      "uncovered_conditions": 15.0,
+      "uncovered_lines": 25.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/ConceptRelations.tsx",
+      "branch_coverage": 40.5,
+      "conditions_to_cover": 42.0,
+      "coverage": 57.8,
+      "line_coverage": 72.9,
+      "lines_to_cover": 48.0,
+      "new_branch_coverage": 40.5,
+      "new_conditions_to_cover": 42.0,
+      "new_coverage": 57.8,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 72.9,
+      "new_lines_to_cover": 48.0,
+      "new_uncovered_conditions": 25.0,
+      "new_uncovered_lines": 13.0,
+      "uncovered_conditions": 25.0,
+      "uncovered_lines": 13.0
+    },
+    {
+      "path": "editor/app_pages/settings.py",
+      "coverage": 10.0,
+      "line_coverage": 10.0,
+      "lines_to_cover": 40.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 10.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 10.0,
+      "new_lines_to_cover": 40.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 36.0,
+      "uncovered_lines": 36.0
+    }
+  ],
+  "overall_top_twenty_five": [
+    {
+      "path": "editor/cuaderno_page.py",
+      "coverage": 7.1,
+      "duplicated_lines_density": 2.1,
+      "line_coverage": 7.1,
+      "lines_to_cover": 2192.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 12.5,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 12.5,
+      "new_lines_to_cover": 16.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 14.0,
+      "uncovered_lines": 2036.0
+    },
+    {
+      "path": "editor/cornell/streamlit_page.py",
+      "coverage": 64.4,
+      "duplicated_lines_density": 17.4,
+      "line_coverage": 64.4,
+      "lines_to_cover": 897.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 319.0
+    },
+    {
+      "path": "editor/pdf_export.py",
+      "coverage": 42.0,
+      "line_coverage": 42.0,
+      "lines_to_cover": 514.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 81.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 81.0,
+      "new_lines_to_cover": 21.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 4.0,
+      "uncovered_lines": 298.0
+    },
+    {
+      "path": "editor/document_builder.py",
+      "coverage": 14.0,
+      "line_coverage": 14.0,
+      "lines_to_cover": 321.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 276.0
+    },
+    {
+      "path": "editor/cpi/streamlit_page.py",
+      "coverage": 66.6,
+      "duplicated_lines_density": 21.0,
+      "line_coverage": 66.6,
+      "lines_to_cover": 820.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 97.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 97.0,
+      "new_lines_to_cover": 33.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 1.0,
+      "uncovered_lines": 274.0
+    },
+    {
+      "path": "editor/app_pages/knowledge_graph.py",
+      "coverage": 63.2,
+      "line_coverage": 63.2,
+      "lines_to_cover": 714.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 63.2,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 63.2,
+      "new_lines_to_cover": 714.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 263.0,
+      "uncovered_lines": 263.0
+    },
+    {
+      "path": "frontend/advanced-reader/scripts/publish-build.mjs",
+      "branch_coverage": 0.0,
+      "conditions_to_cover": 89.0,
+      "coverage": 0.0,
+      "line_coverage": 0.0,
+      "lines_to_cover": 138.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 0.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 0.0,
+      "new_lines_to_cover": 2.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 2.0,
+      "uncovered_conditions": 89.0,
+      "uncovered_lines": 138.0
+    },
+    {
+      "path": "editor/utils/knowledge_graph_sync.py",
+      "coverage": 66.0,
+      "line_coverage": 66.0,
+      "lines_to_cover": 659.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 2.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 224.0
+    },
+    {
+      "path": "editor/utils/db_import.py",
+      "coverage": 83.9,
+      "line_coverage": 83.9,
+      "lines_to_cover": 1316.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 212.0
+    },
+    {
+      "path": "mathmongo/reading_annotations/service.py",
+      "coverage": 72.1,
+      "duplicated_lines_density": 1.3,
+      "line_coverage": 72.1,
+      "lines_to_cover": 716.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 6.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 200.0
+    },
+    {
+      "path": "frontend/advanced-reader/scripts/prepare-pdf-worker.mjs",
+      "branch_coverage": 0.0,
+      "conditions_to_cover": 71.0,
+      "coverage": 0.0,
+      "line_coverage": 0.0,
+      "lines_to_cover": 128.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 0.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 0.0,
+      "new_lines_to_cover": 1.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 1.0,
+      "uncovered_conditions": 71.0,
+      "uncovered_lines": 128.0
+    },
+    {
+      "path": "exporters_latex/latex_validation.py",
+      "coverage": 53.1,
+      "line_coverage": 53.1,
+      "lines_to_cover": 420.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 197.0
+    },
+    {
+      "path": "editor/utils/db_update.py",
+      "coverage": 83.4,
+      "line_coverage": 83.4,
+      "lines_to_cover": 1151.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 2.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 191.0
+    },
+    {
+      "path": "editor/source_catalog/edit_source_page.py",
+      "coverage": 63.9,
+      "line_coverage": 63.9,
+      "lines_to_cover": 524.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 68.8,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 68.8,
+      "new_lines_to_cover": 16.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 5.0,
+      "uncovered_lines": 189.0
+    },
+    {
+      "path": "editor/diary_note_ui.py",
+      "coverage": 42.8,
+      "line_coverage": 42.8,
+      "lines_to_cover": 311.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 178.0
+    },
+    {
+      "path": "editor/concept_linking/linking_wizard.py",
+      "coverage": 70.2,
+      "line_coverage": 70.2,
+      "lines_to_cover": 537.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 160.0
+    },
+    {
+      "path": "exporters_quarto/quarto_exporter.py",
+      "coverage": 33.3,
+      "line_coverage": 33.3,
+      "lines_to_cover": 228.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 152.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/pdf/PdfJsController.ts",
+      "branch_coverage": 45.0,
+      "conditions_to_cover": 129.0,
+      "coverage": 63.9,
+      "line_coverage": 73.0,
+      "lines_to_cover": 270.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 1.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_conditions": 71.0,
+      "uncovered_lines": 73.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/canvas.ts",
+      "branch_coverage": 69.4,
+      "conditions_to_cover": 242.0,
+      "coverage": 79.4,
+      "line_coverage": 85.0,
+      "lines_to_cover": 433.0,
+      "new_branch_coverage": 69.4,
+      "new_conditions_to_cover": 242.0,
+      "new_coverage": 79.4,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 85.0,
+      "new_lines_to_cover": 433.0,
+      "new_uncovered_conditions": 74.0,
+      "new_uncovered_lines": 65.0,
+      "uncovered_conditions": 74.0,
+      "uncovered_lines": 65.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/knowledge-map/component.ts",
+      "branch_coverage": 69.0,
+      "conditions_to_cover": 245.0,
+      "coverage": 81.5,
+      "line_coverage": 87.9,
+      "lines_to_cover": 478.0,
+      "new_branch_coverage": 69.0,
+      "new_conditions_to_cover": 245.0,
+      "new_coverage": 81.5,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 87.9,
+      "new_lines_to_cover": 478.0,
+      "new_uncovered_conditions": 76.0,
+      "new_uncovered_lines": 58.0,
+      "uncovered_conditions": 76.0,
+      "uncovered_lines": 58.0
+    },
+    {
+      "path": "mathmongo/backup.py",
+      "coverage": 54.5,
+      "line_coverage": 54.5,
+      "lines_to_cover": 290.0,
+      "new_conditions_to_cover": 0.0,
+      "new_lines_to_cover": 0.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 132.0
+    },
+    {
+      "path": "exporters_latex/unified_document.py",
+      "coverage": 54.9,
+      "line_coverage": 54.9,
+      "lines_to_cover": 277.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 85.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 85.7,
+      "new_lines_to_cover": 21.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 3.0,
+      "uncovered_lines": 125.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/app/App.tsx",
+      "branch_coverage": 76.1,
+      "conditions_to_cover": 268.0,
+      "coverage": 84.4,
+      "line_coverage": 88.8,
+      "lines_to_cover": 510.0,
+      "new_branch_coverage": 85.0,
+      "new_conditions_to_cover": 20.0,
+      "new_coverage": 87.9,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 92.3,
+      "new_lines_to_cover": 13.0,
+      "new_uncovered_conditions": 3.0,
+      "new_uncovered_lines": 1.0,
+      "uncovered_conditions": 64.0,
+      "uncovered_lines": 57.0
+    },
+    {
+      "path": "editor/source_catalog/add_source_page.py",
+      "coverage": 25.0,
+      "line_coverage": 25.0,
+      "lines_to_cover": 160.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 40.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 40.0,
+      "new_lines_to_cover": 5.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 3.0,
+      "uncovered_lines": 120.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/api/client.ts",
+      "branch_coverage": 36.4,
+      "conditions_to_cover": 99.0,
+      "coverage": 45.4,
+      "line_coverage": 52.9,
+      "lines_to_cover": 119.0,
+      "new_branch_coverage": 30.8,
+      "new_conditions_to_cover": 13.0,
+      "new_coverage": 35.1,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 37.5,
+      "new_lines_to_cover": 24.0,
+      "new_uncovered_conditions": 9.0,
+      "new_uncovered_lines": 15.0,
+      "uncovered_conditions": 63.0,
+      "uncovered_lines": 56.0
+    }
+  ],
+  "tooling": {
+    "files": [
+      {
+        "path": "frontend/advanced-reader/scripts/merge-browser-coverage.d.mts",
+        "new_conditions_to_cover": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_lines_to_cover": 0.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/merge-browser-coverage.mjs",
+        "branch_coverage": 48.1,
+        "conditions_to_cover": 79.0,
+        "coverage": 49.7,
+        "line_coverage": 51.3,
+        "lines_to_cover": 76.0,
+        "new_branch_coverage": 48.1,
+        "new_conditions_to_cover": 79.0,
+        "new_coverage": 49.7,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 51.3,
+        "new_lines_to_cover": 76.0,
+        "new_uncovered_conditions": 41.0,
+        "new_uncovered_lines": 37.0,
+        "uncovered_conditions": 41.0,
+        "uncovered_lines": 37.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/offline-validation.d.mts",
+        "new_conditions_to_cover": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_lines_to_cover": 0.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/offline-validation.mjs",
+        "coverage": 100.0,
+        "line_coverage": 100.0,
+        "lines_to_cover": 1.0,
+        "new_conditions_to_cover": 0.0,
+        "new_coverage": 100.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 100.0,
+        "new_lines_to_cover": 1.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0,
+        "uncovered_lines": 0.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/prepare-pdf-worker.mjs",
+        "branch_coverage": 0.0,
+        "conditions_to_cover": 71.0,
+        "coverage": 0.0,
+        "line_coverage": 0.0,
+        "lines_to_cover": 128.0,
+        "new_conditions_to_cover": 0.0,
+        "new_coverage": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 0.0,
+        "new_lines_to_cover": 1.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 1.0,
+        "uncovered_conditions": 71.0,
+        "uncovered_lines": 128.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/publish-build.mjs",
+        "branch_coverage": 0.0,
+        "conditions_to_cover": 89.0,
+        "coverage": 0.0,
+        "line_coverage": 0.0,
+        "lines_to_cover": 138.0,
+        "new_conditions_to_cover": 0.0,
+        "new_coverage": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 0.0,
+        "new_lines_to_cover": 2.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 2.0,
+        "uncovered_conditions": 89.0,
+        "uncovered_lines": 138.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/runtime-notices.d.mts",
+        "new_conditions_to_cover": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_lines_to_cover": 0.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/runtime-notices.mjs",
+        "branch_coverage": 92.3,
+        "conditions_to_cover": 13.0,
+        "coverage": 97.0,
+        "line_coverage": 100.0,
+        "lines_to_cover": 20.0,
+        "new_branch_coverage": 92.3,
+        "new_conditions_to_cover": 13.0,
+        "new_coverage": 97.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 100.0,
+        "new_lines_to_cover": 20.0,
+        "new_uncovered_conditions": 1.0,
+        "new_uncovered_lines": 0.0,
+        "uncovered_conditions": 1.0,
+        "uncovered_lines": 0.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/text-normalization.d.mts",
+        "new_conditions_to_cover": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_lines_to_cover": 0.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0
+      },
+      {
+        "path": "frontend/advanced-reader/scripts/text-normalization.mjs",
+        "branch_coverage": 100.0,
+        "conditions_to_cover": 10.0,
+        "coverage": 100.0,
+        "line_coverage": 100.0,
+        "lines_to_cover": 15.0,
+        "new_branch_coverage": 100.0,
+        "new_conditions_to_cover": 10.0,
+        "new_coverage": 100.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 100.0,
+        "new_lines_to_cover": 15.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0,
+        "uncovered_conditions": 0.0,
+        "uncovered_lines": 0.0
+      }
+    ],
+    "new_missing": 82.0
+  },
+  "changed_files": [
+    {
+      "path": "mathdatabase/mathmongo.py",
+      "coverage": 56.1,
+      "line_coverage": 56.1,
+      "lines_to_cover": 253.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 47.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 111.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/note-action-state.ts",
+      "branch_coverage": 84.0,
+      "conditions_to_cover": 25.0,
+      "coverage": 85.7,
+      "line_coverage": 88.2,
+      "lines_to_cover": 17.0,
+      "new_branch_coverage": 84.0,
+      "new_conditions_to_cover": 25.0,
+      "new_coverage": 85.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 88.2,
+      "new_lines_to_cover": 17.0,
+      "new_uncovered_conditions": 4.0,
+      "new_uncovered_lines": 2.0,
+      "uncovered_conditions": 4.0,
+      "uncovered_lines": 2.0
+    },
+    {
+      "path": "mathmongo/study/note_action_models.py",
+      "coverage": 94.7,
+      "line_coverage": 94.7,
+      "lines_to_cover": 19.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 94.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 94.7,
+      "new_lines_to_cover": 19.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 1.0,
+      "uncovered_lines": 1.0
+    },
+    {
+      "path": "mathmongo/study/note_actions.py",
+      "coverage": 91.0,
+      "line_coverage": 91.0,
+      "lines_to_cover": 89.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 91.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 91.0,
+      "new_lines_to_cover": 89.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 8.0,
+      "uncovered_lines": 8.0
+    },
+    {
+      "path": "editor/notebook_lifecycle.py",
+      "coverage": 94.6,
+      "line_coverage": 94.6,
+      "lines_to_cover": 37.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 94.6,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 94.6,
+      "new_lines_to_cover": 37.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 2.0,
+      "uncovered_lines": 2.0
+    },
+    {
+      "path": "mathmongo/study/notebook_routes.py",
+      "coverage": 98.8,
+      "line_coverage": 98.8,
+      "lines_to_cover": 85.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 98.8,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 98.8,
+      "new_lines_to_cover": 85.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 1.0,
+      "uncovered_lines": 1.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/NotebookPages.tsx",
+      "branch_coverage": 81.4,
+      "conditions_to_cover": 43.0,
+      "coverage": 85.7,
+      "line_coverage": 90.2,
+      "lines_to_cover": 41.0,
+      "new_branch_coverage": 81.4,
+      "new_conditions_to_cover": 43.0,
+      "new_coverage": 85.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 90.2,
+      "new_lines_to_cover": 41.0,
+      "new_uncovered_conditions": 8.0,
+      "new_uncovered_lines": 4.0,
+      "uncovered_conditions": 8.0,
+      "uncovered_lines": 4.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/SavedNoteActions.tsx",
+      "branch_coverage": 86.5,
+      "conditions_to_cover": 74.0,
+      "coverage": 85.7,
+      "line_coverage": 84.8,
+      "lines_to_cover": 66.0,
+      "new_branch_coverage": 86.5,
+      "new_conditions_to_cover": 74.0,
+      "new_coverage": 85.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 84.8,
+      "new_lines_to_cover": 66.0,
+      "new_uncovered_conditions": 10.0,
+      "new_uncovered_lines": 10.0,
+      "uncovered_conditions": 10.0,
+      "uncovered_lines": 10.0
+    },
+    {
+      "path": "editor/cornell/service.py",
+      "coverage": 85.3,
+      "line_coverage": 85.3,
+      "lines_to_cover": 129.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 91.7,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 91.7,
+      "new_lines_to_cover": 24.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 2.0,
+      "uncovered_lines": 19.0
+    },
+    {
+      "path": "editor/cpi/service.py",
+      "coverage": 91.3,
+      "line_coverage": 91.3,
+      "lines_to_cover": 69.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 90.9,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 90.9,
+      "new_lines_to_cover": 22.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 2.0,
+      "uncovered_lines": 6.0
+    },
+    {
+      "path": "mathmongo/study/structured_notes.py",
+      "coverage": 100.0,
+      "line_coverage": 100.0,
+      "lines_to_cover": 142.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 142.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 0.0
+    },
+    {
+      "path": "mathmongo/study/structured_routes.py",
+      "coverage": 100.0,
+      "line_coverage": 100.0,
+      "lines_to_cover": 97.0,
+      "new_conditions_to_cover": 0.0,
+      "new_coverage": 100.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 100.0,
+      "new_lines_to_cover": 97.0,
+      "new_uncovered_conditions": 0.0,
+      "new_uncovered_lines": 0.0,
+      "uncovered_lines": 0.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/StructuredPages.tsx",
+      "branch_coverage": 94.2,
+      "conditions_to_cover": 52.0,
+      "coverage": 96.0,
+      "line_coverage": 97.9,
+      "lines_to_cover": 47.0,
+      "new_branch_coverage": 94.2,
+      "new_conditions_to_cover": 52.0,
+      "new_coverage": 96.0,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 97.9,
+      "new_lines_to_cover": 47.0,
+      "new_uncovered_conditions": 3.0,
+      "new_uncovered_lines": 1.0,
+      "uncovered_conditions": 3.0,
+      "uncovered_lines": 1.0
+    },
+    {
+      "path": "frontend/advanced-reader/src/study/StudyApp.tsx",
+      "branch_coverage": 32.4,
+      "conditions_to_cover": 74.0,
+      "coverage": 48.3,
+      "line_coverage": 59.8,
+      "lines_to_cover": 102.0,
+      "new_branch_coverage": 32.4,
+      "new_conditions_to_cover": 74.0,
+      "new_coverage": 48.3,
+      "new_duplicated_lines_density": 0.0,
+      "new_line_coverage": 59.8,
+      "new_lines_to_cover": 102.0,
+      "new_uncovered_conditions": 50.0,
+      "new_uncovered_lines": 41.0,
+      "uncovered_conditions": 50.0,
+      "uncovered_lines": 41.0
+    }
+  ],
+  "python": {
+    "integral_passed": 2239,
+    "integral_failed": 0,
+    "integral_optional_skipped": 9,
+    "optional_owned_mongo_passed": 9,
+    "distinct_verified": 2248,
+    "first_integral_failed_then_corrected": 2,
+    "quality_outer_process_exit": 143,
+    "quality_outer_note": "Outer process reported SIGTERM after both test suites and XML generation; clean pytest JUnit and separate owned-Mongo run are retained. Coverage merge/XML validation completed separately with exit 0.",
+    "raw_xml_scope": {
+      "version": "7.16.2",
+      "timestamp": "1795561543575",
+      "lines-valid": "50793",
+      "lines-covered": "36405",
+      "line-rate": "0.7167",
+      "branches-covered": "0",
+      "branches-valid": "0",
+      "branch-rate": "0",
+      "complexity": "0"
+    },
+    "owned_legacy_room_chrome": {
+      "reader": true,
+      "noteRecovery": true,
+      "compareNarrow": true,
+      "exit_status": 0,
+      "evidence": "evidence/sonar/mandala-2026-11/room/chrome/room-browser.json"
+    },
+    "junit_counts": [
+      {
+        "name": "pytest",
+        "errors": "0",
+        "failures": "0",
+        "skipped": "9",
+        "tests": "2248",
+        "time": "393.363",
+        "timestamp": "2026-11-24T16:55:53.320307-06:00",
+        "hostname": "enriquedo-System-Product-Name"
+      }
+    ]
+  },
+  "frontend": {
+    "passed": 396,
+    "failed": 0,
+    "skipped": 0,
+    "test_files": 52,
+    "browser_merge": {
+      "unit": {
+        "lines": {
+          "total": 6845,
+          "covered": 5382,
+          "pct": 78.63
+        },
+        "branches": {
+          "total": 5107,
+          "covered": 3432,
+          "pct": 67.2
+        }
+      },
+      "combined": {
+        "lines": {
+          "total": 6845,
+          "covered": 5704,
+          "pct": 83.33
+        },
+        "branches": {
+          "total": 5107,
+          "covered": 3666,
+          "pct": 71.78
+        }
+      },
+      "additional_lines": 322,
+      "additional_branches": 234,
+      "browser_files": [
+        "src/knowledge-map/geometry.ts",
+        "src/knowledge-map/layout.ts",
+        "src/knowledge-map/areas.ts",
+        "src/knowledge-map/canvas.ts",
+        "src/knowledge-map/document-citation.ts",
+        "src/knowledge-map/provenance.ts",
+        "src/knowledge-map/document-dialog.ts",
+        "src/knowledge-map/reader.ts",
+        "src/knowledge-map/room-state.ts",
+        "src/knowledge-map/room.ts",
+        "src/knowledge-map/map-filters.ts",
+        "src/knowledge-map/component.ts",
+        "src/study/ConceptRelations.tsx",
+        "src/study/ConceptPages.tsx",
+        "src/study/ConceptTypeBadge.tsx",
+        "src/study/ConceptConflict.tsx",
+        "src/study/concept-draft-discovery.ts",
+        "src/study/ConceptDraftRecovery.tsx",
+        "src/study/concept-rebase.ts",
+        "src/study/concept-drafts.ts",
+        "src/study/ConceptWorkspace.tsx",
+        "src/knowledge-map/math.ts",
+        "src/knowledge-map/keyboard.ts",
+        "src/knowledge-map/formula-tools.ts",
+        "src/knowledge-map/document-link.ts",
+        "src/knowledge-map/document-blocks.ts",
+        "src/knowledge-map/document-source.ts",
+        "src/latex/source-loader.ts",
+        "src/knowledge-map/latex-text.ts",
+        "src/knowledge-map/document.ts",
+        "src/knowledge-map/document-editor.ts",
+        "src/study/image-data.ts",
+        "src/study/FigurePreview.ts",
+        "src/study/DocumentSurface.tsx",
+        "src/study/ExportActions.tsx",
+        "src/study/NoteCitation.tsx",
+        "src/study/note-confirmation.ts",
+        "src/study/NoteWorkspace.tsx",
+        "src/study/NotePages.tsx",
+        "src/study/notebook-state.ts",
+        "src/study/NotebookReferences.tsx",
+        "src/study/NotebookWorkspace.tsx",
+        "src/study/NotebookPages.tsx",
+        "src/annotations/ui.ts",
+        "src/concepts/labels.ts",
+        "src/concepts/ConceptLinkWizard.tsx",
+        "src/concepts/ConceptPanels.tsx",
+        "src/components/ReaderStatus.tsx",
+        "src/components/SelectionActionToolbar.tsx",
+        "src/components/SelectionInspector.tsx",
+        "src/components/Toolbar.tsx",
+        "src/components/VisualAnnotationConfirmation.tsx",
+        "src/components/VisualAnnotationsPanel.tsx",
+        "src/pdf/search.ts",
+        "src/app/App.tsx",
+        "src/annotations/geometry.ts",
+        "src/annotations/types.ts",
+        "src/annotations/VisualAnnotationLayer.ts",
+        "src/selection/captureSelection.ts",
+        "src/pdf/canvasPaint.ts",
+        "src/pdf/ThumbnailManager.ts",
+        "src/pdf/PdfJsController.ts",
+        "src/app/ReaderEntry.tsx",
+        "src/study/ReadingPage.tsx",
+        "src/study/note-action-state.ts",
+        "src/study/SavedNoteActions.tsx",
+        "src/study/SourceForms.tsx",
+        "src/study/SourcePicker.tsx",
+        "src/study/StructuredReferences.tsx",
+        "src/study/StructuredEditorial.tsx",
+        "src/study/structured-state.ts",
+        "src/study/StructuredFields.tsx",
+        "src/study/StructuredWorkspace.tsx",
+        "src/study/StructuredPages.tsx",
+        "src/study/api.ts",
+        "src/knowledge-map/model.ts",
+        "src/knowledge-map/ui.ts",
+        "src/knowledge-map/bibliography.ts",
+        "src/api/client.ts",
+        "src/knowledge-map/concept-types.ts",
+        "src/knowledge-map/theme.ts",
+        "src/study-reader-theme.ts",
+        "src/study/navigation.ts",
+        "src/study/StudyLink.tsx",
+        "src/study/reference-draft.ts",
+        "src/study/catalog-fields.ts",
+        "src/study/useLocalForm.ts",
+        "src/study/useOperationScope.ts",
+        "src/study/AuthoringPreparation.tsx",
+        "src/study/ReferenceForm.tsx",
+        "src/study/DocumentForm.tsx",
+        "src/study/ReferencePicker.tsx",
+        "src/study/CatalogEditor.tsx",
+        "src/study/CatalogStateAction.tsx",
+        "src/study/bibtex-state.ts",
+        "src/study/BibtexImport.tsx",
+        "src/security/document-links.ts",
+        "src/study/SourcePanels.tsx",
+        "src/study/SourcePage.tsx",
+        "src/study/LibraryPages.tsx",
+        "src/knowledge-map/drafts.ts",
+        "src/study/drafts.ts",
+        "src/study/StudyApp.tsx",
+        "src/StudyEntry.tsx",
+        "src/main.tsx",
+        "src/latex/completions.ts",
+        "src/latex/source-styles.ts",
+        "src/latex/source-editor.ts"
+      ],
+      "executed_assets": [
+        {
+          "file": "api-BEdrKFWo.js",
+          "sha256": "cc65716f1823a4caf200e0112ef59dd06bb1a8ea0273afd6f247b15febde190e"
+        },
+        {
+          "file": "index-lLUtsr9G.js",
+          "sha256": "553c1abdad260820afd47661ac4954f185608e3722e76248b58209d05782a0f9"
+        },
+        {
+          "file": "react-runtime-DydpthbT.js",
+          "sha256": "904c18555d72008115bb03c72c1718b4e7e11560a3eb2e98f438175843c15848"
+        },
+        {
+          "file": "pdfjs-runtime-F8NMAkdw.js",
+          "sha256": "ac79ba45e75f869d57ae2c39347d960cd58cedd80c685d5ee4c9b65c969a9d99"
+        },
+        {
+          "file": "client-YNM-R8bA.js",
+          "sha256": "1b4f94bad62095f2d6adac8c787ed327dc35c24be9e69b61c838d5b2f7859045"
+        },
+        {
+          "file": "ReadingPage-DfNeFlPN.js",
+          "sha256": "bc9f93f89e08f1960ecf91108925805b9199a36436a73865a24b50595b66bacd"
+        },
+        {
+          "file": "ReaderEntry-Dc1UG7Qo.js",
+          "sha256": "f0f4e484226f97754198a1ec6211df4d00a5741d5dc42cd407a753e85358fbcc"
+        },
+        {
+          "file": "SourcePicker-k5kyvj_K.js",
+          "sha256": "5fc79778beaf3010c0ca6a1a9f59874e1a57091bcc30cb41decf2f9e379f479b"
+        },
+        {
+          "file": "NotePages-DQP1PaQY.js",
+          "sha256": "ade673b5bb871ad09e96748545732910ad09349791f43fc247279472a99926b5"
+        },
+        {
+          "file": "ExportActions-B1I581QS.js",
+          "sha256": "d3a83822a97f567a41bd0053c876c0e2bf25d541ea96d499d9bdd7b5d4bab7f7"
+        },
+        {
+          "file": "bibliography-Cq82gwLi.js",
+          "sha256": "07d8b0c5d2d090cefeb2dbc11d3547cd08110ed91499da16ae82cd0d66d20364"
+        },
+        {
+          "file": "DocumentSurface-BtRJuutb.js",
+          "sha256": "0c81ac9e3388756726e3ce6773af6dd675e540e618bbdd2b4ed4032f6c06ba32"
+        },
+        {
+          "file": "ConceptTypeBadge-CYOGQ96J.js",
+          "sha256": "54d5b4ee3d6ae0aae09be4ff38a40ccc27effe03ba9a61cd3d1973b3f3114525"
+        },
+        {
+          "file": "ConceptPages-DOeLJyf_.js",
+          "sha256": "7fd63e88090a7700cea20f3f664016c7791a9f1485455a16451f0f3032108149"
+        },
+        {
+          "file": "SourceForms-Dx2Y46wd.js",
+          "sha256": "9a28e8d604dc0d6d86b2d8ef8204e67769813d9c516b007843dbbd4098031dba"
+        },
+        {
+          "file": "ConceptWorkspace-BSrDkghE.js",
+          "sha256": "2be6e119269cc775faef0a56e354a0039222f2b29d3ee502855269454e9e1eb6"
+        },
+        {
+          "file": "source-editor-DBh4xFY0.js",
+          "sha256": "7cb94c5364b09f4993041aa2f77b2fb99272144b8c3df69facb5056c6e76051e"
+        },
+        {
+          "file": "SavedNoteActions-e4pr-R-k.js",
+          "sha256": "b3d0a9444cf39655f43efb832abd07026db761d9a38c25d88c136bb25ba7cd20"
+        },
+        {
+          "file": "NotebookPages-TZCR8h3_.js",
+          "sha256": "14c31216ab1e472fad3448a3da8136cc81d37dc1601fc77c1c451e95467eb5f3"
+        },
+        {
+          "file": "StructuredPages-CHjong26.js",
+          "sha256": "419ed435828c44443a695707301f3914ac4f5dad4b9b87a64a485af99d60d12f"
+        }
+      ]
+    }
+  },
+  "browsers": {
+    "source_cohorts_per_browser": 14,
+    "browsers": [
+      "Chrome",
+      "Firefox"
+    ],
+    "streamlit_required": false,
+    "mathv0_writes": 0,
+    "historical_note_actions": [
+      "Cornell",
+      "Diario"
+    ],
+    "cpi_note_actions": "canonical synthetic fixture; authoritative ZIP has no CPI"
+  },
+  "appimage": {
+    "generation_suspended": true,
+    "built_this_checkpoint": false,
+    "launched_this_checkpoint": false,
+    "preserved_path": "dist/MathMongo-187a5a9c-experimental-x86_64.AppImage"
+  },
+  "coverage_report_sha256": {
+    "evidence/sonar/coverage.xml": "3e02eb80866ee3de6f5840ed7c4d056aae4b86f43662f8bc00da4351da33efd8",
+    "frontend/advanced-reader/coverage/lcov.info": "81a0b9c0b40797a40e2f00157105eefb9439644d97a4b5a0f873eca8036e50c6"
+  },
+  "code_delta": {
+    "maintained": {
+      "added": 777,
+      "removed": 97,
+      "files": 14
+    },
+    "tests": {
+      "added": 1009,
+      "removed": 3,
+      "files": 8
+    },
+    "generated": {
+      "added": 3422,
+      "removed": 3421,
+      "files": 28
+    },
+    "documentation": {
+      "added": 7575,
+      "removed": 0,
+      "files": 3
+    }
+  },
+  "architecture": {
+    "baseline": "2803cc37",
+    "revision": "aed9eb5a651e8b208b21e0fe9a3a53dfaaa3e2fa",
+    "entry_lines": 21,
+    "all_maintained_over_1000": [
+      {
+        "path": "editor/cuaderno_page.py",
+        "lines": 4122,
+        "sha256": "98524776b78c3cc4b56251577d981cabd155e37a89751a537e258abd41bee554",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "visualizations/grafoconocimiento.py",
+        "lines": 3670,
+        "sha256": "568f4436f2f5804594e9aa2c64a54ba74183cbfb95ce69727b11649415f55c89",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/utils/db_import.py",
+        "lines": 2904,
+        "sha256": "725bdf213ba1343cafe15d4f55597cd966188e2afa3ca6b04871e00e50944e6e",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/utils/db_update.py",
+        "lines": 2242,
+        "sha256": "6142141731bde41f988b2a03194a39dd5f6221d64efcbc0e544299daf4d52ac6",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "mathmongo/reading_annotations/service.py",
+        "lines": 1693,
+        "sha256": "8fe1575a0629516a731c1f06c1b94e6eb4c789846a94218b2fca13f379441f90",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "mathmongo/source_catalog_migration/bootstrap.py",
+        "lines": 1635,
+        "sha256": "ed986959d72ac9baa7d0b8f7d7ca08b6062e123786784b6de9c33f1dd421efb0",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/cornell/streamlit_page.py",
+        "lines": 1634,
+        "sha256": "85b96d262000879c7ec8223bad49c5326c7a996632c4c4d141587bf709467774",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/cpi/streamlit_page.py",
+        "lines": 1485,
+        "sha256": "7c133a29a37ddb185ea0f73c33b3fbbfeae77c20beef245ffdad5cf42c7a2028",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/app_pages/knowledge_graph.py",
+        "lines": 1381,
+        "sha256": "73a068e848a458d0d37c84d68eaa053a3480d43d3e6c5c3d2d042b1f4ab8377f",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/concept_linking/linking_wizard.py",
+        "lines": 1264,
+        "sha256": "bb409353b248fa2ba8873832b78d8de5cb813a9150e7d6946f59b134a1cdeaf4",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "frontend/advanced-reader/src/app/App.tsx",
+        "lines": 1247,
+        "sha256": "01a92393c735f2652f2790550bab96af0494b2ccc685352a709ccf7f11cfeb8e",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/reading_space/reader_page.py",
+        "lines": 1222,
+        "sha256": "594f1787da2dfcf8897def59109eb8c3b43ff630c1adc7c85b81549ced806bab",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/source_catalog/edit_source_page.py",
+        "lines": 1192,
+        "sha256": "6bfa69ee5268dae84a0404d602869f2f641320e404cc69a662546e0c246d4829",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "mathmongo/source_catalog_migration/apply_safety.py",
+        "lines": 1186,
+        "sha256": "05fc313b7634c8c0fb67eabbc7692688ea059b94450de67b5c999afe2a203948",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "mathmongo/source_catalog_migration/manifest.py",
+        "lines": 1122,
+        "sha256": "e1c3fc228968132ec640311e70c1f3321a414b6eda35263db9737af22287f2a9",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/utils/knowledge_graph_sync.py",
+        "lines": 1076,
+        "sha256": "c3090f41a136d1b439796acabca101795e9ce5babd4fd1e5a391d90ffb37ddd9",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "editor/pdf_export.py",
+        "lines": 1058,
+        "sha256": "9c94e9f7fc7904812154adac81ae67fdfabe63afcae8ae5378162bb448a2d4e2",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "exporters_latex/latex_validation.py",
+        "lines": 1046,
+        "sha256": "60b9cb9b421f04dc900a93ffc080986c34a6ff213cfbee617d4359cf964f59b0",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "mathmongo/reading_annotations/repository.py",
+        "lines": 1019,
+        "sha256": "59315ea23d03243c934cd3b7f1eba148454309043e727305962d4a2bd57ecd04",
+        "previous_review_unchanged": true
+      },
+      {
+        "path": "frontend/advanced-reader/src/styles/reader.css",
+        "lines": 1008,
+        "sha256": "9c21a4858acd3305414ef597372637ecd98d79492c44838b6926a4e3ff875727",
+        "previous_review_unchanged": true
+      }
+    ],
+    "unchanged_large_file_reviews": 20,
+    "new_source_sizes": {
+      "editor/notebook_lifecycle.py": 64,
+      "mathmongo/study/note_actions.py": 154,
+      "mathmongo/study/note_action_models.py": 28,
+      "frontend/advanced-reader/src/study/SavedNoteActions.tsx": 254,
+      "frontend/advanced-reader/src/study/note-action-state.ts": 75
+    }
+  },
+  "functional_parity": {
+    "total": {
+      "operations": 277,
+      "statuses": {
+        "verified": 110,
+        "unverified": 1,
+        "partial": 54,
+        "absent": 112
+      },
+      "verified_percentage": 39.71
+    },
+    "essential": {
+      "operations": 215,
+      "statuses": {
+        "verified": 109,
+        "unverified": 1,
+        "partial": 32,
+        "absent": 73
+      },
+      "verified_percentage": 50.7
+    },
+    "secondary": {
+      "operations": 62,
+      "statuses": {
+        "absent": 39,
+        "verified": 1,
+        "partial": 22
+      },
+      "verified_percentage": 1.61
+    }
+  },
+  "commits": [
+    "2478bb7c3f7cf7d8a2069b0bc50eab3d4a834097 docs(migration): inventory 276 user operations and suspend new AppImage work",
+    "ec8ddca8024696b10c8ce6c91750f4b5ce3025a3 fix(notebook): preserve exact historical copies and compare snapshots before deletion",
+    "7d3ce7dd25008fba20640edef2ba40115739a051 feat(notebook): expose retryable note lifecycle and historical filters over scoped HTTP",
+    "4af7c176086ab799ded1569ecd206e499798c619 feat(react): manage whole notes with recoverable confirmations and persisted filters",
+    "e8203c25ba442c0e963a75ea88c86bc25c0cb528 test(notebook): verify copied media exports, last references and historical filter recovery",
+    "25ea2d6fa27b39c5751321f78f4c569389856746 style(tests): format the academic note browser journey",
+    "d0323c756eccc68482dd8b5674dc5c5843531aff build(react): publish complete note management and historical filters",
+    "aed9eb5a651e8b208b21e0fe9a3a53dfaaa3e2fa test(notebook): model verified legacy deletion and assert portable resource layout",
+    "c1a29eb5353ef6e9c59e7c613413b13b3ca6870a docs(migration): verify seven note operations and retain 167 explicit parity gaps"
+  ],
+  "inventory_baseline_revision": "2803cc37",
+  "native_copy_regression_before_revision": "2478bb7c",
+  "native_copy_regression_before_failures": 2,
+  "coverage_scope": {
+    "python_sonar": {
+      "lines": 47928,
+      "covered": 36405,
+      "line_coverage": 75.96
+    },
+    "python_xml_files_outside_sonar": [
+      {
+        "path": "evidence/sonar/closure-2026-11/theme-browser-probe.py",
+        "lines": 24,
+        "uncovered": 24
+      },
+      {
+        "path": "evidence/sonar/functional-parity-2026-11-24/catalogue.py",
+        "lines": 52,
+        "uncovered": 52
+      },
+      {
+        "path": "evidence/sonar/functional-parity-2026-11-24/update_inventory.py",
+        "lines": 50,
+        "uncovered": 50
+      },
+      {
+        "path": "evidence/sonar/library-notebook-2026-11-24/cuaderno_page.py",
+        "lines": 2131,
+        "uncovered": 2131
+      },
+      {
+        "path": "evidence/sonar/library-notebook-2026-11-24/edit_source_page.py",
+        "lines": 509,
+        "uncovered": 509
+      },
+      {
+        "path": "frontend/advanced-reader/node_modules/flatted/python/flatted.py",
+        "lines": 99,
+        "uncovered": 99
+      }
+    ],
+    "python_xml_lines_outside_sonar": 2865,
+    "python_xml_uncovered_outside_sonar": 2865,
+    "frontend_unit_lines": {
+      "total": 6845,
+      "covered": 5382,
+      "pct": 78.63
+    },
+    "frontend_combined_lines": {
+      "total": 6845,
+      "covered": 5704,
+      "pct": 83.33
+    },
+    "frontend_combined_conditions": {
+      "total": 5107,
+      "covered": 3666,
+      "pct": 71.78
+    },
+    "javascript_branch_only_line_numbers": 802,
+    "javascript_files_outside_lcov": [
+      {
+        "path": "frontend/advanced-reader/playwright.config.ts",
+        "coverage": 0.0,
+        "line_coverage": 0.0,
+        "lines_to_cover": 2.0,
+        "new_conditions_to_cover": 0.0,
+        "new_lines_to_cover": 0.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 0.0,
+        "uncovered_lines": 2.0
+      },
+      {
+        "path": "frontend/advanced-reader/vite.config.ts",
+        "coverage": 0.0,
+        "line_coverage": 0.0,
+        "lines_to_cover": 11.0,
+        "new_conditions_to_cover": 0.0,
+        "new_coverage": 0.0,
+        "new_duplicated_lines_density": 0.0,
+        "new_line_coverage": 0.0,
+        "new_lines_to_cover": 2.0,
+        "new_uncovered_conditions": 0.0,
+        "new_uncovered_lines": 2.0,
+        "uncovered_lines": 11.0
+      }
+    ],
+    "javascript_sonar_vs_lcov_line_set_mismatches": []
+  }
+}

@@ -385,3 +385,17 @@ Se reutilizan sus decisiones; no quedan cerrados por el Gate. Fuente especializa
 conserva presentación de metadatos/persistencia coordinada y es candidato a
 separar presentación en un corte posterior, conservando reintentos y borradores.
 No hay bajas de código de producto; las sustituciones de bundles son generadas.
+
+## Recuperación funcional de notas — 24 de noviembre
+
+El cotejo SHA de este lote conserva **los veinte archivos mantenidos >1000 líneas**
+de CORNELL_CPI_INVENTORY.json sin modificación; se reutilizan sus revisiones y
+pendientes, no se dan por resueltos. Entrada principal **21 líneas**. Evidencia:
+`evidence/sonar/functional-parity-2026-11-24/architecture-checkpoint.json`.
+Las acciones se implementan en `editor/notebook_lifecycle.py` (64),
+`mathmongo/study/note_actions.py` (154), payload (28), componente SavedNoteActions
+(254) y estado puro (75); StructuredPages queda en 265. Se comparte el contrato
+nativo Cornell/CPI sin trasladar otra página monolítica ni crear persistencia
+paralela. No se elimina fuente legada ni se minifica código mantenido.
+FUNCTIONAL_MIGRATION_CHECKPOINT.md distingue fuente, pruebas y bundles generados,
+y FUNCTIONAL_PARITY.md conserva el resto del repositorio pendiente de migración.

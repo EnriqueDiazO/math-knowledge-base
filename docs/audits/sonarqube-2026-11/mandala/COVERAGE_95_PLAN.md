@@ -161,3 +161,42 @@ Los primeros déficits siguen en conocimiento/gráficos, ConceptPages/StudyApp y
 compatibilidad; el JSON lista veinticinco por cada alcance. Priorizar contratos
 que permanecerán, sin dedicar toda la migración al código antiguo ni retirarlo
 antes de demostrar sus consumidores. Umbrales oficiales intactos.
+
+## Recuperación funcional por operaciones — 24 de noviembre
+
+Medición vigente: **FUNCTIONAL_MIGRATION_RESULTS.json**, análisis
+`e6830f9b-bc15-4a3e-a835-7d00d73293c1`, revisión `c1a29eb5`, CE SUCCESS.
+**76,6 % general / 82,2 % nueva, Gate OK**, incidencias nuevas cero. Frente al
+anterior 76,5/82,0 se cubren 355 observaciones generales y 386 nuevas más, con
+crecimiento del denominador. Objetivo interno 95 **todavía no alcanzado**:
+
+| Alcance | Cubiertas / medibles | Sin cubrir | Adicionales para 95 a denominador fijo |
+|---|---:|---:|---:|
+| General | 46491 / 60695 | 14204 | **11170** |
+| Nuevo | 14053 / 17090 | 3037 | **2183** |
+
+La brecha absoluta sube 18/22; el aumento porcentual no equivale a una reducción
+absoluta con nuevo código. Priorizar los contratos de integridad, concurrencia,
+recursos y operaciones que se migren. No posponer las 167 operaciones sin paridad
+completa para dedicar el lote a cobertura del editor o a empaquetar.
+
+Nuevo servicio de acciones 91,0 %, helper nativo 94,6 %, payload 94,7 %, estado y
+acciones React 85,7 %; structured_notes/structured_routes 100 %, páginas de formato
+96,0 %. Ramas defensivas de recibos/confirmaciones, respuestas anómalas, cancelación
+y errores de persistencia siguen mereciendo pruebas de comportamiento. Los
+principales déficits heredados/nuevos siguen en knowledge_graph, canvas/component/
+room, concept_edit/concepts y StudyApp; veinticinco por alcance en el JSON.
+
+Tooling comparable: **82/3037 = 2,70 %** de observaciones nuevas sin cubrir, los
+mismos diez archivos. No es una explicación del resto. No cambia referencia,
+umbrales, reglas, exclusiones o supresiones. El XML importado tiene 2865 líneas
+fuera de Sonar; Python propio **75,96 %**, XML bruto **71,67 %**. LCOV Chrome real
+aporta **322 líneas/234 condiciones** sobre Vitest, sin aumentar denominadores;
+**802 números de línea BRDA sin DA +13 líneas de configuración** explican la
+diferencia de alcance JavaScript. Cero discrepancias por archivo entre Sonar y
+DA∪BRDA. No hay cobertura inventada ni importación ausente.
+
+El siguiente avance útil acompaña medios/asociaciones de Diario/Cornell/CPI y
+sus fallos parciales, después las tareas históricas del Cuaderno. Se mantiene
+la matriz exhaustiva y los contratos legados sin retirarlos. Repetición fuente,
+catorce cohortes actuales: REPEAT_REACT_ANALYSIS.md. Nuevas AppImages suspendidas.

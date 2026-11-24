@@ -16,11 +16,11 @@ COVERAGE_RCFILE="$PWD/evidence/sonar/coverage-runtime.ini" \
 COVERAGE_FILE="$CHECKPOINT_EVIDENCE/chrome/.coverage" \
 MATHMONGO_COLLECT_BROWSER_COVERAGE=1 \
 .venv/bin/python -m coverage run --parallel-mode tests/run_independent_study_e2e.py \
-  --browser=chrome --authoring --notes --document-export --legacy --library --notebook --structured --math-tools --clone-drafts --latex-parity
+  --browser=chrome --authoring --notes --document-export --legacy --library --notebook --structured --math-tools --clone-drafts --latex-parity --note-actions
 COVERAGE_RCFILE="$PWD/evidence/sonar/coverage-runtime.ini" \
 COVERAGE_FILE="$CHECKPOINT_EVIDENCE/firefox/.coverage" \
 .venv/bin/python -m coverage run --parallel-mode tests/run_independent_study_e2e.py \
-  --browser=firefox --authoring --notes --document-export --legacy --library --notebook --structured --math-tools --clone-drafts --latex-parity
+  --browser=firefox --authoring --notes --document-export --legacy --library --notebook --structured --math-tools --clone-drafts --latex-parity --note-actions
 .venv/bin/python -m coverage combine --append "$CHECKPOINT_EVIDENCE/chrome" "$CHECKPOINT_EVIDENCE/firefox"
 .venv/bin/python -m coverage xml
 (cd frontend/advanced-reader && node scripts/merge-browser-coverage.mjs \
@@ -36,7 +36,8 @@ COVERAGE_FILE="$CHECKPOINT_EVIDENCE/firefox/.coverage" \
   ../../evidence/sonar/independent-study/chrome/coverage-concept-clone.json \
   ../../evidence/sonar/independent-study/chrome/coverage-concept-cold-recovery.json \
   ../../evidence/sonar/independent-study/chrome/coverage-latex-parity.json \
-  ../../evidence/sonar/independent-study/chrome/coverage-latex-recovery.json)
+  ../../evidence/sonar/independent-study/chrome/coverage-latex-recovery.json \
+  ../../evidence/sonar/independent-study/chrome/coverage-note-actions.json)
 ```
 
 Detener la secuencia si falla cualquier comando. `test:coverage` se ejecuta
@@ -45,19 +46,28 @@ comprueba código observado/publicado/mapeado y conserva los denominadores de
 unidades; no fusiona posiciones de ramas incompatibles. Firefox verifica el
 comportamiento; el LCOV de navegador se obtiene de Chrome.
 
-En el corte anterior también se verificó el paquete independiente real,
-con `--appimage=...` y evidencia en `packaged-study`; el backend de ese paquete
-no incluye coverage. Su ejecución no se suma automáticamente al XML Python.
-La secuencia actual incluye trece cohortes independientes. Las nueve originales son: lectura, autoría,
-notas, exportación, históricos, Biblioteca, Diario, Cornell/CPI y herramientas
-matemáticas. Las cuatro nuevas comprueban ventana clonada, cierre/reapertura del navegador, diez documentos complejos y recuperación tras reiniciar el backend propio. La integral incluye las caracterizaciones de las páginas
-retenidas y de los contratos Cornell/CPI. Se requiere el ZIP privado histórico
-ya disponible y las copias locales verificadas para la cohorte `--legacy`.
-Una reconstrucción completa desde estos comandos vuelve a observar el backend
-actual sin unir líneas desplazadas de informes viejos. La AppImage `187a5a9c` contiene también la autoría completa y las preferencias
-editoriales; su comprobación queda en LATEX_AUTHORING_CHECKPOINT.md. La imagen
-`098cab43` anterior se conserva con sus nueve recorridos válidos. La imagen
-inicial `f00aa5ac` también se conserva; no contiene automáticamente estas mejoras.
+El checkpoint actual recoge **catorce cohortes desde fuente**, sin generar ni
+probar otra AppImage. Las nueve originales son lectura, autoría, notas,
+exportación, históricos, Biblioteca, Diario, Cornell/CPI y herramientas
+matemáticas. Se conservan ventana clonada, cierre/reapertura, diez documentos
+complejos y recuperación tras reiniciar el backend propio. La nueva cohorte
+`--note-actions` verifica copia/borrado de nota completa, recursos compartidos,
+exportación y filtros recuperables. Sus casos históricos requieren el ZIP
+privado ya localizado; CPI es un fixture canónico identificado, porque ese ZIP
+no contiene CPI. La integral Python incluye caracterizaciones del legado.
+
+Durante el desarrollo pueden ejecutarse las diez primeras cohortes y las
+cuatro de autoría en llamadas separadas al mismo runner: se combinan sólo
+observaciones aprobadas del mismo código publicado y mapeado. El runner añade
+lectura como comprobación base en cada llamada; no duplica su crédito de cobertura.
+Al regenerar el bundle se reobservan las cohortes necesarias para producir un
+LCOV comparable; su evidencia funcional anterior no se descarta. No se acredita
+cobertura antigua contra fuentes o hashes nuevos.
+
+Las AppImages y sus verificaciones anteriores siguen documentadas en
+LATEX_AUTHORING_CHECKPOINT.md; no contienen automáticamente los cambios de este
+lote. Se conserva su infraestructura. Su generación y nuevas pruebas quedan
+suspendidas hasta alcanzar la paridad acordada.
 
 ## Analizar los informes generados, sin volver a borrarlos
 
