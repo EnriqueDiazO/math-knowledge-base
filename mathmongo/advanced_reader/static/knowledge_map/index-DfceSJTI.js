@@ -56204,7 +56204,7 @@ var FB = Ip.create({
 			}).run(), f.value = "";
 		}, u = l("Resultados matemáticos"), u.append(f), u = l("Estructura de estudio");
 		let p = NB("select");
-		if (p.setAttribute("aria-label", "Insertar bloque de estudio"), p.append(new Option("Bloque de estudio…", "")), Object.entries(pB).forEach(([e, t]) => p.append(new Option(t.label, e))), p.onchange = () => {
+		p.setAttribute("aria-label", "Insertar bloque de estudio"), p.append(new Option("Bloque de estudio…", "")), Object.entries(pB).forEach(([e, t]) => p.append(new Option(t.label, e))), p.onchange = () => {
 			p.value && this.editor.chain().focus().insertContent({
 				type: "semanticBlock",
 				attrs: { environment: p.value },
@@ -56224,7 +56224,13 @@ var FB = Ip.create({
 			this.preview.hidden = !this.preview.hidden, this.preview.hidden || this.updatePreview();
 		}), this.source.oninput = () => {
 			this.changed(this.source.value, this.snapshot()), this.updatePreview();
-		}, e.append(c, this.visual, this.source, this.preview), this.source.value = t, r) {
+		};
+		let m = NB("div");
+		if (m.className = "document-compiled-preview", i?.compiled) {
+			let e = i.compiled;
+			d("Vista compilada", () => e(this.value(), m));
+		}
+		if (e.append(c, this.visual, this.source, this.preview, m), this.source.value = t, r) {
 			if (this.sourceMode = r.sourceMode, this.visual.hidden = this.sourceMode, this.source.hidden = !this.sourceMode, r.math && !this.sourceMode) {
 				let e = this.visual.querySelectorAll("math-field")[r.math.index];
 				e && (this.activeMath = e, e.selection = structuredClone(r.math.selection));
