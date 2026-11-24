@@ -87,7 +87,7 @@ def test_single_concept_relative_export_never_uses_cwd(
     monkeypatch.setattr("exporters_latex.exportadorlatex.os.makedirs", lambda path, **kwargs: captured.append(Path(path)))
     monkeypatch.setattr(ExportadorLatex, "_copiar_plantillas", lambda self, path: None)
     monkeypatch.setattr("exporters_latex.exportadorlatex.copy_media_tree_for_latex", lambda path: None)
-    monkeypatch.setattr(ExportadorLatex, "_escribir_tex", lambda *args: None)
+    monkeypatch.setattr(ExportadorLatex, "_escribir_tex", lambda *args, **kwargs: None)
     monkeypatch.setattr(
         "exporters_latex.exportadorlatex.run_latex_until_stable",
         lambda *args, **kwargs: {"status": "success", "passes": 1, "returncode": 0},

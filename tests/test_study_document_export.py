@@ -227,3 +227,94 @@ def test_complete_authored_document_keeps_its_preamble_and_is_not_wrapped_again(
     assert compile_project(bundle).status == "ready"
     with pytest.raises(AdvancedReaderError, match="export_preamble"):
         compose_project([concept, {**concept, "id": "other"}])
+
+
+def test_unsaved_draft_compiles_exact_snapshot_without_publishing(
+    http, service, tmp_path, monkeypatch
+):
+    """Preview uses the same templates as export but cannot save or mutate a draft."""
+    import subprocess
+
+    from mathmongo.study import preview
+
+    monkeypatch.setattr(preview, "get_cache_dir", lambda: tmp_path / "cache")
+    client, _ = http
+    before = {name: list(service.db[name].find()) for name in service.db.list_collection_names()}
+    source = r"\begin{context}Borrador sin publicar $\frac{1}{2}$.\end{context}"
+    payload = {"kind": "document", "source": source, "title": "Título del borrador"}
+    first = client.post(BASE + "/document-previews", json=payload).json()
+    assert first["state"] == "ready", first
+    assert "No se ha guardado" in first["message"]
+    identifier = first["preview_id"]
+    pdf = client.get(BASE + f"/document-previews/{identifier}/pdf")
+    path = tmp_path / "unsaved.pdf"
+    path.write_bytes(pdf.content)
+    assert subprocess.run(["pdfinfo", str(path)], capture_output=True).returncode == 0
+    text = subprocess.check_output(["pdftotext", str(path), "-"], text=True)
+    assert "Borrador sin publicar" in text and "Título del borrador" in text
+    png = client.get(BASE + f"/document-previews/{identifier}/png")
+    assert png.content.startswith(b"\x89PNG\r\n\x1a\n")
+    again = client.post(BASE + "/document-previews", json=payload).json()
+    assert again["cached"] is True and again["preview_id"] == identifier
+    changed = client.post(
+        BASE + "/document-previews", json={**payload, "title": "Otro título"}
+    ).json()
+    assert changed["state"] == "ready" and changed["preview_id"] != identifier
+    failed = client.post(
+        BASE + "/document-previews", json={**payload, "source": r"\unknownDraftMacro{No perder}"}
+    ).json()
+    assert failed["state"] != "ready" and failed["diagnostic"]
+    assert (
+        client.post(BASE + "/document-previews", json={**payload, "macros": "extra"}).status_code
+        == 422
+    )
+    assert {
+        name: list(service.db[name].find()) for name in service.db.list_collection_names()
+    } == before
+
+
+def test_technical_ids_are_opt_in_in_all_academic_export_surfaces(http, service, tmp_path):
+    """Generated metadata stays out of academic PDFs; authored content and identities stay intact."""
+    import subprocess
+
+    from editor.pdf_export import _generar_latex_content
+    from exporters_latex.exportadorlatex import ExportadorLatex
+
+    client, _ = http
+    operation = create(
+        service, titulo="Documento legible", contenido_latex="Cuerpo académico intacto."
+    )
+    key = service.execute(operation)["key"]
+    original = service.find(key)
+    technical_id = str(original["id"])
+    for include in (False, True):
+        result = client.post(
+            BASE + "/export",
+            json={"concept_keys": [key], "format": "pdf", "include_technical_ids": include},
+        )
+        assert result.status_code == 200, result.text
+        path = tmp_path / f"academic-{include}.pdf"
+        path.write_bytes(result.content)
+        text = subprocess.check_output(["pdftotext", str(path), "-"], text=True)
+        assert "Cuerpo académico intacto" in text
+        assert ("ID del concepto:" in text) is include
+        assert (technical_id in text.replace("\n", "")) is include
+        legacy = _generar_latex_content(
+            {**original, "contenido_latex": "Texto"}, include_technical_ids=include
+        )
+        assert (r"\textbf{ID del concepto:}" in legacy) is include
+        assert (r"\nolinkurl{" in legacy) is include
+        legacy_file = tmp_path / "legacy.tex"
+        ExportadorLatex._escribir_tex(
+            str(legacy_file), original, "Texto", include_technical_ids=include
+        )
+        assert (r"\textbf{ID del concepto:}" in legacy_file.read_text()) is include
+    assert service.find(key) == original
+    default = client.post(BASE + "/export", json={"concept_keys": [key], "format": "tex"})
+    with zipfile.ZipFile(io.BytesIO(default.content)) as archive:
+        fragment = next(
+            name for name in archive.namelist() if "/concepts/" in name and name.endswith(".tex")
+        )
+        tex = archive.read(fragment).decode()
+        assert r"\textbf{ID del concepto:}" not in tex
+        assert f"% Concept ID: {technical_id}" in tex

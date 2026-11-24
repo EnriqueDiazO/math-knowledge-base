@@ -21,7 +21,9 @@ from mathmongo.source_catalog.repository import ReferenceRepository
 BLOCKS = json.loads((TEMPLATES.parent / "editor/ui/document_blocks.json").read_text())
 
 
-def compose_project(concepts: list[dict], title="Documentos de estudio"):
+def compose_project(
+    concepts: list[dict], title="Documentos de estudio", *, include_technical_ids=False
+):
     """Use existing fragment/master/bundle rules, with one authored body per item."""
     styles = {
         path.name: path.read_bytes()
@@ -53,7 +55,9 @@ def compose_project(concepts: list[dict], title="Documentos de estudio"):
     records = []
     for index, concept in enumerate(concepts):
         path = f"concepts/document-{index + 1}.tex"
-        fragments[path] = render_concept_fragment(concept, concept["contenido_latex"])
+        fragments[path] = render_concept_fragment(
+            concept, concept["contenido_latex"], include_technical_ids=include_technical_ids
+        )
         records.append({"concept": concept, "input_path": path})
     master = build_master_tex(title, records, include_toc=False)
     if any(r"\begin{" + name + "}" in body for name in BLOCKS for body in fragments.values()):
@@ -72,7 +76,7 @@ def compose_project(concepts: list[dict], title="Documentos de estudio"):
     )
 
 
-def compile_project(bundle):
+def compile_project(bundle, *, raster=False):
     """Stage only files produced by the canonical in-memory bundle, then isolate TeX."""
     with zipfile.ZipFile(io.BytesIO(bundle.zip_bytes)) as archive:
         files = {
@@ -81,7 +85,7 @@ def compile_project(bundle):
             if not name.endswith("/")
         }
     main = files.pop("main.tex").decode("utf-8")
-    return compile_document(main, files)
+    return compile_document(main, files, raster=raster)
 
 
 class StudyDocumentExport:
@@ -91,7 +95,7 @@ class StudyDocumentExport:
         """Bind without preparing indexes, copying files or altering records."""
         self.app = application
 
-    def project(self, concept_keys, note_ids):
+    def project(self, concept_keys, note_ids, *, include_technical_ids=False):
         """Each selected identity contributes its full body exactly once."""
         documents = []
         for key in dict.fromkeys(concept_keys):
@@ -144,4 +148,4 @@ class StudyDocumentExport:
                 "Selecciona al menos un concepto o una nota guardada para exportar.",
                 status_code=422,
             )
-        return compose_project(documents)
+        return compose_project(documents, include_technical_ids=include_technical_ids)

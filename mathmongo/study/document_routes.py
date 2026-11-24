@@ -11,6 +11,7 @@ from fastapi.responses import Response
 from pydantic import BaseModel
 from pydantic import ConfigDict
 from pydantic import Field
+from pydantic import model_validator
 
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.study.document_export import StudyDocumentExport
@@ -31,6 +32,7 @@ class ExportRequest(BaseModel):
         default_factory=list, max_length=100
     )
     format: Literal["pdf", "tex"] = "tex"
+    include_technical_ids: bool = False
 
 
 class PreviewRequest(BaseModel):
@@ -40,6 +42,15 @@ class PreviewRequest(BaseModel):
     source: str = Field(min_length=1, max_length=200000)
     macros: str = Field(default="", max_length=100000)
     refresh: bool = False
+    kind: Literal["figure", "document"] = "figure"
+    title: str = Field(default="Documento", max_length=500)
+
+    @model_validator(mode="after")
+    def document_owns_preamble(self):
+        """Full drafts own their macros; never silently ignore a second preamble."""
+        if self.kind == "document" and self.macros:
+            raise ValueError("Incluye las macros en la fuente completa del documento.")
+        return self
 
 
 def build_document_router():
@@ -49,7 +60,9 @@ def build_document_router():
     @router.post("/export")
     def export(payload: ExportRequest, request: Request):
         bundle = StudyDocumentExport(scoped(request)).project(
-            payload.concept_keys, payload.note_ids
+            payload.concept_keys,
+            payload.note_ids,
+            include_technical_ids=payload.include_technical_ids,
         )
         if payload.format == "tex":
             return Response(
@@ -77,7 +90,11 @@ def build_document_router():
     def preview(payload: PreviewRequest, request: Request):
         app = scoped(request)
         return DocumentPreviews(app.library_id).create(
-            payload.source, payload.macros, refresh=payload.refresh
+            payload.source,
+            payload.macros,
+            refresh=payload.refresh,
+            kind=payload.kind,
+            title=payload.title,
         )
 
     @router.get("/document-previews/{identifier}/{extension}")

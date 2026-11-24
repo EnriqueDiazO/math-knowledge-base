@@ -33,7 +33,7 @@ from mathmongo.paths import get_exports_dir
 from mathmongo.paths import get_latex_runtime_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
-from mathmongo.source_catalog.citations import extra_citation_latex
+from exporters_latex.unified_document import render_concept_fragment
 
 # Valores constantes
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
@@ -614,7 +614,9 @@ def _generar_pdf_desde_latex_temporal(
             shutil.rmtree(temp_path, ignore_errors=True)
 
 
-def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> str:
+def generar_pdf_concepto(
+    concepto: Dict, output_path: Optional[str] = None, *, include_technical_ids: bool = False
+) -> str:
     """
     Generate a PDF file from a mathematical concept using the same style as ExportadorLatex.
 
@@ -629,7 +631,7 @@ def generar_pdf_concepto(concepto: Dict, output_path: Optional[str] = None) -> s
         Exception: If LaTeX compilation fails.
     """
     try:
-        latex_content = _generar_latex_content(concepto)
+        latex_content = _generar_latex_content(concepto, include_technical_ids=include_technical_ids)
         safe_id = _safe_concept_id_part(concepto.get("id"))
     except Exception as exc:
         _raise_pdf_export_error(
@@ -954,85 +956,20 @@ def analizar_tex_nota_latex_con_chktex(nota: Dict, template: str = "diario") -> 
     )
 
 
-def _generar_latex_content(concepto: Dict) -> str:
-    """
-    Generate LaTeX content for a mathematical concept using the same style as ExportadorLatex.
-    
-    Args:
-        concepto: Dictionary containing concept data.
-    
-    Returns:
-        Complete LaTeX document as string.
-    """
-    
-    # Extract concept data
-    concept_id = concepto.get('id', 'unknown')
-    titulo = concepto.get('titulo', concept_id)
-    contenido_latex = concepto.get('contenido_latex', '')
-    source = concepto.get('source', '')
-    
-    # Build LaTeX document using the same style as ExportadorLatex
-    latex_doc = r"""\documentclass[12pt]{article}
-\usepackage{miestilo}
-\usepackage{coloredtheorem}
-\usepackage{graphicx}
-\usepackage{mathmongo-macros}
-\begin{document}
-
-"""
-    
-    # --- título ---
-    latex_doc += r"\section*{" + titulo + "}\n\n"
-    
-    # --- cuerpo principal ---
-    if contenido_latex:
-        latex_doc += contenido_latex + "\n\n"
-    
-    # --- comentario opcional ---
-    comentario = concepto.get('comentario')
-    if comentario:
-        latex_doc += r"\section*{Comentario}" "\n" + comentario + "\n\n"
-    
-    # --- referencia bibliográfica opcional ---
-    referencia = concepto.get('referencia')
-    if referencia:
-        latex_doc += r"\section*{Referencia}" "\n"
-        linea1 = ", ".join(
-            filter(None, (
-                referencia.get("autor"),
-                referencia.get("fuente"),
-                f"({referencia.get('anio')})" if referencia.get("anio") else None,
-            ))
-        )
-        latex_doc += linea1 + r"\\" "\n"
-        
-        linea2 = ", ".join(
-            filter(None, (
-                f"Tomo {referencia['tomo']}"       if referencia.get("tomo") else None,
-                f"Ed. {referencia['edicion']}"    if referencia.get("edicion") else None,
-                f"Cap. {referencia['capitulo']}"  if referencia.get("capitulo") else None,
-                f"Sección {referencia['seccion']}"if referencia.get("seccion") else None,
-                f"Pág. {referencia['paginas']}"   if referencia.get("paginas") else None,
-                referencia.get("editorial"),
-            ))
-        )
-        if linea2:
-            latex_doc += linea2 + r"\\" "\n"
-        if referencia.get("issbn"):
-            latex_doc += f"ISSBN: {referencia['issbn']}\\\\\n"
-        if referencia.get("doi"):
-            latex_doc += f"DOI: {referencia['doi']}\\\\\n"
-        if referencia.get("url"):
-            latex_doc += r"\url{" + referencia["url"] + "}\\\\" "\n"
-        latex_doc += extra_citation_latex(referencia)
-        latex_doc += "\n"
-    
-    # --- ID interno ---
-    latex_doc += r"\textbf{ID del concepto:}~\verb|" + f"{concept_id}@{source}|" + "\n\n"
-    
-    latex_doc += r"\end{document}" "\n"
-    
-    return latex_doc
+def _generar_latex_content(concepto: Dict, *, include_technical_ids: bool = False) -> str:
+    """Compose the legacy PDF surface with the canonical academic fragment."""
+    fragment = render_concept_fragment(
+        concepto, concepto.get("contenido_latex", ""),
+        include_technical_ids=include_technical_ids,
+    )
+    return "\n".join([
+        r"\documentclass[12pt]{article}",
+        r"\usepackage{miestilo}",
+        r"\usepackage{coloredtheorem}",
+        r"\usepackage{graphicx}",
+        r"\usepackage{mathmongo-macros}",
+        r"\begin{document}", fragment, r"\end{document}", "",
+    ])
 
 
 def _copiar_archivos_estilo(destino: Path) -> None:

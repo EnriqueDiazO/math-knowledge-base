@@ -21,7 +21,6 @@ from mathmongo.config import resolve_config
 from mathmongo.paths import get_exports_dir
 from mathmongo.paths import resolve_home_path
 from mathmongo.paths import validate_mutable_path
-from mathmongo.source_catalog.citations import extra_citation_latex
 
 
 class ExportadorLatex:
@@ -51,6 +50,8 @@ class ExportadorLatex:
         concepto: Dict,
         contenido_latex: str,
         salida: str | None = None,
+        *,
+        include_technical_ids: bool = False,
     ) -> None:
         """Genera `.tex` y `.pdf` para un único concepto."""
 
@@ -81,7 +82,7 @@ class ExportadorLatex:
 
         # ---------- Creamos fichero .tex ----------
         tex_path = os.path.join(salida, f"{nombre_base}.tex")
-        self._escribir_tex(tex_path, concepto, contenido_latex)
+        self._escribir_tex(tex_path, concepto, contenido_latex, include_technical_ids=include_technical_ids)
 
         # ---------- Compilamos ----------
         command = [
@@ -198,62 +199,18 @@ class ExportadorLatex:
 
     @staticmethod
     def _escribir_tex(
-        tex_path: str, concepto: Dict, contenido_latex: str
+        tex_path: str, concepto: Dict, contenido_latex: str,
+        *, include_technical_ids: bool = False,
     ) -> None:
-        """Escribe el archivo .tex completo con su preámbulo y contenido."""
-        with open(tex_path, "w", encoding="utf-8") as f:
-            # --- preámbulo mínimo ---
-            f.write(r"\documentclass[12pt]{article}" "\n")
-            f.write(r"\usepackage{miestilo}" "\n")
-            f.write(r"\usepackage{coloredtheorem}" "\n")  # por si acaso
-            f.write(r"\usepackage{graphicx}" "\n")
-            f.write(r"\begin{document}" "\n\n")
-
-            # --- título ---
-            f.write(r"\section*{" + concepto.get("titulo", "Sin título") + "}\n\n")
-
-            # --- cuerpo principal ---
-            f.write(contenido_latex + "\n\n")
-
-            # --- comentario opcional ---
-            if concepto.get("comentario"):
-                f.write(r"\section*{Comentario}" "\n" + concepto["comentario"] + "\n\n")
-
-            # --- referencia bibliográfica opcional ---
-            if ref := concepto.get("referencia"):
-                f.write(r"\section*{Referencia}" "\n")
-                linea1 = ", ".join(
-                    filter(None, (
-                        ref.get("autor"),
-                        ref.get("fuente"),
-                        f"({ref.get('anio')})" if ref.get("anio") else None,
-                    ))
-                )
-                f.write(linea1 + r"\\" "\n")
-
-                linea2 = ", ".join(
-                    filter(None, (
-                        f"Tomo {ref['tomo']}"       if ref.get("tomo") else None,
-                        f"Ed. {ref['edicion']}"    if ref.get("edicion") else None,
-                        f"Cap. {ref['capitulo']}"  if ref.get("capitulo") else None,
-                        f"Sección {ref['seccion']}"if ref.get("seccion") else None,
-                        f"Pág. {ref['paginas']}"   if ref.get("paginas") else None,
-                        ref.get("editorial"),
-                    ))
-                )
-                if linea2:
-                    f.write(linea2 + r"\\" "\n")
-                if ref.get("issbn"):
-                    f.write(f"ISSBN: {ref['issbn']}\\\\\n")
-                if ref.get("doi"):
-                    f.write(f"DOI: {ref['doi']}\\\\\n")
-                if ref.get("url"):
-                    f.write(r"\url{" + ref["url"] + "}\\\\" "\n")
-                f.write(extra_citation_latex(ref))
-                f.write("\n")
-
-            # --- ID interno ---
-            f.write(r"\textbf{ID del concepto:}~\verb|" +
-                    f"{concepto.get('id')}@{concepto.get('source')}|" + "\n\n")
-
-            f.write(r"\end{document}" "\n")
+        """Use the canonical academic fragment, preserving optional traceability."""
+        fragment = render_concept_fragment(
+            concepto, contenido_latex, include_technical_ids=include_technical_ids
+        )
+        document = "\n".join([
+            r"\documentclass[12pt]{article}",
+            r"\usepackage{miestilo}",
+            r"\usepackage{coloredtheorem}",
+            r"\usepackage{graphicx}",
+            r"\begin{document}", fragment, r"\end{document}", "",
+        ])
+        Path(tex_path).write_text(document, encoding="utf-8")

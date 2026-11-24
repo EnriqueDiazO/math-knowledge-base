@@ -140,7 +140,9 @@ def _has_authored_title(body: str, title: str) -> bool:
     return any(body.lstrip().startswith(prefix) for prefix in prefixes)
 
 
-def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
+def render_concept_fragment(
+    concepto: dict, contenido_latex: str, *, include_technical_ids: bool = False
+) -> str:
     """Render a partial LaTeX fragment using the current individual-export body."""
     concept_id = concepto.get("id", "")
     source = concepto.get("source", "")
@@ -186,8 +188,8 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
                     f"Tomo {ref['tomo']}" if ref.get("tomo") else None,
                     f"Ed. {ref['edicion']}" if ref.get("edicion") else None,
                     f"Cap. {ref['capitulo']}" if ref.get("capitulo") else None,
-                    f"Seccion {ref['seccion']}" if ref.get("seccion") else None,
-                    f"Pag. {ref['paginas']}" if ref.get("paginas") else None,
+                    f"Sección {ref['seccion']}" if ref.get("seccion") else None,
+                    f"Pág. {ref['paginas']}" if ref.get("paginas") else None,
                     ref.get("editorial"),
                 ),
             )
@@ -204,7 +206,7 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
             lines.extend(extra.rstrip().splitlines())
         lines.append("")
 
-    if concept_id or source:
+    if include_technical_ids and (concept_id or source):
         lines.extend(
             [
                 r"\textbf{ID del concepto:}~\nolinkurl{" + f"{concept_id}@{source}" + "}",
@@ -212,7 +214,7 @@ def render_concept_fragment(concepto: dict, contenido_latex: str) -> str:
             ]
         )
 
-    return "\n".join(lines).rstrip() + "\n"
+    return "\n".join(lines) + "\n"
 
 
 def make_unique_fragment_names(concepts: list[dict]) -> dict[str, str]:
