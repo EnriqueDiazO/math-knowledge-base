@@ -13,6 +13,8 @@ from editor.cornell.models import CORNELL_NOTE_FORMAT
 from editor.cornell.persistence import extract_cornell_document
 from editor.cornell.project_export import CornellProjectExportResult
 from editor.cornell.project_export import export_cornell_project
+from editor.cornell.renderer import HISTORICAL_LINES_IMAGE
+from editor.cornell.renderer import LINES_IMAGE_INCLUDE_PATH
 from editor.cornell.renderer import CornellRenderResult
 from editor.cornell.renderer import generate_cornell_document_tex
 from editor.cornell.renderer import render_cornell_document
@@ -132,7 +134,11 @@ def export_note_tex(
     if note_format == CORNELL_NOTE_FORMAT:
         document = extract_cornell_document(note)
         if db is not None or assets_by_id:
-            tex_dir = Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cornell" / "_tex"
+            tex_dir = (
+                Path(output_dir)
+                if output_dir is not None
+                else EXPORTED_NOTES_DIR / "cornell" / "_tex"
+            )
             tex_path = write_cornell_document_tex(
                 document,
                 tex_dir,
@@ -153,7 +159,9 @@ def export_note_tex(
     if note_format == CPI_NOTE_FORMAT:
         document = extract_cpi_document(note)
         if output_dir is not None or db is not None or assets_by_id:
-            tex_dir = Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cpi" / "_tex"
+            tex_dir = (
+                Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cpi" / "_tex"
+            )
             tex_path = write_cpi_document_tex(
                 document,
                 tex_dir,
@@ -219,6 +227,19 @@ def _note_bundle_assets(
         asset for asset_id, asset in sorted(resolved_assets.items()) if asset_id not in known_ids
     )
     bundle_assets: list[LatexBundleAsset] = []
+    if note.get("note_format") == CORNELL_NOTE_FORMAT:
+        # The historical page background is a project resource, not a note-owned
+        # media association. Keep it portable without reading a host-only path.
+        if HISTORICAL_LINES_IMAGE.is_file() and not HISTORICAL_LINES_IMAGE.is_symlink():
+            bundle_assets.append(
+                LatexBundleAsset(
+                    data=HISTORICAL_LINES_IMAGE.read_bytes(),
+                    source_path=LINES_IMAGE_INCLUDE_PATH,
+                    filename="lineas.png",
+                    mime_type="image/png",
+                    metadata={"role": "cornell-page-background"},
+                )
+            )
     for asset in ordered_assets:
         data = asset.get("data")
         if isinstance(data, bytearray):
@@ -303,7 +324,9 @@ def export_note_pdf(
     base_name = note_export_basename(note)
     if note_format == CORNELL_NOTE_FORMAT:
         document = extract_cornell_document(note)
-        cornell_output_dir = Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cornell"
+        cornell_output_dir = (
+            Path(output_dir) if output_dir is not None else EXPORTED_NOTES_DIR / "cornell"
+        )
         result = render_cornell_document(
             document,
             cornell_output_dir,
