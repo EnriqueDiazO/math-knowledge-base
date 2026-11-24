@@ -25,7 +25,7 @@ OWN_DIRECTORIES = {
     "templates_latex",
     "assets/icons",
 }
-OWN_FILES = {"mathkb_config.py", "LICENSE"}
+OWN_FILES = {"mathkb_config.py", "pyproject.toml", "LICENSE"}
 TOOL_SHA256 = "ed4ce84f0d9caff66f50bcca6ff6f35aae54ce8135408b3fa33abfc3cb384eb0"
 RUNTIME_SHA256 = "617aa77314d57c8b8e4fae9c3f0b35af7b30d5529cb69e98f64f92510ed98a46"
 
