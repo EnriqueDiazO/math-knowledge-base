@@ -3159,10 +3159,12 @@
       "module": "Cuaderno · Diario",
       "operation": "Consultar timeline agrupado por fecha",
       "essential": false,
-      "status": "absent",
-      "python_service": "mathdatabase/mathmongo.py; editor/diary_note_models.py; mathmongo/study/notebook.py",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/notebook.py; editor/notebook_queries.py",
+      "react": "NotebookPages.tsx / DiaryNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_http.py"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3177,17 +3179,20 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Acceso Timeline y lista ordenada por fecha; falta agrupación por fecha y sus controles históricos.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/menus-before/menu-proof.json; diary-compatibility.log"
     },
     {
       "id": "diary-17",
       "module": "Cuaderno · Diario",
       "operation": "Consultar calendario por mes y día",
       "essential": false,
-      "status": "absent",
-      "python_service": "mathdatabase/mathmongo.py; editor/diary_note_models.py; mathmongo/study/notebook.py",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/notebook.py; editor/notebook_queries.py",
+      "react": "NotebookPages.tsx / DiaryNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_http.py"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3202,7 +3207,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Acceso Calendario y filtros año/mes disponibles; falta cuadrícula y navegación por día.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/menus-before/menu-proof.json; diary-compatibility.log"
     },
     {
       "id": "diary-18",
@@ -3306,10 +3312,12 @@
       "module": "Cuaderno · Diario",
       "operation": "Filtrar Diario por contexto, etiquetas, intervalo de fechas, año/mes y actualización reciente",
       "essential": true,
-      "status": "absent",
-      "python_service": "mathdatabase/mathmongo.py; editor/diary_note_models.py; mathmongo/study/notebook.py",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/notebook.py; editor/notebook_queries.py",
+      "react": "NotebookPages.tsx / DiaryNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_http.py"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -3324,7 +3332,8 @@
           "line": 1396
         }
       ],
-      "pending": "Migrar los controles de _render_diary_search y su consulta histórica validada; proyecto/fuente/texto no cubren estos filtros."
+      "pending": "Filtros HTTP compartidos con Streamlit: contexto, etiquetas, fechas, año/mes y recientes; UI todavía no ofrece recientes y falta recorrido exhaustivo por combinación.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/menus-before/menu-proof.json; diary-compatibility.log"
     },
     {
       "id": "cornell-01",
@@ -4672,10 +4681,13 @@
       "module": "Cuaderno · Worklog",
       "operation": "Crear entrada con fecha, bloque, horas, estado, proyecto y evidencia",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); worklog_entries",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4690,17 +4702,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "worklog-02",
       "module": "Cuaderno · Worklog",
       "operation": "Consultar y filtrar entradas por fecha/proyecto/estado/texto",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); worklog_entries",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4715,17 +4731,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Disponibles texto/proyecto/estado y paginación; faltan intervalos de fechas y filtros avanzados históricos.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "worklog-03",
       "module": "Cuaderno · Worklog",
       "operation": "Editar entrada conservando metadatos y asociaciones",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); worklog_entries",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4740,7 +4760,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "worklog-04",
@@ -4772,10 +4793,13 @@
       "module": "Cuaderno · Worklog",
       "operation": "Exportar selección de recientes a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); worklog_entries",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4790,17 +4814,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "worklog-06",
       "module": "Cuaderno · Worklog",
       "operation": "Exportar consulta filtrada a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); worklog_entries",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4815,7 +4843,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "CSV de selección explícita, también filtrada en la página; no exporta automáticamente todas las páginas de una consulta.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "worklog-07",
@@ -4847,10 +4876,13 @@
       "module": "Cuaderno · Backlog",
       "operation": "Crear tarea con proyecto, propietario, prioridad, estado y estimación",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4865,17 +4897,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "backlog-02",
       "module": "Cuaderno · Backlog",
       "operation": "Consultar y filtrar tareas",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4890,17 +4926,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Consulta texto/proyecto/estado; faltan filtros históricos de prioridad y otras variantes.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "backlog-03",
       "module": "Cuaderno · Backlog",
       "operation": "Editar tarea conservando campos y enlaces",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4915,7 +4955,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "backlog-04",
@@ -4940,17 +4981,20 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "La implementación React no existe. La inspección de formularios y callbacks del Streamlit actual y v0.14 no acredita un borrado de este tipo: el inventario previo lo asumió por CRUD. Se conserva la fila y el denominador para revisar su fundamento; no se anuncia una capacidad histórica inexistente ni una retirada de código."
     },
     {
       "id": "backlog-05",
       "module": "Cuaderno · Backlog",
       "operation": "Exportar selección de tareas a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4965,17 +5009,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "backlog-06",
       "module": "Cuaderno · Backlog",
       "operation": "Exportar consulta filtrada a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -4990,17 +5038,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "CSV de selección explícita; pendiente exportación de toda una consulta de varias páginas.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "backlog-07",
       "module": "Cuaderno · Backlog",
       "operation": "Gestionar fecha objetivo y etiquetas",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5015,17 +5067,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "weekly-01",
       "module": "Cuaderno · Weekly Review",
       "operation": "Crear revisión por año y semana ISO",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); weekly_reviews",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5040,17 +5096,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "weekly-02",
       "module": "Cuaderno · Weekly Review",
       "operation": "Recuperar revisión existente y editarla explícitamente",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); weekly_reviews",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5065,17 +5125,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "weekly-03",
       "module": "Cuaderno · Weekly Review",
-      "operation": "Guardar revisión con logros, bloqueos, aprendizaje y próximos pasos",
+      "operation": "Guardar revisión con objetivos, logros, bloqueos y próximos pasos",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); weekly_reviews",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5090,7 +5154,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "weekly-04",
@@ -5122,10 +5187,13 @@
       "module": "Cuaderno · Weekly Review",
       "operation": "Exportar revisión/selección a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); weekly_reviews",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5140,17 +5208,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "weekly-06",
       "module": "Cuaderno · Weekly Review",
       "operation": "Consultar resumen calculado de horas/proyectos/estados",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); weekly_reviews",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5165,17 +5237,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Se calculan horas y tareas Done con fallback histórico y se conservan overrides; faltan desgloses y previsualización de tareas.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "weekly-07",
       "module": "Cuaderno · Weekly Review",
       "operation": "Limpiar editor y recargar revisión desde base sin publicar cambios",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); weekly_reviews",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5190,17 +5266,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Abre y guarda la revisión, pero falta limpiar/descartar explícitamente un borrador válido sin publicarlo.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "deliverable-01",
       "module": "Cuaderno · Deliverables",
       "operation": "Registrar entregable con tipo, proyecto, fecha y ubicación",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); deliverables",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5215,17 +5295,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "deliverable-02",
       "module": "Cuaderno · Deliverables",
       "operation": "Consultar y filtrar entregables",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); deliverables",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5240,17 +5324,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Consulta texto/proyecto y paginación; falta el filtro histórico por tipo.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "deliverable-03",
       "module": "Cuaderno · Deliverables",
       "operation": "Editar entregable, commit y asociaciones existentes",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); deliverables",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5265,7 +5353,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Edición básica y commit verificados, preservando asociaciones desconocidas; falta gestionar vínculos Worklog/Diario desde React.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "deliverable-04",
@@ -5290,17 +5379,20 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "La implementación React no existe. La inspección de formularios y callbacks del Streamlit actual y v0.14 no acredita un borrado de este tipo: el inventario previo lo asumió por CRUD. Se conserva la fila y el denominador para revisar su fundamento; no se anuncia una capacidad histórica inexistente ni una retirada de código."
     },
     {
       "id": "deliverable-05",
       "module": "Cuaderno · Deliverables",
       "operation": "Exportar selección a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); deliverables",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5315,17 +5407,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "deliverable-06",
       "module": "Cuaderno · Deliverables",
       "operation": "Exportar consulta filtrada a CSV",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); deliverables",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5340,17 +5436,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "CSV de selección explícita; pendiente exportar toda una consulta de varias páginas.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "kanban-01",
       "module": "Cuaderno · Kanban",
       "operation": "Consultar tareas por estado y proyecto",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5365,17 +5465,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Columnas sobre el Backlog paginado y filtros básicos operativos; verificar todos los filtros y casos de más de una página.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "kanban-02",
       "module": "Cuaderno · Kanban",
       "operation": "Mover tarea entre estados con persistencia",
       "essential": true,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "verified",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5390,17 +5494,21 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "kanban-03",
       "module": "Cuaderno · Kanban",
       "operation": "Consultar registro del cambio y refrescar tablero",
       "essential": false,
-      "status": "absent",
-      "python_service": "editor/cuaderno_page.py (reglas aún embebidas); backlog_items",
-      "react": "",
-      "tests": [],
+      "status": "partial",
+      "python_service": "mathmongo/study/activities.py; activity_models.py; activity_routes.py",
+      "react": "ActivityPages.tsx / ActivityWorkspace.tsx / NotebookNavigation.tsx",
+      "tests": [
+        "tests/test_notebook_activities_http.py",
+        "frontend/advanced-reader/tests/notebook-comparison-browser.mjs"
+      ],
       "historical_and_current_evidence": [
         {
           "version": "v0.14.0",
@@ -5415,7 +5523,8 @@
           "line": 548
         }
       ],
-      "pending": "Completar recorrido React, adaptación y pruebas del contrato indicado."
+      "pending": "Estado, done_at y revisión se confirman y el tablero se refresca; falta presentar el registro temporal del cambio.",
+      "checkpoint_evidence": "evidence/sonar/cpi-five-images-2026-11-24/notebook-after-{chrome,firefox}/browser.json"
     },
     {
       "id": "map-01",
@@ -7383,6 +7492,10 @@
     {
       "operation": "source-05/source-06",
       "reason": "Separate actual Source fields and rights controls from bibliographic Reference metadata; implemented rights remain unverified."
+    },
+    {
+      "operation": "weekly-03",
+      "reason": "Los cuatro campos reales de Streamlit actual y del ZIP v0.14 son weekly_objectives, wins, blocks_risks y plan_next_week. No existe un campo aprendizaje separado; se corrige el texto de la fila sin cambiar el denominador."
     }
   ],
   "initial_count": {
@@ -7410,37 +7523,95 @@
       "cpi-14",
       "cornell-15",
       "cpi-15"
-    ]
+    ],
+    "navigation_checkpoint": {
+      "before_verified": 110,
+      "after_verified": 124,
+      "same_operations": 277,
+      "newly_verified": [
+        "backlog-01",
+        "backlog-03",
+        "backlog-05",
+        "backlog-07",
+        "deliverable-01",
+        "deliverable-05",
+        "kanban-02",
+        "weekly-01",
+        "weekly-02",
+        "weekly-03",
+        "weekly-05",
+        "worklog-01",
+        "worklog-03",
+        "worklog-05"
+      ]
+    }
   },
   "summary": {
     "total": {
       "operations": 277,
       "statuses": {
-        "verified": 110,
+        "verified": 124,
         "unverified": 1,
-        "partial": 54,
-        "absent": 112
+        "partial": 68,
+        "absent": 84
       },
-      "verified_percentage": 39.71
+      "verified_percentage": 44.77
     },
     "essential": {
       "operations": 215,
       "statuses": {
-        "verified": 109,
+        "verified": 119,
         "unverified": 1,
-        "partial": 32,
-        "absent": 73
+        "partial": 38,
+        "absent": 57
       },
-      "verified_percentage": 50.7
+      "verified_percentage": 55.35
     },
     "secondary": {
       "operations": 62,
       "statuses": {
-        "absent": 39,
-        "verified": 1,
-        "partial": 22
+        "absent": 27,
+        "verified": 5,
+        "partial": 30
       },
-      "verified_percentage": 1.61
+      "verified_percentage": 8.06
     }
-  }
+  },
+  "checkpoints": [
+    {
+      "name": "navigation-cuaderno-2026-11-24",
+      "previous_revision": "07ebdd52",
+      "previous_summary": {
+        "total": {
+          "operations": 277,
+          "statuses": {
+            "verified": 124,
+            "unverified": 1,
+            "partial": 68,
+            "absent": 84
+          },
+          "verified_percentage": 44.77
+        },
+        "essential": {
+          "operations": 215,
+          "statuses": {
+            "verified": 119,
+            "unverified": 1,
+            "partial": 38,
+            "absent": 57
+          },
+          "verified_percentage": 55.35
+        },
+        "secondary": {
+          "operations": 62,
+          "statuses": {
+            "absent": 27,
+            "verified": 5,
+            "partial": 30
+          },
+          "verified_percentage": 8.06
+        }
+      }
+    }
+  ]
 }

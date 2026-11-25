@@ -802,3 +802,35 @@ Métricas: FUNCTIONAL_MIGRATION_RESULTS.json. Capturas y pruebas bajo
 asociaciones y controles pendientes de las actividades existentes, después las
 tareas del Cuaderno. Resto de conceptos/mapas/transferencias/administración sigue
 inventariado. El empaquetado espera la paridad acordada; no bloquea migrar funciones.
+
+
+## Comparación real de navegación y Cuaderno — checkpoint 6a950695
+
+Desde 07ebdd52 limpio se conservaron procesos 8501/8766 y se levantaron copias
+coherentes en 35301/56385 con MongoDB/medios/XDG propios. Se grabaron veinte
+destinos Streamlit, seis actividades y siete secciones del Diario; se revisaron
+fotogramas. Se implementan Worklog, Backlog, Weekly Review, Deliverables y Kanban
+sobre sus colecciones históricas. La matriz pasa 110 → **124/277 verificadas**.
+Cornell/CPI quedan accesibles; Diario conserva pendientes precisos, igual que
+conexiones, transferencias, medios y administración. No se retira Streamlit.
+
+CPI auténtico: cinco capturas y marca de agua corregidas al pasar rutas nativas
+a generación y medición. Galería protegida y PDF/TEX después de guardar/recargar;
+ZIP recompilado en directorio limpio. Campos conserva SHA LaTeX exacto al editar
+metadatos y exportar. Inicio/Biblioteca/lectura se comparan antes/después al
+100/70 % nativo; ventana estrecha y navegación por teclado comprobadas.
+
+Python **2256 aprobadas/9 omitidas/0 fallidas**, más **9 optativas aprobadas**;
+frontend **406**. Catorce cohortes por navegador sin Streamlit y clips adicionales
+de actividades. Sonar final del primer checkpoint: análisis
+**36d724af-791c-47f4-9013-c7e7fe16bce8**, revisión **6a950695**, CE SUCCESS,
+**76,7 % general / 81,9 % nueva / Gate OK / cero nuevas**. El primer análisis
+33c43042 mostró Gate ERROR por 34 avisos (aserciones fuera de casos y dos tipos
+de botón); se corrigieron sin relajar controles. Referencia y SHA intactos.
+Objetivo 95 % abierto: faltan 11348 observaciones generales y 2396 nuevas a
+denominador fijo. Ver NAVIGATION_COMPARISON_CHECKPOINT.md, matriz y LARGE_FILES.md.
+
+Commits: 878116ec, 1b405639, 6aaaaaab, 33c43042, ee275ee3, 6a950695.
+Sin push/merge, AppImages o exploraciones nuevas de esfera. El anexo recibido
+durante el cierre se trabaja como lote adicional, con sus notas auténticas,
+pruebas y análisis propios; no hereda automáticamente el Gate anterior.

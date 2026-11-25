@@ -2,8 +2,9 @@
 
 Actualización del 24 de noviembre: la entrada principal permanece en **21 líneas**.
 `CORNELL_CPI_INVENTORY.json` contiene tamaños/hashes actuales y los veinte mayores
-propios mantenidos. Los veinte mayores de mil líneas conservan su hash de la
-revisión anterior: se reutiliza esa evidencia. La tabla inicial siguiente es
+propios mantenidos. En el checkpoint de navegación, diecinueve de los veinte mayores de mil líneas
+conservan su hash de 07ebdd52; Cuaderno cambia al extraer su consulta pura de
+Diario. Se reutilizan las revisiones anteriores para los diecinueve sin cambios. La tabla inicial siguiente es
 histórica; la actualización al final expresa las decisiones vigentes.
 
 Medida de tamaño: **líneas físicas**, incluidos comentarios y espacios. No es
@@ -399,3 +400,61 @@ nativo Cornell/CPI sin trasladar otra página monolítica ni crear persistencia
 paralela. No se elimina fuente legada ni se minifica código mantenido.
 FUNCTIONAL_MIGRATION_CHECKPOINT.md distingue fuente, pruebas y bundles generados,
 y FUNCTIONAL_PARITY.md conserva el resto del repositorio pendiente de migración.
+
+## Checkpoint de navegación y Cuaderno
+
+Entrada principal: **21 → 21 líneas**. Cuaderno: **4122 → 4087**. La consulta
+`_build_notes_query` (37 líneas) se traslada a `editor/notebook_queries.py`
+(función de 38 líneas, con docstring), conservando su alias para consumidores
+Streamlit. La API reutiliza esta consulta. La lectura de conceptos se separa
+en ConceptReader; las funciones de edición, exportación y relaciones conservan
+sus consumidores. Nuevas actividades se implementan en módulos propios; no se
+mueven 4000 líneas a otro monolito ni se comprimen instrucciones.
+
+Los veinte mantenidos actuales son los siguientes. Para los diecinueve con hash
+idéntico se conservan responsabilidades/problemas/decisiones de las revisiones
+anteriores de este archivo; no se presenta una nueva auditoría ficticia.
+Cuaderno sigue pendiente de separar reglas y presentación de otras actividades.
+
+| Archivo | Líneas actuales | Decisión/evidencia de este lote |
+|---|---:|---|
+| editor/cuaderno_page.py | 4087 | Refactorización parcial: consulta compartida; resto mantiene decisión pendiente. |
+| visualizations/grafoconocimiento.py | 3670 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/utils/db_import.py | 2904 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/utils/db_update.py | 2242 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| mathmongo/reading_annotations/service.py | 1693 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| mathmongo/source_catalog_migration/bootstrap.py | 1635 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/cornell/streamlit_page.py | 1634 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/cpi/streamlit_page.py | 1485 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/app_pages/knowledge_graph.py | 1381 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/concept_linking/linking_wizard.py | 1264 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| frontend/advanced-reader/src/app/App.tsx | 1247 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/reading_space/reader_page.py | 1222 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/source_catalog/edit_source_page.py | 1192 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| mathmongo/source_catalog_migration/apply_safety.py | 1186 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| mathmongo/source_catalog_migration/manifest.py | 1122 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/utils/knowledge_graph_sync.py | 1076 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| editor/pdf_export.py | 1058 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| exporters_latex/latex_validation.py | 1046 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| mathmongo/reading_annotations/repository.py | 1019 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+| frontend/advanced-reader/src/styles/reader.css | 1008 | Conservar revisión previa; hash idéntico a 07ebdd52. |
+
+Hay **20 archivos mantenidos >1000 líneas** y **11 archivos de pruebas >1000**;
+no se mezclan con dependencias o bundles. CSV completo y hashes reproducibles:
+`evidence/sonar/cpi-five-images-2026-11-24/repository-inventory.csv`.
+
+Cambios físicos desde 07ebdd52 hasta ee275ee3 (renombres contados como baja/alta,
+incluyendo archivos extraídos, no como supuesta lógica eliminada):
+
+| Clase | Añadidas | Eliminadas | Rutas afectadas |
+|---|---:|---:|---:|
+| documentation | 54 | 0 | 1 |
+| generated | 61251 | 61212 | 36 |
+| maintained | 3814 | 340 | 46 |
+| resource | 7 | 0 | 1 |
+| test | 1875 | 2 | 15 |
+
+Las bajas de fuente incluyen el código trasladado y composición sustituida, no
+capacidades retiradas. Los bundles anteriores se regeneran con la publicación
+canónica; no son refactorización de fuente ni retirada de flujos. No se eliminan
+datos, documentos, recursos originales, validaciones o pruebas para reducir líneas.

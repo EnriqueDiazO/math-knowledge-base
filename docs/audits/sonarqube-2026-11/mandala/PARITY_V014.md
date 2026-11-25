@@ -120,3 +120,15 @@ Detalles, commits, capturas y controles: [FUNCTIONAL_MIGRATION_CHECKPOINT.md](FU
 Se suspenden nuevas construcciones/pruebas de AppImage. Artefactos e infraestructura
 anteriores permanecen intactos. La siguiente prioridad son medios/asociaciones
 pendientes de estas actividades, seguida de las tareas históricas del Cuaderno.
+
+
+## Checkpoint observado de navegación y Cuaderno
+
+Se conserva esta matriz de capacidades por módulo. El inventario operativo
+vigente está en [FUNCTIONAL_PARITY.md](FUNCTIONAL_PARITY.md): **124/277**
+verificadas, 68 parciales, 1 sin prueba y 84 ausentes. Worklog, Backlog, Weekly
+Review, Deliverables y Kanban incorporan operaciones React; Diario/Cornell/CPI
+conservan modelos distintos. No se retira Streamlit: siguen pendientes Promover,
+exportación conjunta, calendario/proyectos completos, conexiones y transferencias,
+además de las filas parciales de cada módulo. Grabaciones, comparación y pruebas:
+[NAVIGATION_COMPARISON_CHECKPOINT.md](NAVIGATION_COMPARISON_CHECKPOINT.md).
