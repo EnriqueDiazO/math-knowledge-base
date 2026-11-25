@@ -227,7 +227,9 @@ function ActivityList({
               )}
             </select>
           </label>
-          <button disabled={pending}>Aplicar estado</button>
+          <button type="submit" disabled={pending}>
+            Aplicar estado
+          </button>
         </form>
       )}
     </article>
@@ -272,7 +274,7 @@ function ActivityList({
             <input name="status" defaultValue={query.get("status") || ""} />
           </label>
         )}
-        <button>Buscar registros</button>
+        <button type="submit">Buscar registros</button>
       </form>
       {resource.error && (
         <p role="alert">
