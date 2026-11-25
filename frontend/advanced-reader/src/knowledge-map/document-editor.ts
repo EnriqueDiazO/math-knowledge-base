@@ -3,6 +3,7 @@ import { Editor, Extension, Node as TiptapNode } from "@tiptap/core";
 import type { JSONContent } from "@tiptap/core";
 import StarterKit from "@tiptap/starter-kit";
 import { TextSelection } from "@tiptap/pm/state";
+import { closeHistory } from "@tiptap/pm/history";
 import { makeMath, mathErrors } from "./math";
 import { mountMathKeyboard } from "./keyboard";
 import { mountFormulaTools } from "./formula-tools";
@@ -594,11 +595,14 @@ export class DocumentEditor {
       return true;
     }
     const parsed = parseDocument(latex);
-    return this.editor
+    this.editor.view.dispatch(closeHistory(this.editor.state.tr));
+    const inserted = this.editor
       .chain()
       .focus()
       .insertContent(parsed.content || [])
       .run();
+    this.editor.view.dispatch(closeHistory(this.editor.state.tr));
+    return inserted;
   }
   insertFormula(display: boolean): void {
     const before = new Set(this.visual.querySelectorAll("math-field"));

@@ -1,5 +1,6 @@
 /** Historical Cornell: three simultaneous editors, independent saves, draft recovery and exports. */
 import test from "node:test";
+import { browserCoverage } from "./browser-coverage.mjs";
 import { chromium, firefox, expect } from "@playwright/test";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -35,6 +36,9 @@ await test(
       page = await context.newPage(),
       proof = { phase, browser: name, events: [], errors: [] },
       start = Date.now();
+    process.env.MATHMONGO_INDEPENDENT_EVIDENCE = out;
+    process.env.MATHMONGO_INDEPENDENT_URL = base;
+    const coverage = await browserCoverage(page, name, "annex-cornell");
     page.on("pageerror", (error) => proof.errors.push(error.message));
     proof.network = [];
     page.on("response", (response) => {
@@ -85,13 +89,13 @@ await test(
           exact: true,
         }),
       ).toBeVisible();
-      await page.reload();
+      await coverage.reload();
       await expect(
         page.getByRole("heading", { name: "Editar nota Cornell", exact: true }),
       ).toBeVisible();
     };
     try {
-      await page.goto(base + "/study/notebook/cornell/" + id);
+      await coverage.goto(base + "/study/notebook/cornell/" + id);
       await expect(
         page.getByRole("heading", { name: "Editar nota Cornell", exact: true }),
       ).toBeVisible();
@@ -244,7 +248,7 @@ await test(
             "\n\nBORRADOR RECUPERABLE " +
             name,
         );
-        await page.reload();
+        await coverage.reload();
         await expect(
           page.getByRole("heading", {
             name: "Editar nota Cornell",
@@ -296,6 +300,7 @@ await test(
         .catch(() => {});
       throw error;
     } finally {
+      await coverage.finish(proof.passed === true);
       await page.close();
       await page.video().saveAs(resolve(out, "Cornell.webm"));
       await writeFile(

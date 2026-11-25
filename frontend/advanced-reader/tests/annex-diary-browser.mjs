@@ -1,5 +1,6 @@
 /** Reproduce the exact saved Diario export, then verify the same entry through the corrected UI. */
 import test from "node:test";
+import { browserCoverage } from "./browser-coverage.mjs";
 import { chromium, firefox, expect } from "@playwright/test";
 import { readFile, mkdir, writeFile } from "node:fs/promises";
 import { resolve } from "node:path";
@@ -15,7 +16,8 @@ await test(
       phase = process.env.MATHMONGO_ANNEX_PHASE || "after",
       name = process.env.MATHMONGO_STUDY_BROWSER || "chrome",
       base =
-        phase === "before" ? "http://127.0.0.1:8766" : own.instances.react.url,
+        process.env.MATHMONGO_ANNEX_URL ||
+        (phase === "before" ? "http://127.0.0.1:8766" : own.instances.react.url),
       out = resolve(root, "diary-ui-" + phase + "-" + name),
       id = "6a81d4fb010f2a0daff07fb5";
     await mkdir(out, { recursive: true, mode: 0o700 });
@@ -35,6 +37,9 @@ await test(
       page = await context.newPage(),
       proof = { phase, browser: name, events: [], errors: [] },
       start = Date.now();
+    process.env.MATHMONGO_INDEPENDENT_EVIDENCE = out;
+    process.env.MATHMONGO_INDEPENDENT_URL = base;
+    const coverage = await browserCoverage(page, name, "annex-diary");
     page.on("pageerror", (error) => proof.errors.push(error.message));
     page.setDefaultTimeout(30000);
     const mark = async (label) => {
@@ -56,7 +61,7 @@ await test(
         return { context: ctx, note };
       }, id);
     try {
-      await page.goto(base + "/study/notebook/" + id);
+      await coverage.goto(base + "/study/notebook/" + id);
       await expect(
         page.getByRole("heading", {
           name: "Editar entrada del Cuaderno",
@@ -110,7 +115,7 @@ await test(
           ).toBe("%PDF-");
           await mark("Real PDF download " + i);
           if (i === 1) {
-            await page.reload();
+            await coverage.reload();
             await expect(
               page.getByRole("heading", {
                 name: "Editar entrada del Cuaderno",
@@ -142,6 +147,7 @@ await test(
         .catch(() => {});
       throw error;
     } finally {
+      await coverage.finish(proof.passed === true);
       await page.close();
       await page.video().saveAs(resolve(out, "Diario.webm"));
       await writeFile(

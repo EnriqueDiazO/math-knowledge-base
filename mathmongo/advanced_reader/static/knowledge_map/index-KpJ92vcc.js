@@ -56458,7 +56458,9 @@ var zB = Pp.create({
 		if (!this.valid()) return !1;
 		if (this.sourceMode) return this.source.insert(e), !0;
 		let t = PB(e);
-		return this.editor.chain().focus().insertContent(t.content || []).run();
+		this.editor.view.dispatch(vl(this.editor.state.tr));
+		let n = this.editor.chain().focus().insertContent(t.content || []).run();
+		return this.editor.view.dispatch(vl(this.editor.state.tr)), n;
 	}
 	insertFormula(e) {
 		let t = new Set(this.visual.querySelectorAll("math-field"));

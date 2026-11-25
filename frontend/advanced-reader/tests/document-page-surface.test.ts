@@ -120,6 +120,26 @@ describe("wide document editor lifecycle", () => {
     expect(editor.value()).toContain("Otra observación.");
     editor.destroy();
   });
+  it("undoes an inserted citation independently of the preceding source edit and formula", () => {
+    const host = document.createElement("div");
+    document.body.append(host);
+    const editor = new DocumentEditor(host, "Contenido anterior.", () => {});
+    const toggle = () => Array.from(host.querySelectorAll("button"))
+      .find((button) => button.textContent === "Fuente LaTeX")!.click();
+    toggle();
+    writeSource(host, String.raw`Desarrollo corregido con $\frac{a}{b}$.`);
+    toggle();
+    editor.editor.commands.setTextSelection(editor.editor.state.doc.content.size - 1);
+    const before = editor.value();
+    expect(editor.insertLatex("Referencia bibliográfica independiente.")).toBe(true);
+    expect(editor.value()).toContain("Referencia bibliográfica independiente.");
+    expect(editor.editor.commands.undo()).toBe(true);
+    expect(editor.value()).toBe(before);
+    expect(editor.value()).toContain(String.raw`\frac{a}{b}`);
+    expect(editor.editor.commands.redo()).toBe(true);
+    expect(editor.value()).toContain("Referencia bibliográfica independiente.");
+    editor.destroy();
+  });
 });
 
 it("compiles the current canonical snapshot from both visual and full source modes without saving", () => {
