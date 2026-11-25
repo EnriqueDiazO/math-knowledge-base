@@ -111,3 +111,17 @@ it("ignores a late rejected import after closing, without inserting an orphan wa
   await Promise.resolve();
   expect(host.childElementCount).toBe(0);
 });
+
+it("inserts at the saved source selection while unrelated editors keep their source", async () => {
+  const { editor, changed } = mount(async () => ({ LatexSourceEditor }));
+  editor.value = "Antes después";
+  editor.restore({ anchor: 6, head: 6, scrollTop: 0, scrollLeft: 0 });
+  editor.insert("CITA ");
+  expect(editor.value).toBe("Antes CITA después");
+  expect(changed).toHaveBeenCalled();
+  await vi.waitFor(() =>
+    expect(sourceRoot(editor.host).querySelector(".cm-editor")).not.toBeNull(),
+  );
+  editor.insert("LOCAL ");
+  expect(editor.value).toBe("Antes CITA LOCAL después");
+});

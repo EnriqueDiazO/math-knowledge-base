@@ -6,6 +6,7 @@ export class LatexSourceLoader {
   private editor?: LatexSourceEditor;
   private pending?: Promise<void>;
   private closed = false;
+  private wantsFocus = false;
   private selection?: SourceSelection;
   constructor(
     readonly host: HTMLElement,
@@ -32,10 +33,32 @@ export class LatexSourceLoader {
     this.selection = structuredClone(selection);
     this.editor?.restore(selection);
   }
-  focus() {
-    if (this.closed) return;
+  insert(value: string) {
+    const selection = this.snapshot();
+    const from = Math.min(selection.anchor, selection.head),
+      to = Math.max(selection.anchor, selection.head);
     if (this.editor) {
-      this.editor.focus();
+      this.editor.view.dispatch({
+        changes: { from, to, insert: value },
+        selection: { anchor: from + value.length },
+        scrollIntoView: true,
+      });
+    } else {
+      this.text = this.text.slice(0, from) + value + this.text.slice(to);
+      this.selection = {
+        ...selection,
+        anchor: from + value.length,
+        head: from + value.length,
+      };
+      this.changed();
+    }
+    this.focus();
+  }
+  focus(takeFocus = true) {
+    if (this.closed) return;
+    this.wantsFocus = takeFocus;
+    if (this.editor) {
+      if (takeFocus) this.editor.focus();
       return;
     }
     if (!this.pending) {
@@ -50,7 +73,7 @@ export class LatexSourceLoader {
             this.changed,
           );
           if (this.selection) this.editor.restore(this.selection);
-          if (!this.host.hidden) this.editor.focus();
+          if (!this.host.hidden && this.wantsFocus) this.editor.focus();
         })
         .catch(() => {
           if (this.closed) return;

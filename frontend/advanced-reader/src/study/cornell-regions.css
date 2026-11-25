@@ -1,0 +1,53 @@
+.cornell-regions {
+  display: grid;
+  grid-template-columns: minmax(0, 0.34fr) minmax(0, 0.66fr);
+  gap: 1rem;
+  margin-block: 1.4rem;
+}
+.cornell-region {
+  min-width: 0;
+  border: 1px solid var(--mm-border);
+  border-radius: 0.6rem;
+  background: var(--mm-panel);
+}
+.cornell-region > header {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--mm-line);
+}
+.cornell-region h2 {
+  margin: 0.2rem 0;
+  font-size: 1.1rem;
+}
+.cornell-region header p {
+  margin: 0.4rem 0;
+}
+.cornell-region header span {
+  font-size: 0.8rem;
+  color: var(--mm-muted);
+}
+.cornell-region[data-active="true"] {
+  border-color: var(--mm-turquoise);
+  box-shadow: 0 0 0 1px var(--mm-turquoise);
+}
+.cornell-region-summary {
+  grid-column: 1 / -1;
+}
+.cornell-regions .study-document-viewport {
+  min-height: 15rem;
+  max-height: 38rem;
+  margin: 0;
+  border: 0;
+  border-radius: 0 0 0.6rem 0.6rem;
+}
+.cornell-regions .visual-document {
+  min-height: 13rem;
+  padding: 1rem;
+}
+@media (max-width: 900px) {
+  .cornell-regions {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .cornell-region-summary {
+    grid-column: auto;
+  }
+}

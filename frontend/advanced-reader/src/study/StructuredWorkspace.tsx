@@ -5,6 +5,7 @@ import type {
   EditorSnapshot,
 } from "../knowledge-map/document-editor";
 import { studyRequest, StudyApiError, type StudyContext } from "./api";
+import { CornellRegions } from "./CornellRegions";
 import { DocumentSurface } from "./DocumentSurface";
 import { ExportActions } from "./ExportActions";
 import { NoteImages } from "./NoteImages";
@@ -50,6 +51,11 @@ export function StructuredWorkspace({
     ),
     current = useRef(form.state),
     editor = useRef<DocumentEditor | null>(null),
+    cornellEditors = useRef({
+      cue: { current: null as DocumentEditor | null },
+      main: { current: null as DocumentEditor | null },
+      summary: { current: null as DocumentEditor | null },
+    }),
     scope = useOperationScope(context),
     finished = useRef(false),
     token = useRef(0);
@@ -114,14 +120,27 @@ export function StructuredWorkspace({
     });
   };
   const flush = () => {
-    if (!editor.current?.valid()) {
+    const candidates =
+      family === "cornell"
+        ? Object.entries(cornellEditors.current)
+        : [[region, editor] as const];
+    if (candidates.some(([, ref]) => !ref.current?.valid())) {
       setMessage(
-        "Completa la fórmula antes de cambiar de región o guardar. El borrador se conserva.",
+        "Completa la fórmula antes de cambiar de página o guardar. Los borradores de las tres regiones se conservan.",
       );
       return false;
     }
-    updateRegion(editor.current.value(), editor.current.snapshot());
+    for (const [key, ref] of candidates)
+      if (ref.current)
+        updateRegion(ref.current.value(), ref.current.snapshot(), page, key);
     return true;
+  };
+  const selectCornell = (key: string) => {
+    setRegion(key);
+    editor.current =
+      cornellEditors.current[
+        key as keyof typeof cornellEditors.current
+      ].current;
   };
   const activate = (index: number, key: string) => {
     const value = structuredValues(current.current, family);
@@ -274,7 +293,9 @@ export function StructuredWorkspace({
         {note ? "Editar nota " : "Nueva nota "}
         {title}
       </h1>
-      {note && <NoteImages context={context} family={family} identity={note.note_id} />}
+      {note && (
+        <NoteImages context={context} family={family} identity={note.note_id} />
+      )}
       <p role="status">
         {message ||
           "Borrador conservado en este navegador. Guardar lo confirma en esta biblioteca."}
@@ -311,7 +332,9 @@ export function StructuredWorkspace({
             metadata={changeMetadata}
             changePages={changePages}
             select={(index, key) => {
-              if (flush()) activate(index, key);
+              if (!flush()) return;
+              if (family === "cornell" && index === page) selectCornell(key);
+              else activate(index, key);
             }}
             document={(update) => {
               if (!flush()) return;
@@ -323,6 +346,13 @@ export function StructuredWorkspace({
             }}
             citation={(latex) => {
               if (!flush()) return false;
+              if (family === "cornell") {
+                const selected =
+                  cornellEditors.current[
+                    region as keyof typeof cornellEditors.current
+                  ].current;
+                return selected?.insertLatex(latex) ?? false;
+              }
               const value = structuredValues(current.current, family),
                 key = value.keys[page] + ":" + region;
               value.document.pages[page][region] = {
@@ -344,17 +374,36 @@ export function StructuredWorkspace({
           />
           {!problem && !form.problem && (
             <div inert={locked}>
-              <DocumentSurface
-                key={epoch}
-                initial={surface.initial}
-                snapshot={surface.snapshot}
-                context={context}
-                title={(values.document.pages[page][region] as Region).heading}
-                editorRef={editor}
-                changed={(latex, state) => {
-                  if (token.current === epoch) updateRegion(latex, state);
-                }}
-              />
+              {family === "cornell" ? (
+                <CornellRegions
+                  key={epoch}
+                  context={context}
+                  page={values.document.pages[page]}
+                  pageKey={values.keys[page]}
+                  snapshots={values.snapshots}
+                  editors={cornellEditors.current}
+                  active={region}
+                  select={selectCornell}
+                  changed={(key, latex, state) => {
+                    if (token.current === epoch)
+                      updateRegion(latex, state, page, key);
+                  }}
+                />
+              ) : (
+                <DocumentSurface
+                  key={epoch}
+                  initial={surface.initial}
+                  snapshot={surface.snapshot}
+                  context={context}
+                  title={
+                    (values.document.pages[page][region] as Region).heading
+                  }
+                  editorRef={editor}
+                  changed={(latex, state) => {
+                    if (token.current === epoch) updateRegion(latex, state);
+                  }}
+                />
+              )}
             </div>
           )}
         </>

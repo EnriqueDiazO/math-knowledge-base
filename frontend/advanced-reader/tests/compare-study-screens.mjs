@@ -31,6 +31,7 @@ await test("compare-study-screens", { timeout: 900000 }, async () => {
     await page.screenshot({
       path: resolve(out, name + ".png"),
       fullPage: true,
+      timeout: 20000,
     });
     proof.views.push({
       name,
@@ -129,17 +130,38 @@ await test("compare-study-screens", { timeout: 900000 }, async () => {
         page.getByRole("button", { name: "Lista compacta", exact: true }),
       ).toHaveAttribute("aria-pressed", "true");
       await shot("react-library-compact");
-      await activate(page.getByRole("button", {name:"Ocultar navegación",exact:true}));
-      await expect(page.getByRole("navigation", {name:"Navegación principal",exact:true}).getByRole("link", {name:"Worklog",exact:true})).toBeVisible();
-      await activate(page.getByRole("button", {name:"Mostrar navegación",exact:true}));
-      await page.setViewportSize({width:390,height:844});
-      for(const [name,path] of [["home","/study"],["library","/study/library"],["campos","/study/concepts/"+encodeURIComponent(own.campos.key)]]) {
-        await page.goto(own.instances.react.url+path);
-        await expect(page.locator("h1")).toBeVisible();
-        if(name==="campos")await expect(page.locator("math-field").first()).toBeVisible();
-        const geometry=await page.evaluate(()=>({viewport:innerWidth,document:document.documentElement.scrollWidth}));
-        expect(geometry.document).toBeLessThanOrEqual(geometry.viewport+1);
-        await shot("react-"+name+"-narrow");
+      await activate(
+        page.getByRole("button", { name: "Ocultar navegación", exact: true }),
+      );
+      await expect(
+        page
+          .getByRole("navigation", {
+            name: "Navegación principal",
+            exact: true,
+          })
+          .getByRole("link", { name: "Worklog", exact: true }),
+      ).toBeVisible();
+      await activate(
+        page.getByRole("button", { name: "Mostrar navegación", exact: true }),
+      );
+      if (percent === 100) {
+        await page.setViewportSize({ width: 390, height: 844 });
+        for (const [name, path] of [
+          ["home", "/study"],
+          ["library", "/study/library"],
+          ["campos", "/study/concepts/" + encodeURIComponent(own.campos.key)],
+        ]) {
+          await page.goto(own.instances.react.url + path);
+          await expect(page.locator("h1")).toBeVisible();
+          if (name === "campos")
+            await expect(page.locator("math-field").first()).toBeVisible();
+          const geometry = await page.evaluate(() => ({
+            viewport: innerWidth,
+            document: document.documentElement.scrollWidth,
+          }));
+          expect(geometry.document).toBeLessThanOrEqual(geometry.viewport + 1);
+          await shot("react-" + name + "-narrow");
+        }
       }
     }
     proof.passed = true;

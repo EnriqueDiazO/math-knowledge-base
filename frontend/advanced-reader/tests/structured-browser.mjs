@@ -29,7 +29,18 @@ await test(
       proof = [];
     let passed = false;
     page.on("pageerror", (error) => errors.push(error.message));
-    const button = (name) => page.getByRole("button", { name, exact: true });
+    const button = (name) =>
+      page
+        .getByRole("button", { name, exact: true })
+        .and(
+          page.locator(
+            'button:not(.cornell-region[data-active="false"] button)',
+          ),
+        );
+    const surface = () =>
+      page.locator(
+        '.cornell-region[data-active="true"] .document-composer, main:not(:has(.cornell-region)) .document-composer',
+      );
     const request = (path, body) =>
       page.evaluate(
         async ({ path, body }) => {
@@ -86,15 +97,15 @@ await test(
         await page
           .getByLabel("Título de la nota", { exact: true })
           .fill(title + " desde React");
-        await page
+        await surface()
           .locator(".visual-document .tiptap")
           .fill("Pregunta conservada sobre límites.");
         await button(labels[1]).click();
-        await page
+        await surface()
           .locator(".visual-document .tiptap")
           .fill("Desarrollo con fórmula y figura.");
         await button("Insertar fórmula en línea").click();
-        await page
+        await surface()
           .locator("math-field")
           .last()
           .evaluate((field) => {
@@ -143,13 +154,13 @@ await test(
           await (await response).finished();
           await page.evaluate(() => new Promise(requestAnimationFrame));
           await page.unroute(refUrl);
-          await expect(page.locator(".visual-document .tiptap")).toContainText(
-            "Pregunta conservada",
-          );
+          await expect(
+            surface().locator(".visual-document .tiptap"),
+          ).toContainText("Pregunta conservada");
           await button(labels[1]).click();
-          await expect(page.locator(".visual-document .tiptap")).toContainText(
-            "Desarrollo con fórmula",
-          );
+          await expect(
+            surface().locator(".visual-document .tiptap"),
+          ).toContainText("Desarrollo con fórmula");
         }
         await chooseCitation();
         await button("Insertar cita en esta región").click();
@@ -159,9 +170,9 @@ await test(
             { exact: true },
           ),
         ).toBeVisible();
-        await expect(page.locator(".visual-document .tiptap")).toContainText(
-          "Lectura de álgebra",
-        );
+        await expect(
+          surface().locator(".visual-document .tiptap"),
+        ).toContainText("Lectura de álgebra");
         const protectedLatex = String.raw`\newcommand{\localStudy}[1]{#1^2}
 Texto protegido $\localStudy{x}$.
 \begin{tikzpicture}\draw[blue] (0,0)--(0.5,0)--(0.5,0.3);\end{tikzpicture}`;
@@ -171,13 +182,13 @@ Texto protegido $\localStudy{x}$.
           .fill(protectedLatex);
         await button("Conservar bloque").click();
         await button(labels[2]).click();
-        await page
+        await surface()
           .locator(".visual-document .tiptap")
           .fill("Síntesis preservada tras recargar.");
         await button(labels[0]).click();
-        await expect(page.locator(".visual-document .tiptap")).toContainText(
-          "Pregunta conservada",
-        );
+        await expect(
+          surface().locator(".visual-document .tiptap"),
+        ).toContainText("Pregunta conservada");
         await page
           .getByText("Pie de página y marca de agua", { exact: true })
           .click();
@@ -272,7 +283,7 @@ Texto protegido $\localStudy{x}$.
           ),
         ).toBeVisible();
         await button(labels[2]).click();
-        await page
+        await surface()
           .locator(".visual-document .tiptap")
           .fill("Síntesis editada desde React.");
         await button("Guardar nota " + title).click();
@@ -328,7 +339,7 @@ Texto protegido $\localStudy{x}$.
           page.getByLabel("Opacidad de la marca", { exact: true }),
         ).toHaveValue("0.12");
         await button(labels[1]).click();
-        await expect(page.locator(".visual-document")).toContainText(
+        await expect(surface().locator(".visual-document")).toContainText(
           "Desarrollo con fórmula",
         );
         await shot(family + "-saved-recovered");

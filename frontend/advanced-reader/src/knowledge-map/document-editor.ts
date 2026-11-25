@@ -492,15 +492,18 @@ export class DocumentEditor {
     if (dialog && this.restored?.dialogScroll !== undefined)
       dialog.scrollTop = this.restored.dialogScroll;
   }
-  restoreFocus(): void {
+  restoreFocus(takeFocus = true): void {
     const snapshot = this.restored;
     const dialog = this.viewport;
     const restoreScroll = () => {
       if (dialog && snapshot?.dialogScroll !== undefined)
         dialog.scrollTop = snapshot.dialogScroll;
     };
-    if (this.sourceMode) this.source.focus();
-    else if (snapshot?.math) {
+    if (this.sourceMode) this.source.focus(takeFocus);
+    else if (!takeFocus) {
+      restoreScroll();
+      return;
+    } else if (snapshot?.math) {
       const field = this.visual.querySelectorAll("math-field")[
         snapshot.math.index
       ] as ReturnType<typeof makeMath> | undefined;
@@ -583,6 +586,19 @@ export class DocumentEditor {
       ...this.parent.querySelectorAll(".document-toolbar button"),
     ].find((button) => button.textContent === "Fuente LaTeX");
     toggle?.setAttribute("aria-pressed", String(this.sourceMode));
+  }
+  insertLatex(latex: string): boolean {
+    if (!this.valid()) return false;
+    if (this.sourceMode) {
+      this.source.insert(latex);
+      return true;
+    }
+    const parsed = parseDocument(latex);
+    return this.editor
+      .chain()
+      .focus()
+      .insertContent(parsed.content || [])
+      .run();
   }
   insertFormula(display: boolean): void {
     const before = new Set(this.visual.querySelectorAll("math-field"));

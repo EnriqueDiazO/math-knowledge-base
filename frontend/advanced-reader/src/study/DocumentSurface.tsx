@@ -40,21 +40,26 @@ export function DocumentSurface({
   editorRef,
   context,
   title = "Documento",
+  focusOnRestore = true,
 }: {
   initial: string;
   title?: string;
+  focusOnRestore?: boolean;
   snapshot?: EditorSnapshot;
   changed: (value: string, snapshot: EditorSnapshot) => void;
   editorRef: { current: DocumentEditor | null };
   context?: StudyContext;
 }) {
+  const focusAtMount = useRef(focusOnRestore);
   const host = useRef<HTMLDivElement>(null),
     viewport = useRef<HTMLDivElement>(null);
   const library = context?.library_id,
     runtime = context?.runtime_id;
   const onChange = useRef(changed);
   const currentTitle = useRef(title);
-  useEffect(() => { currentTitle.current = title; }, [title]);
+  useEffect(() => {
+    currentTitle.current = title;
+  }, [title]);
   useEffect(() => {
     onChange.current = changed;
   }, [changed]);
@@ -73,12 +78,15 @@ export function DocumentSurface({
         viewport: viewport.current,
         keyboardContainer: viewport.current,
         preview: previews?.show,
-        compiled: previews ? (source, host) => previews.showDocument(source, host, currentTitle.current) : undefined,
+        compiled: previews
+          ? (source, host) =>
+              previews.showDocument(source, host, currentTitle.current)
+          : undefined,
       },
     );
     editorRef.current = editor;
     editor.restoreViewport();
-    if (snapshot) editor.restoreFocus();
+    if (snapshot) editor.restoreFocus(focusAtMount.current);
     const remember = () => onChange.current(editor.value(), editor.snapshot());
     const surface = viewport.current;
     surface.addEventListener("scroll", remember);

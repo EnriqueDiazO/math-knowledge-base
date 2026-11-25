@@ -55743,6 +55743,7 @@ var yB = nm.create({
 	editor;
 	pending;
 	closed = !1;
+	wantsFocus = !1;
 	selection;
 	constructor(e, t, n, r = () => import("./source-editor-C_BfDS_-.js")) {
 		this.host = e, this.text = t, this.changed = n, this.load = r, e.className = "latex-source";
@@ -55764,14 +55765,30 @@ var yB = nm.create({
 	restore(e) {
 		this.selection = structuredClone(e), this.editor?.restore(e);
 	}
-	focus() {
+	insert(e) {
+		let t = this.snapshot(), n = Math.min(t.anchor, t.head), r = Math.max(t.anchor, t.head);
+		this.editor ? this.editor.view.dispatch({
+			changes: {
+				from: n,
+				to: r,
+				insert: e
+			},
+			selection: { anchor: n + e.length },
+			scrollIntoView: !0
+		}) : (this.text = this.text.slice(0, n) + e + this.text.slice(r), this.selection = {
+			...t,
+			anchor: n + e.length,
+			head: n + e.length
+		}, this.changed()), this.focus();
+	}
+	focus(e = !0) {
 		if (!this.closed) {
-			if (this.editor) {
-				this.editor.focus();
+			if (this.wantsFocus = e, this.editor) {
+				e && this.editor.focus();
 				return;
 			}
 			this.pending ||= (this.host.textContent = "Abriendo las herramientas de código…", this.load().then(({ LatexSourceEditor: e }) => {
-				this.closed || (this.host.replaceChildren(), this.editor = new e(this.host, this.text, this.changed), this.selection && this.editor.restore(this.selection), this.host.hidden || this.editor.focus());
+				this.closed || (this.host.replaceChildren(), this.editor = new e(this.host, this.text, this.changed), this.selection && this.editor.restore(this.selection), !this.host.hidden && this.wantsFocus && this.editor.focus());
 			}).catch(() => {
 				if (this.closed) return;
 				let e = document.createElement("p");
@@ -56386,16 +56403,19 @@ var zB = Pp.create({
 		let e = this.viewport;
 		e && this.restored?.dialogScroll !== void 0 && (e.scrollTop = this.restored.dialogScroll);
 	}
-	restoreFocus() {
-		let e = this.restored, t = this.viewport, n = () => {
-			t && e?.dialogScroll !== void 0 && (t.scrollTop = e.dialogScroll);
+	restoreFocus(e = !0) {
+		let t = this.restored, n = this.viewport, r = () => {
+			n && t?.dialogScroll !== void 0 && (n.scrollTop = t.dialogScroll);
 		};
-		if (this.sourceMode) this.source.focus();
-		else if (e?.math) {
-			let t = this.visual.querySelectorAll("math-field")[e.math.index];
-			t && !t.readOnly && (this.activeMath = t, t.selection = structuredClone(e.math.selection), t.addEventListener("focusin", n, { once: !0 }), t.focus());
+		if (this.sourceMode) this.source.focus(e);
+		else if (!e) {
+			r();
+			return;
+		} else if (t?.math) {
+			let e = this.visual.querySelectorAll("math-field")[t.math.index];
+			e && !e.readOnly && (this.activeMath = e, e.selection = structuredClone(t.math.selection), e.addEventListener("focusin", r, { once: !0 }), e.focus());
 		} else this.editor.view.focus();
-		n();
+		r();
 	}
 	remember() {
 		this.sourceMode || this.changed(this.value(), this.snapshot());
@@ -56433,6 +56453,12 @@ var zB = Pp.create({
 	reflectSourceMode() {
 		for (let e of this.parent.querySelectorAll(".document-toolbar .document-tool-group")) e.getAttribute("aria-label") !== "Representación del documento" && (e.inert = this.sourceMode);
 		[...this.parent.querySelectorAll(".document-toolbar button")].find((e) => e.textContent === "Fuente LaTeX")?.setAttribute("aria-pressed", String(this.sourceMode));
+	}
+	insertLatex(e) {
+		if (!this.valid()) return !1;
+		if (this.sourceMode) return this.source.insert(e), !0;
+		let t = PB(e);
+		return this.editor.chain().focus().insertContent(t.content || []).run();
 	}
 	insertFormula(e) {
 		let t = new Set(this.visual.querySelectorAll("math-field"));

@@ -37,6 +37,13 @@ vi.mock("../src/study/DocumentSurface", () => ({
     changed: (value: string, state: EditorSnapshot) => void;
     editorRef: { current: DocumentEditor | null };
   }) => {
+    const field = useRef<HTMLTextAreaElement>(null);
+    const regionElement = useRef<Element | null>(null);
+    const activeValue = () =>
+      !regionElement.current ||
+      regionElement.current.getAttribute("data-active") === "true"
+        ? (buffered.source ?? value.current)
+        : value.current;
     const value = useRef(initial),
       onChange = useRef(changed);
     onChange.current = changed;
@@ -47,13 +54,20 @@ vi.mock("../src/study/DocumentSurface", () => ({
       sourceMode: true,
     };
     useEffect(() => {
+      regionElement.current = field.current?.closest(".cornell-region") ?? null;
       editorRef.current = {
-        value: () => buffered.source ?? value.current,
+        value: activeValue,
+        insertLatex: (latex: string) => {
+          value.current += latex;
+          if (field.current) field.current.value = value.current;
+          onChange.current(value.current, snapshot);
+          return true;
+        },
         snapshot: () => snapshot,
         valid: () => !value.current.includes("unfinished"),
       } as unknown as DocumentEditor;
       return () => {
-        onChange.current(buffered.source ?? value.current, snapshot);
+        onChange.current(activeValue(), snapshot);
         editorRef.current = null;
       };
       // This adapter models the imperative editor lifecycle; browsers exercise real MathLive.
@@ -61,6 +75,7 @@ vi.mock("../src/study/DocumentSurface", () => ({
     }, [editorRef]);
     return (
       <textarea
+        ref={field}
         aria-label="Región de prueba"
         defaultValue={initial}
         onChange={(event) => {
@@ -81,10 +96,22 @@ vi.mock("../src/study/StructuredReferences", () => ({
 const context = { library_id: "owned", runtime_id: "runtime" } as StudyContext;
 const click = (name: string) =>
   fireEvent.click(screen.getByRole("button", { name }));
+const activeRegion = () =>
+  (document.querySelector(
+    '.cornell-region[data-active="true"] textarea[aria-label="Región de prueba"]',
+  ) ||
+    screen.getByLabelText("Región de prueba", {
+      exact: true,
+    })) as HTMLTextAreaElement;
 const fill = (label: string, value: string) =>
-  fireEvent.change(screen.getByLabelText(label, { exact: true }), {
-    target: { value },
-  });
+  fireEvent.change(
+    label === "Región de prueba"
+      ? activeRegion()
+      : screen.getByLabelText(label, { exact: true }),
+    {
+      target: { value },
+    },
+  );
 function note(family: Family): StructuredDetail {
   const draft = structuredDraft(family),
     value = structuredValues(draft, family);
@@ -228,7 +255,7 @@ for (const family of ["cornell", "cpi"] as const) {
       view.unmount();
       buffered.source = undefined;
       render(<StructuredWorkspace {...props} />);
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
+      expect(activeRegion()).toHaveValue(
         String.raw`\unknown{Texto íntegro y á}`,
       );
       fireEvent.click(screen.getByText("Pie de página y marca de agua"));
@@ -270,30 +297,22 @@ for (const family of ["cornell", "cpi"] as const) {
       fill("Título de la nota", "Conservar regiones");
       fill("Región de prueba", String.raw`\macroDesconocida{α}`);
       click(regions[family][1][1]);
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue("");
+      expect(activeRegion()).toHaveValue("");
       fill("Región de prueba", "Desarrollo independiente");
       click(regions[family][0][1]);
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        String.raw`\macroDesconocida{α}`,
-      );
+      expect(activeRegion()).toHaveValue(String.raw`\macroDesconocida{α}`);
       view.unmount();
       render(<StructuredWorkspace {...props} />);
       expect(screen.getByLabelText("Título de la nota")).toHaveValue(
         "Conservar regiones",
       );
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        String.raw`\macroDesconocida{α}`,
-      );
+      expect(activeRegion()).toHaveValue(String.raw`\macroDesconocida{α}`);
       click(regions[family][1][1]);
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        "Desarrollo independiente",
-      );
+      expect(activeRegion()).toHaveValue("Desarrollo independiente");
       fill("Región de prueba", "unfinished");
       click(regions[family][2][1]);
       expect(screen.getByText(/Completa la fórmula antes/)).toBeVisible();
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        "unfinished",
-      );
+      expect(activeRegion()).toHaveValue("unfinished");
     },
   );
   it(
@@ -309,11 +328,11 @@ for (const family of ["cornell", "cpi"] as const) {
       );
       fill("Región de prueba", "Primera");
       click("Duplicar página");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue("Primera");
+      expect(activeRegion()).toHaveValue("Primera");
       fill("Región de prueba", "Segunda");
       click("Mover página antes");
       click("Página 2");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue("Primera");
+      expect(activeRegion()).toHaveValue("Primera");
       click("Mover página antes");
       click("Mover página después");
       click("Retirar página");
@@ -321,12 +340,12 @@ for (const family of ["cornell", "cpi"] as const) {
       expect(screen.getByRole("button", { name: "Página 2" })).toBeVisible();
       click("Retirar página");
       click("Confirmar retirada de esta página");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue("Segunda");
+      expect(activeRegion()).toHaveValue("Segunda");
       click("Añadir página");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue("");
+      expect(activeRegion()).toHaveValue("");
       click("Insertar cita de prueba");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        "\n\nCita canónica",
+      expect(activeRegion()).toHaveValue(
+        family === "cornell" ? "Cita canónica" : "\n\nCita canónica",
       );
     },
   );
@@ -456,9 +475,7 @@ for (const family of ["cornell", "cpi"] as const) {
       fill("Región de prueba", "Trabajo local");
       click("Guardar nota " + title);
       await screen.findByText("Otra ventana");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        "Trabajo local",
-      );
+      expect(activeRegion()).toHaveValue("Trabajo local");
       click("Consultar versión guardada");
       await screen.findByRole("button", {
         name: "Archivar borrador y abrir versión guardada",
@@ -671,7 +688,7 @@ for (const family of ["cornell", "cpi"] as const) {
       );
       expect(screen.queryByLabelText("Región de prueba")).toBeNull();
       click("Reiniciar con copia");
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue("");
+      expect(activeRegion()).toHaveValue("");
       const archive = Object.keys(localStorage).find((item) =>
         item.startsWith(key + "-archive-"),
       );
@@ -754,9 +771,7 @@ for (const family of ["cornell", "cpi"] as const) {
       click("Guardar nota " + title);
       await screen.findByText("Revisa el título demasiado largo");
       expect(navigate).not.toHaveBeenCalled();
-      expect(screen.getByLabelText("Región de prueba")).toHaveValue(
-        "Contenido conservado",
-      );
+      expect(activeRegion()).toHaveValue("Contenido conservado");
       fill("Título de la nota", "Título corregido");
       click("Guardar nota " + title);
       await waitFor(() =>
@@ -899,4 +914,56 @@ it("rejects damaged nested drafts and compares JSON values independent of key or
   expect(() =>
     structuredRequest({ ...draft, original: "null" }, "cornell", true),
   ).toThrow();
+});
+
+it("Cornell exposes three independent regions and submits only the intended regional change", async () => {
+  const original = note("cornell");
+  const page = original.document.pages[0];
+  for (const [key, text] of [
+    ["cue", "Pregunta original"],
+    ["main", "Desarrollo original"],
+    ["summary", "Resumen original"],
+  ])
+    page[key] = {
+      heading: key,
+      latex: text,
+      image_ids: ["shared-" + key],
+      private_extension: { keep: key },
+    };
+  const posted: Record<string, unknown>[] = [];
+  vi.stubGlobal(
+    "fetch",
+    vi.fn(async (_url, options) => {
+      const body = JSON.parse(options.body);
+      posted.push(body);
+      return Response.json({
+        ...original,
+        document: body.document,
+        metadata: { ...original.metadata, ...body.metadata },
+        revision: "b".repeat(64),
+        latex_body: "Confirmed",
+      });
+    }),
+  );
+  render(
+    <StructuredWorkspace
+      context={context}
+      family="cornell"
+      note={original}
+      navigate={vi.fn()}
+    />,
+  );
+  expect(screen.getAllByLabelText("Región de prueba")).toHaveLength(3);
+  const cue = document.querySelector(".cornell-region-cue textarea")!;
+  fireEvent.change(cue, { target: { value: "Pregunta modificada" } });
+  click("Guardar nota Cornell");
+  await screen.findByText("Nota guardada y confirmada en esta biblioteca.");
+  const actual = (posted[0].document as typeof original.document).pages[0];
+  expect(actual.cue).toMatchObject({
+    latex: "Pregunta modificada",
+    image_ids: ["shared-cue"],
+    private_extension: { keep: "cue" },
+  });
+  expect(actual.main).toEqual(page.main);
+  expect(actual.summary).toEqual(page.summary);
 });
