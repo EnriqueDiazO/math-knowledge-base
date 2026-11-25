@@ -112,8 +112,9 @@ await test(
               "python3",
               [
                 "-c",
-                "import hashlib,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=next(n for n in z.namelist() if n.endswith('/images/note-actions.png')); print(hashlib.sha256(z.read(n)).hexdigest())",
+                "import hashlib,sys,zipfile; z=zipfile.ZipFile(sys.argv[1]); n=[n for n in z.namelist() if '/images/' in n and hashlib.sha256(z.read(n)).hexdigest()==sys.argv[2]]; assert len(n)==1; tex=z.read(next(k for k in z.namelist() if k.endswith('/main.tex'))).decode(); assert n[0].split('/',1)[1] in tex; print(hashlib.sha256(z.read(n[0])).hexdigest())",
                 bundlePath,
+                item.resource_sha256,
               ],
               { encoding: "utf8" },
             );

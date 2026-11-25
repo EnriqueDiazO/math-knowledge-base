@@ -286,7 +286,7 @@ def test_reference_navigation_is_paged_and_does_not_load_full_bibtex(http, servi
     first = client.get(path + "/references").json()
     second = client.get(path + "/references", params={"page": 2}).json()
     assert len(first["items"]) == 20 and len(second["items"]) == 4 and first["total"] == 24
-    found = client.get(path + "/references", params={"q": "023"}).json()
+    found = client.get(path + "/references", params={"q": "Referencia 023"}).json()
     assert found["total"] == 1 and found["items"][0]["title"] == "Referencia 023"
     summaries = client.get(path).json()["references"]
     assert all("bibtex" not in item and "provenance" not in item for item in summaries)
