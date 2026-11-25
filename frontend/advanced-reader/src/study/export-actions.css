@@ -1,0 +1,15 @@
+.compilation-details {
+  max-width: 100%;
+  margin-block: 1rem;
+}
+.compilation-details pre {
+  max-height: 28rem;
+  overflow: auto;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.study-export-actions > .compilation-details {
+  flex-basis: 100%;
+  min-width: 0;
+}

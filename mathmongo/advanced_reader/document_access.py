@@ -36,11 +36,13 @@ class AdvancedReaderError(RuntimeError):
         *,
         status_code: int,
         headers: dict[str, str] | None = None,
+        diagnostic: str | None = None,
     ) -> None:
         self.code = code
         self.public_message = message
         self.status_code = status_code
         self.headers = headers or {}
+        self.diagnostic = diagnostic
         super().__init__(code)
 
 

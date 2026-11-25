@@ -1,6 +1,6 @@
 """Compile authored LaTeX with no network, host data or writable directory access.
 
-Reuse the canonical runner/log classification. Only six fixed output files are
+Reuse the canonical runner/log classification. Only nine fixed output files are
 writable (16 MiB each); the remaining namespace, including /tmp, is read-only.
 No unsandboxed fallback is permitted when bubblewrap/prlimit are unavailable.
 """
@@ -18,7 +18,17 @@ from exporters_latex.latex_compile import run_latex_command
 from exporters_latex.latex_compile import run_latex_until_stable
 
 TEMPLATES = Path(__file__).resolve().parents[1] / "templates_latex"
-OUTPUTS = ("main.pdf", "main.log", "main.aux", "main.out", "main.toc", "preview.png")
+OUTPUTS = (
+    "main.pdf",
+    "main.log",
+    "main.aux",
+    "main.out",
+    "main.toc",
+    "main.lof",
+    "main.lot",
+    "main.listing",
+    "preview.png",
+)
 READ_ONLY = (
     "/usr",
     "/lib",
@@ -39,6 +49,7 @@ class CompiledDocument:
     pdf: bytes = b""
     png: bytes = b""
     diagnostic: str = ""
+    log: str = ""
 
 
 def _command(inputs: Path, outputs: Path, executable: str, arguments: list[str]) -> list[str]:
@@ -178,6 +189,7 @@ def compile_document(
                     "failed",
                     compilation_failure_message(result["log_excerpt"]),
                     diagnostic=result["log_excerpt"][-8000:],
+                    log=result.get("log_text", result["log_excerpt"]),
                 )
             png = b""
             if raster:
@@ -216,6 +228,7 @@ def compile_document(
                 (outputs / "main.pdf").read_bytes(),
                 png,
                 result["log_excerpt"][-8000:],
+                result.get("log_text", result["log_excerpt"]),
             )
         except (OSError, ValueError, TimeoutError) as error:
             return CompiledDocument(

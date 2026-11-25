@@ -1,6 +1,12 @@
 /** Download canonical TEX projects or isolated PDFs; no server filesystem paths. */
 import { useState } from "react";
-import { studyBinary, downloadDocument, type StudyContext } from "./api";
+import "./export-actions.css";
+import {
+  StudyApiError,
+  studyBinary,
+  downloadDocument,
+  type StudyContext,
+} from "./api";
 import { useOperationScope } from "./useOperationScope";
 export function ExportActions({
   context,
@@ -17,11 +23,13 @@ export function ExportActions({
 }) {
   const scope = useOperationScope(context),
     [message, setMessage] = useState(""),
+    [diagnostic, setDiagnostic] = useState(""),
     [includeIds, setIncludeIds] = useState(false),
     [busy, setBusy] = useState(false);
   const run = async (format: "pdf" | "tex") => {
     if (busy) return;
     setBusy(true);
+    setDiagnostic("");
     setMessage(
       format === "pdf"
         ? "Compilando el PDF con aislamiento…"
@@ -56,7 +64,10 @@ export function ExportActions({
         "Descarga preparada. Los documentos de la biblioteca se conservan.",
       );
     } catch (error) {
-      if (scope.active) setMessage((error as Error).message);
+      if (scope.active) {
+        setMessage((error as Error).message);
+        if (error instanceof StudyApiError) setDiagnostic(error.diagnostic);
+      }
     } finally {
       if (scope.active) setBusy(false);
     }
@@ -103,6 +114,27 @@ export function ExportActions({
         Exportar PDF
       </button>
       <p role="status">{message}</p>
+      {diagnostic && (
+        <details className="compilation-details">
+          <summary>Detalles de compilación</summary>
+          <p>
+            Registro de esta ejecución aislada. El documento guardado se
+            conserva; descarga también su proyecto TEX para reproducirla.
+          </p>
+          <pre>{diagnostic}</pre>
+          <button
+            type="button"
+            onClick={() =>
+              downloadDocument(
+                new Blob([diagnostic], { type: "text/plain" }),
+                "mathmongo-compilacion.log",
+              )
+            }
+          >
+            Descargar registro de compilación
+          </button>
+        </details>
+      )}
     </section>
   );
 }

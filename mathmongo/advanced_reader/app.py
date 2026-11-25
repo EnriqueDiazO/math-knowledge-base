@@ -65,16 +65,18 @@ def _error_response(
     message: str,
     status_code: int,
     headers: dict[str, str] | None = None,
+    diagnostic: str | None = None,
 ) -> JSONResponse:
     payload = ApiErrorResponse(
         error=ApiErrorDetail(
             code=code,
             message=message,
             request_id=_request_id(request),
+            diagnostic=diagnostic,
         )
     )
     return JSONResponse(
-        payload.model_dump(mode="json"),
+        payload.model_dump(mode="json", exclude_none=True),
         status_code=status_code,
         headers=headers,
     )
@@ -142,6 +144,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
             message=error.public_message,
             status_code=error.status_code,
             headers=error.headers,
+            diagnostic=error.diagnostic,
         )
 
     @app.exception_handler(StructuredNoteResourceError)

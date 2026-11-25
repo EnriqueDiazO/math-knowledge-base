@@ -42,6 +42,7 @@ class ApiErrorDetail(TransportModel):
     code: str
     message: str
     request_id: str
+    diagnostic: str | None = Field(default=None, max_length=16 * 1024 * 1024)
 
 
 class ApiErrorResponse(TransportModel):

@@ -41,9 +41,13 @@ export type SourceSummary = {
 };
 export type SourceDetail = SourceSummary & {
   documents: SourceDocument[];
-  references: (Bibliography & {revision?:string;source_ids?:string[];status?:string})[];
-  document_count?:number;
-  reference_count?:number;
+  references: (Bibliography & {
+    revision?: string;
+    source_ids?: string[];
+    status?: string;
+  })[];
+  document_count?: number;
+  reference_count?: number;
 };
 export type Page<T> = { items: T[]; total: number; page: number };
 export type NoteDetail = ReadingNote & { reference_id: string | null };
@@ -72,6 +76,7 @@ export class StudyApiError extends Error {
   constructor(
     message: string,
     readonly code = "unavailable",
+    readonly diagnostic = "",
   ) {
     super(message);
   }
@@ -111,6 +116,7 @@ async function studyResponse(
       value.error?.message ??
         "No se pudo completar la operación. Conserva el borrador.",
       value.error?.code,
+      value.error?.diagnostic || "",
     );
   }
   return response;

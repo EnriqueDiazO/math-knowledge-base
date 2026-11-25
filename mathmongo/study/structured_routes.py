@@ -147,6 +147,7 @@ def build_structured_router():
             raise AdvancedReaderError(
                 "structured_export_failed",
                 result.message + " Descarga TEX para revisar los recursos; la nota se conserva.",
+                diagnostic=result.log or result.diagnostic,
                 status_code=422,
             )
         return Response(

@@ -154,6 +154,7 @@ def build_notebook_router():
                 result.message
                 + " Descarga el proyecto TEX para revisar las dependencias. La entrada se conserva.",
                 status_code=422,
+                diagnostic=result.log or result.diagnostic,
             )
         return Response(
             result.pdf,

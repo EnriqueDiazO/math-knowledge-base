@@ -284,3 +284,27 @@ def test_exports_reuse_canonical_templates_and_preserve_an_authored_preamble(
             exported.split(r"\begin{document}", 1)[1] == complete.split(r"\begin{document}", 1)[1]
         )
     assert client.post(BASE + "/full/export", json={"format": "pdf"}).status_code == 200
+
+
+def test_failed_diary_export_exposes_the_compilation_log_without_writing_the_note(
+    http, service, monkeypatch
+):
+    """The details promised by an export error are present in the same scoped HTTP response."""
+    from exporters_latex.sandbox import CompiledDocument
+    from mathmongo.study import notebook_routes
+
+    client, _ = http
+    note = client.post(BASE, json=payload()).json()
+    before = service.db.latex_notes.find_one({"_id": note["note_id"]})
+    log = "/inputs/main.tex:80: Example failure\nl.80 \\listoffigures\nFull compiler context."
+    monkeypatch.setattr(
+        notebook_routes,
+        "compile_project",
+        lambda _bundle: CompiledDocument(
+            "failed", "Revisa Detalles de compilación.", diagnostic=log[-20:], log=log
+        ),
+    )
+    result = client.post(BASE + "/" + note["note_id"] + "/export", json={"format": "pdf"})
+    assert result.status_code == 422
+    assert result.json()["error"]["diagnostic"] == log
+    assert service.db.latex_notes.find_one({"_id": note["note_id"]}) == before
