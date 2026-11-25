@@ -66,6 +66,7 @@ from editor.note_export import build_note_latex_bundle
 from editor.note_export import export_note_pdf
 from editor.note_export import normalized_note_format
 from editor.note_export import note_format_badge
+from editor.notebook_queries import build_notes_query
 from editor.ui.editable_text import editable_text_area
 from editor.ui.latex_toolbar import render_latex_toolbar
 from editor.utils.media_assets import ALLOWED_IMAGE_EXTENSIONS
@@ -755,43 +756,7 @@ def _project_selector(notes_col, key_prefix: str, label: str, default: str = "")
     return _normalize_project_name(choice)
 
 
-def _build_notes_query(
-    text_q: str = "",
-    project: str = "(all)",
-    context: str = "(all)",
-    tags: Optional[List[str]] = None,
-    start_date: Optional[date] = None,
-    end_date: Optional[date] = None,
-    year: str = "(all)",
-    month: str = "(all)",
-    updated_recently: bool = False,
-) -> Dict[str, Any]:
-    q: Dict[str, Any] = {}
-    and_terms = []
-    if project not in ("(all)", None):
-        if project == "(sin proyecto)":
-            q["$or"] = [{"project": ""}, {"project": {"$exists": False}}, {"project": None}]
-        else:
-            q["project"] = project
-    if context != "(all)":
-        q["context"] = context
-    if tags:
-        q["tags"] = {"$all": tags}
-    if start_date and end_date:
-        q["date"] = {"$gte": start_date.strftime("%Y-%m-%d"), "$lte": end_date.strftime("%Y-%m-%d")}
-    if year != "(all)":
-        and_terms.append({"date": {"$regex": f"^{re.escape(str(year))}-"}})
-    if month != "(all)" and year != "(all)":
-        and_terms.append({"date": {"$regex": f"^{re.escape(str(year))}-{int(month):02d}-"}})
-    if text_q.strip():
-        rx = {"$regex": re.escape(text_q.strip()), "$options": "i"}
-        and_terms.append({"$or": [{"title": rx}, {"latex_body": rx}]})
-    if updated_recently:
-        cutoff = naive_utc_now() - timedelta(days=7)
-        q["updated_at"] = {"$gte": cutoff}
-    if and_terms:
-        q["$and"] = and_terms
-    return q
+_build_notes_query = build_notes_query
 
 
 def _load_notes(notes_col, query: Dict[str, Any], limit: int = 50) -> List[Dict[str, Any]]:

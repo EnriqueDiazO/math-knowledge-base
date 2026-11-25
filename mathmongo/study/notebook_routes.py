@@ -95,9 +95,26 @@ def build_notebook_router():
         project: str = Query("", max_length=500),
         source_id: str = Query("", max_length=100),
         page: int = Query(1, ge=1, le=1000000),
+        context: str = Query("(all)", max_length=100),
+        tags: str = Query("", max_length=2000),
+        start_date: calendar_date | None = None,
+        end_date: calendar_date | None = None,
+        year: int | None = Query(None, ge=1900, le=9999),
+        month: int | None = Query(None, ge=1, le=12),
+        updated_recently: bool = False,
     ):
         return Notebook(scoped(request).db).summaries(
-            q=q, project=project, source_id=source_id, page=page
+            q=q,
+            project=project,
+            source_id=source_id,
+            page=page,
+            context=context,
+            tags=[tag.strip() for tag in tags.split(",") if tag.strip()],
+            start_date=start_date,
+            end_date=end_date,
+            year=str(year) if year else "(all)",
+            month=str(month) if month else "(all)",
+            updated_recently=updated_recently,
         )
 
     @router.post("")
@@ -146,6 +163,8 @@ def build_notebook_router():
 
     @router.post("/{identity}/actions")
     def action(identity: str, payload: NoteActionRequest, request: Request):
-        return NoteActions(Notebook(scoped(request).db), "diary").execute(identity, payload.action, payload.request_id, payload.revision, payload.title)
+        return NoteActions(Notebook(scoped(request).db), "diary").execute(
+            identity, payload.action, payload.request_id, payload.revision, payload.title
+        )
 
     return router

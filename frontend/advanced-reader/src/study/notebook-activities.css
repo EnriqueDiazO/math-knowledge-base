@@ -1,0 +1,47 @@
+.notebook-navigation {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-block: 1rem 1.5rem;
+}
+.notebook-navigation a {
+  padding: 0.45rem 0.7rem;
+  border: 1px solid var(--mm-border);
+  border-radius: 0.4rem;
+}
+.activity-fields {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 19rem), 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.activity-workspace textarea {
+  min-height: 7rem;
+}
+.activity-records {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr));
+  gap: 1rem;
+  margin-block: 1rem;
+}
+.kanban-columns {
+  display: grid;
+  grid-template-columns: repeat(5, minmax(13rem, 1fr));
+  gap: 1rem;
+  overflow: auto;
+  margin-block: 1.5rem;
+}
+.kanban-columns section {
+  min-width: 0;
+  background: var(--mm-panel);
+  padding: 0.7rem;
+  border: 1px solid var(--mm-border);
+  border-radius: 0.6rem;
+}
+.activity-records article,
+.kanban-columns article {
+  margin-block: 0.6rem;
+  padding: 0.8rem;
+  border: 1px solid var(--mm-border);
+  border-radius: 0.5rem;
+}

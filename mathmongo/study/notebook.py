@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import re
 from datetime import datetime
 
 from pymongo.errors import DuplicateKeyError
@@ -15,6 +14,7 @@ from editor.diary_note_persistence import persist_diary_note_update
 from editor.note_export import LEGACY_NOTE_FORMATS
 from editor.note_export import build_note_latex_bundle
 from editor.note_export import normalized_note_format
+from editor.notebook_queries import build_notes_query
 from mathdatabase.mathmongo import MathMongo
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.concurrency import digest
@@ -37,16 +37,10 @@ class Notebook:
         self.db = database
         self.references = ReferenceRepository(database)
 
-    def summaries(self, *, q="", project="", source_id="", page=1):
+    def summaries(self, *, q="", project="", source_id="", page=1, **filters):
         """Search title/body but return only bounded navigation metadata."""
-        query = {"note_format": {"$in": list(LEGACY_NOTE_FORMATS)}}
-        if q:
-            query["$or"] = [
-                {field: {"$regex": re.escape(q), "$options": "i"}}
-                for field in ("title", "latex_body")
-            ]
-        if project:
-            query["project"] = project
+        query = build_notes_query(text_q=q, project=project or "(all)", **filters)
+        query["note_format"] = {"$in": list(LEGACY_NOTE_FORMATS)}
         if source_id:
             identities = self.db.references.distinct("reference_id", {"source_ids": source_id})
             query["references.catalog_reference_id"] = {"$in": identities}

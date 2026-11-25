@@ -25,6 +25,7 @@ from mathmongo.advanced_reader.security import LOOPBACK_HOSTS
 from mathmongo.advanced_reader.security import SECURITY_HEADERS
 from mathmongo.advanced_reader.security import redacted_request_path
 from mathmongo.source_documents.models import MAX_SOURCE_PDF_UPLOAD_BYTES
+from mathmongo.study.activity_routes import build_activity_router
 from mathmongo.study.catalog_routes import build_catalog_router
 from mathmongo.study.document_routes import build_document_router
 from mathmongo.study.library_bibtex import build_bibtex_router
@@ -328,6 +329,7 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
     app.include_router(build_library_router())
     app.include_router(build_bibtex_router())
     app.include_router(build_notebook_router())
+    app.include_router(build_activity_router())
     app.include_router(build_structured_router())
 
     def serve_index(request: Request) -> FileResponse:

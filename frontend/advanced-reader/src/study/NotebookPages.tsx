@@ -6,6 +6,11 @@ import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import { SavedNoteActions } from "./SavedNoteActions";
 import { NotebookWorkspace } from "./NotebookWorkspace";
+import { DiaryNavigation, DiaryFilters } from "./DiaryNavigation";
+import "./notebook-activities.css";
+import { NotebookNavigation } from "./NotebookNavigation";
+import { ActivityPages } from "./ActivityPages";
+import type { ActivityKind } from "./activity-fields";
 import { lazy } from "react";
 const StructuredPages = lazy(() =>
   import("./StructuredPages").then((module) => ({
@@ -24,6 +29,20 @@ export function NotebookPages({
   search: string;
 }) {
   const [family, ...rest] = identity.split("/");
+  if (
+    ["worklog", "backlog", "weekly", "deliverables", "kanban"].includes(family)
+  )
+    return (
+      <ActivityPages
+        key={context.library_id + identity}
+        context={context}
+        navigate={navigate}
+        kind={(family === "kanban" ? "backlog" : family) as ActivityKind}
+        identity={rest.join("/")}
+        search={search}
+        kanban={family === "kanban"}
+      />
+    );
   if (family === "cornell" || family === "cpi")
     return (
       <StructuredPages
@@ -123,11 +142,26 @@ function DiaryList({
   search: string;
 }) {
   const params = new URLSearchParams(search),
-    page = Math.max(1, Number(params.get("page")) || 1);
+    page = Math.max(1, Number(params.get("page")) || 1),
+    view = params.get("view") || "search";
+  const filters = Object.fromEntries(
+    [
+      "context",
+      "tags",
+      "start_date",
+      "end_date",
+      "year",
+      "month",
+      "updated_recently",
+    ]
+      .filter((key) => params.get(key))
+      .map((key) => [key, params.get(key)!]),
+  );
   const resource = useStudyResource<Page<DiaryDetail>>(
     context,
     "/notebook?" +
       new URLSearchParams({
+        ...filters,
         page: String(page),
         q: params.get("q") || "",
         project: params.get("project") || "",
@@ -142,6 +176,37 @@ function DiaryList({
     <section>
       <p className="eyebrow">Escritura por fecha y proyecto</p>
       <h1>Cuaderno</h1>
+      <p>Diario LaTeX · entradas recuperables</p>
+      <NotebookNavigation navigate={navigate} />
+      <DiaryNavigation navigate={navigate} />
+      {view === "timeline" && <h2>Timeline · entradas por fecha</h2>}
+      {view === "calendar" && (
+        <>
+          <h2>Calendario</h2>
+          <p>
+            Elige año y mes para localizar las notas por fecha. La lista
+            mantiene la paginación del Diario.
+          </p>
+        </>
+      )}
+      {view === "projects" && (
+        <>
+          <h2>Proyectos</h2>
+          <p>
+            Filtra por el nombre del proyecto para abrir sus notas, conservando
+            sus asociaciones.
+          </p>
+        </>
+      )}
+      {view === "export" && (
+        <>
+          <h2>Exportar Diario</h2>
+          <p>
+            Abre una entrada y utiliza Descargar TEX o Exportar PDF. La
+            exportación conjunta de varias notas sigue pendiente.
+          </p>
+        </>
+      )}
       <nav aria-label="Actividades de estudio">
         <StudyLink to="/study/notebook/cornell" navigate={navigate}>
           Cornell
@@ -157,26 +222,7 @@ function DiaryList({
       >
         + Nueva entrada
       </StudyLink>
-      <form
-        onSubmit={(event) => {
-          event.preventDefault();
-          const values = new FormData(event.currentTarget);
-          params.set("q", String(values.get("q") || ""));
-          params.set("project", String(values.get("project") || ""));
-          params.delete("page");
-          navigate("/study/notebook?" + params);
-        }}
-      >
-        <label>
-          Buscar en el Cuaderno
-          <input type="search" name="q" defaultValue={params.get("q") || ""} />
-        </label>
-        <label>
-          Filtrar por proyecto
-          <input name="project" defaultValue={params.get("project") || ""} />
-        </label>
-        <button type="submit">Buscar entradas</button>
-      </form>
+      <DiaryFilters search={search} navigate={navigate} />
       {resource.error && (
         <p role="alert">
           {resource.error}
@@ -222,11 +268,12 @@ function DiaryList({
         </nav>
       )}
       <details>
-        <summary>Otras actividades del Cuaderno</summary>
+        <summary>Promover y otras operaciones pendientes</summary>
         <p>
-          Worklog, Backlog, revisiones semanales y entregables conservan sus
-          modelos. Sus operaciones siguen pendientes de migración; Diario,
-          Cornell y CPI no las sustituyen.
+          Worklog, Backlog, revisiones semanales, entregables y Kanban tienen
+          accesos propios arriba. Las operaciones todavía no verificadas se
+          registran en la matriz de migración; Diario, Cornell y CPI no las
+          sustituyen.
         </p>
       </details>
     </section>
