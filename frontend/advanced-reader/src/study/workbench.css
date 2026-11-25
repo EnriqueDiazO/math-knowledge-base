@@ -1,0 +1,296 @@
+/* Shared application surfaces. Mathematical families and document formatting keep their own tokens. */
+:root:has(.study-app) {
+  color-scheme: dark;
+  background: var(--mm-bg);
+}
+:root[data-appearance="light"]:has(.study-app) {
+  color-scheme: light;
+}
+body:has(.study-app) {
+  color: var(--mm-text);
+  background: var(--mm-bg);
+}
+.study-app {
+  grid-template-columns: 232px minmax(0, 1fr);
+  --workbench-radius: 12px;
+}
+.study-app[data-navigation="collapsed"] {
+  grid-template-columns: 78px minmax(0, 1fr);
+}
+.study-navigation {
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+}
+.study-brand-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.study-brand-row button {
+  padding: 0.2rem 0.6rem;
+}
+.study-brand {
+  white-space: nowrap;
+  font-size: 1.32rem;
+}
+.study-navigation nav {
+  margin-top: 1.8rem;
+  gap: 0.3rem;
+}
+.study-navigation nav a {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  padding: 0.65rem 0.8rem;
+  font-size: 0.96rem;
+}
+.navigation-symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 1.4rem;
+  flex-shrink: 0;
+  font-size: 1.16rem;
+}
+.navigation-foot {
+  margin-top: auto;
+  padding-top: 2rem;
+  font-size: 0.8rem;
+}
+.navigation-foot p {
+  color: var(--mm-muted);
+  margin-bottom: 0.3rem;
+}
+.navigation-foot strong {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-bottom: 0.6rem;
+}
+.study-app[data-navigation="collapsed"] .navigation-label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  clip-path: inset(50%);
+  overflow: hidden;
+}
+.study-app[data-navigation="collapsed"] .study-navigation {
+  padding-inline: 8px;
+}
+.study-app[data-navigation="collapsed"] .study-brand-row {
+  flex-direction: column;
+}
+.study-main {
+  padding: 0 clamp(20px, 3vw, 48px) 3rem;
+}
+.study-topbar {
+  min-height: 76px;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 0.8rem;
+  border-bottom: 1px solid var(--mm-line);
+  margin-bottom: 2rem;
+  padding-block: 0.85rem;
+  color: var(--mm-muted);
+  font-size: 0.85rem;
+}
+.study-global-controls {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.study-app a.connection-badge {
+  color: var(--mm-muted);
+  text-decoration: none;
+  max-width: 22rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.study-app :is(button, input, select, textarea) {
+  border-color: var(--mm-line);
+  border-radius: 0.55rem;
+}
+.study-app button {
+  transition:
+    background-color 0.14s,
+    border-color 0.14s;
+}
+.study-app button:hover {
+  border-color: var(--mm-border);
+}
+.study-app label:has(> input[type="checkbox"]),
+.study-app label:has(> input[type="radio"]) {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 0.6rem;
+}
+.study-app input:is([type="checkbox"], [type="radio"]) {
+  width: 1.1rem;
+  height: 1.1rem;
+  flex-shrink: 0;
+  margin: 0;
+  padding: 0;
+  accent-color: var(--mm-turquoise);
+}
+.study-app input:not([type="checkbox"]):not([type="radio"]),
+.study-app select,
+.study-app textarea {
+  min-width: 0;
+}
+.study-app .primary-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  text-decoration: none;
+  background: var(--mm-selected-bg);
+  border: 1px solid var(--mm-selected-border);
+  color: var(--mm-selected-text);
+  padding: 0.65rem 1.1rem;
+  border-radius: 0.6rem;
+  font-weight: 650;
+}
+.study-app .primary-button:hover {
+  background: var(--mm-hover);
+  color: var(--mm-text);
+}
+.segmented-control {
+  display: inline-flex;
+  border: 1px solid var(--mm-line);
+  border-radius: 0.65rem;
+  padding: 0.2rem;
+  background: var(--mm-panel);
+  gap: 0.15rem;
+}
+.study-app .segmented-control button {
+  border: 0;
+  background: transparent;
+  padding: 0.42rem 0.75rem;
+  font-size: 0.85rem;
+}
+.study-app .segmented-control button[aria-pressed="true"] {
+  background: var(--mm-selected-bg);
+  color: var(--mm-selected-text);
+  box-shadow: 0 1px 4px #0002;
+}
+.workbench-card {
+  background: var(--mm-panel);
+  border: 1px solid var(--mm-line);
+  border-radius: var(--workbench-radius);
+  padding: 1.4rem;
+  box-shadow: 0 8px 24px #0000000a;
+  min-width: 0;
+}
+.workbench-card > header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.7rem;
+}
+.workbench-card > header h2 {
+  margin: 0;
+  font-size: 1.15rem;
+}
+.workbench-card > header a {
+  font-size: 0.85rem;
+}
+.page-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+}
+.study-app .secondary-copy {
+  font-size: 0.88rem;
+  color: var(--mm-muted);
+}
+.metadata-list {
+  display: grid;
+  grid-template-columns: minmax(5rem, auto) minmax(0, 1fr);
+  gap: 0.4rem 1rem;
+  font-size: 0.9rem;
+}
+.metadata-list > div {
+  display: contents;
+}
+.metadata-list dt {
+  color: var(--mm-muted);
+}
+.metadata-list dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+.context-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+  margin-block: 1rem;
+  font-size: 0.9rem;
+  align-items: center;
+}
+.study-main [role="alert"] {
+  border-left: 3px solid var(--mm-error);
+  padding: 0.8rem 1rem;
+  background: var(--mm-error-bg);
+  border-radius: 0.4rem;
+}
+.study-app[data-density="compact"] .workbench-card {
+  padding: 1rem;
+}
+@media (max-width: 900px) {
+  .study-app {
+    grid-template-columns: 190px minmax(0, 1fr);
+  }
+  .study-global-controls {
+    gap: 0.5rem;
+  }
+}
+@media (max-width: 650px) {
+  .study-app,
+  .study-app[data-navigation="collapsed"] {
+    display: block;
+  }
+  .study-navigation {
+    height: auto;
+    position: static;
+    padding: 0.8rem 1rem;
+    border-right: 0;
+    border-bottom: 1px solid var(--mm-line);
+  }
+  .study-navigation nav {
+    margin-top: 0.7rem;
+    display: flex;
+    overflow: auto;
+  }
+  .study-navigation nav a {
+    white-space: nowrap;
+    padding: 0.45rem 0.7rem;
+  }
+  .navigation-foot,
+  .study-library-label {
+    display: none;
+  }
+  .study-main {
+    padding-inline: 16px;
+  }
+  .study-topbar {
+    margin-bottom: 1.3rem;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .study-app button {
+    transition: none;
+  }
+}
+.navigation-group { margin-block:.3rem; }
+.navigation-group summary { cursor:pointer; padding:.5rem .6rem; font-size:.78rem; color:var(--mm-muted); text-transform:uppercase; letter-spacing:.06em; }
+.study-navigation nav .navigation-group a { font-size:.88rem; padding:.4rem .6rem; }
+.study-navigation { max-height:100vh; position:sticky; top:0; overflow-y:auto; }
+.study-app[data-navigation="collapsed"] .navigation-group summary { height:.4rem; padding:0; overflow:hidden; }
+@media(max-width:760px) { .study-navigation { position:static; max-height:none; } }

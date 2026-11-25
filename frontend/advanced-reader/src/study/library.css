@@ -1,0 +1,189 @@
+.study-library {
+  max-width: 1600px;
+}
+.library-search {
+  background: var(--mm-panel);
+  border: 1px solid var(--mm-line);
+  border-radius: 12px;
+  padding: 1.1rem;
+  flex-wrap: wrap;
+  margin-block: 1.4rem 1rem;
+}
+.library-search label {
+  flex: 0 1 11rem;
+}
+.library-search label:first-child {
+  flex: 1 1 18rem;
+}
+.library-viewbar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-bottom: 1.1rem;
+}
+.library-viewbar > p {
+  margin: 0 auto 0 0;
+  color: var(--mm-muted);
+  font-size: 0.88rem;
+}
+.study-app label.density-select {
+  margin: 0;
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+}
+.density-select select {
+  padding: 0.35rem 0.5rem;
+}
+.library-workspace {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 1.5rem;
+  align-items: start;
+}
+.library-workspace[data-detail="true"] {
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+}
+.study-library-list[data-view="cards"] {
+  grid-template-columns: repeat(auto-fill, minmax(min(100%, 300px), 1fr));
+  gap: 1rem;
+}
+.study-main article.bibliographic-card {
+  display: flex;
+  flex-direction: column;
+  align-items: start;
+  background: var(--mm-panel);
+  border: 1px solid var(--mm-line);
+  border-radius: 12px;
+  padding: 1.25rem;
+  min-width: 0;
+}
+.bibliographic-card[data-selected="true"] {
+  border-color: var(--mm-selected-border);
+  box-shadow: inset 3px 0 var(--mm-selected-border);
+}
+.source-kind {
+  text-transform: uppercase;
+  font-size: 0.68rem;
+  letter-spacing: 0.09em;
+  color: var(--mm-muted);
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--mm-line);
+  border-radius: 5px;
+  margin-bottom: 0.8rem;
+}
+.study-main .bibliographic-card h2 {
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin-block: 0 0.4rem;
+  overflow-wrap: anywhere;
+}
+.bibliographic-card h2 a {
+  text-decoration: none;
+}
+.bibliographic-copy {
+  flex: 1;
+  min-width: 0;
+}
+.bibliographic-card p {
+  font-size: 0.85rem;
+  margin: 0.35rem 0;
+}
+.bibliographic-description {
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 3;
+  overflow: hidden;
+}
+.bibliographic-actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.65rem;
+  margin-top: 1rem;
+  font-size: 0.78rem;
+}
+.bibliographic-actions button {
+  padding: 0.4rem 0.7rem;
+}
+.study-library-list[data-view="list"] {
+  gap: 0.5rem;
+}
+.study-main .study-library-list[data-view="list"] .bibliographic-card {
+  display: grid;
+  grid-template-columns: 5rem minmax(0, 1fr) auto;
+  gap: 1rem;
+  align-items: center;
+  padding: 0.8rem 1rem;
+}
+.study-library-list[data-view="list"] .source-kind {
+  margin: 0;
+}
+.study-library-list[data-view="list"] .bibliographic-description {
+  display: none;
+}
+.study-library-list[data-view="list"] .bibliographic-actions {
+  margin: 0;
+  max-width: 14rem;
+  justify-content: end;
+}
+.study-library-list[data-view="list"] .bibliographic-card h2 {
+  font-size: 0.95rem;
+}
+.study-library-list[data-view="list"] .bibliographic-subtitle {
+  font-size: 0.8rem;
+}
+.study-app[data-density="compact"] .bibliographic-card {
+  padding: 0.8rem;
+}
+.library-detail {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+}
+.library-detail h2 {
+  font-size: 1.2rem;
+  overflow-wrap: anywhere;
+}
+.library-detail h3 {
+  font-size: 1rem;
+}
+.library-detail p {
+  font-size: 0.9rem;
+}
+.library-detail .eyebrow {
+  margin-block: 0;
+}
+.bibliography-entry {
+  padding: 0.7rem 0;
+  border-bottom: 1px solid var(--mm-line);
+  font-size: 0.9rem;
+}
+.bibliography-entry strong {
+  display: block;
+}
+.library-detail details {
+  margin-top: 1rem;
+}
+@media (max-width: 1100px) {
+  .library-workspace[data-detail="true"] {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .library-detail {
+    position: static;
+    max-height: none;
+  }
+}
+@media (max-width: 700px) {
+  .study-main .study-library-list[data-view="list"] .bibliographic-card {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.4rem;
+  }
+  .study-library-list[data-view="list"] .bibliographic-actions {
+    max-width: none;
+    justify-content: start;
+  }
+}

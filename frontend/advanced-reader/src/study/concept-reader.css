@@ -1,0 +1,129 @@
+.concept-reader {
+  max-width: 1500px;
+}
+.concept-reader > nav {
+  color: var(--mm-muted);
+  font-size: 0.85rem;
+  margin-bottom: 1rem;
+}
+.concept-heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 1rem;
+  padding: 1rem 0 1.4rem;
+  border-bottom: 1px solid var(--mm-line);
+}
+.concept-heading .study-actions {
+  margin: 0;
+  font-size: 0.9rem;
+}
+.concept-heading h1 {
+  margin-block: 0.5rem;
+}
+.concept-heading .eyebrow {
+  margin: 0;
+}
+.concept-reading-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--context-width, 300px);
+  gap: 1.5rem;
+  align-items: start;
+  margin-top: 1.5rem;
+}
+.concept-reading-layout[data-context="false"] {
+  grid-template-columns: minmax(0, 1fr);
+}
+.study-main article.concept-paper {
+  margin: 0;
+  padding: 0 0 2rem;
+  border: 0;
+  min-width: 0;
+}
+.concept-paper .study-export-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  align-items: center;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--mm-line);
+  font-size: 0.82rem;
+}
+.concept-paper .study-export-actions label {
+  margin: 0 auto 0 0;
+}
+.concept-paper .study-export-actions p[role="status"] {
+  margin: 0;
+  flex-basis: 100%;
+}
+.concept-paper .reading-document {
+  max-width: 86ch;
+  margin-inline: auto;
+}
+.concept-paper .mathematical-document {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.12rem;
+  line-height: 1.9;
+}
+.concept-context {
+  position: sticky;
+  top: 1rem;
+  max-height: calc(100dvh - 2rem);
+  overflow: auto;
+}
+.concept-context section {
+  padding-block: 0.8rem;
+  border-bottom: 1px solid var(--mm-line);
+}
+.concept-context h2 {
+  font-size: 1.05rem;
+}
+.concept-context h3 {
+  font-size: 0.95rem;
+}
+.concept-context label,
+.concept-context :is(p, a, button) {
+  font-size: 0.86rem;
+}
+.concept-context input[type="range"] {
+  width: 100%;
+  padding: 0;
+  accent-color: var(--mm-turquoise);
+}
+.concept-context details {
+  margin-top: 1rem;
+  font-size: 0.85rem;
+}
+/* Reader fields retain selection/copy and MathLive fonts, without editor frames or controls. */
+.concept-reader .reading-document math-field[read-only] {
+  border: 0;
+  background: transparent;
+  border-radius: 0;
+  padding: 0;
+  min-height: 0;
+  color: inherit;
+}
+.concept-reader .reading-document math-field[read-only]::part(container),
+.concept-reader .reading-document math-field[read-only]::part(content) {
+  padding: 0;
+}
+.concept-reader
+  .reading-document
+  math-field[read-only]::part(virtual-keyboard-toggle),
+.concept-reader .reading-document math-field[read-only]::part(menu-toggle) {
+  display: none;
+}
+.reading-document .formula-block {
+  padding-block: 0.5rem;
+}
+@media (max-width: 1080px) {
+  .concept-reading-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .concept-context {
+    position: static;
+    max-height: none;
+  }
+}

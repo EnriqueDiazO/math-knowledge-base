@@ -13,12 +13,18 @@ export function SourcePage({
   context,
   sourceId,
   navigate,
+  initialSection = "documents",
 }: {
   context: StudyContext;
   sourceId: string;
   navigate: Navigate;
+  initialSection?: string;
 }) {
-  const [section, setSection] = useState("documents"),
+  const [section, setSection] = useState(
+      ["documents", "references", "edit-source"].includes(initialSection)
+        ? initialSection
+        : "documents",
+    ),
     [message, setMessage] = useState(""),
     [documentPage, setDocumentPage] = useState(1),
     [referencePage, setReferencePage] = useState(1),

@@ -1,0 +1,7 @@
+{
+  "bg":"#EDF2F7", "panel":"#F8FAFD", "control":"#FFFFFF", "hover":"#E2EBF3",
+  "text":"#193247", "muted":"#4B6477", "line":"#CDD9E3", "border":"#8096A8",
+  "turquoise":"#17685D", "sky":"#245D8A", "amber":"#805115", "selected-bg":"#D8EEEA",
+  "selected-border":"#26786B", "selected-text":"#123C35", "focus":"#155E75",
+  "error":"#A8253A", "error-bg":"#FBE9EC", "sphere-light":"#DDEBF2", "sphere-mid":"#CADFE9", "sphere-dark":"#B7D0DD"
+}

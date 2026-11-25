@@ -8,9 +8,14 @@ import { newStudyDraft, studyVault } from "./drafts";
 import { useStudyRoute } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import { useOperationScope } from "./useOperationScope";
+import HomePage from "./HomePage";
+import { InterfacePreferencesProvider } from "./InterfacePreferencesProvider";
+import { useInterfacePreferences } from "./interface-preferences";
+import { StudyNavigation, StudyTopbar } from "./StudyNavigation";
 import "./study.css";
 import "./surfaces.css";
 import "./activity-forms.css";
+import "./workbench.css";
 
 const AppearancePage = lazy(() => import("./AppearancePage"));
 const NotebookPages = lazy(() =>
@@ -47,16 +52,15 @@ const SpacesPage = lazy(() =>
   import("./ConceptPages").then((module) => ({ default: module.SpacesPage })),
 );
 
-const pages = [
-  ["Inicio", ""],
-  ["Biblioteca", "/library"],
-  ["Notas", "/notes"],
-  ["Conceptos", "/concepts"],
-  ["Espacios", "/spaces"],
-  ["Cuaderno", "/notebook"],
-  ["Ajustes", "/settings"],
-] as const;
 export function StudyApp() {
+  return (
+    <InterfacePreferencesProvider>
+      <StudyShell />
+    </InterfacePreferencesProvider>
+  );
+}
+function StudyShell() {
+  const { preferences } = useInterfacePreferences();
   const [context, setContext] = useState<StudyContext>();
   const scope = useOperationScope(context);
   const [error, setError] = useState(""),
@@ -64,8 +68,11 @@ export function StudyApp() {
     [retry, setRetry] = useState(0);
   const { route, navigate } = useStudyRoute();
   useEffect(() => {
-    applyStudyTheme(document.documentElement);
+    document.documentElement.dataset.appearance = preferences.theme;
+    applyStudyTheme(document.documentElement, preferences.theme);
     document.documentElement.dataset.studyTheme = "true";
+  }, [preferences.theme]);
+  useEffect(() => {
     const controller = new AbortController();
     studyRequest<StudyContext>(
       "/context",
@@ -142,6 +149,7 @@ export function StudyApp() {
         sourceId={identity}
         context={context}
         navigate={navigate}
+        initialSection={url.searchParams.get("section") || "documents"}
       />
     );
   else if (section === "notes")
@@ -240,7 +248,9 @@ export function StudyApp() {
         <p>{context.name}</p>
         <p>
           La conexión se configura en el backend local. Las credenciales
-          permanecen en el servidor.
+          permanecen en el servidor. El cambio de base y el administrador de
+          conexiones todavía requieren Streamlit o reiniciar el backend con la
+          base elegida; no se cambiará la biblioteca silenciosamente.
         </p>
         <h2>Funciones disponibles</h2>
         <p>
@@ -251,7 +261,7 @@ export function StudyApp() {
         <button onClick={() => setRetry((value) => value + 1)}>
           Volver a comprobar
         </button>
-        <details>
+        <details open={url.searchParams.get("section") === "diagnostic"}>
           <summary>Diagnóstico</summary>
           <p>
             Estado de preparación: {context.preparation.state}. Motivo:{" "}
@@ -274,55 +284,22 @@ export function StudyApp() {
         search={url.search}
       />
     );
-  else
-    content = (
-      <section className="study-home">
-        <p className="eyebrow">Tu espacio de estudio</p>
-        <h1>Leer, escribir, conectar</h1>
-        <p>
-          Continúa una lectura, recupera tu escritura o vuelve a tus esferas.
-        </p>
-        <div className="study-home-actions">
-          <StudyLink to="/study/library" navigate={navigate}>
-            Abrir Biblioteca
-          </StudyLink>
-          <StudyLink to="/study/notes" navigate={navigate}>
-            Recuperar notas y borradores
-          </StudyLink>
-          <StudyLink to="/study/spaces" navigate={navigate}>
-            Volver a Espacios
-          </StudyLink>
-        </div>
-      </section>
-    );
+  else content = <HomePage context={context} navigate={navigate} />;
   return (
-    <div className="study-app">
-      <aside className="study-navigation">
-        <a
-          href="/study"
-          onClick={(event) => {
-            event.preventDefault();
-            navigate("/study");
-          }}
-          className="study-brand"
-        >
-          Σ MathMongo
-        </a>
-        <p className="study-library-label">Biblioteca · {context.name}</p>
-        <nav aria-label="Navegación principal">
-          {pages.map(([label, path]) => (
-            <div
-              key={label}
-              aria-current={section === path.slice(1) ? "page" : undefined}
-            >
-              <StudyLink to={"/study" + path} navigate={navigate}>
-                {label}
-              </StudyLink>
-            </div>
-          ))}
-        </nav>
-      </aside>
-      <main className="study-main">
+    <div
+      className="study-app"
+      data-navigation={
+        preferences.navigationCollapsed ? "collapsed" : "expanded"
+      }
+      data-density={preferences.density}
+    >
+      <StudyNavigation
+        context={context}
+        section={section}
+        navigate={navigate}
+      />
+      <main className="study-main" key={context.library_id}>
+        <StudyTopbar context={context} section={section} navigate={navigate} />
         {notice && (
           <p className="study-notice" role="status">
             {notice}

@@ -14,8 +14,18 @@ from mathmongo.reading_annotations.service import ReadingAnnotationService
 from mathmongo.reading_space.preparation import ReadingPreparation
 from mathmongo.source_catalog.repository import ReferenceRepository
 from mathmongo.source_catalog.repository import SourceRepository
-from mathmongo.source_catalog.repository import source_revision, reference_revision
+from mathmongo.source_catalog.repository import reference_revision
+from mathmongo.source_catalog.repository import source_revision
 from mathmongo.source_documents.repository import document_revision
+
+
+def _concept_reference(concept):
+    """Expose existing bibliographic text without interpreting arbitrary legacy metadata."""
+    reference = concept.get("referencia")
+    if not isinstance(reference, dict):
+        return {}
+    fields = {"fuente", "autor", "anio", "editorial", "capitulo", "seccion", "paginas", "doi", "issbn"}
+    return {key: str(value) for key, value in reference.items() if key in fields and isinstance(value, str | int)}
 
 
 class StudyApplication:
@@ -46,7 +56,7 @@ class StudyApplication:
             "library_id": self.library_id,
             "runtime_id": self.runtime_id,
             "name": self.db.name,
-            "capabilities": ["structured-images", "notebook-activities"],
+            "capabilities": ["home-summary", "structured-images", "notebook-activities"],
             "preparation": {
                 "state": state.state.value,
                 "reason": state.reason,
@@ -267,9 +277,11 @@ class StudyApplication:
             "comentario": concept.get("comentario") or "",
             "reference_id": concept.get("reference_id", ""),
             "reference_locator": concept.get("reference_locator"),
+            "reference": _concept_reference(concept),
             "contenido_latex": (latex or {}).get("contenido_latex", ""),
             "revision": digest([concept, latex]),
             "passages": passages,
+            "passages_state": "ready" if evidence.completed else "unverified",
             "relations": self.concept_relations(concept),
         }
 

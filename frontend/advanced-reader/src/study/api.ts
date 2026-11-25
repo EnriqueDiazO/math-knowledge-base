@@ -49,6 +49,9 @@ export type Page<T> = { items: T[]; total: number; page: number };
 export type NoteDetail = ReadingNote & { reference_id: string | null };
 export type ConceptDetail = Node & {
   source_id: string;
+  id?: string;
+  reference?: Record<string, string>;
+  passages_state?: "ready" | "unverified";
   relations?: {
     from: string;
     to: string;

@@ -111,6 +111,12 @@ def build_study_router() -> APIRouter:
         app = scoped(request)
         return {**app.maps.graph(include_content=False), "scope": app.library_id}
 
+    @router.get("/home")
+    def home(request: Request):
+        from mathmongo.study.home import StudyHome
+
+        return StudyHome(scoped(request).db).snapshot()
+
     @router.post("/operations")
     def operation(payload: Intent, request: Request):
         app = scoped(request)

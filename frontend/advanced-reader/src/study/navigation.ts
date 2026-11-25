@@ -18,13 +18,18 @@ export function useStudyRoute() {
   };
   return { route, navigate };
 }
-export function useStudyResource<T>(context: StudyContext, path: string) {
+export function useStudyResource<T>(
+  context: StudyContext,
+  path: string,
+  enabled = true,
+) {
   const key = context.library_id + ":" + context.runtime_id + path;
   const [state, setState] = useState<{ key: string; data?: T; error?: string }>(
     { key: "" },
   );
   const [retry, setRetry] = useState(0);
   useEffect(() => {
+    if (!enabled) return;
     const controller = new AbortController();
     studyRequest<T>(path, context, undefined, controller.signal)
       .then((data) => {
@@ -35,10 +40,10 @@ export function useStudyResource<T>(context: StudyContext, path: string) {
           setState({ key, error: String(reason.message) });
       });
     return () => controller.abort();
-  }, [key, context, path, retry]);
+  }, [key, context, path, retry, enabled]);
   return {
-    data: state.key === key ? state.data : undefined,
-    error: state.key === key ? state.error : undefined,
+    data: enabled && state.key === key ? state.data : undefined,
+    error: enabled && state.key === key ? state.error : undefined,
     retry: () => setRetry((value) => value + 1),
   };
 }

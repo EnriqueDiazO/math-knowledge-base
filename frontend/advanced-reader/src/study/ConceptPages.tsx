@@ -1,14 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import renderMap from "../knowledge-map/component";
 import type { Data, Intent } from "../knowledge-map/model";
-import { DocumentContent } from "./DocumentSurface";
 import { ConceptTypeBadge } from "./ConceptTypeBadge";
 import { executeStudy, getOverview } from "./api";
-import type { ConceptDetail, StudyContext, Page } from "./api";
+import type { StudyContext, Page } from "./api";
 import { conceptTypes } from "../knowledge-map/concept-types";
 import { SourcePicker } from "./SourcePicker";
 import { ExportActions } from "./ExportActions";
-import { ConceptRelations } from "./ConceptRelations";
 import { useStudyResource } from "./navigation";
 import { StudyLink } from "./StudyLink";
 import type { Navigate } from "./navigation";
@@ -150,104 +148,7 @@ export function ConceptsPage({
     </section>
   );
 }
-export function ConceptPage({
-  context,
-  conceptKey,
-  navigate,
-}: {
-  context: StudyContext;
-  conceptKey: string;
-  navigate: Navigate;
-}) {
-  const resource = useStudyResource<ConceptDetail>(
-    context,
-    "/concepts/detail?" + new URLSearchParams({ key: conceptKey }),
-  );
-  if (resource.error)
-    return (
-      <p role="alert">
-        {resource.error} <button onClick={resource.retry}>Reintentar</button>
-      </p>
-    );
-  const concept = resource.data;
-  if (!concept) return <p role="status">Abriendo el concepto…</p>;
-  return (
-    <section>
-      <StudyLink to="/study/concepts" navigate={navigate}>
-        Volver a Conceptos
-      </StudyLink>
-      <header>
-        <p className="eyebrow">
-          <ConceptTypeBadge type={concept.tipo} /> · {concept.source}
-        </p>
-        <h1>{concept.titulo}</h1>
-        <div className="study-actions">
-          <StudyLink
-            to={"/study/concepts/" + encodeURIComponent(concept.key) + "/edit"}
-            navigate={navigate}
-          >
-            Editar concepto
-          </StudyLink>
-          {concept.source_id ? (
-            <StudyLink
-              to={"/study/sources/" + encodeURIComponent(concept.source_id)}
-              navigate={navigate}
-            >
-              Abrir fuente
-            </StudyLink>
-          ) : (
-            <span>Fuente histórica: {concept.source}</span>
-          )}
-        </div>
-        <StudyLink
-          to={"/study/spaces?concept=" + encodeURIComponent(concept.key)}
-          navigate={navigate}
-        >
-          Ver en una esfera
-        </StudyLink>
-      </header>
-      <ExportActions context={context} conceptKeys={[concept.key]} />
-      <DocumentContent content={concept.contenido_latex} context={context} />
-      <ConceptRelations
-        context={context}
-        concept={concept}
-        navigate={navigate}
-        changed={resource.retry}
-      />
-      <section>
-        <h2>Origen y pasajes</h2>
-        {concept.passages.map((passage, index) => (
-          <article key={index}>
-            {passage.quote && <blockquote>{passage.quote}</blockquote>}
-            <StudyLink
-              to={
-                "/study/read/" +
-                encodeURIComponent(passage.document_id) +
-                "?" +
-                new URLSearchParams({
-                  page: String(passage.pdf_page ?? 1),
-                  ...(passage.annotation_id
-                    ? { annotation: passage.annotation_id }
-                    : {}),
-                })
-              }
-              navigate={navigate}
-            >
-              Volver al pasaje original
-              {passage.pdf_page ? " · página PDF " + passage.pdf_page : ""}
-            </StudyLink>
-          </article>
-        ))}
-        {!concept.passages.length && (
-          <p>
-            Este concepto no tiene un pasaje vinculado. Su fuente histórica se
-            conserva.
-          </p>
-        )}
-      </section>
-    </section>
-  );
-}
+export { ConceptPage } from "./ConceptReader";
 export function SpacesPage({
   context,
   navigate,
