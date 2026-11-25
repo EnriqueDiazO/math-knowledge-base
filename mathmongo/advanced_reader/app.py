@@ -15,6 +15,7 @@ from fastapi.responses import FileResponse
 from fastapi.responses import JSONResponse
 from starlette.staticfiles import StaticFiles
 
+from editor.structured_note_resources import StructuredNoteResourceError
 from mathmongo.advanced_reader.dependencies import AdvancedReaderDependencies
 from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.advanced_reader.routes import build_api_router
@@ -26,11 +27,11 @@ from mathmongo.advanced_reader.security import redacted_request_path
 from mathmongo.source_documents.models import MAX_SOURCE_PDF_UPLOAD_BYTES
 from mathmongo.study.catalog_routes import build_catalog_router
 from mathmongo.study.document_routes import build_document_router
-from mathmongo.study.library_routes import build_library_router
 from mathmongo.study.library_bibtex import build_bibtex_router
+from mathmongo.study.library_routes import build_library_router
 from mathmongo.study.notebook_routes import build_notebook_router
-from mathmongo.study.structured_routes import build_structured_router
 from mathmongo.study.routes import build_study_router
+from mathmongo.study.structured_routes import build_structured_router
 
 LOGGER = logging.getLogger("mathmongo.advanced_reader")
 MAX_VISUAL_ANNOTATION_REQUEST_BYTES = 64 * 1024
@@ -140,6 +141,12 @@ def create_app(dependencies: AdvancedReaderDependencies) -> FastAPI:
             message=error.public_message,
             status_code=error.status_code,
             headers=error.headers,
+        )
+
+    @app.exception_handler(StructuredNoteResourceError)
+    async def structured_resource_error(request: Request, error: StructuredNoteResourceError) -> JSONResponse:
+        return _error_response(
+            request, code="note_images_unavailable", message=str(error), status_code=422
         )
 
     @app.exception_handler(RequestValidationError)

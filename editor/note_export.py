@@ -33,6 +33,9 @@ from editor.latex_bundle import build_latex_project_bundle
 from editor.pdf_export import EXPORTED_NOTES_DIR
 from editor.pdf_export import generar_pdf_nota_latex_result
 from editor.pdf_export import generar_tex_nota_latex
+from editor.structured_note_resources import prepare_structured_note_images
+from editor.structured_note_resources import structured_family
+from editor.structured_note_resources import structured_image_paths
 from editor.utils.media_assets import get_note_media_assets
 from editor.utils.media_assets import resolve_media_asset_path
 
@@ -281,6 +284,7 @@ def build_note_latex_bundle(
     diagnostics: Mapping[str, Any] | None = None,
     template: str = "diario",
     source_tex: str | None = None,
+    image_assets: tuple[LatexBundleAsset, ...] | None = None,
 ) -> LatexBundleResult:
     """Return a portable note project independently from PDF compilation status."""
     note_data = dict(note)
@@ -290,7 +294,25 @@ def build_note_latex_bundle(
         assets_by_id=None,
         template=template,
     )
+    images = image_assets
+    if images is None:
+        staged = prepare_structured_note_images(note_data, db=db, assets_by_id=assets_by_id)
+        staged_ids = {asset.asset_id for asset in staged}
+        images = (*staged, *(
+            asset for asset in _note_bundle_assets(note_data, db=db, assets_by_id=assets_by_id)
+            if asset.asset_id not in staged_ids
+        ))
     main_tex = tex_export.tex if source_tex is None else source_tex
+    family = structured_family(note_data)
+    if family is not None and source_tex is None:
+        if family == "cpi":
+            main_tex = generate_cpi_document_tex(
+                extract_cpi_document(note_data), asset_paths_by_id=structured_image_paths(images)
+            )
+        else:
+            main_tex = generate_cornell_document_tex(
+                extract_cornell_document(note_data), asset_paths_by_id=structured_image_paths(images)
+            )
     diagnostics_data = dict(diagnostics or {})
     latex_log = diagnostics_data.get("log_text") or diagnostics_data.get("log_excerpt")
     portable_metadata = {
@@ -303,7 +325,7 @@ def build_note_latex_bundle(
         raw_body=str(note_data.get("latex_body") or ""),
         metadata=portable_metadata,
         project_styles=_note_bundle_styles(main_tex),
-        images=_note_bundle_assets(note_data, db=db, assets_by_id=assets_by_id),
+        images=images,
         chktex_report=chktex_report or diagnostics_data.get("chktex"),
         latex_log=latex_log,
         compilation_summary=diagnostics_data or None,

@@ -12,6 +12,7 @@ export type StudyContext = {
   library_id: string;
   runtime_id: string;
   name: string;
+  capabilities?: string[];
   preparation: {
     state: "ready" | "pending" | "incompatible" | "unverified";
     reason: string;

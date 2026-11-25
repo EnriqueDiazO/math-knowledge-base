@@ -26,7 +26,7 @@ CONTENT_SECURITY_POLICY = "; ".join(
         "style-src-attr 'unsafe-inline'",
         "connect-src 'self'",
         "worker-src 'self'",
-        "img-src 'self' data:",
+        "img-src 'self' data: blob:",
         "font-src 'self'",
         "form-action 'none'",
         "frame-src 'none'",

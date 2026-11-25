@@ -46,6 +46,7 @@ class StudyApplication:
             "library_id": self.library_id,
             "runtime_id": self.runtime_id,
             "name": self.db.name,
+            "capabilities": ["structured-images"],
             "preparation": {
                 "state": state.state.value,
                 "reason": state.reason,

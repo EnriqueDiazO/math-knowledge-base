@@ -18,6 +18,7 @@ from mathmongo.advanced_reader.document_access import AdvancedReaderError
 from mathmongo.study.document_export import compile_project
 from mathmongo.study.note_action_models import NoteActionRequest
 from mathmongo.study.note_actions import NoteActions
+from mathmongo.study.note_images import NoteImages
 from mathmongo.study.routes import scoped
 from mathmongo.study.structured_layout import fit_response
 from mathmongo.study.structured_layout import measured_project
@@ -126,8 +127,8 @@ def build_structured_router():
     @router.post("/{family}/{identity}/export")
     def export(family: Family, identity: str, payload: StructuredExport, request: Request):
         notes = StructuredNotes(scoped(request).db, family)
-        bundle = notes.project(identity)
         if payload.format == "tex":
+            bundle = notes.project(identity)
             return Response(
                 bundle.zip_bytes,
                 media_type="application/zip",
@@ -153,6 +154,17 @@ def build_structured_router():
             media_type="application/pdf",
             headers={"Content-Disposition": f'attachment; filename="mathmongo-{family}.pdf"'},
         )
+
+    @router.get("/{family}/{identity}/images")
+    def images(family: Family, identity: str, request: Request):
+        return NoteImages(StructuredNotes(scoped(request).db, family), identity).listing()
+
+    @router.get("/{family}/{identity}/images/{asset_id}")
+    def image(family: Family, identity: str, asset_id: str, request: Request):
+        from mathmongo.study.note_images import MIME_TYPES
+
+        path = NoteImages(StructuredNotes(scoped(request).db, family), identity).path(asset_id)
+        return Response(path.read_bytes(), media_type=MIME_TYPES[path.suffix.lower()], headers={"Cache-Control": "no-store"})
 
     @router.post("/{family}/{identity}/actions")
     def action(family: Family, identity: str, payload: NoteActionRequest, request: Request):

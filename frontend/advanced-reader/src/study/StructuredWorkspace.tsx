@@ -7,6 +7,7 @@ import type {
 import { studyRequest, StudyApiError, type StudyContext } from "./api";
 import { DocumentSurface } from "./DocumentSurface";
 import { ExportActions } from "./ExportActions";
+import { NoteImages } from "./NoteImages";
 import { StudyLink } from "./StudyLink";
 import { StructuredFields } from "./StructuredFields";
 import { useLocalForm } from "./useLocalForm";
@@ -273,6 +274,7 @@ export function StructuredWorkspace({
         {note ? "Editar nota " : "Nueva nota "}
         {title}
       </h1>
+      {note && <NoteImages context={context} family={family} identity={note.note_id} />}
       <p role="status">
         {message ||
           "Borrador conservado en este navegador. Guardar lo confirma en esta biblioteca."}
