@@ -1,5 +1,6 @@
 /** Read the existing library-scoped draft stores. This index never writes or claims a draft. */
 import { studyVault, type StudyDraft } from "./drafts";
+import { diaryBackupTitles, diaryDraftPrefix } from "./diary-storage";
 import { diaryChanges } from "./notebook-state";
 export type RecoverableWriting = {
   key: string;
@@ -7,7 +8,9 @@ export type RecoverableWriting = {
   path: string;
   kind: string;
 };
-export function recoverableWriting(library: string): RecoverableWriting[] {
+export async function recoverableWriting(
+  library: string,
+): Promise<RecoverableWriting[]> {
   const items = (studyVault(library).all() as StudyDraft[])
     .filter((d) => d.title || d.content || d.pending)
     .map((d) => ({
@@ -16,8 +19,21 @@ export function recoverableWriting(library: string): RecoverableWriting[] {
       path: "/study/write?draft=" + encodeURIComponent(d.id!),
       kind: d.noteId ? "Copia local de nota guardada" : "Nota sin publicar",
     }));
+  const diaryPrefix = diaryDraftPrefix(library);
+  const backups = await diaryBackupTitles(library);
+  const superseded = new Set(backups.map(({ key }) => key));
+  for (const { key, title } of backups) {
+    if (title)
+      items.push({
+        key,
+        title,
+        path:
+          "/study/notebook/" + encodeURIComponent(key.slice(diaryPrefix.length)),
+        kind: "Diario",
+      });
+  }
   const groups = [
-    ["mathmongo-diary-v1-" + library + "-", "/study/notebook/", "Diario"],
+    [diaryPrefix, "/study/notebook/", "Diario"],
     [
       "mathmongo-structured-v1-" + library + "-cornell-",
       "/study/notebook/cornell/",
@@ -32,7 +48,7 @@ export function recoverableWriting(library: string): RecoverableWriting[] {
   try {
     for (let index = 0; index < localStorage.length; index++) {
       const key = localStorage.key(index)!;
-      if (/-archive-[\da-f-]{36}$/iu.test(key)) continue;
+      if (superseded.has(key) || /-archive-[\da-f-]{36}$/iu.test(key)) continue;
       const group = groups.find(([prefix]) => key.startsWith(prefix));
       if (!group) continue;
       const [prefix, path, kind] = group,

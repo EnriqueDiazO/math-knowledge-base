@@ -274,16 +274,62 @@ it("keeps corrupt recovery records intact and restarts only with an archived cop
     ),
   ).toBe(true);
 });
+it("keeps the editor and its latest copy usable when all draft storage fails", async () => {
+  const id = key("historical"),
+    legacy = JSON.stringify({ ...diaryDraft(original), title: "Copia anterior" });
+  localStorage.setItem(id, legacy);
+  const write = vi.spyOn(Storage.prototype, "setItem").mockImplementation(() => {
+    throw new DOMException("quota", "QuotaExceededError");
+  });
+  const fetch = vi.fn(async (_path, options) =>
+    Response.json({ ...original, ...JSON.parse(options.body).changes }),
+  );
+  vi.stubGlobal("fetch", fetch);
+  const download = vi.fn((_copy: Blob) => "blob:diary-copy");
+  vi.stubGlobal("URL", class extends URL {
+    static createObjectURL = download;
+    static revokeObjectURL = vi.fn();
+  });
+  vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+  render(<NotebookWorkspace context={context} note={original} navigate={vi.fn()} />);
+  const editor = screen.getByLabelText("Contenido de prueba");
+  fireEvent.change(editor, { target: { value: "Mi primer cambio" } });
+  expect(await screen.findByRole("alert")).toHaveTextContent("Puedes seguir editando");
+  expect(editor).toBeEnabled();
+  expect(screen.queryByRole("button", { name: "Reiniciar con copia" })).toBeNull();
+  fireEvent.change(editor, { target: { value: "Mi último cambio" } });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar entrada" }));
+  await screen.findByText(/No se envió la entrada/);
+  expect(fetch).not.toHaveBeenCalled();
+  expect(editor).toHaveValue("Mi último cambio");
+  expect(localStorage.getItem(id)).toBe(legacy);
+  fireEvent.click(screen.getByRole("button", { name: "Descargar borrador" }));
+  const copy = await new Promise<DiaryDetail>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(JSON.parse(String(reader.result)));
+    reader.onerror = () => reject(reader.error);
+    reader.readAsText(download.mock.calls[0][0]);
+  });
+  expect(copy.latex_body).toBe("Mi último cambio");
+
+  write.mockRestore();
+  fireEvent.click(screen.getByRole("button", { name: "Reintentar conservar borrador" }));
+  await waitFor(() => expect(screen.queryByRole("alert")).toBeNull());
+  expect(JSON.parse(localStorage.getItem(id)!)).toMatchObject({
+    latex_body: "Mi último cambio", pending: "", title: "Copia anterior",
+  });
+  fireEvent.click(screen.getByRole("button", { name: "Guardar entrada" }));
+  await screen.findByText("Entrada guardada y confirmada en esta biblioteca.");
+  expect(fetch).toHaveBeenCalledTimes(1);
+});
 it("does not reconcile an old successful response into a different mounted library", async () => {
   let resolve!: (value: Response) => void;
   const pending = new Promise<Response>((r) => {
     resolve = r;
   });
   const navigate = vi.fn();
-  vi.stubGlobal(
-    "fetch",
-    vi.fn(() => pending),
-  );
+  const fetch = vi.fn(() => pending);
+  vi.stubGlobal("fetch", fetch);
   let view = render(
     <NotebookWorkspace context={context} note={original} navigate={navigate} />,
   );
@@ -291,6 +337,7 @@ it("does not reconcile an old successful response into a different mounted libra
     target: { value: "No perder" },
   });
   fireEvent.click(screen.getByRole("button", { name: "Guardar entrada" }));
+  await waitFor(() => expect(fetch).toHaveBeenCalledTimes(1));
   view.unmount();
   view = render(
     <NotebookWorkspace

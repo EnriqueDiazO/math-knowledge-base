@@ -6,6 +6,7 @@ import {
   StudyApiError,
   type StudyContext,
 } from "./api";
+import { diaryDraftPrefix, restoreDiary } from "./diary-storage";
 import { useLocalForm } from "./useLocalForm";
 import { useOperationScope } from "./useOperationScope";
 import type { Navigate } from "./navigation";
@@ -103,10 +104,10 @@ export function SavedNoteActions({
       if (scope.active) setBusy(false);
     }
   };
-  const downloadDraft = () => {
+  const downloadDraft = async () => {
     const key =
       family === "diary"
-        ? "mathmongo-diary-v1-" + context.library_id + "-" + identity
+        ? diaryDraftPrefix(context.library_id) + identity
         : "mathmongo-structured-v1-" +
           context.library_id +
           "-" +
@@ -114,7 +115,11 @@ export function SavedNoteActions({
           "-" +
           identity;
     try {
-      const raw = localStorage.getItem(key);
+      const raw =
+        family === "diary"
+          ? (await restoreDiary(key)).raw
+          : localStorage.getItem(key);
+      if (!scope.active) return;
       if (raw === null) {
         setMessage(
           "No encontramos un borrador local de esta nota en este navegador.",
@@ -133,9 +138,12 @@ export function SavedNoteActions({
   };
   if (!note && !form.state.pending && !form.problem)
     return (
-      <button type="button" onClick={downloadDraft}>
-        Descargar borrador local de esta nota
-      </button>
+      <>
+        <button type="button" onClick={() => void downloadDraft()}>
+          Descargar borrador local de esta nota
+        </button>
+        {message && <p role="status">{message}</p>}
+      </>
     );
   return (
     <details

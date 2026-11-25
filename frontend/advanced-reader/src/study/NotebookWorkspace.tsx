@@ -4,9 +4,10 @@ import type { DocumentEditor } from "../knowledge-map/document-editor";
 import type { StudyContext } from "./api";
 import { StudyApiError, studyRequest } from "./api";
 import { DocumentContent, DocumentSurface } from "./DocumentSurface";
+import { diaryDraftPrefix, type DiaryRestoration } from "./diary-storage";
 import type { Navigate } from "./navigation";
 import { StudyLink } from "./StudyLink";
-import { useLocalForm } from "./useLocalForm";
+import { useDiaryForm, useDiaryRestoration } from "./useDiaryForm";
 import { useOperationScope } from "./useOperationScope";
 import {
   diaryChanges,
@@ -20,23 +21,40 @@ import {
 import { NotebookReferences } from "./NotebookReferences";
 import { ExportActions } from "./ExportActions";
 
-export function NotebookWorkspace({
-  context,
-  note,
-  navigate,
-}: {
+type Props = {
   context: StudyContext;
   note?: DiaryDetail;
   navigate: Navigate;
-}) {
-  const form = useLocalForm(
-    "mathmongo-diary-v1-" + context.library_id + "-" + (note?.note_id || "new"),
-    () => diaryDraft(note),
+};
+
+export function NotebookWorkspace(props: Props) {
+  const key =
+    diaryDraftPrefix(props.context.library_id) + (props.note?.note_id || "new");
+  return <RestoringNotebook {...props} key={key} storageKey={key} />;
+}
+
+function RestoringNotebook(props: Props & { storageKey: string }) {
+  const restored = useDiaryRestoration(props.storageKey);
+  return restored ? (
+    <NotebookEditor {...props} restored={restored} />
+  ) : (
+    <p role="status">Buscando un borrador del Cuaderno en este navegador…</p>
   );
-  const current = useRef(form.state),
+}
+
+function NotebookEditor({
+  context,
+  note,
+  navigate,
+  storageKey,
+  restored: recovered,
+}: Props & { storageKey: string; restored: DiaryRestoration }) {
+  const form = useDiaryForm(storageKey, recovered, () => diaryDraft(note));
+  const current = form.current,
     editor = useRef<DocumentEditor | null>(null),
     scope = useOperationScope(context);
   const finished = useRef(false),
+    saving = useRef(false),
     surfaceEpoch = useRef(0);
   const [initial, setInitial] = useState(() => ({
     content: form.state.latex_body,
@@ -47,11 +65,8 @@ export function NotebookWorkspace({
     [busy, setBusy] = useState(false),
     [conflict, setConflict] = useState(false),
     [remote, setRemote] = useState<DiaryDetail>();
-  const remember = (next: DiaryDraft) => {
-    if (finished.current) return true;
-    current.current = next;
-    return form.set(next);
-  };
+  const remember = (next: DiaryDraft) =>
+    finished.current ? Promise.resolve(true) : form.set(next);
   const update = (field: keyof DiaryDraft, value: string) =>
     remember({ ...current.current, [field]: value });
   const restored = useMemo(() => {
@@ -73,12 +88,14 @@ export function NotebookWorkspace({
   } catch (error) {
     problem = (error as Error).message;
   }
+  const blockingProblem = problem || form.problem;
   const path =
     "/notebook" + (note ? "/" + encodeURIComponent(note.note_id) : "");
   const save = async () => {
-    if (busy || problem || form.problem || conflict) return;
+    if (busy || saving.current || blockingProblem || conflict) return;
     let draft = current.current;
-    if (!draft.pending) {
+    const prepare = !draft.pending;
+    if (prepare) {
       if (!editor.current?.valid()) {
         setMessage(
           "Completa la fórmula antes de guardar. El borrador se conserva.",
@@ -104,11 +121,22 @@ export function NotebookWorkspace({
         ? { revision: draft.revision, changes: diaryChanges(draft) }
         : { request_id: draft.request_id, ...diaryFields(draft) };
       draft = { ...draft, pending: JSON.stringify(payload) };
-      if (!remember(draft)) return;
     }
+    saving.current = true;
     setBusy(true);
-    setMessage("Guardando entrada… esperando confirmación de la biblioteca.");
     try {
+      if (prepare && !(await remember(draft))) {
+        // This attempt was never sent. Keep the document editable and retry persistence later.
+        if (scope.active) {
+          form.keep({ ...draft, pending: "" });
+          setMessage(
+            "No se envió la entrada. El borrador sigue abierto en esta pestaña.",
+          );
+        }
+        return;
+      }
+      if (!scope.active) return;
+      setMessage("Guardando entrada… esperando confirmación de la biblioteca.");
       const body = JSON.parse(draft.pending),
         result = await studyRequest<DiaryDetail>(path, context, body);
       if (!scope.active) return;
@@ -131,11 +159,12 @@ export function NotebookWorkspace({
         );
       if (!note) {
         finished.current = true;
-        form.clear();
-        navigate("/study/notebook/" + encodeURIComponent(result.note_id));
+        await form.clear();
+        if (scope.active)
+          navigate("/study/notebook/" + encodeURIComponent(result.note_id));
         return;
       }
-      remember({ ...diaryDraft(result), snapshot: draft.snapshot });
+      void remember({ ...diaryDraft(result), snapshot: draft.snapshot });
       setMessage("Entrada guardada y confirmada en esta biblioteca.");
     } catch (error) {
       if (!scope.active) return;
@@ -143,11 +172,12 @@ export function NotebookWorkspace({
         error instanceof StudyApiError &&
         ["catalog_conflict", "invalid_study_request"].includes(error.code)
       ) {
-        remember({ ...current.current, pending: "" });
+        void remember({ ...current.current, pending: "" });
         setConflict(!!note && error.code === "catalog_conflict");
       }
       setMessage((error as Error).message);
     } finally {
+      saving.current = false;
       if (scope.active) setBusy(false);
     }
   };
@@ -158,6 +188,28 @@ export function NotebookWorkspace({
     } catch (error) {
       if (scope.active) setMessage((error as Error).message);
     }
+  };
+  const restart = async () => {
+    setBusy(true);
+    const next = diaryDraft(note);
+    const archived = await form.restart(next);
+    if (!scope.active) return;
+    if (archived) {
+      surfaceEpoch.current = epoch + 1;
+      setInitial({ content: next.latex_body, snapshot: next.snapshot });
+      setEpoch(epoch + 1);
+      setConflict(false);
+      setRemote(undefined);
+    }
+    setMessage(
+      archived
+        ? ""
+        : "No se pudo conservar la copia. El borrador original sigue intacto.",
+    );
+    setBusy(false);
+  };
+  const retry = async () => {
+    if ((await form.retry()) && scope.active) setMessage("");
   };
   return (
     <section>
@@ -170,35 +222,36 @@ export function NotebookWorkspace({
       </h1>
       <p role="status">
         {message ||
-          "El borrador se conserva en este navegador; guardarlo lo confirma en la biblioteca."}
+          (!form.storageFailed &&
+            !blockingProblem &&
+            "El borrador se conserva en este navegador; guardarlo lo confirma en la biblioteca.")}
       </p>
-      {(problem || form.problem) && (
-        <p role="alert">
-          {problem || form.problem}
-          <button onClick={form.download}>Descargar borrador</button>
-          <button
-            onClick={() => {
-              if (!form.restart()) return;
-              const next = diaryDraft(note);
-              surfaceEpoch.current = epoch + 1;
-              remember(next);
-              setInitial({ content: next.latex_body, snapshot: next.snapshot });
-              setEpoch(epoch + 1);
-              setConflict(false);
-              setRemote(undefined);
-            }}
-          >
-            Reiniciar con copia
-          </button>
-        </p>
+      {blockingProblem && (
+        <div role="alert">
+          {blockingProblem}
+          <div className="study-actions">
+            <button onClick={form.download}>Descargar borrador</button>
+            <button disabled={busy} onClick={() => void restart()}>
+              Reiniciar con copia
+            </button>
+          </div>
+        </div>
+      )}
+      {form.storageFailed && !blockingProblem && (
+        <div role="alert">
+          El navegador no pudo conservar el borrador. Puedes seguir editando en
+          esta pestaña. Descarga una copia antes de salir o recargar.
+          <div className="study-actions">
+            <button onClick={form.download}>Descargar borrador</button>
+            <button disabled={busy} onClick={() => void retry()}>
+              Reintentar conservar borrador
+            </button>
+          </div>
+        </div>
       )}
       <fieldset
         disabled={
-          busy ||
-          !!form.state.pending ||
-          conflict ||
-          !!problem ||
-          !!form.problem
+          busy || !!form.state.pending || conflict || !!blockingProblem
         }
       >
         <label>
@@ -247,7 +300,7 @@ export function NotebookWorkspace({
           changed={(ids) => update("references", JSON.stringify(ids))}
         />
       </fieldset>
-      {!problem && !form.problem && (
+      {!blockingProblem && (
         <div inert={busy || !!form.state.pending || conflict}>
           <DocumentSurface
             key={epoch}
@@ -257,11 +310,21 @@ export function NotebookWorkspace({
             title={form.state.title}
             editorRef={editor}
             changed={(latex, state) => {
-              if (epoch === surfaceEpoch.current)
-                remember({
+              if (
+                epoch !== surfaceEpoch.current ||
+                saving.current ||
+                current.current.pending
+              )
+                return;
+              const snapshot = JSON.stringify(state);
+              if (
+                latex !== current.current.latex_body ||
+                snapshot !== current.current.snapshot
+              )
+                void remember({
                   ...current.current,
                   latex_body: latex,
-                  snapshot: JSON.stringify(state),
+                  snapshot,
                 });
             }}
           />
@@ -270,14 +333,16 @@ export function NotebookWorkspace({
       <div className="study-actions">
         <button
           className="primary-button"
-          disabled={busy || conflict || !!problem || !!form.problem}
+          disabled={busy || conflict || !!blockingProblem}
           onClick={() => void save()}
         >
           {form.state.pending
             ? "Reintentar el mismo guardado"
             : "Guardar entrada"}
         </button>
-        <button onClick={form.download}>Descargar borrador</button>
+        {!blockingProblem && !form.storageFailed && (
+          <button onClick={form.download}>Descargar borrador</button>
+        )}
       </div>
       {note && <ExportActions context={context} notebookId={note.note_id} />}
       {conflict && (

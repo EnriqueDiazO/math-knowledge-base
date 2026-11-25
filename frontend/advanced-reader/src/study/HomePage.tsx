@@ -1,9 +1,12 @@
 /** Real, bounded recent activity and existing draft recovery, without loading documents. */
-import { useMemo } from "react";
+import { useEffect, useState } from "react";
 import type { StudyContext } from "./api";
 import { useStudyResource, type Navigate } from "./navigation";
 import { StudyLink } from "./StudyLink";
-import { recoverableWriting } from "./recoverable-writing";
+import {
+  recoverableWriting,
+  type RecoverableWriting,
+} from "./recoverable-writing";
 import { bibliographicText } from "./bibliographic-text";
 import "./home.css";
 type HomeSummary = {
@@ -31,11 +34,22 @@ export default function HomePage({
   navigate: Navigate;
 }) {
   const supported = context.capabilities?.includes("home-summary") === true;
-  const resource = useStudyResource<HomeSummary>(context, "/home", supported),
-    drafts = useMemo(
-      () => recoverableWriting(context.library_id),
-      [context.library_id],
-    );
+  const resource = useStudyResource<HomeSummary>(context, "/home", supported);
+  const library = context.library_id;
+  const [writing, setWriting] = useState<{
+    library: string;
+    items: RecoverableWriting[];
+  }>();
+  useEffect(() => {
+    let active = true;
+    void recoverableWriting(library).then((items) => {
+      if (active) setWriting({ library, items });
+    });
+    return () => {
+      active = false;
+    };
+  }, [library]);
+  const drafts = writing?.library === library ? writing.items : null;
   const data = resource.data,
     valid =
       data &&
@@ -107,7 +121,9 @@ export default function HomePage({
               Notas y borradores
             </StudyLink>
           </header>
-          {drafts.length ? (
+          {!drafts ? (
+            <p>Buscando borradores en este navegador…</p>
+          ) : drafts.length ? (
             <ul className="activity-list">
               {drafts.slice(0, 6).map((d) => (
                 <li key={d.key}>
