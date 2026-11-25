@@ -458,3 +458,21 @@ Las bajas de fuente incluyen el código trasladado y composición sustituida, no
 capacidades retiradas. Los bundles anteriores se regeneran con la publicación
 canónica; no son refactorización de fuente ni retirada de flujos. No se eliminan
 datos, documentos, recursos originales, validaciones o pruebas para reducir líneas.
+
+## Anexo del 25 de noviembre: Diario y Cornell
+
+Revisión ebeb7e1c: la entrada conserva **21 líneas**. El inventario actualizado
+(`evidence/sonar/annex-final-2026-11-25/repository-inventory.csv`) sigue identificando
+veinte módulos mantenidos mayores de mil líneas. Diecinueve conservan el SHA
+de 07ebdd52; Cuaderno conserva su extracción anterior. No se invalida su revisión
+por repetir una compilación o añadir regiones en un módulo pequeño.
+
+CornellRegions tiene 75 líneas y su CSS 53. Extrae la composición simultánea de
+las regiones de StructuredWorkspace y mantiene tres estados explícitos del mismo
+editor canónico. No se traslada todo a un segundo monolito ni se elimina el
+guardado histórico. Contabilidad `296c5e4c..ebeb7e1c`: fuente +335/−33, pruebas
++762/−62 y generados +3339/−3310. Las bajas de pruebas son sustituciones de
+consultas globales por el editor activo y mocks de tres regiones; se conservan
+y amplían sus aserciones. No hay capacidades históricas retiradas.
+
+Regresiones y Sonar procesado: [DIARY_CORNELL_ANNEX_CHECKPOINT.md](DIARY_CORNELL_ANNEX_CHECKPOINT.md).

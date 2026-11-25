@@ -23,6 +23,10 @@ COVERAGE_FILE="$CHECKPOINT_EVIDENCE/firefox/.coverage" \
   --browser=firefox --authoring --notes --document-export --legacy --library --notebook --structured --math-tools --clone-drafts --latex-parity --note-actions
 .venv/bin/python -m coverage combine --append "$CHECKPOINT_EVIDENCE/chrome" "$CHECKPOINT_EVIDENCE/firefox"
 .venv/bin/python -m coverage xml
+(cd frontend/advanced-reader && \
+  MATHMONGO_STUDY_BROWSER=chrome MATHMONGO_COLLECT_BROWSER_COVERAGE=1 node tests/notebook-comparison-browser.mjs && \
+  MATHMONGO_STUDY_BROWSER=chrome MATHMONGO_COLLECT_BROWSER_COVERAGE=1 node tests/annex-cornell-browser.mjs && \
+  MATHMONGO_STUDY_BROWSER=chrome MATHMONGO_COLLECT_BROWSER_COVERAGE=1 node tests/annex-diary-browser.mjs)
 (cd frontend/advanced-reader && node scripts/merge-browser-coverage.mjs \
   ../../evidence/sonar/independent-study/chrome/coverage-reading.json \
   ../../evidence/sonar/independent-study/chrome/coverage-authoring.json \
@@ -37,7 +41,15 @@ COVERAGE_FILE="$CHECKPOINT_EVIDENCE/firefox/.coverage" \
   ../../evidence/sonar/independent-study/chrome/coverage-concept-cold-recovery.json \
   ../../evidence/sonar/independent-study/chrome/coverage-latex-parity.json \
   ../../evidence/sonar/independent-study/chrome/coverage-latex-recovery.json \
-  ../../evidence/sonar/independent-study/chrome/coverage-note-actions.json)
+  ../../evidence/sonar/independent-study/chrome/coverage-note-actions.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/notebook-after-chrome/coverage-notebook-menu.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/notebook-after-chrome/coverage-notebook-worklog.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/notebook-after-chrome/coverage-notebook-backlog.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/notebook-after-chrome/coverage-notebook-deliverables.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/notebook-after-chrome/coverage-notebook-weekly.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/notebook-after-chrome/coverage-notebook-kanban.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-chrome/coverage-annex-cornell.json \
+  ../../evidence/sonar/cpi-five-images-2026-11-24/diary-ui-after-chrome/coverage-annex-diary.json)
 ```
 
 Detener la secuencia si falla cualquier comando. `test:coverage` se ejecuta
@@ -45,6 +57,16 @@ Detener la secuencia si falla cualquier comando. `test:coverage` se ejecuta
 comprueba código observado/publicado/mapeado y conserva los denominadores de
 unidades; no fusiona posiciones de ramas incompatibles. Firefox verifica el
 comportamiento; el LCOV de navegador se obtiene de Chrome.
+
+Los tres drivers comparativos adicionales requieren las copias coherentes y
+medios del checkpoint descritos en `cpi-five-images-2026-11-24/owned-comparison.json`.
+Antes de ejecutarlos, verificar PID/start_ticks de mongod y backend, dbpath,
+puerto y nombres de bases temporales. No sustituir sus URL por MathV0: Cornell
+y las actividades guardan registros de ensayo. El driver del Diario sólo lee y
+exporta. Si esas copias ya no existen tras un reinicio, reconstruirlas desde las
+capturas privadas conservando rutas lógicas y medios; no omitir los errores ni
+atribuir sus observaciones a un recorrido no ejecutado. Las catorce cohortes del
+runner se preparan solas y siguen siendo reproducibles sin estas copias.
 
 El checkpoint actual recoge **catorce cohortes desde fuente**, sin generar ni
 probar otra AppImage. Las nueve originales son lectura, autoría, notas,

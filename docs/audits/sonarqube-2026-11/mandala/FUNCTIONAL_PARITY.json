@@ -3080,7 +3080,10 @@
       "react": "NotebookPages.tsx / NotebookWorkspace.tsx",
       "tests": [
         "tests/notebook-browser.mjs",
-        "tests/test_notebook_http.py"
+        "tests/test_notebook_http.py",
+        "tests/annex-diary-browser.mjs",
+        "tests/test_latex_diary_auxiliaries.py",
+        "tests/export-diagnostics.test.tsx"
       ],
       "historical_and_current_evidence": [
         {
@@ -3096,7 +3099,14 @@
           "line": 548
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/diary-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "diary-14",
@@ -3108,7 +3118,10 @@
       "react": "NotebookPages.tsx / NotebookWorkspace.tsx",
       "tests": [
         "tests/notebook-browser.mjs",
-        "tests/test_notebook_http.py"
+        "tests/test_notebook_http.py",
+        "tests/annex-diary-browser.mjs",
+        "tests/test_latex_diary_auxiliaries.py",
+        "tests/export-diagnostics.test.tsx"
       ],
       "historical_and_current_evidence": [
         {
@@ -3124,7 +3137,14 @@
           "line": 548
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/diary-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "diary-15",
@@ -3469,10 +3489,13 @@
       "essential": true,
       "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "StructuredPages.tsx / StructuredWorkspace.tsx",
+      "react": "StructuredPages.tsx / StructuredWorkspace.tsx / CornellRegions.tsx",
       "tests": [
         "tests/structured-browser.mjs",
-        "tests/test_structured_notes_http.py"
+        "tests/test_structured_notes_http.py",
+        "tests/annex-cornell-browser.mjs",
+        "tests/structured-notes.test.tsx",
+        "tests/document-page-surface.test.ts"
       ],
       "historical_and_current_evidence": [
         {
@@ -3488,7 +3511,14 @@
           "line": 694
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "cornell-06",
@@ -3497,10 +3527,13 @@
       "essential": true,
       "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "StructuredPages.tsx / StructuredWorkspace.tsx",
+      "react": "StructuredPages.tsx / StructuredWorkspace.tsx / CornellRegions.tsx",
       "tests": [
         "tests/structured-browser.mjs",
-        "tests/test_structured_notes_http.py"
+        "tests/test_structured_notes_http.py",
+        "tests/annex-cornell-browser.mjs",
+        "tests/structured-notes.test.tsx",
+        "tests/document-page-surface.test.ts"
       ],
       "historical_and_current_evidence": [
         {
@@ -3516,7 +3549,14 @@
           "line": 694
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "cornell-07",
@@ -3553,10 +3593,13 @@
       "essential": true,
       "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "StructuredPages.tsx / StructuredWorkspace.tsx",
+      "react": "StructuredPages.tsx / StructuredWorkspace.tsx / CornellRegions.tsx",
       "tests": [
         "tests/structured-browser.mjs",
-        "tests/test_structured_notes_http.py"
+        "tests/test_structured_notes_http.py",
+        "tests/annex-cornell-browser.mjs",
+        "tests/structured-notes.test.tsx",
+        "tests/document-page-surface.test.ts"
       ],
       "historical_and_current_evidence": [
         {
@@ -3572,7 +3615,14 @@
           "line": 694
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "cornell-09",
@@ -3834,10 +3884,13 @@
       "essential": true,
       "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "StructuredPages.tsx / StructuredWorkspace.tsx",
+      "react": "StructuredPages.tsx / StructuredWorkspace.tsx / CornellRegions.tsx",
       "tests": [
         "tests/structured-browser.mjs",
-        "tests/test_structured_notes_http.py"
+        "tests/test_structured_notes_http.py",
+        "tests/annex-cornell-browser.mjs",
+        "tests/structured-notes.test.tsx",
+        "tests/document-page-surface.test.ts"
       ],
       "historical_and_current_evidence": [
         {
@@ -3853,7 +3906,14 @@
           "line": 694
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "cornell-18",
@@ -3862,10 +3922,13 @@
       "essential": true,
       "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "StructuredPages.tsx / StructuredWorkspace.tsx",
+      "react": "StructuredPages.tsx / StructuredWorkspace.tsx / CornellRegions.tsx",
       "tests": [
         "tests/structured-browser.mjs",
-        "tests/test_structured_notes_http.py"
+        "tests/test_structured_notes_http.py",
+        "tests/annex-cornell-browser.mjs",
+        "tests/structured-notes.test.tsx",
+        "tests/document-page-surface.test.ts"
       ],
       "historical_and_current_evidence": [
         {
@@ -3881,7 +3944,14 @@
           "line": 694
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "cornell-19",
@@ -3890,10 +3960,13 @@
       "essential": true,
       "status": "verified",
       "python_service": "editor/cornell/service.py; mathmongo/study/structured_notes.py",
-      "react": "StructuredPages.tsx / StructuredWorkspace.tsx",
+      "react": "StructuredPages.tsx / StructuredWorkspace.tsx / CornellRegions.tsx",
       "tests": [
         "tests/structured-browser.mjs",
-        "tests/test_structured_notes_http.py"
+        "tests/test_structured_notes_http.py",
+        "tests/annex-cornell-browser.mjs",
+        "tests/structured-notes.test.tsx",
+        "tests/document-page-surface.test.ts"
       ],
       "historical_and_current_evidence": [
         {
@@ -3909,7 +3982,14 @@
           "line": 694
         }
       ],
-      "pending": ""
+      "pending": "",
+      "annex_evidence": {
+        "code_revision": "ebeb7e1c",
+        "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md",
+        "evidence": "evidence/sonar/cpi-five-images-2026-11-24/cornell-ui-after-{chrome,firefox}/browser.json",
+        "original_case_unchanged": true,
+        "writes": "owned comparison MongoDB only"
+      }
     },
     {
       "id": "cornell-20",
@@ -7585,6 +7665,42 @@
         "total": {
           "operations": 277,
           "statuses": {
+            "verified": 110,
+            "unverified": 1,
+            "partial": 54,
+            "absent": 112
+          },
+          "verified_percentage": 39.71
+        },
+        "essential": {
+          "operations": 215,
+          "statuses": {
+            "verified": 109,
+            "unverified": 1,
+            "partial": 32,
+            "absent": 73
+          },
+          "verified_percentage": 50.7
+        },
+        "secondary": {
+          "operations": 62,
+          "statuses": {
+            "absent": 39,
+            "verified": 1,
+            "partial": 22
+          },
+          "verified_percentage": 1.61
+        }
+      },
+      "correction_note": "Previous summary recovered verbatim from 07ebdd52; current 124-count summary had been copied into the historical field."
+    },
+    {
+      "name": "diary-cornell-annex-2026-11-25",
+      "code_revision": "ebeb7e1c",
+      "previous_summary": {
+        "total": {
+          "operations": 277,
+          "statuses": {
             "verified": 124,
             "unverified": 1,
             "partial": 68,
@@ -7611,7 +7727,50 @@
           },
           "verified_percentage": 8.06
         }
-      }
+      },
+      "result_summary": {
+        "total": {
+          "operations": 277,
+          "statuses": {
+            "verified": 124,
+            "unverified": 1,
+            "partial": 68,
+            "absent": 84
+          },
+          "verified_percentage": 44.77
+        },
+        "essential": {
+          "operations": 215,
+          "statuses": {
+            "verified": 119,
+            "unverified": 1,
+            "partial": 38,
+            "absent": 57
+          },
+          "verified_percentage": 55.35
+        },
+        "secondary": {
+          "operations": 62,
+          "statuses": {
+            "absent": 27,
+            "verified": 5,
+            "partial": 30
+          },
+          "verified_percentage": 8.06
+        }
+      },
+      "newly_verified": [],
+      "strengthened_operations": [
+        "diary-13",
+        "diary-14",
+        "cornell-05",
+        "cornell-06",
+        "cornell-08",
+        "cornell-17",
+        "cornell-18",
+        "cornell-19"
+      ],
+      "report": "DIARY_CORNELL_ANNEX_CHECKPOINT.md"
     }
   ]
 }

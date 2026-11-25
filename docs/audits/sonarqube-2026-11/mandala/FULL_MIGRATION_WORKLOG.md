@@ -834,3 +834,55 @@ Commits: 878116ec, 1b405639, 6aaaaaab, 33c43042, ee275ee3, 6a950695.
 Sin push/merge, AppImages o exploraciones nuevas de esfera. El anexo recibido
 durante el cierre se trabaja como lote adicional, con sus notas auténticas,
 pruebas y análisis propios; no hereda automáticamente el Gate anterior.
+
+## Anexo Diario/Cornell — checkpoint ebeb7e1c, 25 de noviembre
+
+Las dos incidencias reales se reproducen y corrigen sobre copias con identidades
+y recursos preservados. Diario fallaba al escribir main.lof, después main.lot y
+main.listing: se permiten únicamente esos tres auxiliares adicionales dentro de
+la compilación aislada. La fuente no se modifica. Sus 33 imágenes se comprueban
+por bytes y píxeles; PDF de 46 páginas, texto equivalente al exportado por
+Streamlit, ZIP recompilado en limpio y exportación repetida tras recargar.
+El diagnóstico prometido ahora es accesible y descargable desde el error real.
+
+Cornell ya almacenaba cue/main/summary; React alternaba un solo editor. Ahora
+presenta las tres regiones con sus títulos históricos, editores independientes,
+selección/foco y deshacer. Se guarda y recarga cada región verificando exactamente
+las otras dos. Fórmula/cita en Desarrollo, deshacer/rehacer independiente,
+recuperación del borrador sin publicar y PDF/TEX comprobados en Chrome/Firefox.
+No se cambia el esquema ni se separa texto histórico por suposiciones.
+
+Commits locales: dfcd2a54 (Diario/aislamiento/diagnóstico), f2508e71 (tres regiones
+Cornell), ebeb7e1c (deshacer y regresiones compartidas/publicación). Python:
+2260 aprobadas, 9 omitidas y 0 fallidas, más las 9 optativas aprobadas aparte:
+2269 distintas. Frontend 410 aprobadas, TypeScript/ESLint y Ruff afectados limpios.
+Catorce cohortes compartidas por navegador aprobadas sin Streamlit, más clips
+comparativos. Los E2E escriben sólo en Mongo/XDG temporales propios.
+
+Se conserva 8766 y se ofrece el backend actualizado en **http://127.0.0.1:8768**.
+Sobre MathV0 sólo se lee/exporta: dos exportaciones reales del Diario con recarga
+entre ellas y lectura Cornell con contenido idéntico al Streamlit de comparación.
+Las huellas BSON de ambas notas originales permanecen intactas. Los hashes de
+JS/CSS publicados se cotejan con los servidos; no se atribuyen correcciones
+Python al proceso anterior que continúa cargado.
+
+Sonar **e54ea8aa-d49f-402b-a97f-8cb0d674e01a**, ebeb7e1c, CE SUCCESS, **Gate OK**,
+**76,7 % general / 82,0 % nueva**, duplicación nueva 0,14202 %, cero incidencias
+nuevas. XML y LCOV importados, perfiles/referencia/umbrales/exclusiones intactos.
+Observaciones nuevas 15059/18369; condiciones nuevas 3208/4342. El merge válido
+de 22 recorridos Chrome añade 353 líneas y 295 ramas sobre unidades, sin cambiar
+denominadores. A 95 % faltan 2392 observaciones nuevas y 11344 generales; scripts
+e infra explican 44/3310 (1,33 %) de las nuevas sin cubrir. El plan 95 % sigue abierto.
+
+La matriz mantiene **124/277 verificadas** y fortalece ocho filas; Timeline,
+Calendario, Proyectos, Promover, exportaciones masivas, medios y administración
+conservan sus pendientes precisos. Entrada Streamlit 21 líneas; diecinueve de los
+veinte módulos mayores conservan hash y Cuaderno mantiene la extracción previa.
+Fuente del anexo +335/−33, pruebas +762/−62, generados +3339/−3310; ninguna retirada
+de capacidades históricas. No se construyen AppImages ni funciones nuevas de esfera.
+
+Informe y artefactos: [DIARY_CORNELL_ANNEX_CHECKPOINT.md](DIARY_CORNELL_ANNEX_CHECKPOINT.md).
+Comandos: [REPEAT_REACT_ANALYSIS.md](REPEAT_REACT_ANALYSIS.md). Evidencia privada
+`evidence/sonar/cpi-five-images-2026-11-24/`; análisis/desglose y manifiesto de
+cobertura `evidence/sonar/annex-final-2026-11-25/`. Documentación confirmada después
+del commit analizado; los cambios posteriores son documentales. Sin push/merge.
